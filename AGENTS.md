@@ -1,7 +1,7 @@
 # Last Orbit Agent Contract
 
 Last updated: 2026-09-22  
-Current gameplay build: **v1.17.7**  
+Current gameplay build: **v1.17.8**  
 Save schema: **12**  
 Onboarding schema: **5**
 

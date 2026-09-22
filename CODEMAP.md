@@ -1,6 +1,6 @@
 # Last Orbit Code Map
 
-Current gameplay build: **v1.17.7**. The browser entrypoint is `index.html` -> `modules/main.js`.
+Current gameplay build: **v1.17.8**. The browser entrypoint is `index.html` -> `modules/main.js`.
 
 ## Runtime flow
 

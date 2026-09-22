@@ -30,7 +30,7 @@ This is the routing hub for agents. Read `AGENTS.md` first, then use this file t
 
 - [`AGENTS.md`](AGENTS.md) — mandatory rules and invariants.
 - [`CODEMAP.md`](CODEMAP.md) — file ownership and dependency map.
-- [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md) — compact snapshot of the current v1.17.7 feature/state baseline.
+- [`docs/CURRENT_STATE.md`](docs/CURRENT_STATE.md) — compact snapshot of the current v1.17.8 feature/state baseline.
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — boot, state layers, simulation/render/UI boundaries and event flow.
 - [`docs/GAME_SYSTEMS.md`](docs/GAME_SYSTEMS.md) — gameplay/progression system ownership and cross-system rules.
 - [`docs/BALANCING.md`](docs/BALANCING.md) — tuning sources, enemy scaling, derived stats and change procedure.

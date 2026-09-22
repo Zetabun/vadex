@@ -2,7 +2,7 @@
 
 Last Orbit is a browser-based orbital defence / incremental action game built as native ES modules with a Three.js battlefield, persistent progression, offline simulation and an RPG-style ship loadout.
 
-Current gameplay build: **v1.17.7**.
+Current gameplay build: **v1.17.8**.
 
 ## Run locally
 

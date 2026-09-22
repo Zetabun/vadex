@@ -1,5 +1,13 @@
 # Last Orbit Changelog
 
+## v1.17.8 — reward icon sizing + corner cleanup
+
+- Fixed material reward icons in offline/boss reports inheriting the reward-label flex rule and stretching across the row.
+- Locked material reward artwork to a fixed square slot so ore/bar icons match the other reward icons.
+- Removed the bright cyan corner-bracket accents from all normalized runtime icon slices while preserving the central pixel art and dark tile frame.
+- Kept the source/reference atlas unchanged; runtime continues to use individual slices with visible glyph fallback on load failure.
+- Save schema remains 12 and onboarding schema remains 5.
+
 ## v1.17.7 — icon rendering recovery
 
 - Switched runtime pixel-art icons from shared CSS atlas offsets to the packaged normalized slice PNGs.

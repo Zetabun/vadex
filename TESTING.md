@@ -1,6 +1,6 @@
 # Last Orbit Testing
 
-Baseline captured from v1.17.7 on 2026-09-22: all module syntax checks and all five regression suites pass.
+Baseline captured from v1.17.8 on 2026-09-22: all module syntax checks and all five regression suites pass.
 
 ## One-command release gate
 
