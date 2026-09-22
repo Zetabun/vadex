@@ -1,0 +1,7 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --experimental-loader ./tests/loader.mjs ./tests/skills-regression.mjs"
+  }
+}
