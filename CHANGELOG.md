@@ -5,6 +5,7 @@
 - Turned the Skill Tree into a draggable, zoomable web with connected branches, cross-links, map jump controls and future-path placeholders.
 - A perk now opens when any adjacent purchased node connects it to the Pilot Core; Wave 8, 12 and 20 tier gates and point costs remain in place.
 - Updated the Skills lesson and help text to explain exploring and building along connected paths.
+- Versioned module URLs so the hosted game loads this release without retaining older cached modules.
 
 ## v1.18.1 — 2026-09-23
 

@@ -11,7 +11,7 @@ html = (root / 'index.html').read_text(encoding='utf-8')
 match = re.search(r'<script type="importmap">(.*?)</script>', html, re.S)
 assert match, 'Missing browser import map'
 imports = json.loads(match.group(1))['imports']
-mapped = {root / value.removeprefix('./') for value in imports.values()}
+mapped = {root / value.split('?', 1)[0].removeprefix('./') for value in imports.values()}
 assert mapped == set(modules), 'Import map and published module tree differ'
 assert all(value.startswith('./modules/') for value in imports.values()), 'Import map must use relative source paths'
 for module in modules:
