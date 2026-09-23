@@ -1,8 +1,7 @@
-// Drones: autonomous helpers that hover around the ship. Bays come from state.run.drones.bays;
-// boons and the Drone swarm ability add temporary attack drones on top.
+// Drones: autonomous helpers that hover around the ship. The 'drones' stat (cards, relics, ships) sets how many
+// attack drones fly with you; the Drone swarm ability adds temporary ones on top.
 import { G, flag } from '@last-orbit/core/game.js';
 import { rand } from '@last-orbit/core/rng.js';
-import { milestonesReached } from '@last-orbit/data/balance.js';
 import { DRONES, DRONE_BASE, droneLevelMult } from '@last-orbit/data/drones.js';
 import { fx, sfx, pickTarget, hitEnemy, killEnemy } from '@last-orbit/combat/world.js';
 import { spawnShot, fireArc } from '@last-orbit/combat/weapons.js';
@@ -11,8 +10,8 @@ let cfgVersion = -1; const cfg = {};
 /** Weapon-like configs for drone shots, rebuilt whenever the stat sheet changes. */
 function configs() {
   const sh = G.sheet; if (cfgVersion === sh.version) return cfg; cfgVersion = sh.version;
-  const L = G.state.run.drones.levels, crit = sh.f('f.droneCrit') > 0;
-  const mk = (t, extra) => { const lvl = L[t] || 1, d = DRONES[t]; return { id: 'drone', type: t, color: d.color, dmg: sh.b('damage').mul(DRONE_BASE * (d.dmg || 1) * droneLevelMult(lvl, milestonesReached(lvl)) * sh.n('droneDmg')), critChance: crit ? sh.n('critChance') : 0, critMult: crit ? 1 + sh.n('critDmg') : 1, armorPen: sh.n('armorPen'), lvl, ...extra }; };
+  const L = {}, crit = sh.f('f.droneCrit') > 0;
+  const mk = (t, extra) => { const lvl = L[t] || 1, d = DRONES[t]; return { id: 'drone', type: t, color: d.color, dmg: sh.b('damage').mul(DRONE_BASE * (d.dmg || 1) * droneLevelMult(lvl, 0) * sh.n('droneDmg')), critChance: crit ? sh.n('critChance') : 0, critMult: crit ? 1 + sh.n('critDmg') : 1, armorPen: sh.n('armorPen'), lvl, ...extra }; };
   cfg.attack = mk('attack', { kind: 'bolt', speed: 130, r: 0.8, life: 3 });
   cfg.missile = mk('missile', { kind: 'missile', speed: 55, r: 1.1, life: 5, homing: 4.5, retarget: 1, splash: DRONES.missile.splash * sh.n('blast') });
   return cfg;
@@ -20,8 +19,8 @@ function configs() {
 
 /** Desired runtime roster: fitted bays + free boon drones. Temp (swarm) drones carry their own life. */
 export function syncDrones(w) {
-  const want = G.state.run.drones.bays.slice(0, Math.floor(G.sheet.n('droneBays')));
-  for (let i = 0, n = G.sheet.f('f.freeDrone'); i < n; i++) want.push('attack');
+  const want = [];
+  for (let i = 0, n = Math.min(8, Math.floor(G.sheet.n('drones'))); i < n; i++) want.push(i % 3 === 2 ? 'missile' : 'attack');
   const keep = w.drones.filter((d) => d.temp);
   const perm = w.drones.filter((d) => !d.temp);
   const next = [];
@@ -54,7 +53,7 @@ export function updateDrones(w, dt) {
         d.x += (target.x - d.x) * Math.min(1, 2.5 * dt);
         d.y += (target.y - 7 - d.y) * Math.min(1, 2.5 * dt);
         if (d.cd <= 0) {
-          const lvl = st.run.drones.levels[d.type] || 1;
+          const lvl = 1;
           if (d.type === 'mining') { target.mined = true; d.cd = Math.max(1.7, 3.2 - 0.08 * (lvl - 1)); }
           else { target.droneMarkT = 3; target.droneMarkPower = Math.min(0.16, 0.08 + 0.01 * (lvl - 1)); d.cd = 2; }
           d.flash = 0.22;
@@ -74,15 +73,15 @@ export function updateDrones(w, dt) {
         spawnShot(w, cc, d.x, d.y + 1, ang, mult, 0, d.type === 'missile' ? tgt : null);
         if (rand() < 0.15) sfx(w, d.type === 'missile' ? 'missile' : 'laser', 0.25);
         if (d.type === 'attack') {
-          const copy = sh.f('f.droneCopy'), first = copy && sh.weapons[st.run.equipped[0]];
+          const copy = sh.f('f.droneCopy'), first = copy && sh.weapons[st.run?.order[0]];
           if (first && rand() < 0.5) mirror(w, d, first, tgt, copy * 2);
           if (flag('f.droneArc') && sh.weapons.tesla && rand() < cc.critChance) fireArc(w, sh.weapons.tesla, 0.5, d.x, d.y);
         }
         break; }
-      case 'repair': { const lvl = st.run.drones.levels.repair || 1; if (p.alive && p.hull < 1) { p.hull = Math.min(1, p.hull + def.heal * (1 + 0.08 * (lvl - 1)) * dt); if (rand() < dt * 2) fx(w, 'trail', p.x + (rand() - 0.5) * 5, p.y + 2, 0x66ffc2); } break; }
+      case 'repair': { const lvl = 1; if (p.alive && p.hull < 1) { p.hull = Math.min(1, p.hull + def.heal * (1 + 0.08 * (lvl - 1)) * dt); if (rand() < dt * 2) fx(w, 'trail', p.x + (rand() - 0.5) * 5, p.y + 2, 0x66ffc2); } break; }
       case 'shield': {
         if (d.cd > 0) break;
-        for (let j = 0; j < w.ebullets.length; j++) { const b = w.ebullets[j]; if (b.alive && b.vy < 0 && b.y < p.y + 16 && Math.abs(b.x - p.x) < 9) { b.alive = false; fx(w, 'shieldhit', b.x, b.y); fx(w, 'beam', d.x, d.y, b.x, b.y, 0x7aa2ff, 0.5, 0.12); sfx(w, 'shield', 0.4); d.flash = 0.2; d.cd = def.block / (1 + 0.1 * ((st.run.drones.levels.shield || 1) - 1)); break; } }
+        for (let j = 0; j < w.ebullets.length; j++) { const b = w.ebullets[j]; if (b.alive && b.vy < 0 && b.y < p.y + 16 && Math.abs(b.x - p.x) < 9) { b.alive = false; fx(w, 'shieldhit', b.x, b.y); fx(w, 'beam', d.x, d.y, b.x, b.y, 0x7aa2ff, 0.5, 0.12); sfx(w, 'shield', 0.4); d.flash = 0.2; d.cd = def.block / (1 + 0.1 * (1 - 1)); break; } }
         break; }
       case 'intercept': {
         if (d.cd > 0) break; let best = null, bd = 60 * 60;
@@ -91,7 +90,7 @@ export function updateDrones(w, dt) {
         if (rocket) { fx(w, 'beam', d.x, d.y, rocket.x, rocket.y, 0xff5fa2, 0.4, 0.1); fx(w, 'boom', rocket.x, rocket.y, 4, 0xff8a3d); rocket.rewardMul = 0; killEnemy(w, rocket, null, false, 0); }
         else if (best) { best.alive = false; fx(w, 'beam', d.x, d.y, best.x, best.y, 0xff5fa2, 0.4, 0.1); fx(w, 'hit', best.x, best.y, 0xff5fa2); }
         else { d.cd = 0.15; break; }
-        d.flash = 0.1; d.cd = 1 / (def.rate * (1 + 0.1 * ((st.run.drones.levels.intercept || 1) - 1))); if (rand() < 0.3) sfx(w, 'laser', 0.2);
+        d.flash = 0.1; d.cd = 1 / (def.rate * (1 + 0.1 * (1 - 1))); if (rand() < 0.3) sfx(w, 'laser', 0.2);
         break; }
     }
   }

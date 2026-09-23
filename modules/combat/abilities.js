@@ -65,14 +65,7 @@ export function updateAbilities(w, dt) {
     if ((a.charges[id] ?? max) >= max) { a.cd[id] = 0; continue; }
     a.cd[id] -= dt; if (a.cd[id] <= 0) { a.charges[id] = (a.charges[id] ?? max) + 1; a.cd[id] = a.charges[id] < max ? abilityCooldown(id) : 0; if (a.charges[id] >= max) fx(w, 'abilityReady', id); }
   }
-  // Overdrive consumes Energy proportionally to the extension it receives. A nearly empty
-  // capacitor can no longer turn a tiny regenerated fraction into a full 50% duration extension.
-  if (a.active.overdrive > 0) {
-    const need = 10 * dt, used = Math.min(Math.max(0, p.energy), need), fueled = need > 0 ? used / need : 0;
-    p.energy = Math.max(0, p.energy - used);
-    a.active.overdrive = Math.max(0, a.active.overdrive - dt * (1 - 0.5 * fueled));
-    if (rand() < dt * 20) fx(w, 'trail', p.x + (rand() - 0.5) * 4, p.y - 2, 0xffb547);
-  }
+  if (a.active.overdrive > 0) { a.active.overdrive -= dt; if (rand() < dt * 20) fx(w, 'trail', p.x + (rand() - 0.5) * 4, p.y - 2, 0xffb547); }
   if (a.active.aegis > 0) a.active.aegis -= dt;
   if (w.slowT > 0) w.slowT -= dt;
   if (w.stunT > 0) w.stunT -= dt;

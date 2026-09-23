@@ -1,20 +1,20 @@
-// Relics (Relic Fragments, permanent through everything) and Alien Tech (Alien Matter, resets on Ascension only).
+// Relics: powerful one-per-sortie rewards. Every sector boss offers a choice of three.
+// fx uses the same [stat, op, value] format as cards. Some relics also set special flags read by combat.
 export const RELICS = [
-  { id: 'r_lens', name: 'Star-glass lens', max: 20, cost: [1, 1.4], fx: [['critChance', 'add', 0.01], ['critDmg', 'add', 0.2]], desc: '+1% critical chance and +20% critical damage per level.' },
-  { id: 'r_abacus', name: 'Merchant\'s abacus', max: 20, cost: [1, 1.4], fx: [['creditGain', 'pow', 1.25]], desc: '×1.25 Credits per level.' },
-  { id: 'r_anvil', name: 'Cold anvil', max: 20, cost: [1, 1.4], fx: [['damage', 'pow', 1.25]], desc: '×1.25 damage per level.' },
-  { id: 'r_clock', name: 'Stopped clock', max: 10, cost: [2, 1.6], fx: [['offlineEff', 'add', 0.03], ['offlineCap', 'add', 1]], desc: '+3% offline efficiency and +1h to the offline reward window per level.' },
-  { id: 'r_seed', name: 'Hive seed', max: 10, cost: [2, 1.6], fx: [['droneDmg', 'pow', 1.3]], desc: '×1.3 drone damage per level.' },
-  { id: 'r_die', name: 'Weighted die', max: 10, cost: [3, 1.6], fx: [['luck', 'add', 0.1]], desc: 'Better module rarity and more rare boons.' },
-  { id: 'r_horn', name: 'War horn', max: 10, cost: [3, 1.7], fx: [['abilityPower', 'mult', 0.2], ['abilityCd', 'mult', -0.03]], desc: '+20% ability power, −3% cooldown per level.' },
-  { id: 'r_prism', name: 'Shard prism', max: 10, cost: [5, 1.8], fx: [['shardGain', 'pow', 1.1]], desc: '×1.1 Chrono Shards per level.' },
+  { id: 'r_quantum', name: 'Quantum Trigger', icon: 'ability:overdrive', desc: '+40% fire rate on every gun', fx: [['fireRate', 'pow', 1.4]] },
+  { id: 'r_glass', name: 'Glass Reactor', icon: 'misc:energy', desc: '×1.9 damage, but −30% hull', fx: [['damage', 'pow', 1.9], ['hull', 'pow', 0.7]] },
+  { id: 'r_aegis', name: 'Aegis Matrix', icon: 'module:shieldgen', desc: 'Shield +80% of hull, recharges twice as fast', fx: [['shieldRatio', 'add', 0.8], ['shieldRegen', 'pow', 2]] },
+  { id: 'r_phoenix', name: 'Phoenix Core', icon: 'support:repair', desc: 'Revive once at full hull when destroyed', fx: [['revives', 'add', 1]] },
+  { id: 'r_midas', name: 'Midas Hold', icon: 'currency:credits', desc: '+75% salvage for the rest of the sortie', fx: [['salvageGain', 'pow', 1.75]] },
+  { id: 'r_swarm', name: 'Hive Beacon', icon: 'ability:swarm', desc: '+2 attack drones, +50% drone damage', fx: [['drones', 'add', 2], ['droneDmg', 'pow', 1.5]] },
+  { id: 'r_barrel', name: 'Overclocked Barrels', icon: 'module:weaponmod', desc: '+1 projectile on every gun', fx: [['multishot', 'add', 1]] },
+  { id: 'r_chain', name: 'Singularity Rounds', icon: 'ability:hole', desc: '30% of kills explode, +25% blast radius', fx: [['f.killExplode', 'add', 0.3], ['blast', 'pow', 1.25]] },
+  { id: 'r_predict', name: 'Precog Array', icon: 'module:processor', desc: 'Guns lead their targets and turn hard toward them', fx: [['aimAssist', 'add', 3], ['f.predict', 'add', 1]] },
+  { id: 'r_crit', name: 'Assassin Protocol', icon: 'misc:critical', desc: '+20% critical chance, +100% critical damage', fx: [['critChance', 'add', 0.2], ['critDmg', 'add', 1]] },
+  { id: 'r_chrono', name: 'Chrono Lens', icon: 'ability:slow', desc: 'Abilities recharge 40% faster and gain a charge', fx: [['abilityCd', 'mult', -0.4], ['abilityCharges', 'add', 1]] },
+  { id: 'r_titan', name: 'Titan Frame', icon: 'misc:armour', desc: '+80% hull, take 15% less damage', fx: [['hull', 'pow', 1.8], ['dmgReduce', 'add', 0.15]] },
+  { id: 'r_leech', name: 'Vampire Coil', icon: 'misc:repair', desc: 'Heal 6% of damage dealt, +1% hull regen', fx: [['lifeSteal', 'add', 0.06], ['hullRegen', 'add', 0.01]] },
+  { id: 'r_scholar', name: 'Black Box', icon: 'currency:data', desc: '+50% experience, +1 card choice', fx: [['xpGain', 'pow', 1.5], ['cardChoices', 'add', 1]] },
+  { id: 'r_giant', name: 'Executioner Rounds', icon: 'weapon:rail', desc: '×2 damage to bosses and elites', fx: [['bossDmg', 'pow', 2], ['eliteDmg', 'pow', 2]] },
 ];
-export const ALIEN = [
-  { id: 'x_bio', name: 'Living hull', max: 50, cost: [5, 1.35], fx: [['hull', 'pow', 1.3], ['hullRegen', 'add', 0.001]], desc: '×1.3 hull and +0.1% repair per level.' },
-  { id: 'x_acid', name: 'Corrosive payloads', max: 50, cost: [5, 1.35], fx: [['damage', 'pow', 1.3]], desc: '×1.3 damage per level.' },
-  { id: 'x_rot', name: 'Armour rot', max: 10, cost: [20, 1.8], fx: [['f.armourRot', 'add', 0.03]], desc: 'Each hit strips 3% of a target\'s armour per level. Fast weapons shred Ironclads.' },
-  { id: 'x_nest', name: 'Drone nest', max: 3, cost: [200, 12], fx: [['droneBays', 'add', 1]], desc: '+1 drone bay per level.' },
-  { id: 'x_echo', name: 'Death echo', max: 10, cost: [60, 1.9], fx: [['f.deathEcho', 'add', 0.05]], desc: 'Kills deal 5% of the victim\'s hull to its neighbours per level. Swarms eat themselves.' },
-  { id: 'x_mind', name: 'Borrowed instincts', max: 10, cost: [100, 2], fx: [['fireRate', 'pow', 1.08], ['moveSpeed', 'pow', 1.05]], desc: '×1.08 fire rate per level.' },
-  { id: 'x_yield', name: 'Matter lattice', max: 25, cost: [30, 1.5], fx: [['creditGain', 'pow', 1.5], ['matterGain', 'mult', 0.1]], desc: '×1.5 Credits and +10% Alien Matter per level.' },
-];
+export const RELIC_BY_ID = Object.fromEntries(RELICS.map((r) => [r.id, r]));

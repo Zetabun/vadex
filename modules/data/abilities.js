@@ -1,6 +1,7 @@
-// Active abilities. cd seconds, dur seconds, power scales with abilityPower stat. unlock: best wave this run (or ever, once seen).
+// Active abilities. cd seconds, dur seconds, power scales with the abilityPower stat.
+// Each ship brings one; contracts add more to the level-up card pool (up to two per sortie).
 export const ABILITIES = {
-  overdrive: { name: 'Overdrive', icon: '⚡', cd: 40, dur: 8, unlock: 6, color: '#ffb547', desc: 'Fire rate ×2 for 8s. Uses up to 10 Energy/s to slow its duration drain by 50%; at 0 Energy it continues normally.', tag: 'offence' },
+  overdrive: { name: 'Overdrive', icon: '⚡', cd: 30, dur: 8, unlock: 0, color: '#ffb547', desc: 'Double fire rate for 8 seconds.', tag: 'offence' },
   emp: { name: 'EMP', icon: '◎', cd: 45, dur: 3, unlock: 12, color: '#5ee6ff', desc: 'Wipes enemy bullets and stuns everything for 3s.', tag: 'defence' },
   barrage: { name: 'Missile barrage', icon: '⟰', cd: 50, dur: 0, unlock: 18, color: '#ff8a3d', desc: 'Launches 14 heavy homing missiles.', tag: 'offence' },
   aegis: { name: 'Hard shield', icon: '⬡', cd: 60, dur: 5, unlock: 26, color: '#7aa2ff', desc: 'Invulnerable for 5s.', tag: 'defence' },

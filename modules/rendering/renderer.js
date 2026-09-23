@@ -6,6 +6,7 @@ import { fmt } from '@last-orbit/core/format.js';
 import { Big } from '@last-orbit/core/big.js';
 import { FIELD } from '@last-orbit/data/balance.js';
 import { DRONES } from '@last-orbit/data/drones.js';
+import { activeShip } from '@last-orbit/progression/stats.js';
 import { shapeGeometry, playerParts, unitBox, droneGeometry, supportCraftGeometry } from '@last-orbit/rendering/geometry.js';
 import { SpriteBatch, Particles, Transients, makeTextures, rgb, css, jagged, WHITE } from '@last-orbit/rendering/effects.js';
 import { Background } from '@last-orbit/rendering/background.js';
@@ -13,7 +14,9 @@ import { playSfx } from '@last-orbit/audio/audio.js';
 
 const CAP = { swarm: 110, scout: 70, weaver: 70, plate: 60, armourPlate: 12, turret: 12, wyrmSeg: 16, rocket: 30 };
 const RED = rgb(0xff4d7a), AMBER = rgb(0xffb547), CYAN = rgb(0x5ee6ff), GOLD = rgb(0xffd700), VIOLET = rgb(0xc77dff);
-const SCRAP = rgb(0xc9d5df), REPAIR = rgb(0x80ffd2);
+const SCRAP = rgb(0xc9d5df), REPAIR = rgb(0x80ffd2), XPC = rgb(0x6dffc8);
+// Camera framings: the whole battlefield, or a close-up of the ship for the Hangar.
+const VIEWS = { field: { x0: -53, x1: 53, y0: 1, y1: 152, cy: 76 }, hangar: { x0: -17, x1: 17, y0: 0, y1: 24, cy: 11 } };
 const BULLET_COL = { bolt: rgb(0xff5d8f), heavy: rgb(0xff9f43), orb: rgb(0xd17bff), snipe: rgb(0xffffff) };
 
 export class Renderer {
@@ -38,6 +41,7 @@ export class Renderer {
     B.dark.mesh.material.color.set(0x000000); B.under.mesh.renderOrder = 1; for (const k in B) this.scene.add(B[k].mesh);
     this.parts = new Particles(1800); this.trans = new Transients(); this.texts = []; this.engineT = 0;
     this.supportWorld = null; this.salvageDrops = []; this.salvageCraft = null; this.repairCraft = null; this.repairBeamT = 0;
+    this.view = { ...VIEWS.field }; this.viewTarget = VIEWS.field;
     this.buildPlayer(); this.resize(); this.lastSector = -1;
   }
   inst(geo, mat, cap) { const THREE = window.THREE, m = new THREE.InstancedMesh(geo, mat, cap); m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3).fill(1), 3); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.instanceColor.setUsage(THREE.DynamicDrawUsage); m.frustumCulled = false; m.count = 0; this.scene.add(m); return m; }
@@ -58,12 +62,14 @@ export class Renderer {
     for (const k in P) { const m = new THREE.Mesh(P[k], mats[use[k]]); g.add(m); this.pp[k] = m; }
     g.scale.setScalar(3.1); this.scene.add(g); this.playerMats = mats;
   }
-  /** The ship visibly grows with the build. */
+  /** The ship visibly grows with the build: extra gun pods per weapon, wings and armour as cards stack up. */
   refreshPlayerLook() {
-    const st = G.state, up = st.run.upgrades, pp = this.pp, total = Object.values(up).reduce((a, b) => a + b, 0), slots = st.run.equipped.filter(Boolean).length;
-    pp.wings.visible = total >= 8; pp.pods.visible = slots >= 2 || (up.multi || 0) >= 1; pp.pods2.visible = slots >= 3 || (up.multi || 0) >= 3; pp.armour.visible = (up.hull || 0) >= 25; pp.fins.visible = total >= 120 || st.prestige.count >= 1; pp.crown.visible = st.prestige.count >= 3 || st.asc.count > 0;
-    this.player.scale.setScalar(3.1 + Math.min(0.9, total / 900) + (st.prestige.count ? 0.2 : 0));
-    this.playerMats.trim.color.set(st.asc.count ? 0xffffff : st.prestige.count >= 5 ? 0xb69cff : 0x5ee6ff);
+    const st = G.state, run = st.run, pp = this.pp, ship = activeShip(st);
+    const cards = run ? Object.values(run.cards).reduce((a, b) => a + b, 0) + run.relics.length * 2 : 0, guns = run ? run.order.length : 1;
+    pp.wings.visible = cards >= 4 || ship.id !== 'vanguard'; pp.pods.visible = guns >= 2; pp.pods2.visible = guns >= 3; pp.armour.visible = cards >= 12 || ship.id === 'bulwark';
+    pp.fins.visible = cards >= 20 || ship.id === 'striker' || ship.id === 'revenant'; pp.crown.visible = (run?.relics.length || 0) >= 2;
+    this.player.scale.setScalar(3.1 + Math.min(0.7, cards / 60));
+    this.playerMats.trim.color.set(ship.trim); this.playerMats.trim.emissive.set(ship.trim).multiplyScalar(0.35);
   }
 
   setQuality() { const q = G.state.settings.quality, dpr = window.devicePixelRatio || 1; if (q !== this.qualityMode) { this.qualityMode = q; this.lowT = 0; this.highT = 0; if (q === 'auto') this.autoLow = false; } this.pr = q === 'low' ? 1 : q === 'high' ? Math.min(dpr, 2.5) : Math.min(dpr, this.autoLow ? 1.25 : 2); this.parts.scale = q === 'low' || (q === 'auto' && this.autoLow) ? 0.45 : 1; this.resize(); }
@@ -73,15 +79,19 @@ export class Renderer {
     const o = this.overlay, opr = Math.min(window.devicePixelRatio || 1, 2); o.width = Math.round(w * opr); o.height = Math.round(h * opr); this.opr = opr;
     for (const s of this.bg.stars) s.material.uniforms.pr.value = this.pr;
   }
+  /** 'field' during sorties, 'hangar' for the ship close-up. Transitions ease over ~0.6s. */
+  setView(name) { this.viewTarget = VIEWS[name] || VIEWS.field; this.rails.visible = name !== 'hangar'; }
   setInsets(top, bottom) { if (Math.abs(this.insets.top - top) > 0.25 || Math.abs(this.insets.bottom - bottom) > 0.25) { this.insets.top = top; this.insets.bottom = bottom; } }
 
   fitCamera(dt) {
     const THREE = window.THREE, cam = this.camera, c = this.cur, k = Math.min(1, dt * 7);
     const prevTop = c.top, prevBottom = c.bottom; c.top += (this.insets.top - c.top) * k; c.bottom += (this.insets.bottom - c.bottom) * k;
-    const rw = this.w - 8, rh = Math.max(120, this.h - c.top - c.bottom - 6), tilt = 0.3, cx = 0, cy = 76;
+    const V = this.view, T = this.viewTarget; let viewMoving = false;
+    for (const k in T) { const dv = T[k] - V[k]; if (Math.abs(dv) > 0.02) { V[k] += dv * Math.min(1, dt * 5); viewMoving = true; } else V[k] = T[k]; }
+    const rw = this.w - 8, rh = Math.max(120, this.h - c.top - c.bottom - 6), tilt = 0.3, cx = 0, cy = V.cy;
     this.v ||= [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
     const cache = this.fitCache, insetMoving = Math.abs(c.top - prevTop) > 0.35 || Math.abs(c.bottom - prevBottom) > 0.35;
-    const needFit = this.fitDirty || !cache || Math.abs(cache.rw - rw) > 1.25 || Math.abs(cache.rh - rh) > 1.25 || insetMoving && (!cache || Math.abs(cache.rh - rh) > 1.25);
+    const needFit = this.fitDirty || viewMoving || !cache || Math.abs(cache.rw - rw) > 1.25 || Math.abs(cache.rh - rh) > 1.25 || insetMoving && (!cache || Math.abs(cache.rh - rh) > 1.25);
     let d, box; cam.clearViewOffset();
     if (needFit) {
       let lo = 120, hi = 1100;
@@ -95,7 +105,7 @@ export class Renderer {
     if (this.shake > 0.001 && G.state.settings.shake) { const a = this.shake * this.shake * 9; dx += (Math.random() - 0.5) * a; dy += (Math.random() - 0.5) * a; }
     cam.setViewOffset(this.w, this.h, -dx, -dy, this.w, this.h); cam.updateProjectionMatrix();
   }
-  bbox() { const v = this.v, cam = this.camera; v[0].set(-53, 1, 0); v[1].set(53, 1, 0); v[2].set(-53, 152, 0); v[3].set(53, 152, 0); let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9; for (const p of v) { p.project(cam); const sx = (p.x + 1) / 2 * this.w, sy = (1 - p.y) / 2 * this.h; x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy); } return { w: x1 - x0, h: y1 - y0, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2 }; }
+  bbox() { const v = this.v, cam = this.camera, V = this.view; v[0].set(V.x0, V.y0, 0); v[1].set(V.x1, V.y0, 0); v[2].set(V.x0, V.y1, 0); v[3].set(V.x1, V.y1, 0); let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9; for (const p of v) { p.project(cam); const sx = (p.x + 1) / 2 * this.w, sy = (1 - p.y) / 2 * this.h; x0 = Math.min(x0, sx); x1 = Math.max(x1, sx); y0 = Math.min(y0, sy); y1 = Math.max(y1, sy); } return { w: x1 - x0, h: y1 - y0, cx: (x0 + x1) / 2, cy: (y0 + y1) / 2 }; }
   /** Canvas pixel → world point on the z=0 plane. */
   screenToWorld(px, py) { const THREE = window.THREE, cam = this.camera; this.ray ||= new THREE.Vector3(); const v = this.ray.set((px / this.w) * 2 - 1, -(py / this.h) * 2 + 1, 0.5).unproject(cam).sub(cam.position); const t = -cam.position.z / v.z; return { x: cam.position.x + v.x * t, y: cam.position.y + v.y * t }; }
   worldToScreen(x, y, out) { this.pv ||= new window.THREE.Vector3(); const p = this.pv.set(x, y, 0).project(this.camera); out[0] = (p.x + 1) / 2 * this.w; out[1] = (1 - p.y) / 2 * this.h; return out; }
@@ -112,6 +122,7 @@ export class Renderer {
         case 'die': { const c = rgb(e.d ?? 0xffffff), tier = e.e || 0; P.burst(e.a, e.b, 10 + e.c * 2 + tier * 30, c, 30 + e.c * 3 + tier * 25, 2.2 + tier, 0.55 + tier * 0.5); P.burst(e.a, e.b, 4 + tier * 10, WHITE, 16, 1.6, 0.35); this.trans.add({ k: 'flash', x: e.a, y: e.b, r: e.c * (2.2 + tier * 2), c, a: 1, t: 0, life: 0.25 + tier * 0.3 }); if (tier) { this.trans.add({ k: 'ring', x: e.a, y: e.b, r: e.c * (2 + tier * 2), c, t: 0, life: 0.6 }); this.trans.add({ k: 'ring', x: e.a, y: e.b, r: e.c * (4 + tier * 3), c: WHITE, t: 0, life: 0.9 }); } break; }
         case 'ore': { const c = rgb(e.d ?? 0x9aa3ad), n = 4; for (let j = 0; j < n; j++) { const a = Math.random() * Math.PI * 0.9 + Math.PI * 0.05, sp = 14 + Math.random() * 20; this.trans.add({ k: 'ore', x: e.a + (Math.random() - .5) * e.c, y: e.b, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp + 8, rot: Math.random() * 6.28, vr: (Math.random() - .5) * 10, size: 2.4 + Math.random() * 1.8, c, t: 0, life: .65 + Math.random() * .35 }); } P.burst(e.a, e.b, 5, c, 18, 1.4, .35); break; }
         case 'salvageDrop': if (this.salvageDrops.length < 16) this.salvageDrops.push({ x: e.a, y: e.b, amount: e.c, vx: (Math.random() - .5) * 16, vy: 9 + Math.random() * 8, t: 0, rot: Math.random() * 6.28 }); else this.addText(e.a, e.b, e.c, '#b9c4d6', 2); break;
+        case 'pickup': if (Math.random() < 0.5) P.burst(e.a, e.b + 1, 3, rgb(e.c ?? 0x6dffc8), 12, 1.2, 0.25); break;
         case 'naniteRepair': this.repairBeamT = 0.3; P.burst(e.a + 1, e.b + 1, 3, REPAIR, 7, 1.1, .3); break;
         case 'shake': this.shake = Math.min(1.4, Math.max(this.shake, e.a)); break;
         case 'beam': this.trans.add({ k: 'beam', x1: e.a, y1: e.b, x2: e.c, y2: e.d, c: rgb(e.e ?? 0xffffff), w: e.f || 2, t: 0, life: e.g || 0.18 }); break;
@@ -136,7 +147,7 @@ export class Renderer {
     this.bg.update(dt, speedMul); this.drain(w);
     const fdt = dt * Math.min(3, speedMul); this.parts.update(fdt); this.trans.update(fdt);
     const B = this.B; for (const k in B) B[k].begin();
-    this.drawEnemies(w); this.drawPlayer(w, dt); this.drawShots(w); this.drawHazards(w); this.drawBarriers(w); this.drawDrones(w); this.drawSupportCraft(w, fdt);
+    this.drawEnemies(w); this.drawPlayer(w, dt); this.drawShots(w); this.drawHazards(w); this.drawBarriers(w); this.drawDrones(w); this.drawPickups(w); this.drawSupportCraft(w, fdt);
     this.trans.draw(B); this.parts.draw(B.soft);
     for (const k in B) B[k].end();
     this.gl.render(this.scene, this.camera);
@@ -228,6 +239,15 @@ export class Renderer {
     }
   }
 
+  drawPickups(w) {
+    const B = this.B, t = w.t;
+    for (let i = 0; i < w.pickups.length; i++) { const p = w.pickups[i], s = p.big ? 1.45 : 1, bob = 1 + 0.12 * Math.sin(t * 9 + i);
+      if (p.kind === 'xp') { B.soft.add(p.x, p.y, 4.2 * s * bob, 4.2 * s * bob, 0, XPC, 0.8); B.ore.add(p.x, p.y, 2.2 * s, 2.2 * s, t * 3 + i, XPC, 1); }
+      else if (p.kind === 'salvage') { B.soft.add(p.x, p.y, 5.5 * s * bob, 5.5 * s * bob, 0, AMBER, 0.75); B.ore.add(p.x, p.y, 3.2 * s, 3.2 * s, t * 2 + i, GOLD, 1); }
+      else { B.soft.add(p.x, p.y, 6 * bob, 6 * bob, 0, RED, 0.9); B.soft.add(p.x, p.y, 2.4, 2.4, 0, WHITE, 1); B.ring.add(p.x, p.y, 5.5, 5.5, t * 2, RED, 0.8); }
+      if (p.pull && Math.random() < 0.25) this.parts.emit(p.x, p.y, -p.vx * 0.05, -p.vy * 0.05, 0.25, 1.1, p.kind === 'xp' ? XPC : AMBER, 0);
+    }
+  }
   drawBarriers(w) {
     const m = this.barrierMesh, d = this.dummy; let n = 0; const acc = this.bg.accent || CYAN;
     for (const b of w.barriers) { if (b.hp <= 0) continue; const blocks = Math.ceil(b.hp * 10 - 1e-6), f = b.flash > 0 ? 1.2 : 0;
@@ -245,7 +265,7 @@ export class Renderer {
 
   // Service craft visualize earned Scrap and actual hull repair; their movement never controls rewards.
   drawSupportCraft(w, dt) {
-    const p = w.player, B = this.B, m = this.supportMesh, d = this.dummy, up = G.state.run.upgrades;
+    const p = w.player, B = this.B, m = this.supportMesh, d = this.dummy, regen = G.sheet.n('hullRegen') > 0 && !!G.state.run;
     let n = 0;
     const move = (craft, tx, ty, speed) => {
       const dx = tx - craft.x, dy = ty - craft.y, dist = Math.hypot(dx, dy);
@@ -258,22 +278,8 @@ export class Renderer {
       B.under.add(craft.x, craft.y, 6, 6, 0, color, .18);
       B.soft.add(craft.x, craft.y - 2, 2.5, 3.5, 0, color, .75);
     };
-    if (up.scrapc > 0 && p.alive) {
-      const craft = this.salvageCraft ||= { x: p.x - 9, y: p.y + 5, angle: 0 };
-      for (let i = this.salvageDrops.length - 1; i >= 0; i--) {
-        const drop = this.salvageDrops[i]; drop.t += dt; drop.x += drop.vx * dt; drop.y += drop.vy * dt; drop.vy -= 22 * dt;
-        if (drop.t > 4 || drop.y < FIELD.LAND_Y - 4) { this.salvageDrops.splice(i, 1); continue; }
-        const flicker = 1 + .14 * Math.sin(w.t * 13 + i);
-        B.ore.add(drop.x, drop.y, 3.8 * flicker, 3.8 * flicker, drop.rot + drop.t * 2, SCRAP, 1);
-        B.soft.add(drop.x, drop.y, 5, 5, 0, SCRAP, .4);
-      }
-      const target = this.salvageDrops[0], tx = target ? target.x : p.x - 11, ty = target ? target.y : p.y + 6 + Math.sin(w.t * 2.7) * 1.3;
-      const dist = move(craft, tx, ty, target ? 115 : 36);
-      if (target && dist < 3.4) { this.salvageDrops.shift(); this.parts.burst(target.x, target.y, 9, SCRAP, 15, 1.5, .36); this.trans.add({ k: 'ring', x: target.x, y: target.y, r: 4, c: SCRAP, t: 0, life: .3 }); this.addText(craft.x, craft.y + 3, `+${fmt(target.amount)} SCRAP`, '#dcecff', 1); }
-      else if (target && dist < 23) B.streak.line(craft.x, craft.y + 1.3, target.x, target.y, .75, SCRAP, .34);
-      draw(craft, SCRAP, 2.05);
-    } else this.salvageDrops.length = 0;
-    if (up.regen > 0 && p.alive) {
+    this.salvageDrops.length = 0;
+    if (regen && p.alive) {
       const craft = this.repairCraft ||= { x: p.x + 8, y: p.y + 7, angle: 0 };
       move(craft, p.x + 10, p.y + 7 + Math.sin(w.t * 2.3 + 1) * 1.2, 42);
       draw(craft, REPAIR, 1.95);
@@ -293,7 +299,7 @@ export class Renderer {
     const g = this.ctx2d, k = this.opr, s = [0, 0]; g.setTransform(k, 0, 0, k, 0, 0); g.clearRect(0, 0, this.w, this.h);
     const unit = this.unitPx();
     // enemy hull bars (only damaged or special)
-    if (G.sheet.f('f.threat') > 0) for (let i = 0; i < w.enemies.length; i++) { const e = w.enemies[i]; if (!e.alive || e.cloaked || e.def.projectile || (e.boss && !e.boss.def.mini && false)) continue; if (e.hp >= 0.999 && !e.elite) continue; if (e.boss) continue;
+    for (let i = 0; i < w.enemies.length; i++) { const e = w.enemies[i]; if (!e.alive || e.cloaked || e.def.projectile || (e.boss && !e.boss.def.mini && false)) continue; if (e.hp >= 0.999 && !e.elite) continue; if (e.boss) continue;
       this.worldToScreen(e.x, e.y + e.r + 1.6, s); const bw = Math.max(14, e.r * unit * 1.7), bh = 3; g.fillStyle = 'rgba(4,8,20,.75)'; g.fillRect(s[0] - bw / 2 - 1, s[1] - 1, bw + 2, bh + 2); g.fillStyle = e.elite ? css(e.elite.color) : e.part ? '#ffb547' : '#ff4d7a'; g.fillRect(s[0] - bw / 2, s[1], bw * Math.max(0, e.hp), bh);
       const eliteName = e.elite?.name; if (eliteName && eliteName !== 'null' && eliteName !== 'undefined') { g.font = '600 9px "Barlow Semi Condensed",sans-serif'; g.textAlign = 'center'; g.fillStyle = css(e.elite.color); g.fillText(String(eliteName).toUpperCase(), s[0], s[1] - 3); } }
     // floating text

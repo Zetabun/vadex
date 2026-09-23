@@ -2,6 +2,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --experimental-loader ./tests/loader.mjs ./tests/skills-regression.mjs"
+    "test": "python tools/run_release_gates.py",
+    "balance": "node --experimental-loader ./tests/loader.mjs ./tests/balance-sim.mjs"
   }
 }

@@ -19,7 +19,7 @@ export function updatePlayer(w, dt) {
   // ---- steering ----
   const speed = 62 * sh.n('moveSpeed'); let want = p.x;
   if (inp.active || inp.keys) { want = inp.keys ? p.x + inp.keys * 30 : inp.targetX; inp.manualT = 0; p.autoThinkT = 0; p.autoWantX = p.x; }
-  else if (flag('f.autopilot') && !(G.state.run.challenge && w.rules?.noAutopilot) && w.wave.state === 'fighting') want = autopilot(w, p, sh.n('autoDodge'), dt);
+  else if (flag('f.autopilot') && w.wave.state === 'fighting') want = autopilot(w, p, sh.n('autoDodge'), dt);
   else { p.autoThinkT = 0; p.autoWantX = p.x; }
   const dx = Math.max(-HALF, Math.min(HALF, want)) - p.x, stepX = Math.sign(dx) * Math.min(Math.abs(dx), speed * dt);
   p.x += stepX; p.vx = stepX / Math.max(dt, 1e-4); p.tilt += (Math.max(-1, Math.min(1, p.vx / 60)) - p.tilt) * Math.min(1, 10 * dt);
@@ -35,7 +35,7 @@ export function updatePlayer(w, dt) {
   const hr = sh.n('hullRegen');
   if (hr > 0 && p.hull < 1) {
     const before = p.hull; p.hull = Math.min(1, p.hull + hr * dt);
-    if (G.state.run.upgrades.regen > 0 && p.hull > before) {
+    if (p.hull > before) {
       p.repairFxT = Math.max(0, (p.repairFxT || 0) - dt);
       if (!p.repairFxT) { p.repairFxT = 0.24; fx(w, 'naniteRepair', p.x, p.y); }
     }

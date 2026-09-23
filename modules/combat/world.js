@@ -3,24 +3,20 @@ import { Big } from '@last-orbit/core/big.js';
 import { G, count, maxStat, flag } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { rand } from '@last-orbit/core/rng.js';
-import { BAL, FIELD, enemyHp, enemyReward, enemyDmg, dataPerWave } from '@last-orbit/data/balance.js';
+import { BAL, FIELD, enemyHp, enemyDmg, salvageDrop, killXp } from '@last-orbit/data/balance.js';
 import { ENEMIES } from '@last-orbit/data/enemies.js';
-import { gain } from '@last-orbit/progression/economy.js';
-import { awardMaterialOre } from '@last-orbit/progression/materials.js';
-import { materialForWave, MATERIAL_BY_ID } from '@last-orbit/data/materials.js';
-import { materialDiscovered } from '@last-orbit/progression/materials.js';
-import { grantXp, killXp } from '@last-orbit/progression/experience.js';
+import { spawnPickup } from '@last-orbit/combat/pickups.js';
 
 let nextId = 1;
 export function createWorld() {
   return {
     t: 0, player: { x: 0, y: FIELD.PLAYER_Y, r: 3.2, hull: 1, shield: 1, leechBudget: 0.08, alive: true, invuln: 0, sinceHit: 99, focus: 0, combo: 0, comboT: 0, energy: 50, retal: 0, lastStand: true, vx: 0, tilt: 0, fireFlash: 0 },
     input: { targetX: 0, fire: false, manualT: 99, tap: null },
-    enemies: [], shots: [], ebullets: [], drones: [], barriers: [], hazards: [], fx: [],
-    wave: { num: 0, state: 'idle', timer: 0, info: null, damaged: false, t: 0, boss: null, kills: 0, shotsFired: 0, intermission: false, intermissionPaused: false, clearedNum: 0 },
+    enemies: [], shots: [], ebullets: [], drones: [], barriers: [], hazards: [], pickups: [], fx: [],
+    wave: { num: 0, state: 'idle', timer: 0, info: null, damaged: false, t: 0, boss: null, kills: 0, shotsFired: 0 },
     form: { x: 0, y: 0, dir: 1, speed: BAL.formSpeed, minOff: 0, maxOff: 0, enter: 0, alive: 0, total: 1 },
     wt: {}, volleys: {}, abil: { cd: {}, charges: {}, active: {} }, painted: null, paintT: 0, acc: {}, slowT: 0, stunT: 0, chargeShots: 0,
-    base: { hp: Big.ONE, reward: Big.ONE, dmg: Big.ONE, dataWave: Big.ONE, dmgPerHull: 0.1, dmgPerShield: 0.1, dmgPerBarrier: 0.1, sectorIdx: 0 },
+    base: { hp: Big.ONE, reward: Big.ONE, dmg: Big.ONE, dmgPerHull: 0.1, dmgPerShield: 0.1, dmgPerBarrier: 0.1, sectorIdx: 0 },
     buckets: Array.from({ length: 12 }, () => []), sim: { formSpeed: 1, fireRate: 1 },
   };
 }
@@ -30,9 +26,8 @@ export function fx(w, k, a, b, c, d, e, f, g) { if (w.fx.length < 260) w.fx.push
 export const sfx = (w, id, vol) => fx(w, 'sfx', id, vol);
 
 export function setWaveBase(w, waveNum, sectorIdx) {
-  const b = w.base; b.sectorIdx = sectorIdx;
-  b.hp = enemyHp(waveNum, sectorIdx); b.reward = enemyReward(waveNum, sectorIdx); b.dmg = enemyDmg(waveNum, sectorIdx);
-  b.dataWave = dataPerWave(waveNum).mul(G.sheet.b('dataGain'));
+  const b = w.base; b.sectorIdx = sectorIdx; b.wave = waveNum;
+  b.hp = enemyHp(waveNum, sectorIdx); b.dmg = enemyDmg(waveNum, sectorIdx);
   refreshDefence(w);
 }
 export function refreshDefence(w) {
@@ -40,7 +35,7 @@ export function refreshDefence(w) {
   w.base.dmgPerHull = w.base.dmg.ratio(hull) * red;
   w.base.dmgPerShield = ratio > 0 ? w.base.dmgPerHull / ratio : Infinity;
   w.base.hasShield = ratio > 0;
-  w.base.dmgPerBarrier = w.base.dmg.ratio(hull.mul(G.sheet.n('barrier') * 0.6));
+  w.base.dmgPerBarrier = w.base.dmg.ratio(Big.from(BAL.hull).mul(G.sheet.n('barrier') * 0.6));
 }
 
 // ---------- enemies ----------
@@ -60,18 +55,17 @@ export function makeElite(w, e, mod) {
 // ---------- targeting ----------
 /** Best target for automated weapons. skip: Set/array of enemies to ignore. from: {x,y} for nearest-first weapons. */
 export function pickTarget(w, skip, from, maxRange) {
-  const prio = flag('f.priority'), scan = flag('f.scanStealth'), analysis = flag('f.bossAnalysis');
   let best = null, bs = -Infinity;
   for (let i = 0; i < w.enemies.length; i++) {
     const e = w.enemies[i];
-    if (!e.alive || e.invuln || e.y > FIELD.TOP + 12 || (e.cloaked && !scan) || (skip && skip.indexOf(e) >= 0)) continue;
+    if (!e.alive || e.invuln || e.y > FIELD.TOP + 12 || e.cloaked || (skip && skip.indexOf(e) >= 0)) continue;
     let s = (FIELD.H - e.y) * 2;
     if (from) { const d = Math.hypot(e.x - from.x, e.y - from.y); if (maxRange && d > maxRange) continue; s = 300 - d; }
-    if (prio) s += e.def.prio * 60;
+    s += e.def.prio * 30;
     if (e.state === 'dive') s += 120;
     if (e === w.painted) s += 1e6;
     else if (e.droneMarkT > 0) s += 1e5;
-    if (analysis && e.weakOpen) s += 5e4;
+    if (e.weakOpen) s += 5e4;
     if (e.shielded) s -= 200;
     if (e.def.projectile) s -= 150;
     if (s > bs) { bs = s; best = e; }
@@ -90,10 +84,10 @@ export function hitEnemy(w, e, src, mult, hx, hy, noCrit) {
   if (!e.alive) return 0;
   if (e.invuln) { if (rand() < 0.3) fx(w, 'text', e.x, e.y + e.r, 'SHIELDED', '#7aa2ff', 0); e.flash = 0.06; return 0; }
   const p = w.player, sh = G.sheet;
-  let m = mult * (1 + p.focus) * (w.foundryBurst > 0 ? 1 + (w.foundryPower || 0.35) : 1), crit = false, weak = false;
+  let m = mult * (1 + p.focus), crit = false, weak = false;
   if (!noCrit && (w.chargeShots > 0 && src.id !== 'drone' ? true : rand() < src.critChance)) { crit = true; m *= src.critMult; }
   if (e.boss || e.parent) m *= sh.n('bossDmg') * (src.bossMul || 1); else if (e.elite) m *= sh.n('eliteDmg') * (src.bossMul || 1);
-  if (e.armour > 0) { m *= 1 - e.armour * (1 - (src.armorPen || 0)); const rot = sh.f('f.armourRot'); if (rot) e.armour = Math.max(0, e.armour - rot * 0.1); }
+  if (e.armour > 0) m *= 1 - e.armour * (1 - (src.armorPen || 0));
   if (e.shielded && !src.shieldPierce) m *= 0.15;
   if (e.weakOpen && e.weak && Math.abs(hx - (e.x + e.weak.x)) < e.weak.r + 1.5) { weak = true; m *= sh.n('weakMult'); count('weakHits'); }
   if (e === w.painted) m *= BAL.paintMult;
@@ -108,11 +102,10 @@ export function hitEnemy(w, e, src, mult, hx, hy, noCrit) {
     p.hull += heal; p.leechBudget -= heal;
   }
   w.acc[src.id] = (w.acc[src.id] || 0) + m; w.accSrc = w.accSrc || {}; w.accSrc[src.id] = src.dmg;
-  if (crit) { count('crits'); const ce = sh.f('f.critEnergy'); if (ce) p.energy = Math.min(sh.n('energyCap'), p.energy + ce); }
+  if (crit) count('crits');
   if (G.state.settings.dmgNumbers && (crit || weak || rand() < 0.35)) fx(w, 'text', hx ?? e.x, (hy ?? e.y) + 2, src.dmg.mul(m), weak ? '#ff5fa2' : crit ? '#ffd166' : '#dfe9ff', crit || weak ? 1 : 0);
   if (e.hp <= 0) {
     const over = -e.hp; e.hp = 0;
-    if (over > 1000) maxStat('megaOverkill', 1);
     killEnemy(w, e, src, crit, over);
   } else if (e.parent && e.part?.parentDamage) { e.parent.hp -= frac * e.part.parentDamage * e.hpMax.ratio(e.parent.hpMax); }
   return frac;
@@ -128,74 +121,40 @@ export function blast(w, x, y, radius, src, mult, exclude) {
   }
 }
 
+/** Rewards scale with the enemy's reward weight: XP orbs always, salvage canisters sometimes, rare repair kits. */
+function dropLoot(w, e) {
+  const wave = w.base.wave || 1, sec = w.base.sectorIdx, big = e.boss ? 2 : e.elite ? 1 : 0;
+  const xp = killXp(e.rewardMul, sec), orbs = big === 2 ? 14 : big === 1 ? 5 : e.rewardMul >= 2.5 ? 2 : 1;
+  for (let i = 0; i < orbs; i++) spawnPickup(w, 'xp', e.x, e.y, xp / orbs, big);
+  let cans = 0, per = salvageDrop(wave);
+  if (e.boss) { cans = 8; per = Math.round((e.boss.def.mini ? BAL.miniSalvage : BAL.bossSalvage) * (1 + sec * 0.6) / cans); }
+  else if (e.elite) cans = 3;
+  else if (rand() < BAL.salvageChance * (e.def.scrap || 1)) cans = 1;
+  for (let i = 0; i < cans; i++) spawnPickup(w, 'salvage', e.x, e.y, per, big);
+  if (rand() < (e.boss ? 1 : e.elite ? 0.35 : 0.012)) spawnPickup(w, 'repair', e.x, e.y, e.boss ? 0.35 : 0.12, big);
+}
+
 export function killEnemy(w, e, src, crit, over) {
   if (!e.alive) return; e.alive = false;
-  const st = G.state, sh = G.sheet, p = w.player, id = src?.id || 'other';
-  // Capture boss rewards before any payout. bossDied/bossLoot listeners run synchronously, so the
-  // post-event delta is a complete, readable salvage report (including module drops/auto-salvage).
-  const selectedMat = MATERIAL_BY_ID[st.materials.selected];
-  const dropMat = st.run.farm && selectedMat && selectedMat.unlockWave <= w.wave.num && materialDiscovered(selectedMat.id) ? selectedMat : materialForWave(w.wave.num);
-  const bossMat = e.boss ? dropMat : null;
-  const bossBefore = e.boss ? {
-    credits: st.cur.credits, scrap: st.cur.scrap, cores: st.cur.cores, frags: st.cur.frags,
-    ore: st.cur[bossMat.oreCur], modules: new Set(st.modules.inv.map((m) => m.id)),
-  } : null;
-  count('kills'); count('killsBy_' + id); w.wave.kills++;
+  const sh = G.sheet, p = w.player;
+  count('kills'); w.wave.kills++;
   if (e.elite) count('eliteKills');
-  if (e.type === 'treasure') count('haulers');
-  // kill streak → credit bonus
   const hadStreak = p.combo > BAL.comboStep * 0.5;
   p.combo = Math.min(sh.n('comboMax'), p.combo + BAL.comboStep); p.comboT = BAL.comboWindow;
   if (hadStreak) bus.emit('streakActive', p.combo);
-  if (e.rewardMul > 0) {
-    grantXp(killXp(w.wave.num, e.rewardMul, { boss: !!e.boss, elite: !!e.elite }), e.boss ? 'boss' : e.elite ? 'elite' : 'kill');
-    let cr = w.base.reward.mul(e.rewardMul * (1 + p.combo) * (1 + p.focus) * (w.wave.info?.mod?.reward || 1)).mul(sh.b('creditGain'));
-    const ok = sh.f('f.overkill') + (src?.overkill ? 0.5 : 0);
-    if (ok && over > 0) cr = cr.mul(1 + Math.min(20, over) * ok);
-    gain('credits', cr);
-    if (e.rewardMul >= 2 || rand() < 0.25) fx(w, 'text', e.x, e.y - 2, cr, '#ffc857', 2);
-    // Material ladder: each five-wave band introduces a new ore. Normal enemies yield one piece;
-    // capital enemies pay their reward weight so boss-only bands still seed a useful first batch.
-    if (!e.parent) {
-      const mat = dropMat;
-      const oreN = (e.boss ? Math.max(1, Math.round(e.rewardMul)) : 1) + (e.mined ? e.boss ? 3 : 1 : 0);
-      awardMaterialOre(mat.id, oreN);
-      fx(w, 'ore', e.x, e.y, Math.max(1.5, e.r * 0.7), mat.hex);
-      fx(w, 'text', e.x + 3, e.y + 1, `+${oreN} ${mat.name.toUpperCase()}`, mat.color, 1);
-    }
-    let sc = sh.n('scrapChance') * (e.def.scrap || 1); const tenth = sh.f('f.tenthScrap') && st.stats.kills % 10 === 0;
-    if (st.unlocks.arsenal && (rand() < sc || tenth || e.elite || e.boss)) {
-      const amt = w.base.reward.mul(BAL.scrapShare * Math.max(1, e.rewardMul) * (tenth ? 3 : 1)).mul(sh.b('scrapGain'));
-      gain('scrap', amt); count('scrapDrops');
-      // The rig's collector is cosmetic: Scrap is awarded immediately, even if the visual cannot be shown.
-      if (st.run.upgrades.scrapc > 0) fx(w, 'salvageDrop', e.x, e.y, amt);
-      else fx(w, 'text', e.x + 3, e.y + 1, amt, '#b9c4d6', 2);
-    }
-    if (w.base.sectorIdx >= BAL.matterFromSector && rand() < BAL.matterChance * (e.elite ? 8 : 1)) gain('matter', Big.from((1 + (w.base.sectorIdx - 3) * 2) * Math.max(1, e.rewardMul) * 0.5).mul(sh.b('matterGain')));
-    if (e.elite && st.unlocks.research) gain('data', w.base.dataWave.mul(1.5));
-  }
-  if (crit && sh.f('f.critShield')) p.shield = Math.min(1, p.shield + sh.f('f.critShield'));
+  if (e.rewardMul > 0 && !e.parent) dropLoot(w, e);
   if (src?.energyOnKill) p.energy = Math.min(sh.n('energyCap'), p.energy + src.energyOnKill);
   fx(w, 'die', e.x, e.y, e.r * e.scale, e.color, e.boss ? 2 : e.elite ? 1 : 0); sfx(w, e.boss ? 'bossdie' : 'die', Math.min(1, e.r / 5));
   if (e.boss || e.elite) fx(w, 'shake', e.boss ? 1 : 0.35);
   // death-triggered mechanics
   const kx = (src?.killExplode || 0), chance = sh.f('f.killExplode');
   if (src && src.dmg && (kx || (chance && rand() < chance))) blast(w, e.x, e.y, (kx || 10) * sh.n('blast'), src, 0.5, e);
-  const echo = sh.f('f.deathEcho');
-  if (echo && src?.dmg) { const d = e.hpMax; const es = { id: 'echo', dmg: d, critChance: 0, critMult: 1, color: 0x6dff8e }; for (const o of w.enemies) if (o.alive && o !== e && !o.boss && Math.abs(o.x - e.x) < 12 && Math.abs(o.y - e.y) < 12) hitEnemy(w, o, es, echo / (1 + p.focus), o.x, o.y, true); }
   if (e.elite?.deathBurst) for (let i = 0; i < e.elite.deathBurst; i++) { const a = (i / e.elite.deathBurst) * Math.PI * 2; spawnBullet(w, e.x, e.y, Math.cos(a) * 32, Math.sin(a) * 32, 1, 'bolt'); }
   if (e.def.split) for (let i = 0; i < e.def.split.n; i++) { const c = spawnEnemy(w, e.def.split.type, e.x + (i ? 4 : -4), e.y, { state: 'free', vx: (i ? 1 : -1) * 8, vy: -3 }); if (c) c.spawnT = 0.3; }
   if (e.parent) bus.emit('partDied', w, e);
   if (e.boss) {
+    count('bossKills'); if (!e.boss.def.mini) count('sectorBosses');
     bus.emit('bossDied', w, e);
-    const modules = st.modules.inv.filter((m) => !bossBefore.modules.has(m.id)).map((m) => ({ name: m.name, rarity: m.rarity }));
-    bus.emit('bossRewardReady', {
-      name: e.boss.def.name, title: e.boss.def.title, mini: !!e.boss.def.mini, wave: w.wave.num,
-      credits: st.cur.credits.sub(bossBefore.credits), scrap: st.cur.scrap.sub(bossBefore.scrap),
-      cores: st.cur.cores.sub(bossBefore.cores), frags: st.cur.frags.sub(bossBefore.frags),
-      ore: st.cur[bossMat.oreCur].sub(bossBefore.ore), oreCur: bossMat.oreCur, oreName: bossMat.name + ' Ore',
-      modules,
-    });
   }
   if (w.painted === e) w.painted = null;
 }
@@ -212,7 +171,6 @@ export function hurtPlayer(w, dmgMul, source) {
   let dmg = dmgMul; // in units of base enemy damage
   if (w.base.hasShield && p.shield > 0) {
     const need = dmg * w.base.dmgPerShield;
-    const ret = G.sheet.f('f.retaliate'); if (ret) p.retal += Math.min(need, p.shield) * ret;
     if (need <= p.shield) { p.shield -= need; fx(w, 'shieldhit', p.x, p.y); sfx(w, 'shield'); return; }
     dmg *= 1 - p.shield / need; p.shield = 0; fx(w, 'shieldhit', p.x, p.y);
   }
@@ -220,7 +178,7 @@ export function hurtPlayer(w, dmgMul, source) {
   fx(w, 'hurt', p.x, p.y); fx(w, 'shake', 0.4); sfx(w, 'hurt');
   if (p.hull <= 0) {
     if (p.lastStand && flag('f.lastStand')) { p.lastStand = false; p.hull = 0.01; p.invuln = 2; fx(w, 'text', p.x, p.y + 8, 'LAST STAND', '#ff5fa2', 1); return; }
-    p.hull = 0; p.alive = false; w.shots.length = 0; w.input.fire = false; w.chargeShots = 0; fx(w, 'die', p.x, p.y, 8, 0x5ee6ff, 2); fx(w, 'shake', 1); sfx(w, 'bossdie');
+    p.hull = 0; p.alive = false; w.shots.length = 0; w.chargeShots = 0; fx(w, 'die', p.x, p.y, 8, 0x5ee6ff, 2); fx(w, 'shake', 1); sfx(w, 'bossdie');
     bus.emit('playerDied', w);
   }
 }

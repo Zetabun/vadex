@@ -1,7 +1,4 @@
-// Tiny DOM helpers. No framework: panels build their nodes once and patch text/classes on a 4 Hz update.
-import { G } from '@last-orbit/core/game.js';
-import { fmt } from '@last-orbit/core/format.js';
-import { CUR } from '@last-orbit/core/state.js';
+// Tiny DOM helpers. No framework: screens build their nodes once and patch text/classes on update.
 import { playSfx } from '@last-orbit/audio/audio.js';
 
 /** h('div.card.can', {onclick}, child, 'text', [more]) */
@@ -43,18 +40,6 @@ export function holdable(el, fn) {
   return el;
 }
 
-export function costText(cur, amt) { return CUR[cur].icon + ' ' + fmt(amt); }
-export function toggle(get, set) { const sync = () => { const on = !!get(); el.classList.toggle('on', on); el.setAttribute('aria-checked', String(on)); }; const el = h('button.tog', { role: 'switch', onclick: () => { set(!get()); sync(); playSfx('tab'); } }); sync(); return el; }
-export function field(label, hint, control) { if (control && !control.getAttribute('aria-label')) control.setAttribute('aria-label', label); return h('div.field', h('div', label, hint ? h('small', hint) : null), control); }
-export function select(options, get, set) { const el = h('select', { onchange: () => set(el.value) }, options.map(([v, t]) => h('option', { value: v }, t))); el.value = get(); return el; }
-export function slider(get, set, min = 0, max = 1, step = 0.05) { const el = h('input', { type: 'range', min, max, step, oninput: () => set(+el.value) }); el.value = get(); return el; }
-export function tabs(list, get, set) { const bar = h('div.tabs', { role: 'tablist' }); const btns = list.map(([id, name]) => { const b = h('button.tab', { role: 'tab', onclick: () => { set(id); sync(); playSfx('tab'); } }, name, h('span.pip')); b._id = id; bar.append(b); return b; }); const sync = () => btns.forEach((b) => { const on = b._id === get(); b.classList.toggle('on', on); b.setAttribute('aria-selected', String(on)); }); sync(); bar.btns = btns; bar.sync = sync; return bar; }
-
-/** Buy-amount selector shared by Upgrades and Arsenal. Options appear as they are researched. */
-export const MULTS = [[1, '×1', null], ['next', 'Next ★', null], [10, '×10', 'f.buy10'], [25, '×25', 'f.buy25'], [100, '×100', 'f.buy100'], ['max', 'Max', 'f.buymax']];
-export function multBar(onChange) {
-  const bar = h('div.mults'); let sig = '';
-  bar.refresh = () => { const avail = MULTS.filter((m) => !m[2] || G.sheet.f(m[2]) > 0), s = avail.map((m) => m[0]).join() + G.ui.mult; if (s === sig) return; sig = s; clear(bar); if (!avail.some((m) => m[0] === G.ui.mult)) G.ui.mult = 1;
-    for (const [v, t] of avail) bar.append(h('button.mult' + (G.ui.mult === v ? '.on' : ''), { onclick: () => { G.ui.mult = v; playSfx('tab'); bar.refresh(); onChange && onChange(); } }, t)); };
-  bar.refresh(); return bar;
-}
+export function toggle(get, set, label) { const el = h('button.tog', { role: 'switch', 'aria-label': label, onclick: () => { set(!get()); sync(); playSfx('tab'); } }, h('i')); const sync = () => { const on = !!get(); el.classList.toggle('on', on); el.setAttribute('aria-checked', String(on)); }; sync(); return el; }
+export function slider(get, set, min = 0, max = 1, step = 0.05, label = '') { const el = h('input', { type: 'range', min, max, step, 'aria-label': label, oninput: () => set(+el.value) }); el.value = get(); return el; }
+export function select(options, get, set, label = '') { const el = h('select', { 'aria-label': label, onchange: () => set(el.value) }, options.map(([v, t]) => h('option', { value: v }, t))); el.value = get(); return el; }
