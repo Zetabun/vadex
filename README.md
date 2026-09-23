@@ -22,4 +22,4 @@ Three.js and fonts load from CDNs. The game needs a network connection for its n
 python tools/run_release_gates.py
 ```
 
-The gate checks every module's syntax and runs skill, industry and UI progression regression tests, including drone fitting, passage gating, weapon DPS and save migration. Current gameplay build: **v1.22.0**; save schema **14**; onboarding schema **6**.
+The gate checks every module's syntax and runs skill, industry, UI and defence regression tests, including drone fitting, passage gating, weapon DPS, early shield absorption and save migration. Current gameplay build: **v1.23.0**; save schema **14**; onboarding schema **6**.

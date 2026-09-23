@@ -11,6 +11,8 @@ import { Big } from '@last-orbit/core/big.js';
 import { sectorOf } from '@last-orbit/data/sectors.js';
 import { ABILITIES } from '@last-orbit/data/abilities.js';
 import { BOONS } from '@last-orbit/data/boons.js';
+import { CHALLENGES } from '@last-orbit/data/goals.js';
+import { DRONES } from '@last-orbit/data/drones.js';
 import { UPGRADES } from '@last-orbit/data/upgrades.js';
 import { upgradeVisible, upgradeOwnedFree, upgradeLevel, upgradeQuote } from '@last-orbit/progression/economy.js';
 import { useAbility, abilityCooldown, abilityMaxCharges } from '@last-orbit/combat/abilities.js';
@@ -36,6 +38,7 @@ import { PROJECTS } from '@last-orbit/data/projects.js';
 import { uiIcon } from '@last-orbit/ui/icons.js';
 import { xpProgress } from '@last-orbit/data/experience.js';
 import { skillPoints } from '@last-orbit/progression/skills.js';
+import { loadoutDps } from '@last-orbit/ui/weapon-readout.js';
 
 const NAV = [['upgrades', 'Upgrades', '▲', null], ['arsenal', 'Arsenal', '✦', 'arsenal'], ['research', 'Research', '◈', 'research'], ['modules', 'Loadout', '⬢', 'arsenal'], ['skills', 'Skills', '✧', 'skills'], ['rewind', 'Rewind', '◆', 'rewind'], ['menu', 'Menu', '≡', null]];
 const BOON_BY_ID = Object.fromEntries(BOONS.map((b) => [b.id, b]));
@@ -67,9 +70,19 @@ export function statusEffectItems(st, w) {
   return items;
 }
 
+export function statusDebuffItems(st, w) {
+  const items = [], mod = w.wave.info?.mod;
+  if (w.wave.state === 'fighting' && mod) items.push({ id: 'wave:' + mod.id, icon: '!', name: mod.name, value: 'WAVE', color: '#ff859b', detail: `${mod.desc}. Bonus reward ×${mod.reward}.`, kind: 'debuff' });
+  const challenge = CHALLENGES.find((x) => x.id === st.run.challenge);
+  if (challenge) items.push({ id: 'challenge:' + challenge.id, icon: '!', name: challenge.name, value: 'CHALLENGE', color: '#ff859b', detail: challenge.rules, kind: 'debuff' });
+  const remaining = G.sheet.n('shieldDelay') - w.player.sinceHit;
+  if (w.base.hasShield && w.player.shield <= 0 && remaining > 0) items.push({ id: 'shield-drained', icon: '⬡', name: 'Shield drained', value: `${Math.ceil(remaining)}s`, color: '#ff859b', detail: 'Shield recharge resumes when this delay ends.', kind: 'debuff' });
+  return items;
+}
+
 export function initUI(root, hooks) {
   const $ = {}, panels = {}, factories = { upgrades: upgradesPanel, arsenal: () => arsenalPanel(() => toggle('modules')), research: researchPanel, modules: modulesPanel, skills: skillsPanel, xp: xpPanel, rewind: rewindPanel, menu: () => menuPanel(hooks) };
-  let open = null, navPage = 0, lastTouch = -Infinity, bannerT = null, curSig = '', onboardingRouteHoldUntil = 0;
+  let open = null, navPage = 0, lastTouch = -Infinity, bannerT = null, curSig = '', onboardingRouteHoldUntil = 0, trayOpen = false;
   // ---------- build ----------
   $.scan = h('div#scan'); $.vig = h('div#vig'); $.flash = h('div#flash');
   $.waveN = h('span'); $.sector = h('div.sector'); $.tag = h('span.wave-tag'); $.xpN = h('b'); $.xpI = h('i'); $.xpBar = h('span.xp-bar', $.xpI); $.level = h('button.levelbox', { onclick: () => toggle('xp') }, $.xpN, $.xpBar); $.farm = h('button.hbtn', { onclick: () => { setFarm(!G.state.run.farm); playSfx('tab'); } }); $.choice = h('button.hbtn.badge', { 'aria-label': 'Choose pending field upgrade', onclick: () => showChoice() }, '◆ Pick'); $.secI = h('i'); $.secProg = h('div.sec-prog', $.secI);
@@ -78,7 +91,11 @@ export function initUI(root, hooks) {
   $.objective = h('div#objective', { role: 'status', 'aria-live': 'polite' }, h('div.obj-head', $.objK, $.objProg), $.objTitle, $.objText, $.objHint);
   $.routeText = h('span'); $.routeMeter = h('i'); $.route = h('button.route-tracker', { type: 'button', 'aria-label': 'Open Lunar Passage construction', onclick: () => { if (open !== 'menu') toggle('menu'); panels.menu.goto('projects'); } }, h('span.route-symbol', '◇'), $.routeText, h('span.route-track', $.routeMeter), h('span.route-arrow', '›'));
   $.hud = h('div#hud', h('div.hud-row', h('div.wavebox', h('div.wave-n', h('small', 'Wave'), $.waveN), $.tag, $.sector), $.level, $.choice, $.farm), $.secProg, $.curs, $.route, $.boss, $.objective);
-  $.buffs = h('div#buff-stack', { role: 'status', 'aria-label': 'Current buffs and boons' });
+  $.trayCount = h('span.status-tray-count');
+  $.trayToggle = h('button.status-tray-toggle', { type: 'button', 'aria-controls': 'status-tray-body', 'aria-expanded': 'false', onclick: () => { trayOpen = !trayOpen; syncStatusTray(); playSfx('tab'); } }, h('span', '◈'), h('b', 'STATUS'), $.trayCount, h('span.status-tray-chevron', '›'));
+  $.trayStats = h('div.status-tray-stats'); $.trayEffects = h('div.status-tray-effects');
+  $.trayBody = h('div#status-tray-body.status-tray-body', { hidden: true }, $.trayStats, $.trayEffects);
+  $.buffs = h('aside#buff-stack', { 'aria-label': 'Combat status tray' }, $.trayToggle, $.trayBody);
   $.boonInfo = h('aside#boon-info', { role: 'status', 'aria-live': 'polite', hidden: true });
   $.banner = h('div#banner', { role: 'status', 'aria-live': 'polite' }); $.toasts = h('div#toasts', { role: 'status', 'aria-live': 'polite', 'aria-atomic': 'false' }); $.hint = h('div#hint', 'Drag to move · hold to fire');
   $.guideSpot = h('div#tutorial-spot', { 'aria-hidden': 'true' }); $.guideK = h('div.tg-k'); $.guideTitle = h('b'); $.guideText = h('span'); $.guideHint = h('small');
@@ -175,7 +192,8 @@ export function initUI(root, hooks) {
     }
     hooks.setInsets(top - 6, bottom - 2);
     $.buffs.style.top = Math.max(8, top + 5) + 'px';
-    $.buffs.style.bottom = Math.max(8, bottom + 7) + 'px';
+    $.buffs.style.bottom = 'auto';
+    $.buffs.style.maxHeight = Math.max(50, innerHeight - top - bottom - 12) + 'px';
   }
 
   // ---------- abilities ----------
@@ -235,12 +253,33 @@ export function initUI(root, hooks) {
     for (const k in show) if (show[k]) setText(curEls[k].v, fmt(st.cur[k]));
     for (const m of mats) { const x = curEls['mat:' + m.id], barSeen = st.cur[m.barCur].gt(0) || Big.from(st.materials.lifetimeBarsBy?.[m.id] || 0).gt(0); setText(x.v, fmt(st.cur[m.oreCur])); setText(x.b, fmt(st.cur[m.barCur])); x.bars.hidden = !barSeen; x.el.setAttribute('aria-label', `${m.name}: ${fmt(st.cur[m.oreCur])} Ore${barSeen ? `, ${fmt(st.cur[m.barCur])} Bars` : ''}`); }
   }
-  let buffSig = '';
+  function syncStatusTray() { setClass($.buffs, 'open', trayOpen); $.trayBody.hidden = !trayOpen; $.trayToggle.setAttribute('aria-expanded', String(trayOpen)); if (!trayOpen) $.boonInfo.hidden = true; }
+  let buffSig = null;
   function updateBuffStack() {
-    const items = statusEffectItems(G.state, G.world);
-    const sig = items.map((x) => `${x.id}:${x.value}`).join('|');
-    if (sig === buffSig) return; buffSig = sig; clear($.buffs);
-    for (const x of items) {
+    const st = G.state, w = G.world, items = statusEffectItems(st, w), debuffs = statusDebuffItems(st, w), all = [...items, ...debuffs];
+    setText($.trayCount, String(all.length));
+    const sh = G.sheet, p = w.player, hull = sh.b('hull'), shield = hull.mul(Math.max(0, sh.n('shieldRatio')));
+    const repairDrones = w.drones.filter((dr) => dr.type === 'repair').reduce((n) => n + DRONES.repair.heal * (1 + .08 * ((st.run.drones.levels.repair || 1) - 1)), 0);
+    const repair = hull.mul(Math.max(0, sh.n('hullRegen') + repairDrones));
+    const stats = [
+      ['LIVE DPS', fmt(w.dps)], ['FITTED DPS', fmt(loadoutDps(st.run.equipped.slice(0, Math.floor(sh.n('weaponSlots'))), sh.weapons))],
+      ['HULL REPAIR /S', fmt(repair)], ['SHIELD /S', w.base.hasShield ? fmt(shield.mul(sh.n('shieldRegen'))) : '—'],
+      ['HULL', `${Math.round(Math.max(0, p.hull) * 100)}%`], ['SHIELD', w.base.hasShield ? `${Math.round(Math.max(0, p.shield) * 100)}%` : 'OFF'],
+      ['CREDITS /S', fmt(w.income)], ['LIFESTEAL', `${fmt(sh.n('lifeSteal') * 100, 1)}%`],
+    ];
+    const statSig = stats.map((x) => x.join(':')).join('|');
+    if ($.trayStats._sig !== statSig) { $.trayStats._sig = statSig; clear($.trayStats).append(...stats.map(([label, value]) => h('div.status-tray-stat', h('small', label), h('b', value)))); }
+    const sig = all.map((x) => `${x.id}:${x.value}`).join('|');
+    if (sig === buffSig) return; buffSig = sig; clear($.trayEffects);
+    const groups = [
+      ['BUFFS', items.filter((x) => x.kind === 'buff' || x.kind === 'anomaly')],
+      ['DEBUFFS', debuffs],
+      ['BOONS', items.filter((x) => x.kind === 'boon')],
+    ];
+    for (const [title, entries] of groups) {
+      const section = h('section.status-tray-section', h('h4', title));
+      if (!entries.length) section.append(h('p.status-tray-empty', 'None active'));
+      for (const x of entries) {
       const boon = x.kind === 'boon';
       const chip = h((boon ? 'button' : 'div') + '.buff-chip.' + x.kind, { style: '--buff-accent:' + x.color, type: boon ? 'button' : null, title: x.detail || x.name, 'aria-label': `${x.name}${x.value ? ', ' + x.value : ''}. ${x.detail || ''}${boon ? ' Tap for details.' : ''}`, onclick: boon ? () => {
         const b = BOON_BY_ID[x.artId], count = G.state.run.boons[x.artId] || 0;
@@ -251,10 +290,10 @@ export function initUI(root, hooks) {
         $.boonInfo.style.top = Math.min(Math.max(8, box.top - app.top), Math.max(8, app.height - $.boonInfo.offsetHeight - 8)) + 'px';
       } : null },
         h('span.buff-icon', x.artKind ? gameIcon(x.artKind, x.artId, 'buff-pixel', x.icon || '◆') : x.icon), h('span.buff-copy', h('b', x.name), h('small', x.value || '')));
-      $.buffs.append(chip);
+        section.append(chip);
+      }
+      $.trayEffects.append(section);
     }
-    $.buffs.hidden = !items.length;
-    requestAnimationFrame(() => $.buffs.classList.toggle('scrollable', $.buffs.scrollHeight > $.buffs.clientHeight + 2));
   }
 
   let slowT = 0, objectiveId = '', objectiveSig = '';
@@ -390,5 +429,5 @@ export function initUI(root, hooks) {
     setClass(N.research, 'can', open !== 'research' && treeAffordable('research')); setClass(N.skills, 'can', open !== 'skills' && !!st.unlocks.skills && skillPoints() > 0); setClass(N.rewind, 'can', open !== 'rewind' && ((canRewind() && shardPreview().gte(st.prestige.total.max(3))) || treeAffordable('prestige'))); setClass(N.menu, 'can', open !== 'menu' && menuAttention()); setClass(N.modules, 'can', open !== 'modules' && st.modules.inv.some((m) => m.isNew));
   }
   refreshNav(); updateObjective(); measure(); addEventListener('resize', () => measure());
-  return { update, toggle, refreshNav, banner, measure, isOpen: () => open, reset() { for (const k in panels) { panels[k]?.destroy?.(); delete panels[k]; } if (open) { const o = open; open = null; toggle(o); } abSig = ''; curSig = ''; refreshNav(); } };
+  return { update, toggle, refreshNav, banner, measure, isOpen: () => open, reset() { for (const k in panels) { panels[k]?.destroy?.(); delete panels[k]; } if (open) { const o = open; open = null; toggle(o); } abSig = ''; curSig = ''; buffSig = null; trayOpen = false; syncStatusTray(); refreshNav(); } };
 }

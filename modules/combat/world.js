@@ -166,9 +166,10 @@ export function killEnemy(w, e, src, crit, over) {
     let sc = sh.n('scrapChance') * (e.def.scrap || 1); const tenth = sh.f('f.tenthScrap') && st.stats.kills % 10 === 0;
     if (st.unlocks.arsenal && (rand() < sc || tenth || e.elite || e.boss)) {
       const amt = w.base.reward.mul(BAL.scrapShare * Math.max(1, e.rewardMul) * (tenth ? 3 : 1)).mul(sh.b('scrapGain'));
-      gain('scrap', amt); count('scrapDrops'); fx(w, 'text', e.x + 3, e.y + 1, amt, '#b9c4d6', 2);
+      gain('scrap', amt); count('scrapDrops');
       // The rig's collector is cosmetic: Scrap is awarded immediately, even if the visual cannot be shown.
-      if (st.run.upgrades.scrapc > 0) fx(w, 'salvageDrop', e.x, e.y);
+      if (st.run.upgrades.scrapc > 0) fx(w, 'salvageDrop', e.x, e.y, amt);
+      else fx(w, 'text', e.x + 3, e.y + 1, amt, '#b9c4d6', 2);
     }
     if (w.base.sectorIdx >= BAL.matterFromSector && rand() < BAL.matterChance * (e.elite ? 8 : 1)) gain('matter', Big.from((1 + (w.base.sectorIdx - 3) * 2) * Math.max(1, e.rewardMul) * 0.5).mul(sh.b('matterGain')));
     if (e.elite && st.unlocks.research) gain('data', w.base.dataWave.mul(1.5));

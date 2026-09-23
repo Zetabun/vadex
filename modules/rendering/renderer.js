@@ -111,7 +111,7 @@ export class Renderer {
         case 'hit': P.burst(e.a, e.b, 3, rgb(e.c ?? 0xffffff), 26, 1.5, 0.22); break;
         case 'die': { const c = rgb(e.d ?? 0xffffff), tier = e.e || 0; P.burst(e.a, e.b, 10 + e.c * 2 + tier * 30, c, 30 + e.c * 3 + tier * 25, 2.2 + tier, 0.55 + tier * 0.5); P.burst(e.a, e.b, 4 + tier * 10, WHITE, 16, 1.6, 0.35); this.trans.add({ k: 'flash', x: e.a, y: e.b, r: e.c * (2.2 + tier * 2), c, a: 1, t: 0, life: 0.25 + tier * 0.3 }); if (tier) { this.trans.add({ k: 'ring', x: e.a, y: e.b, r: e.c * (2 + tier * 2), c, t: 0, life: 0.6 }); this.trans.add({ k: 'ring', x: e.a, y: e.b, r: e.c * (4 + tier * 3), c: WHITE, t: 0, life: 0.9 }); } break; }
         case 'ore': { const c = rgb(e.d ?? 0x9aa3ad), n = 4; for (let j = 0; j < n; j++) { const a = Math.random() * Math.PI * 0.9 + Math.PI * 0.05, sp = 14 + Math.random() * 20; this.trans.add({ k: 'ore', x: e.a + (Math.random() - .5) * e.c, y: e.b, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp + 8, rot: Math.random() * 6.28, vr: (Math.random() - .5) * 10, size: 2.4 + Math.random() * 1.8, c, t: 0, life: .65 + Math.random() * .35 }); } P.burst(e.a, e.b, 5, c, 18, 1.4, .35); break; }
-        case 'salvageDrop': if (this.salvageDrops.length < 16) this.salvageDrops.push({ x: e.a, y: e.b, vx: (Math.random() - .5) * 16, vy: 9 + Math.random() * 8, t: 0, rot: Math.random() * 6.28 }); break;
+        case 'salvageDrop': if (this.salvageDrops.length < 16) this.salvageDrops.push({ x: e.a, y: e.b, amount: e.c, vx: (Math.random() - .5) * 16, vy: 9 + Math.random() * 8, t: 0, rot: Math.random() * 6.28 }); else this.addText(e.a, e.b, e.c, '#b9c4d6', 2); break;
         case 'naniteRepair': this.repairBeamT = 0.3; P.burst(e.a + 1, e.b + 1, 3, REPAIR, 7, 1.1, .3); break;
         case 'shake': this.shake = Math.min(1.4, Math.max(this.shake, e.a)); break;
         case 'beam': this.trans.add({ k: 'beam', x1: e.a, y1: e.b, x2: e.c, y2: e.d, c: rgb(e.e ?? 0xffffff), w: e.f || 2, t: 0, life: e.g || 0.18 }); break;
@@ -269,7 +269,7 @@ export class Renderer {
       }
       const target = this.salvageDrops[0], tx = target ? target.x : p.x - 11, ty = target ? target.y : p.y + 6 + Math.sin(w.t * 2.7) * 1.3;
       const dist = move(craft, tx, ty, target ? 115 : 36);
-      if (target && dist < 3.4) { this.salvageDrops.shift(); this.parts.burst(target.x, target.y, 9, SCRAP, 15, 1.5, .36); this.trans.add({ k: 'ring', x: target.x, y: target.y, r: 4, c: SCRAP, t: 0, life: .3 }); }
+      if (target && dist < 3.4) { this.salvageDrops.shift(); this.parts.burst(target.x, target.y, 9, SCRAP, 15, 1.5, .36); this.trans.add({ k: 'ring', x: target.x, y: target.y, r: 4, c: SCRAP, t: 0, life: .3 }); this.addText(craft.x, craft.y + 3, `+${fmt(target.amount)} SCRAP`, '#dcecff', 1); }
       else if (target && dist < 23) B.streak.line(craft.x, craft.y + 1.3, target.x, target.y, .75, SCRAP, .34);
       draw(craft, SCRAP, 2.05);
     } else this.salvageDrops.length = 0;

@@ -10,7 +10,7 @@ import { playSfx } from '@last-orbit/audio/audio.js';
 import { h, clear, setText, setClass, setWidth, holdable, tabs, multBar } from '@last-orbit/ui/dom.js';
 import { showBreakdown } from '@last-orbit/ui/modals.js';
 
-function show(d, v) { return d.show === '%' ? pct(v, v < 0.1 ? 1 : 0) : d.show === 'x' ? '×' + fmt(v, 2) : d.show === 'x+' ? '+' + pct(v) : d.show === '/s' ? pct(v, 1) + '/s' : d.type === 'flag' ? (v ? 'Online' : 'Offline') : fmt(v); }
+function show(d, v) { return d.show === '%' ? pct(v, v < 0.1 ? 1 : 0) : d.show === 'x' ? '×' + fmt(v, 2) : d.show === 'xh' ? pct(v, 0) + ' hull' : d.show === 'x+' ? '+' + pct(v) : d.show === '/s' ? pct(v, 1) + '/s' : d.type === 'flag' ? (v ? 'Online' : 'Offline') : fmt(v); }
 function nextSpecial(d, lvl) { if (!d.special) return null; for (const l of Object.keys(d.special).map(Number).sort((a, b) => a - b)) if (lvl < l) return [l, d.special[l].desc]; return null; }
 
 export function upgradesPanel() {

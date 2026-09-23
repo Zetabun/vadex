@@ -19,8 +19,8 @@ export const UPGRADES = [
   // ---- defence ----
   { id: 'hull', cat: 'def', name: 'Hull plating', stat: 'hull', type: 'mult', per: 0.22, ms: 2, show: 'x', cost: [8, 1.075], desc: 'Maximum hull.' },
   { id: 'regen', cat: 'def', name: 'Repair nanites', stat: 'hullRegen', type: 'add', per: 0.0015, msAdd: 0.005, max: 60, show: '/s', cost: [50, 1.11], wave: 4, desc: 'Hull repaired every second.' },
-  { id: 'shield', cat: 'def', name: 'Shield capacity', stat: 'shieldRatio', type: 'add', per: 0.05, msAdd: 0.5, show: 'xh', cost: [120, 1.085], wave: 8, desc: 'Shields absorb damage first and recharge. Sized as a share of hull.' },
-  { id: 'srech', cat: 'def', name: 'Shield recharge', stat: 'shieldRegen', type: 'add', per: 0.006, msAdd: 0.03, max: 80, show: '/s', cost: [200, 1.1], wave: 8, desc: 'Shield recharged every second once it kicks in.' },
+  { id: 'shield', cat: 'def', name: 'Shield capacity', stat: 'shieldRatio', type: 'add', per: 0.12, msAdd: 0.25, show: 'xh', cost: [50, 1.12], wave: 3, desc: 'Blue shield absorbs damage before green hull. Capacity scales with hull and each level; it recharges after avoiding hits.' },
+  { id: 'srech', cat: 'def', name: 'Shield recharge', stat: 'shieldRegen', type: 'add', per: 0.006, msAdd: 0.03, max: 80, show: '/s', cost: [200, 1.1], wave: 6, desc: 'Shield recharged every second once it kicks in.' },
   { id: 'armor', cat: 'def', name: 'Ablative armour', stat: 'dmgReduce', type: 'add', per: 0.004, max: 100, noMs: true, show: '%', cost: [300, 1.095], wave: 12, desc: 'Flat damage reduction.' },
   { id: 'move', cat: 'def', name: 'Thrusters', stat: 'moveSpeed', type: 'mult', per: 0.03, max: 40, noMs: true, show: 'x', cost: [40, 1.12], desc: 'Move and dodge faster.' },
   { id: 'barrier', cat: 'def', name: 'Barrier projectors', stat: 'barrier', type: 'mult', per: 0.12, ms: 1.5, show: 'x', cost: [90, 1.085], wave: 5, desc: 'The four barriers above you take more punishment.' },

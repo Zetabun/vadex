@@ -19,4 +19,5 @@ for module in modules:
 subprocess.run(['node', '--experimental-loader', './tests/loader.mjs', './tests/skills-regression.mjs'], check=True, cwd=root)
 subprocess.run(['node', '--experimental-loader', './tests/loader.mjs', './tests/industry-regression.mjs'], check=True, cwd=root)
 subprocess.run(['node', '--experimental-loader', './tests/loader.mjs', './tests/ui-progression-regression.mjs'], check=True, cwd=root)
-print(f'Validated {len(modules)} modules, skills, industry and UI progression regression tests.')
+subprocess.run(['node', '--experimental-loader', './tests/loader.mjs', './tests/defence-regression.mjs'], check=True, cwd=root)
+print(f'Validated {len(modules)} modules, skills, industry, UI and defence regression tests.')

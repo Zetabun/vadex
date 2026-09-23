@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.23.0 — 2026-09-23
+
+- Prevented iOS text selection and magnifier callouts on non-editable game controls while preserving text fields.
+- Moved Shield Capacity to Wave 3, strengthened its early levels, and moved Shield Recharge to Wave 6. The blue shield bar remains above the green hull bar.
+- Turned the left buff list into a collapsible combat status tray with buffs, debuffs, boons and combat rates.
+- Added a Scrap amount pop-up when the Salvage rig collector reaches a drop, matching the single payout awarded at the kill.
+- Added focused checks for early shield absorption, capacity scaling and collector payout.
+
 ## v1.22.0 — 2026-09-23
 
 - Added a small Salvage rig collector that chases Scrap falling from rewarded enemies.
