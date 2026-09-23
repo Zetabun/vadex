@@ -9,3 +9,5 @@ The paper doll renders artwork only for fitted items. Empty and locked sockets k
 The renderer reads `G.world` and does not change progression. CSS lives in `index.html`. The import map must resolve each `@last-orbit/` module to its published relative path.
 
 The combat HUD shows a compact Lunar Passage tracker after Wave 30. It opens Ship Projects, where the passage appears first as a star chart with three resource meters. Mining and Target Painter drones have different colours; mined enemies receive an amber ring, and drone-marked enemies a magenta reticle.
+
+Purchased Salvage rigs add a small collector craft that flies to visual Scrap drops from enemies. Purchased Repair Nanites add a service craft beside the player; its green beam and hull sparks appear while passive regeneration restores hull. Scrap is awarded on kill and healing is applied in combat simulation, independently of the cosmetic effects. Support craft consume no combat drone slots.

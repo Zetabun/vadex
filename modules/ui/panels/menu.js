@@ -29,7 +29,7 @@ import { MATERIAL_TIERS } from '@last-orbit/data/materials.js';
 import { PROJECTS } from '@last-orbit/data/projects.js';
 import { projectRevealed, projectComplete, projectCanBuild, projectCostText, buildProject, projectsAttention } from '@last-orbit/progression/projects.js';
 
-export const VERSION = '1.20.0';
+export const VERSION = '1.22.0';
 export function menuPanel(hooks) {
   let screen = 'home', sig = '', foundryView = null, materialsView = null; const root = h('div'), st = () => G.state;
   const relics = treeView('relics', [['all', 'Relics · permanent']], () => 'all'), alien = treeView('alien', [['all', 'Xeno laboratory']], () => 'all');

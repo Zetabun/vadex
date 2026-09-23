@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.22.0 — 2026-09-23
+
+- Added a small Salvage rig collector that chases Scrap falling from rewarded enemies.
+- Added a Repair Nanite service craft that beams and sparks against the hull while it heals.
+- Kept Scrap payout, repair rates and combat drone slots unchanged.
+
 ## v1.21.0 — 2026-09-23
 
 - Made every paused between-wave management panel use the full game screen, with navigation and Start Wave controls in reach.

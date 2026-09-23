@@ -1,6 +1,6 @@
 # Last Orbit agent guide
 
-Current gameplay build: **v1.21.0**. Save schema: **14**. Onboarding schema: **6**.
+Current gameplay build: **v1.22.0**. Save schema: **14**. Onboarding schema: **6**.
 
 ## Start
 

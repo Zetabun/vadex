@@ -6,13 +6,14 @@ import { fmt } from '@last-orbit/core/format.js';
 import { Big } from '@last-orbit/core/big.js';
 import { FIELD } from '@last-orbit/data/balance.js';
 import { DRONES } from '@last-orbit/data/drones.js';
-import { shapeGeometry, playerParts, unitBox, droneGeometry } from '@last-orbit/rendering/geometry.js';
+import { shapeGeometry, playerParts, unitBox, droneGeometry, supportCraftGeometry } from '@last-orbit/rendering/geometry.js';
 import { SpriteBatch, Particles, Transients, makeTextures, rgb, css, jagged, WHITE } from '@last-orbit/rendering/effects.js';
 import { Background } from '@last-orbit/rendering/background.js';
 import { playSfx } from '@last-orbit/audio/audio.js';
 
 const CAP = { swarm: 110, scout: 70, weaver: 70, plate: 60, armourPlate: 12, turret: 12, wyrmSeg: 16, rocket: 30 };
 const RED = rgb(0xff4d7a), AMBER = rgb(0xffb547), CYAN = rgb(0x5ee6ff), GOLD = rgb(0xffd700), VIOLET = rgb(0xc77dff);
+const SCRAP = rgb(0xc9d5df), REPAIR = rgb(0x80ffd2);
 const BULLET_COL = { bolt: rgb(0xff5d8f), heavy: rgb(0xff9f43), orb: rgb(0xd17bff), snipe: rgb(0xffffff) };
 
 export class Renderer {
@@ -31,10 +32,12 @@ export class Renderer {
     // barriers: 5×2 blocks each
     this.barrierMesh = this.inst(unitBox(), new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x0a2530 }), 40);
     this.droneMesh = this.inst(droneGeometry(), new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x222222 }), 28);
+    this.supportMesh = this.inst(supportCraftGeometry(), new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x17232a }), 2);
     // sprite batches (draw order: under → over)
     const B = (this.B = { dark: new SpriteBatch(this.tex.soft, 8, false, -1), under: new SpriteBatch(this.tex.soft, 220, true, -2), soft: new SpriteBatch(this.tex.soft, 2600, true, 1), streak: new SpriteBatch(this.tex.streak, 700, true, 1), ring: new SpriteBatch(this.tex.ring, 120, true, 1), ore: new SpriteBatch(this.tex.ore, 96, false, 2), reticle: new SpriteBatch(this.tex.reticle, 8, true, 2) });
     B.dark.mesh.material.color.set(0x000000); B.under.mesh.renderOrder = 1; for (const k in B) this.scene.add(B[k].mesh);
     this.parts = new Particles(1800); this.trans = new Transients(); this.texts = []; this.engineT = 0;
+    this.supportWorld = null; this.salvageDrops = []; this.salvageCraft = null; this.repairCraft = null; this.repairBeamT = 0;
     this.buildPlayer(); this.resize(); this.lastSector = -1;
   }
   inst(geo, mat, cap) { const THREE = window.THREE, m = new THREE.InstancedMesh(geo, mat, cap); m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3).fill(1), 3); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.instanceColor.setUsage(THREE.DynamicDrawUsage); m.frustumCulled = false; m.count = 0; this.scene.add(m); return m; }
@@ -108,6 +111,8 @@ export class Renderer {
         case 'hit': P.burst(e.a, e.b, 3, rgb(e.c ?? 0xffffff), 26, 1.5, 0.22); break;
         case 'die': { const c = rgb(e.d ?? 0xffffff), tier = e.e || 0; P.burst(e.a, e.b, 10 + e.c * 2 + tier * 30, c, 30 + e.c * 3 + tier * 25, 2.2 + tier, 0.55 + tier * 0.5); P.burst(e.a, e.b, 4 + tier * 10, WHITE, 16, 1.6, 0.35); this.trans.add({ k: 'flash', x: e.a, y: e.b, r: e.c * (2.2 + tier * 2), c, a: 1, t: 0, life: 0.25 + tier * 0.3 }); if (tier) { this.trans.add({ k: 'ring', x: e.a, y: e.b, r: e.c * (2 + tier * 2), c, t: 0, life: 0.6 }); this.trans.add({ k: 'ring', x: e.a, y: e.b, r: e.c * (4 + tier * 3), c: WHITE, t: 0, life: 0.9 }); } break; }
         case 'ore': { const c = rgb(e.d ?? 0x9aa3ad), n = 4; for (let j = 0; j < n; j++) { const a = Math.random() * Math.PI * 0.9 + Math.PI * 0.05, sp = 14 + Math.random() * 20; this.trans.add({ k: 'ore', x: e.a + (Math.random() - .5) * e.c, y: e.b, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp + 8, rot: Math.random() * 6.28, vr: (Math.random() - .5) * 10, size: 2.4 + Math.random() * 1.8, c, t: 0, life: .65 + Math.random() * .35 }); } P.burst(e.a, e.b, 5, c, 18, 1.4, .35); break; }
+        case 'salvageDrop': if (this.salvageDrops.length < 16) this.salvageDrops.push({ x: e.a, y: e.b, vx: (Math.random() - .5) * 16, vy: 9 + Math.random() * 8, t: 0, rot: Math.random() * 6.28 }); break;
+        case 'naniteRepair': this.repairBeamT = 0.3; P.burst(e.a + 1, e.b + 1, 3, REPAIR, 7, 1.1, .3); break;
         case 'shake': this.shake = Math.min(1.4, Math.max(this.shake, e.a)); break;
         case 'beam': this.trans.add({ k: 'beam', x1: e.a, y1: e.b, x2: e.c, y2: e.d, c: rgb(e.e ?? 0xffffff), w: e.f || 2, t: 0, life: e.g || 0.18 }); break;
         case 'arc': this.trans.add({ k: 'arc', pts: jagged(e.a, e.b, e.c, e.d), c: rgb(e.e ?? 0xb69cff), t: 0, life: 0.13 }); break;
@@ -125,12 +130,13 @@ export class Renderer {
   // ------------------------------------------------------------------ frame
   render(dt, w, speedMul = 1) {
     const st = G.state, t0 = performance.now(); if (!w) return;
+    if (this.supportWorld !== w) { this.supportWorld = w; this.salvageDrops.length = 0; this.salvageCraft = null; this.repairCraft = null; this.repairBeamT = 0; }
     this.fitCamera(dt); if (this.shake > 0) this.shake = Math.max(0, this.shake - dt * 2.2);
     const secIdx = w.base.sectorIdx % 6; if (secIdx !== this.lastSector) { this.bg.setSector(secIdx, this.lastSector < 0); this.lastSector = secIdx; this.rails.material.color.set(this.bg.target.mistCol); }
     this.bg.update(dt, speedMul); this.drain(w);
     const fdt = dt * Math.min(3, speedMul); this.parts.update(fdt); this.trans.update(fdt);
     const B = this.B; for (const k in B) B[k].begin();
-    this.drawEnemies(w); this.drawPlayer(w, dt); this.drawShots(w); this.drawHazards(w); this.drawBarriers(w); this.drawDrones(w);
+    this.drawEnemies(w); this.drawPlayer(w, dt); this.drawShots(w); this.drawHazards(w); this.drawBarriers(w); this.drawDrones(w); this.drawSupportCraft(w, fdt);
     this.trans.draw(B); this.parts.draw(B.soft);
     for (const k in B) B[k].end();
     this.gl.render(this.scene, this.camera);
@@ -235,6 +241,52 @@ export class Renderer {
     for (const dr of w.drones) { if (n >= 28) break; const c = rgb(DRONES[dr.type]?.color ?? 0x5ee6ff); d.position.set(dr.x, dr.y, 0); d.rotation.set(0, Math.sin(w.t * 3 + n) * 0.5, 0); d.scale.setScalar(dr.temp ? 1.3 : 1.7); d.updateMatrix(); m.setMatrixAt(n, d.matrix); const f = dr.flash > 0 ? 1 : 0; this.col.setRGB(c[0] + f, c[1] + f, c[2] + f); m.setColorAt(n, this.col); n++;
       this.B.soft.add(dr.x, dr.y - 1.4, 2.2, 3, 0, c, 0.9); if (dr.type === 'shield' && dr.ready !== false) this.B.ring.add(dr.x, dr.y, 5, 5, 0, c, 0.35); }
     m.count = n; m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true;
+  }
+
+  // Service craft visualize earned Scrap and actual hull repair; their movement never controls rewards.
+  drawSupportCraft(w, dt) {
+    const p = w.player, B = this.B, m = this.supportMesh, d = this.dummy, up = G.state.run.upgrades;
+    let n = 0;
+    const move = (craft, tx, ty, speed) => {
+      const dx = tx - craft.x, dy = ty - craft.y, dist = Math.hypot(dx, dy);
+      if (dist > 0.01) { const step = Math.min(dist, speed * dt); craft.x += dx / dist * step; craft.y += dy / dist * step; craft.angle = Math.atan2(-dx, dy) * Math.min(1, dist / 22); }
+      return dist;
+    };
+    const draw = (craft, color, scale) => {
+      d.position.set(craft.x, craft.y, .7); d.rotation.set(0, Math.sin(w.t * 3 + n) * .15, craft.angle || 0); d.scale.setScalar(scale); d.updateMatrix();
+      m.setMatrixAt(n, d.matrix); this.col.setRGB(...color); m.setColorAt(n, this.col); n++;
+      B.under.add(craft.x, craft.y, 6, 6, 0, color, .18);
+      B.soft.add(craft.x, craft.y - 2, 2.5, 3.5, 0, color, .75);
+    };
+    if (up.scrapc > 0 && p.alive) {
+      const craft = this.salvageCraft ||= { x: p.x - 9, y: p.y + 5, angle: 0 };
+      for (let i = this.salvageDrops.length - 1; i >= 0; i--) {
+        const drop = this.salvageDrops[i]; drop.t += dt; drop.x += drop.vx * dt; drop.y += drop.vy * dt; drop.vy -= 22 * dt;
+        if (drop.t > 4 || drop.y < FIELD.LAND_Y - 4) { this.salvageDrops.splice(i, 1); continue; }
+        const flicker = 1 + .14 * Math.sin(w.t * 13 + i);
+        B.ore.add(drop.x, drop.y, 3.8 * flicker, 3.8 * flicker, drop.rot + drop.t * 2, SCRAP, 1);
+        B.soft.add(drop.x, drop.y, 5, 5, 0, SCRAP, .4);
+      }
+      const target = this.salvageDrops[0], tx = target ? target.x : p.x - 11, ty = target ? target.y : p.y + 6 + Math.sin(w.t * 2.7) * 1.3;
+      const dist = move(craft, tx, ty, target ? 115 : 36);
+      if (target && dist < 3.4) { this.salvageDrops.shift(); this.parts.burst(target.x, target.y, 9, SCRAP, 15, 1.5, .36); this.trans.add({ k: 'ring', x: target.x, y: target.y, r: 4, c: SCRAP, t: 0, life: .3 }); }
+      else if (target && dist < 23) B.streak.line(craft.x, craft.y + 1.3, target.x, target.y, .75, SCRAP, .34);
+      draw(craft, SCRAP, 2.05);
+    } else this.salvageDrops.length = 0;
+    if (up.regen > 0 && p.alive) {
+      const craft = this.repairCraft ||= { x: p.x + 8, y: p.y + 7, angle: 0 };
+      move(craft, p.x + 10, p.y + 7 + Math.sin(w.t * 2.3 + 1) * 1.2, 42);
+      draw(craft, REPAIR, 1.95);
+      if (this.repairBeamT > 0) {
+        const hx = p.x + 1.5, hy = p.y + 1.6;
+        B.streak.line(craft.x, craft.y + 1, hx, hy, 2.1, REPAIR, .9);
+        B.streak.line(craft.x, craft.y + 1, hx, hy, .65, WHITE, 1);
+        B.soft.add(hx, hy, 6, 6, 0, REPAIR, .8);
+        B.ring.add(hx, hy, 5.5, 5.5, w.t * 4, REPAIR, .65);
+        this.repairBeamT = Math.max(0, this.repairBeamT - dt);
+      }
+    } else this.repairBeamT = 0;
+    m.count = n; if (n) { m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true; }
   }
 
   drawOverlay(w, dt) {

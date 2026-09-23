@@ -89,3 +89,5 @@ export function playerParts() {
 }
 export function unitBox() { return new (T().BoxGeometry)(1, 1, 1); }
 export function droneGeometry() { return merge([gem(0.7, 1, 0.5), ...mirror((s) => box(0.8, 0.18, 0.15, s * 0.6, -0.2, 0, s * -0.4))]); }
+/** Compact service craft with outboard grabber arms and two thrusters; faces +Y. */
+export function supportCraftGeometry() { return merge([gem(.48, .73, .36, 0, .08), gem(.23, .35, .22, 0, .34, .24), ...mirror(s => gem(.54, .16, .12, s * .57, -.12, 0, s * -.42)), ...mirror(s => box(.16, .45, .16, s * .9, -.35, .02, s * -.18)), ...mirror(s => box(.17, .24, .22, s * .31, -.65, .04))]); }

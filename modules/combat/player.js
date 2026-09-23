@@ -32,7 +32,14 @@ export function updatePlayer(w, dt) {
   p.energy = Math.min(sh.n('energyCap'), p.energy + sh.n('energyRegen') * dt);
 
   // ---- repairs ----
-  const hr = sh.n('hullRegen'); if (hr > 0 && p.hull < 1) p.hull = Math.min(1, p.hull + hr * dt);
+  const hr = sh.n('hullRegen');
+  if (hr > 0 && p.hull < 1) {
+    const before = p.hull; p.hull = Math.min(1, p.hull + hr * dt);
+    if (G.state.run.upgrades.regen > 0 && p.hull > before) {
+      p.repairFxT = Math.max(0, (p.repairFxT || 0) - dt);
+      if (!p.repairFxT) { p.repairFxT = 0.24; fx(w, 'naniteRepair', p.x, p.y); }
+    }
+  } else p.repairFxT = 0;
   p.leechBudget = Math.min(0.08, (p.leechBudget ?? 0.08) + 0.08 * dt);
   if (w.base.hasShield && p.shield < 1 && (p.sinceHit > Math.max(0.5, sh.n('shieldDelay')) || flag('f.fireRegen'))) p.shield = Math.min(1, p.shield + sh.n('shieldRegen') * dt);
 
