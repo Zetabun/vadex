@@ -3,7 +3,8 @@ import { Big } from '@last-orbit/core/big.js';
 import { G, recalc } from '@last-orbit/core/game.js';
 import { newState, SCHEMA } from '@last-orbit/core/state.js';
 import { xpForLevel } from '@last-orbit/data/experience.js';
-import { buySkill, respecSkills, skillPoints, skillRank } from '@last-orbit/progression/skills.js';
+import { SKILLS, SKILL_NODES, skillNeighbours } from '@last-orbit/data/skills.js';
+import { buySkill, respecSkills, skillPoints, skillRank, skillStatus } from '@last-orbit/progression/skills.js';
 import { hitEnemy } from '@last-orbit/combat/world.js';
 import { parseSave } from '@last-orbit/save/save.js';
 
@@ -16,6 +17,16 @@ assert.equal(skillPoints(), 9);
 assert.equal(buySkill('calibration'), false, 'entry perks wait for Wave 8');
 G.state.run.best = 8;
 assert.equal(buySkill('rapid'), false, 'second tier waits for Wave 12');
+assert.equal(skillStatus('momentum'), 'available', 'all four core routes can start at Wave 8');
+G.state.run.best = 12;
+assert.equal(skillStatus('rapid'), 'prerequisite', 'a branch needs an allocated adjacent node');
+assert.equal(buySkill('calibration'), true);
+assert.equal(skillStatus('rapid'), 'available', 'one rank opens its connected paths');
+assert.equal(buySkill('precision'), true);
+assert.equal(skillStatus('barrier'), 'available', 'cross-links allow alternative builds');
+assert.equal(buySkill('blast_future'), false, 'future nodes never spend points');
+assert.equal(respecSkills(), true);
+assert.equal(skillPoints(), 9);
 G.state.run.best = 20;
 assert.equal(buySkill('siphon'), false, 'deep perks need their prerequisites');
 assert.equal(buySkill('plating'), true);
@@ -34,6 +45,11 @@ assert.ok(world.player.hull > 0.5 && world.player.hull < 0.51, 'lifesteal heals 
 assert.equal(respecSkills(), true);
 assert.equal(skillPoints(), 9);
 assert.equal(G.sheet.n('lifeSteal'), 0);
+
+const seen = new Set(['core']), queue = ['core'];
+while (queue.length) for (const next of skillNeighbours(queue.shift())) if (!seen.has(next)) { seen.add(next); queue.push(next); }
+assert.ok(SKILLS.every(skill => seen.has(skill.id)), 'every real perk is reachable from the core');
+assert.equal(SKILL_NODES.filter(node => node.future).length, 6, 'future branches remain visible placeholders');
 
 const old = newState(); old.v = 12; old.run.skills = undefined; old.onboarding.step = 9;
 const migrated = parseSave(JSON.stringify(old));
