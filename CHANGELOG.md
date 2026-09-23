@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.24.0 — 2026-09-23
+
+- Moved active abilities, Foundry supplies, buffs, debuffs, boons and combat rates into a compact drawer above the hull and shield bars.
+- Reduced ability and effect icon sizes, and show active ability effects as text so Overdrive artwork appears only once.
+- Kept the ability tutorial accessible by opening the drawer when it teaches Overdrive.
+
 ## v1.23.0 — 2026-09-23
 
 - Prevented iOS text selection and magnifier callouts on non-editable game controls while preserving text fields.

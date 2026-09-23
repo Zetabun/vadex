@@ -92,10 +92,8 @@ export function initUI(root, hooks) {
   $.routeText = h('span'); $.routeMeter = h('i'); $.route = h('button.route-tracker', { type: 'button', 'aria-label': 'Open Lunar Passage construction', onclick: () => { if (open !== 'menu') toggle('menu'); panels.menu.goto('projects'); } }, h('span.route-symbol', '◇'), $.routeText, h('span.route-track', $.routeMeter), h('span.route-arrow', '›'));
   $.hud = h('div#hud', h('div.hud-row', h('div.wavebox', h('div.wave-n', h('small', 'Wave'), $.waveN), $.tag, $.sector), $.level, $.choice, $.farm), $.secProg, $.curs, $.route, $.boss, $.objective);
   $.trayCount = h('span.status-tray-count');
-  $.trayToggle = h('button.status-tray-toggle', { type: 'button', 'aria-controls': 'status-tray-body', 'aria-expanded': 'false', onclick: () => { trayOpen = !trayOpen; syncStatusTray(); playSfx('tab'); } }, h('span', '◈'), h('b', 'STATUS'), $.trayCount, h('span.status-tray-chevron', '›'));
+  $.trayToggle = h('button.status-tray-toggle', { type: 'button', 'aria-controls': 'status-tray-body', 'aria-expanded': 'false', onclick: () => { trayOpen = !trayOpen; syncStatusTray(); playSfx('tab'); } }, h('span', '◈'), h('b', 'SYSTEMS'), $.trayCount, h('span.status-tray-chevron', '⌃'));
   $.trayStats = h('div.status-tray-stats'); $.trayEffects = h('div.status-tray-effects');
-  $.trayBody = h('div#status-tray-body.status-tray-body', { hidden: true }, $.trayStats, $.trayEffects);
-  $.buffs = h('aside#buff-stack', { 'aria-label': 'Combat status tray' }, $.trayToggle, $.trayBody);
   $.boonInfo = h('aside#boon-info', { role: 'status', 'aria-live': 'polite', hidden: true });
   $.banner = h('div#banner', { role: 'status', 'aria-live': 'polite' }); $.toasts = h('div#toasts', { role: 'status', 'aria-live': 'polite', 'aria-atomic': 'false' }); $.hint = h('div#hint', 'Drag to move · hold to fire');
   $.guideSpot = h('div#tutorial-spot', { 'aria-hidden': 'true' }); $.guideK = h('div.tg-k'); $.guideTitle = h('b'); $.guideText = h('span'); $.guideHint = h('small');
@@ -114,7 +112,10 @@ export function initUI(root, hooks) {
   $.status = h('div#status', h('div.bars', $.meters, $.shield, $.hull, $.energy), $.combo);
   $.supplyIcon = h('span.supply-art'); $.supplyText = h('span.supply-copy'); $.supply = h('button.supply-quick', { onclick: () => { if (!useSupply()) { if (open !== 'menu') toggle('menu'); panels.menu.goto('foundry'); } } }, $.supplyIcon, $.supplyText);
   $.tactical = h('div#tactical-time', { role: 'status', 'aria-live': 'polite' }, h('b', `×${TACTICAL_TIME_SCALE.toFixed(1)}`), ' Tactical time');
-  $.abil = h('div#abil'); $.pTitle = h('h3', { id: 'panel-title' }); $.pBody = h('div.p-body');
+  $.abil = h('div#abil'); $.abilitySection = h('section.drawer-abilities', h('h4', 'ACTIVE ABILITIES'), $.abil);
+  $.trayBody = h('div#status-tray-body.status-tray-body', { hidden: true }, $.abilitySection, $.supply, $.trayEffects, h('h4.status-tray-readout-title', 'COMBAT READOUT'), $.trayStats);
+  $.buffs = h('aside#buff-stack', { 'aria-label': 'Abilities and combat effects' }, $.trayToggle, $.trayBody);
+  $.pTitle = h('h3', { id: 'panel-title' }); $.pBody = h('div.p-body');
   $.backGame = h('button.btn.sm.loadout-back', { type: 'button', onclick: () => toggle(null) }, '← Back to game');
   $.skillsLink = h('button.btn.sm.loadout-skills', { type: 'button', onclick: () => toggle('skills') }, 'Skills');
   $.loadoutLink = h('button.btn.sm.skills-loadout-link', { type: 'button', onclick: () => toggle('modules') }, 'Loadout');
@@ -125,8 +126,8 @@ export function initUI(root, hooks) {
   $.nav.append($.navPrev);
   for (const [id, name, icon] of NAV) { const b = h('button.nb', { 'aria-label': name, 'aria-pressed': 'false', onclick: () => toggle(id) }, uiIcon(id), name, h('span.pip')); $.navBtns[id] = b; $.nav.append(b); }
   $.nav.append($.navNext);
-  $.bottom = h('div#bottom', $.tactical, $.status, $.abil, $.supply, $.panel, $.nav);
-  root.append($.scan, $.vig, $.hud, $.buffs, $.boonInfo, $.banner, $.hint, $.intermission, $.toasts, $.bottom, $.guideSpot, $.guideCard, $.flash); initModals(root);
+  $.bottom = h('div#bottom', $.tactical, $.buffs, $.status, $.panel, $.nav);
+  root.append($.scan, $.vig, $.hud, $.boonInfo, $.banner, $.hint, $.intermission, $.toasts, $.bottom, $.guideSpot, $.guideCard, $.flash); initModals(root);
   root.addEventListener('pointerdown', () => { lastTouch = performance.now(); }, true);
   root.addEventListener('pointerdown', (event) => { if (!$.boonInfo.hidden && !event.target.closest('#boon-info,.buff-chip.boon')) $.boonInfo.hidden = true; });
 
@@ -191,15 +192,13 @@ export function initUI(root, hooks) {
       else { const chrome = $.status.offsetHeight + $.nav.offsetHeight; bottom = chrome + managementPanelHeight(innerHeight, top, chrome); }
     }
     hooks.setInsets(top - 6, bottom - 2);
-    $.buffs.style.top = Math.max(8, top + 5) + 'px';
-    $.buffs.style.bottom = 'auto';
-    $.buffs.style.maxHeight = Math.max(50, innerHeight - top - bottom - 12) + 'px';
   }
 
   // ---------- abilities ----------
   let abSig = ''; const abBtns = [];
   function buildAbilities() {
     const st = G.state, slots = Math.floor(G.sheet.n('abilitySlots')), eq = st.abilities.equipped.slice(0, slots), s = (st.unlocks.abilities ? 1 : 0) + eq.join(); if (s === abSig) return; abSig = s; clear($.abil); abBtns.length = 0;
+    $.abilitySection.hidden = !st.unlocks.abilities || !eq.some(Boolean);
     if (!st.unlocks.abilities) return;
     for (const id of eq) { if (!id) continue; const d = ABILITIES[id], cd = h('div.cd'), t = h('span.t'), ch = h('span.ch'), au = h('span.au');
       const b = h('button.ab', { style: 'color:' + d.color, 'aria-label': d.name, onclick: (e) => { e.preventDefault(); e.stopPropagation(); if (!useAbility(G.world, id)) playSfx('deny'); } }, h('span.ability-art', gameIcon('ability', id, 'ability-pixel', d.icon)), cd, t, ch, au); $.abil.append(b); abBtns.push({ id, b, cd, t, ch, au }); }
@@ -257,7 +256,7 @@ export function initUI(root, hooks) {
   let buffSig = null;
   function updateBuffStack() {
     const st = G.state, w = G.world, items = statusEffectItems(st, w), debuffs = statusDebuffItems(st, w), all = [...items, ...debuffs];
-    setText($.trayCount, String(all.length));
+    setText($.trayCount, all.length ? `${all.length} EFFECT${all.length === 1 ? '' : 'S'}` : 'OPEN');
     const sh = G.sheet, p = w.player, hull = sh.b('hull'), shield = hull.mul(Math.max(0, sh.n('shieldRatio')));
     const repairDrones = w.drones.filter((dr) => dr.type === 'repair').reduce((n) => n + DRONES.repair.heal * (1 + .08 * ((st.run.drones.levels.repair || 1) - 1)), 0);
     const repair = hull.mul(Math.max(0, sh.n('hullRegen') + repairDrones));
@@ -289,7 +288,7 @@ export function initUI(root, hooks) {
         const box = chip.getBoundingClientRect(), app = root.getBoundingClientRect();
         $.boonInfo.style.top = Math.min(Math.max(8, box.top - app.top), Math.max(8, app.height - $.boonInfo.offsetHeight - 8)) + 'px';
       } : null },
-        h('span.buff-icon', x.artKind ? gameIcon(x.artKind, x.artId, 'buff-pixel', x.icon || '◆') : x.icon), h('span.buff-copy', h('b', x.name), h('small', x.value || '')));
+        h('span.buff-icon', x.artKind === 'ability' ? '•' : x.artKind ? gameIcon(x.artKind, x.artId, 'buff-pixel', x.icon || '◆') : x.icon), h('span.buff-copy', h('b', x.name), h('small', x.value || '')));
         section.append(chip);
       }
       $.trayEffects.append(section);
@@ -316,6 +315,7 @@ export function initUI(root, hooks) {
   }
   function updateObjective() {
     const o = onboardingObjective({ panel: open }); objectiveId = o?.id || '';
+    if (o?.target === 'ability' && !open && !trayOpen) { trayOpen = true; syncStatusTray(); }
     const sig = o ? [o.id, o.title, o.text, o.hint, o.targetNav, o.targetUpgrade, o.spotlight].join('|') : ''; if (sig !== objectiveSig) { objectiveSig = sig; setTimeout(measure, 0); }
     // Event-driven onboarding: no persistent banner. Most steps use a subtle control glow;
     // high-value first-run lessons can opt into a reusable anchored spotlight.
