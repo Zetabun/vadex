@@ -23,7 +23,7 @@ const S = {
 };
 
 export function initAudio() {
-  if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
+  if (ctx) { resumeAudio(); return; }
   const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
   try { ctx = new AC(); } catch { return; }
   master = ctx.createGain(); comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 6;
@@ -32,7 +32,17 @@ export function initAudio() {
   applyVolumes();
 }
 export function applyVolumes() { if (!ctx) return; const s = G.state.settings, t = ctx.currentTime; master.gain.setTargetAtTime(s.master, t, 0.05); sfxBus.gain.setTargetAtTime(s.sfx, t, 0.05); musicBus.gain.setTargetAtTime(s.music * 0.55, t, 0.2); }
-export function suspendAudio(on) { if (!ctx) return; if (on) ctx.suspend(); else ctx.resume(); }
+export function resumeAudio() {
+  if (!ctx || ctx.state === 'running' || ctx.state === 'closed') return;
+  // Mobile browsers can leave a context interrupted after an app switch. Retry on
+  // the next gesture if their first automatic resume is blocked.
+  try { Promise.resolve(ctx.resume()).then(() => { nextT = 0; applyVolumes(); }).catch(() => {}); } catch { /* next gesture retries */ }
+}
+export function suspendAudio(on) {
+  if (!ctx) return;
+  if (!on) { resumeAudio(); return; }
+  if (ctx.state === 'running') { try { Promise.resolve(ctx.suspend()).catch(() => {}); } catch { /* page is closing */ } }
+}
 
 export function playSfx(id, vol = 1) {
   if (!ctx || ctx.state !== 'running') return; const d = S[id]; if (!d) return;

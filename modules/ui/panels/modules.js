@@ -17,6 +17,7 @@ import { playSfx } from '@last-orbit/audio/audio.js';
 import { h, clear, select } from '@last-orbit/ui/dom.js';
 import { gameIcon } from '@last-orbit/ui/icons.js';
 import { equipmentPicker } from '@last-orbit/ui/equipment-picker.js';
+import { weaponReadout, loadoutDps } from '@last-orbit/ui/weapon-readout.js';
 import { confirmDialog } from '@last-orbit/ui/modals.js';
 
 const WEAPON_ICONS = { cannon: '▰', laser: '╫', missile: '⇈', tesla: 'ϟ', rail: '━', plasma: '◉', mine: '✣', prism: '◇' };
@@ -143,7 +144,12 @@ export function modulesPanel() {
         h('span', `Weapons ${fittedWeapons}/${weaponCap}`),
         h('span', `Modules ${fittedModules}/${moduleSlots.length}`),
         h('span', st.unlocks.drones ? `Drones ${fittedDrones}/${droneCap}` : 'Drones —'),
-        h('span', st.unlocks.abilities ? `Abilities ${fittedAbilities}/${abilityCap}` : 'Abilities —'))));
+        h('span', st.unlocks.abilities ? `Abilities ${fittedAbilities}/${abilityCap}` : 'Abilities —')),
+      h('div.weapon-report', h('div.weapon-report-title', h('b', `Estimated ship DPS ${fmt(loadoutDps(st.run.equipped.slice(0, weaponCap), G.sheet.weapons))}`), h('small', 'Single target · before enemy armour or temporary effects')),
+        st.run.equipped.slice(0, weaponCap).filter(Boolean).map((id, index) => {
+          const r = weaponReadout(G.sheet.weapons[id]);
+          return r ? h('div.weapon-report-row', h('strong', `Hardpoint ${index + 1} · ${WEAPONS[id].name}`), h('span', `Damage ${r.damage}`), h('span', `Crit ${r.critRate}`), h('span', `Crit hit ${r.critDamage}`), h('span', `Fire ${r.fireRate}`), h('b', `${r.dpsText} DPS`)) : null;
+        }))));
   }
 
   function weaponCard(st, slot, side) {
@@ -265,7 +271,10 @@ export function modulesPanel() {
     const rows = [];
     if (item.kind === 'weapon') {
       const d = WEAPONS[item.id], lvl = G.state.run.weapons[item.id] || 1, evos = EVO_LEVELS.filter((x) => lvl >= x).length;
-      rows.push(['Base damage', fmt(d.base.dmg || 0, 1)], ['Fire rate', `${fmt(d.base.rate || 0, 2)}/s`]);
+      const r = weaponReadout(G.sheet.weapons[item.id]);
+      rows.push(['Base damage', fmt(d.base.dmg || 0, 1)]);
+      if (r) rows.push(['Current damage', r.damage], ['Crit rate', r.critRate], ['Crit hit', r.critDamage], ['Fire rate', r.fireRate], ['Estimated DPS', r.dpsText]);
+      else rows.push(['Base fire rate', `${fmt(d.base.rate || 0, 2)}/s`]);
       if (d.base.proj) rows.push(['Projectiles', String(d.base.proj)]); if (d.base.splash) rows.push(['Blast radius', fmt(d.base.splash, 1)]); if (evos) rows.push(['Evolutions', `${evos}/${d.evo.length}`]);
       return { desc: d.desc, rows };
     }

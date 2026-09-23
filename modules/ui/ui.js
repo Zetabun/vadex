@@ -25,6 +25,7 @@ import { arsenalPanel } from '@last-orbit/ui/panels/arsenal.js';
 import { researchPanel } from '@last-orbit/ui/panels/research.js';
 import { modulesPanel } from '@last-orbit/ui/panels/modules.js';
 import { skillsPanel } from '@last-orbit/ui/panels/skills.js';
+import { xpPanel } from '@last-orbit/ui/panels/xp.js';
 import { rewindPanel } from '@last-orbit/ui/panels/rewind.js';
 import { menuPanel, menuAttention } from '@last-orbit/ui/panels/menu.js';
 import { treeAffordable } from '@last-orbit/ui/panels/tree.js';
@@ -67,11 +68,11 @@ export function statusEffectItems(st, w) {
 }
 
 export function initUI(root, hooks) {
-  const $ = {}, panels = {}, factories = { upgrades: upgradesPanel, arsenal: () => arsenalPanel(() => toggle('modules')), research: researchPanel, modules: modulesPanel, skills: skillsPanel, rewind: rewindPanel, menu: () => menuPanel(hooks) };
-  let open = null, lastTouch = -Infinity, bannerT = null, curSig = '', onboardingRouteHoldUntil = 0;
+  const $ = {}, panels = {}, factories = { upgrades: upgradesPanel, arsenal: () => arsenalPanel(() => toggle('modules')), research: researchPanel, modules: modulesPanel, skills: skillsPanel, xp: xpPanel, rewind: rewindPanel, menu: () => menuPanel(hooks) };
+  let open = null, navPage = 0, lastTouch = -Infinity, bannerT = null, curSig = '', onboardingRouteHoldUntil = 0;
   // ---------- build ----------
   $.scan = h('div#scan'); $.vig = h('div#vig'); $.flash = h('div#flash');
-  $.waveN = h('span'); $.sector = h('div.sector'); $.tag = h('span.wave-tag'); $.xpN = h('b'); $.xpI = h('i'); $.xpBar = h('span.xp-bar', $.xpI); $.level = h('button.levelbox', { onclick: () => { const x = xpProgress(G.state.run.xp || 0); if (G.state.unlocks.skills) toggle('skills'); else bus.emit('toast', `Ship Level ${x.level}: ${x.current}/${x.needed} XP. Skills unlock at wave 8.`, 'info'); } }, $.xpN, $.xpBar); $.farm = h('button.hbtn', { onclick: () => { setFarm(!G.state.run.farm); playSfx('tab'); } }); $.choice = h('button.hbtn.badge', { 'aria-label': 'Choose pending field upgrade', onclick: () => showChoice() }, '◆ Pick'); $.secI = h('i'); $.secProg = h('div.sec-prog', $.secI);
+  $.waveN = h('span'); $.sector = h('div.sector'); $.tag = h('span.wave-tag'); $.xpN = h('b'); $.xpI = h('i'); $.xpBar = h('span.xp-bar', $.xpI); $.level = h('button.levelbox', { onclick: () => toggle('xp') }, $.xpN, $.xpBar); $.farm = h('button.hbtn', { onclick: () => { setFarm(!G.state.run.farm); playSfx('tab'); } }); $.choice = h('button.hbtn.badge', { 'aria-label': 'Choose pending field upgrade', onclick: () => showChoice() }, '◆ Pick'); $.secI = h('i'); $.secProg = h('div.sec-prog', $.secI);
   $.curs = h('div.curs'); $.bossName = h('span'); $.bossTitle = h('span'); $.bossI = h('i'); $.bossHp = h('div.boss-hp', $.bossI); $.bossNote = h('div.boss-note'); $.boss = h('div#bossbar', h('div.boss-name', $.bossName, $.bossTitle), $.bossHp, $.bossNote);
   $.objK = h('div.obj-k'); $.objTitle = h('b'); $.objText = h('span'); $.objHint = h('small'); $.objProg = h('i');
   $.objective = h('div#objective', { role: 'status', 'aria-live': 'polite' }, h('div.obj-head', $.objK, $.objProg), $.objTitle, $.objText, $.objHint);
@@ -88,8 +89,9 @@ export function initUI(root, hooks) {
   $.intermission = h('div#wave-intermission', { role: 'status', 'aria-live': 'polite' }, $.interK, $.interTitle, $.interMode, $.interHelp, h('div.inter-actions', $.interStart, $.interShop));
   $.commandK = h('span.command-k', 'Intermission paused'); $.commandTitle = h('b'); $.commandNext = h('small');
   $.commandSystems = h('button.btn.sm', { onclick: () => { if (open !== 'menu') toggle('menu'); panels.menu.goto('systems'); } }, 'Systems');
+  $.commandLevel = h('button.btn.sm', { onclick: () => toggle('xp') }, 'Level');
   $.commandStart = h('button.btn.sm.pri', { onclick: () => { toggle(null); startNextWave(); } }, 'Start wave');
-  $.commandBar = h('div#command-phase-bar', { role: 'status', 'aria-live': 'polite' }, h('div.command-copy', $.commandK, $.commandTitle, $.commandNext), h('div.command-actions', $.commandSystems, $.commandStart));
+  $.commandBar = h('div#command-phase-bar', { role: 'status', 'aria-live': 'polite' }, h('div.command-copy', $.commandK, $.commandTitle, $.commandNext), h('div.command-actions', $.commandLevel, $.commandSystems, $.commandStart));
   $.hullI = h('i'); $.hull = h('div.bar.hull', $.hullI); $.shieldI = h('i'); $.shield = h('div.bar.shield', $.shieldI); $.energyI = h('i'); $.energy = h('div.bar.energy', $.energyI);
   $.combo = h('div.combo'); $.meters = h('div.meters');
   $.status = h('div#status', h('div.bars', $.meters, $.shield, $.hull, $.energy), $.combo);
@@ -101,7 +103,11 @@ export function initUI(root, hooks) {
   $.loadoutLink = h('button.btn.sm.skills-loadout-link', { type: 'button', onclick: () => toggle('modules') }, 'Loadout');
   $.panel = h('div#panel', { role: 'region', 'aria-labelledby': 'panel-title', 'aria-hidden': 'true' }, $.commandBar, h('div.p-head', $.pTitle, $.loadoutLink, $.skillsLink, $.backGame, h('button.x', { 'aria-label': 'Close panel and return to game', onclick: () => toggle(open) }, '✕')), $.pBody);
   $.nav = h('div#nav'); $.navBtns = {};
+  $.navPrev = h('button.nav-page-arrow', { type: 'button', 'aria-label': 'Previous menu page', onclick: () => { navPage = 0; refreshNavPage(); playSfx('tab'); } }, '‹');
+  $.navNext = h('button.nav-page-arrow', { type: 'button', 'aria-label': 'Next menu page', onclick: () => { navPage = 1; refreshNavPage(); playSfx('tab'); } }, '›');
+  $.nav.append($.navPrev);
   for (const [id, name, icon] of NAV) { const b = h('button.nb', { 'aria-label': name, 'aria-pressed': 'false', onclick: () => toggle(id) }, uiIcon(id), name, h('span.pip')); $.navBtns[id] = b; $.nav.append(b); }
+  $.nav.append($.navNext);
   $.bottom = h('div#bottom', $.tactical, $.status, $.abil, $.supply, $.panel, $.nav);
   root.append($.scan, $.vig, $.hud, $.buffs, $.boonInfo, $.banner, $.hint, $.intermission, $.toasts, $.bottom, $.guideSpot, $.guideCard, $.flash); initModals(root);
   root.addEventListener('pointerdown', () => { lastTouch = performance.now(); }, true);
@@ -111,18 +117,21 @@ export function initUI(root, hooks) {
   const commandPhase = () => commandPhaseActive(!!open, G.world?.wave);
   function syncManagementLayout() {
     const active = !!open, command = commandPhase();
-    const fullLoadout = open === 'modules', fullSkills = open === 'skills', fullScreen = fullLoadout || fullSkills;
+    const fullLoadout = open === 'modules', fullSkills = open === 'skills', fullXp = open === 'xp', fullScreen = fullLoadout || fullSkills || fullXp;
     $.bottom.classList.toggle('management', active);
     $.bottom.classList.toggle('upgrades-mode', open === 'upgrades');
     $.bottom.classList.toggle('command-phase', command);
     $.bottom.classList.toggle('loadout-fullscreen', fullLoadout);
     $.bottom.classList.toggle('skills-fullscreen', fullSkills);
+    $.bottom.classList.toggle('xp-fullscreen', fullXp);
     root.classList.toggle('management-open', active);
     root.classList.toggle('command-phase', command);
     root.classList.toggle('loadout-open', fullLoadout);
     root.classList.toggle('skills-open', fullSkills);
+    root.classList.toggle('xp-open', fullXp);
     $.skillsLink.hidden = !fullLoadout || !G.state.unlocks.skills;
     $.loadoutLink.hidden = !fullSkills;
+    $.backGame.hidden = !fullScreen && !command;
     $.tactical.classList.toggle('on', active && !command);
     if (active) {
       // Live management preserves the battlefield. A paused intermission instead expands into
@@ -138,15 +147,26 @@ export function initUI(root, hooks) {
     if (!id || open === id) { const was = open; open = null; $.panel.classList.remove('open'); $.panel.setAttribute('aria-hidden', 'true'); if ($.panel.contains(document.activeElement) && was) $.navBtns[was]?.focus(); }
     else { if (G.world?.wave?.state === 'cleared' && G.world.wave.intermission) pauseIntermission(true); open = id; const p = panels[id] || (panels[id] = factories[id]()); clear($.pBody).append(p.el); $.pBody.scrollTop = 0; setText($.pTitle, p.title); $.panel.classList.add('open'); $.panel.setAttribute('aria-hidden', 'false'); if (p.onOpen) p.onOpen(); p.update(true); G.state.seen['nav_' + id] = 1; bus.emit('panelOpen', id); }
     syncManagementLayout();
+    refreshNavPage(true);
     for (const k in $.navBtns) { const on = k === open; $.navBtns[k].classList.toggle('on', on); $.navBtns[k].setAttribute('aria-pressed', String(on)); } playSfx('tab'); setTimeout(measure, 260); measure(true);
     // Panel-open tutorial gates must be evaluated synchronously. Otherwise a fast tap can purchase
     // past the first-upgrade lesson before the next animation frame has a chance to open its briefing.
     maybeShowOnboardingBriefing(); updateObjective();
   }
-  function refreshNav(reveal) { const u = G.state.unlocks; for (const [id, , , gate] of NAV) { const b = $.navBtns[id], show = !gate || !!u[gate]; if (b.classList.contains('hide') !== !show) { b.classList.toggle('hide', !show); if (show && reveal) { b.classList.add('reveal'); setTimeout(() => b.classList.remove('reveal'), 1100); } } setClass(b, 'new', show && gate && !G.state.seen['nav_' + id]); } }
+  function refreshNavPage(followOpen = false) {
+    const visible = NAV.filter(([, , , gate]) => !gate || !!G.state.unlocks[gate]).map(([id]) => id);
+    const pageSize = innerWidth <= 520 ? 4 : visible.length;
+    if (followOpen && open && visible.includes(open)) navPage = Math.floor(visible.indexOf(open) / pageSize);
+    navPage = Math.min(navPage, Math.max(0, Math.ceil(visible.length / pageSize) - 1));
+    for (const [id] of NAV) $.navBtns[id].classList.toggle('nav-page-hidden', innerWidth <= 520 && !visible.slice(navPage * pageSize, (navPage + 1) * pageSize).includes(id));
+    $.navPrev.hidden = innerWidth > 520 || navPage === 0;
+    $.navNext.hidden = innerWidth > 520 || (navPage + 1) * pageSize >= visible.length;
+  }
+  function refreshNav(reveal) { const u = G.state.unlocks; for (const [id, , , gate] of NAV) { const b = $.navBtns[id], show = !gate || !!u[gate]; if (b.classList.contains('hide') !== !show) { b.classList.toggle('hide', !show); if (show && reveal) { b.classList.add('reveal'); setTimeout(() => b.classList.remove('reveal'), 1100); } } setClass(b, 'new', show && gate && !G.state.seen['nav_' + id]); } refreshNavPage(true); }
   function measure(predict) {
     syncManagementLayout();
-    if (open === 'modules' || open === 'skills') { hooks.setInsets(0, 0); return; }
+    refreshNavPage();
+    if (open === 'modules' || open === 'skills' || open === 'xp' || commandPhase()) { hooks.setInsets(0, 0); return; }
     const top = $.hud.offsetHeight, bh = $.bottom.offsetHeight; let bottom = bh;
     if (predict && open) {
       const command = commandPhase();

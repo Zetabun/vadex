@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.21.0 — 2026-09-23
+
+- Made every paused between-wave management panel use the full game screen, with navigation and Start Wave controls in reach.
+- Fixed equipment picker previews that rendered stat elements as `[object HTMLDivElement]` text.
+- Added weapon damage, crit rate, crit hit, fire rate and estimated DPS to Loadout and Arsenal.
+- Added a full-screen Ship Level roadmap from the XP control, with live progression and clearly marked future reward placeholders.
+- Restored audio when a player returns through a menu tap or keyboard input, and removed cut corners from Upgrades controls.
+- Split crowded mobile bottom navigation into two pages with chevrons, following the selected menu and newly unlocked items.
+
 ## v1.20.0 — 2026-09-23
 
 - Restyled live Upgrades as a mobile ship command console with illustrated upgrade plates, shaped category controls, glowing milestone tracks and clearer purchase buttons.

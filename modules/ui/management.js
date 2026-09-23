@@ -3,7 +3,6 @@
 export const TACTICAL_TIME_SCALE = 0.30;
 export const MANAGEMENT_BATTLE_SHARE = 0.30;
 export const MANAGEMENT_PANEL_SHARE = 0.56;
-export const COMMAND_PANEL_SHARE = 0.86;
 
 /** True when an open management panel is being used during a deliberately paused safe intermission. */
 export function commandPhaseActive(managementOpen, wave) {
@@ -24,16 +23,13 @@ export function managementPanelHeight(viewHeight, hudHeight, chromeHeight) {
 }
 
 /**
- * Expanded between-wave Command Phase. It intentionally gives management nearly all
- * remaining room because there is no live threat to monitor. The HUD and navigation stay
- * visible, with only a small sliver of the battlefield/background left above the panel.
+ * Between-wave Command Phase fills the viewport above the navigation bar.
+ * The battlefield and HUD are hidden while the intermission is deliberately paused.
  */
 export function commandPanelHeight(viewHeight, hudHeight, navHeight) {
   const h = Math.max(1, Number(viewHeight) || 1);
-  const top = Math.max(0, Number(hudHeight) || 0);
   const nav = Math.max(0, Number(navHeight) || 0);
-  const room = Math.max(88, h - top - nav - 10);
-  return Math.max(88, Math.min(h * COMMAND_PANEL_SHARE, room));
+  return Math.max(88, h - nav);
 }
 
 /** Smoothly enter tactical time and ease back to full speed when management closes. */

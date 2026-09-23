@@ -56,6 +56,10 @@ function wireInput() {
   let down = null; const inp = () => G.world.input;
   const at = (e) => { const r = glCanvas.getBoundingClientRect(); return renderer.screenToWorld(e.clientX - r.left, e.clientY - r.top); };
   glCanvas.addEventListener('pointerdown', (e) => { initAudio(); e.preventDefault(); try { glCanvas.setPointerCapture(e.pointerId); } catch { /* not critical */ } const p = at(e), px = G.world?.player?.x; noteOnboarding('fire'); if (Number.isFinite(px) && Math.abs(p.x - px) > 0.75) noteOnboarding('move'); down = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), wy: p.y }; const i = inp(); i.active = true; i.fire = true; i.targetX = p.x; G.hintOn = false; });
+  // A returning player often taps a menu first, not the battlefield. That gesture
+  // must be allowed to wake an interrupted WebAudio context as well.
+  app.addEventListener('pointerdown', initAudio, { capture: true });
+  addEventListener('keydown', initAudio, { capture: true });
   glCanvas.addEventListener('pointermove', (e) => { if (!down || e.pointerId !== down.id) return; if (Math.abs(e.clientX - down.x) > 3) noteOnboarding('move'); inp().targetX = at(e).x; });
   const up = (e) => { if (!down || e.pointerId !== down.id) return; const i = inp(); i.active = false; i.fire = false; if (performance.now() - down.t < 260 && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 12) { const p = at(e); if (p.y > FIELD.BARRIER_Y + 6) i.tap = p; } down = null; };
   glCanvas.addEventListener('pointerup', up); glCanvas.addEventListener('pointercancel', up);
@@ -90,7 +94,7 @@ function frame(now) {
   const elapsed = Math.max(0, (now - last) / 1000 || 0.016), real = Math.min(0.1, elapsed); last = now;
   const speed = Math.max(0, stat('gameSpeed') * G.debugSpeed * (G.state.settings.speed || 1)), w0 = G.world;
   const managementOpen = !!ui?.isOpen(), commandPaused = commandPhaseActive(managementOpen, G.world?.wave);
-  const tutorialPaused = onboardingFreezesAll(), loadoutPaused = ['modules', 'skills'].includes(ui?.isOpen());
+  const tutorialPaused = onboardingFreezesAll(), loadoutPaused = ['modules', 'skills', 'xp'].includes(ui?.isOpen());
   // Tactical management slows live combat. A between-wave Command Phase and the guided first-upgrade
   // purchase are genuinely paused, while the highlighted UI control remains interactive.
   managementScale = approachManagementScale(managementScale, managementOpen && !commandPaused && !tutorialPaused && !loadoutPaused, real);

@@ -16,4 +16,4 @@
 | `modules/rendering/`, `modules/audio/` | Visual and sound presentation |
 | `tests/`, `tools/` | Regression test and release gate |
 
-`G.state.run.skills` holds current-run ranks. `skillPoints()` derives unspent points from Ship Level. `computeSheet()` applies skill bonuses. `hitEnemy()` applies capped lifesteal from actual enemy health removed. Rewind creates a new run, clearing skills and XP.
+`G.state.run.skills` holds current-run ranks. `skillPoints()` derives unspent points from Ship Level. `modules/ui/panels/xp.js` presents the level roadmap, and `modules/ui/weapon-readout.js` estimates fitted weapon DPS from combat configurations. `computeSheet()` applies skill bonuses. `hitEnemy()` applies capped lifesteal from actual enemy health removed. Rewind creates a new run, clearing skills and XP.

@@ -29,7 +29,7 @@ export function equipmentPicker({ title, subtitle, options = [], value = '', pre
     if (!item) { apply.disabled = true; return; }
     preview.style.setProperty('--item-accent', item.accent || 'var(--cyan)');
     preview.append(h('small', selected === current ? 'CURRENTLY FITTED' : 'SELECTED EQUIPMENT'), h('h3', item.name), h('p', item.desc || ''),
-      (item.rows || []).map(([label, text]) => h('div.equipment-stat', h('span', label), h('b', text))));
+      ...(item.rows || []).map(([label, text]) => h('div.equipment-stat', h('span', label), h('b', text))));
     if (item.location) preview.append(h('p.equipment-move-note', item.location));
     apply.disabled = selected === current || !!item.disabled;
     apply.textContent = selected === current ? 'Currently fitted' : applyLabel || (selected === '' ? 'Remove equipment' : 'Equip');
