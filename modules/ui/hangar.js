@@ -94,9 +94,9 @@ export function createHangar(hooks) {
         h('div.item-body', h('p', d.desc), open ? h('ol.evos', d.evo.map((e, i) => h('li', h('span.r', 'R' + (i + 2)), h('b', e.name), h('span', e.desc)))) : c ? h('p.muted', `${c.desc}. ${contractProgress(c).cur}/${c.goal}`) : null)));
     }
     for (const id of ABILITY_ORDER) {
-      const d = ABILITIES[id], open = !!st.unlocked.abilities[id] || SHIPS.some((s) => s.ability === id && st.unlocked.ships[s.id]), c = unlockedBy('ability', id), ship = SHIPS.find((s) => s.ability === id);
+      const d = ABILITIES[id], open = !!st.unlocked.abilities[id], c = unlockedBy('ability', id), ship = SHIPS.find((s) => s.ability === id);
       abilities.append(h('div.item.flat' + (open ? '' : '.locked'), { style: `--c:${d.color}` },
-        iconKey('ability:' + id, 'item-icon'), h('div.item-main', h('b', d.name), h('small', open ? d.desc : c ? 'Contract: ' + c.name + ' — ' + c.desc : ship ? 'Signature of the ' + ship.name : 'Locked')), open ? null : uiIcon('lock')));
+        iconKey('ability:' + id, 'item-icon'), h('div.item-main', h('b', d.name), h('small', open ? d.desc : [ship ? `Always available on the ${ship.name}. ` : '', c ? `Contract “${c.name}”: ${c.desc}` : 'Locked'].join(''))), open ? null : uiIcon('lock')));
     }
     return h('div.screen', h('div.screen-head', h('h2', 'Armory'), h('p', 'Unlocked weapons and abilities can appear as cards when you level up. Weapons evolve at every rank.')),
       h('h3', 'Weapons'), weapons, h('h3', 'Abilities'), abilities);

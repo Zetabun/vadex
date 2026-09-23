@@ -120,6 +120,7 @@ function clearWave(w) {
   const st = G.state, run = st.run, ws = w.wave, p = w.player, info = ws.info, sec = info.sector;
   ws.state = 'cleared'; ws.timer = BAL.waveGap;
   w.ebullets.length = 0;
+  for (const e of w.enemies) if (e.alive && (e.def.projectile || e.homingRocket)) { e.alive = false; e.rewardMul = 0; }
   count('wavesCleared');
   const pay = grantSalvage(clearSalvage(run.wave)), bossWave = sec.n === sec.len;
   if (!bossWave) fx(w, 'text', 0, 52, `WAVE ${run.wave} CLEAR  +${Math.round(pay)} ¢`, '#ffc857', 2);
@@ -139,14 +140,14 @@ function clearWave(w) {
 // ---------------------------------------------------------------- death
 bus.on('playerDied', (w) => {
   if (!G.state.run) return;
-  w.wave.state = 'dead'; w.wave.timer = 2.2; count('deathsAll');
+  w.wave.before = w.wave.state === 'dead' ? w.wave.before : w.wave.state; w.wave.state = 'dead'; w.wave.timer = 2.2; count('deathsAll');
 });
 function afterDeath(w) {
   const run = G.state.run, p = w.player;
   if (run.revivesUsed < Math.floor(G.sheet.n('revives'))) {
     run.revivesUsed++; p.alive = true; p.hull = 1; p.shield = 1; p.invuln = 3; w.ebullets.length = 0;
     for (const h of w.hazards) h.t = Math.max(h.t, 99);
-    w.hazards.length = 0; w.wave.state = 'fighting';
+    w.hazards.length = 0; w.wave.state = w.wave.before === 'cleared' || w.wave.before === 'idle' ? w.wave.before : 'fighting'; if (w.wave.state !== 'fighting') w.wave.timer = Math.max(w.wave.timer, 1);
     fx(w, 'text', p.x, p.y + 10, 'REVIVED', '#6dffc8', 2); fx(w, 'boom', p.x, p.y, 40, 0x6dffc8); sfx(w, 'milestone');
     toast('Emergency systems restored your ship.', 'good');
     return;

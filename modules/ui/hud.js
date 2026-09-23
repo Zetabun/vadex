@@ -14,7 +14,7 @@ import { uiIcon, iconKey } from '@last-orbit/ui/icons.js';
 
 export function createHud(hooks) {
   const $ = {};
-  $.pause = h('button.icon-btn', { 'aria-label': 'Pause', onclick: () => hooks.pause() }, uiIcon('pause'));
+  $.pause = h('button.icon-btn', { 'aria-label': 'Pause', onclick: (e) => { e.currentTarget.blur(); hooks.pause(); } }, uiIcon('pause'));
   $.sector = h('div.sector-name'); $.waveN = h('b'); $.pips = h('div.pips', { 'aria-hidden': 'true' });
   $.salvage = h('span');
   $.level = h('b'); $.xp = h('i');
@@ -56,7 +56,7 @@ export function createHud(hooks) {
     const sig = run.abilities.join(); if (sig === abilSig) return; abilSig = sig; clear($.abil);
     run.abilities.forEach((id, i) => {
       const d = ABILITIES[id], ring = h('i.cd'), charges = h('span.charges');
-      const b = h('button.abil', { 'aria-label': d.name, style: `--c:${d.color}`, onclick: () => { if (G.world && useAbility(G.world, id)) hooks.celebrateAbility?.(id); } }, iconKey('ability:' + id, 'abil-icon'), ring, charges, h('span.key', String(i + 1)));
+      const b = h('button.abil', { 'aria-label': d.name, style: `--c:${d.color}`, onclick: (e) => { e.currentTarget.blur(); if (G.world) useAbility(G.world, id); } }, iconKey('ability:' + id, 'abil-icon'), ring, charges, h('span.key', String(i + 1)));
       abilBtns[id] = { b, ring, charges }; $.abil.append(b);
     });
   }

@@ -8,7 +8,7 @@ import { FIELD } from '@last-orbit/data/balance.js';
 import { initWorld, advance } from '@last-orbit/combat/sim.js';
 import { useAbility } from '@last-orbit/combat/abilities.js';
 import { collectAll } from '@last-orbit/combat/pickups.js';
-import { startSortie, endSortie, nextOffer, nextRelic } from '@last-orbit/progression/run.js';
+import { startSortie, endSortie, nextOffer, nextRelic, recoverInterruptedRun } from '@last-orbit/progression/run.js';
 import { checkContracts } from '@last-orbit/progression/meta.js';
 import { save, load, hardReset, legacyBestWave } from '@last-orbit/save/save.js';
 import { initAudio, applyVolumes, tickMusic, setMusicMode, suspendAudio } from '@last-orbit/audio/audio.js';
@@ -19,7 +19,10 @@ const app = document.getElementById('app'), glCanvas = document.getElementById('
 let renderer, ui, last = 0, saveT = 0, running = false, levelBeat = 0;
 
 function adopt(state) {
-  G.state = state; G.state.run = null; // an interrupted sortie cannot be resumed; its salvage was banked on exit
+  // A sortie interrupted by a closed or discarded tab cannot be resumed, but its salvage is kept.
+  const recovered = recoverInterruptedRun(state);
+  G.state = state;
+  if (recovered > 0) setTimeout(() => toast(`Recovered ${recovered} salvage from your last sortie.`, 'good'), 600);
   setNotation(state.settings.notation); recalc(); checkContracts(); initWorld(); applyVolumes();
   if (renderer) { renderer.lastSector = -1; renderer.lookV = -1; renderer.setQuality(); }
 }
@@ -33,7 +36,7 @@ const hooks = {
   toHangar: (tab) => { initWorld(); ui.setMode('hangar', tab); },
   pendingOffer: () => nextOffer(),
   pendingRelic: () => nextRelic(),
-  hardReset: async () => { await hardReset(); adopt(newState()); ui.setMode('hangar'); await save('reset'); toast('Save erased. Good luck, pilot.', 'warn'); },
+  hardReset: async () => { await hardReset(); const s = newState(); s.meta.sandbox = G.state.meta.sandbox; s.meta.legacyChecked = G.state.meta.legacyChecked; adopt(s); ui.setMode('hangar'); await save('reset'); toast('Save erased. Good luck, pilot.', 'warn'); },
 };
 
 function finish(reason) {
@@ -45,7 +48,7 @@ function finish(reason) {
 }
 bus.on('sortieOver', (reason) => setTimeout(() => finish(reason), 350));
 // A level-up gets a brief beat of celebration in the battle before the card choice freezes it.
-bus.on('levelUp', (lvl) => { if (G.mode !== 'sortie' || !G.world) return; levelBeat = 0.45; const p = G.world.player; renderer.celebrate(p.x, p.y + 4, '#6dffc8', 50); G.world.fx.push({ k: 'text', a: p.x, b: p.y + 12, c: 'LEVEL ' + lvl, d: '#6dffc8', e: 2 }); });
+bus.on('levelUp', (lvl) => { if (G.mode !== 'sortie' || !G.world) return; if (levelBeat <= 0) levelBeat = 0.45; const p = G.world.player; renderer.celebrate(p.x, p.y + 4, '#6dffc8', 50); G.world.fx.push({ k: 'text', a: p.x, b: p.y + 12, c: 'LEVEL ' + lvl, d: '#6dffc8', e: 2 }); });
 
 // ------------------------------------------------------------------ input
 function wireInput() {
@@ -60,7 +63,7 @@ function wireInput() {
   glCanvas.addEventListener('pointerup', up); glCanvas.addEventListener('pointercancel', up);
   const keys = { l: false, r: false };
   addEventListener('keydown', (e) => {
-    if (G.mode !== 'sortie' || ui.blocking() || e.target.closest?.('button,a,input,textarea,select')) return;
+    if (G.mode !== 'sortie' || ui.blocking() || e.target.closest?.('input,textarea,select')) return;
     const i = inp();
     if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.l = true; else if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.r = true;
     else if (/^Digit[1-2]$/.test(e.code) || e.code === 'KeyQ' || e.code === 'KeyE' || e.code === 'Space') { const idx = e.code === 'KeyE' || e.code === 'Digit2' ? 1 : 0; const id = G.state.run.abilities[idx]; if (id) useAbility(G.world, id); e.preventDefault(); }
@@ -86,7 +89,7 @@ function frame(now) {
   const w = G.world;
   setMusicMode(G.mode === 'sortie' ? w.base.sectorIdx % 6 : 0, !!(w.wave.boss && w.wave.boss.alive)); tickMusic();
   renderer.render(real, w, speed); ui.update(real);
-  saveT += real; if (saveT > 15) { saveT = 0; if (G.mode === 'hangar') save('auto'); }
+  saveT += real; if (saveT > 15) { saveT = 0; save('auto'); }
 }
 
 async function boot() {
@@ -108,7 +111,8 @@ async function boot() {
     if (document.hidden) { running = false; suspendAudio(true); if (G.mode === 'sortie' && !ui.blocking()) ui.pause(); save('hidden'); }
     else { suspendAudio(false); last = performance.now(); running = true; }
   });
-  addEventListener('pagehide', () => { if (G.state.run) { collectAll(G.world); endSortie('abandoned'); } save('pagehide'); });
+  // The run stays in the save; if the page never comes back, the next boot banks its salvage (see adopt).
+  addEventListener('pagehide', () => save('pagehide'));
   if (/[?&]debug=1/.test(location.search)) import('@last-orbit/ui/debug.js').then((m) => m.initDebug(app)).catch((e) => console.warn(e));
   document.getElementById('boot').classList.add('off'); setTimeout(() => document.getElementById('boot')?.remove(), 800);
   last = performance.now(); running = true; requestAnimationFrame(frame);

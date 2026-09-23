@@ -35,12 +35,13 @@ export function createOverlays(layer, hooks) {
         h('div.card-main', h('div.card-kicker', h('span', d.kicker), h('span.rar', c.kind === 'upgrade' ? (c.rarity === 'evo' ? 'Final evolution' : 'Upgrade') : c.kind === 'weapon' ? 'Weapon' : c.kind === 'ability' ? 'Ability' : rar.name)), h('div.card-title', d.title), h('div.card-body', d.body)),
         h('span.card-key', String(i + 1))));
     });
-    const rr = run.rerolls <= 0 ? null : h('button.btn.ghost.reroll', { onclick: () => { if (reroll()) { playSfx('tab'); showOffer(); } } }, uiIcon('reroll'), `Reroll (${run.rerolls})`);
+    const rr = run.rerolls <= 0 ? null : h('button.btn.ghost.reroll', { onclick: () => { if (open?.busy) return; if (reroll()) { playSfx('tab'); showOffer(); } } }, uiIcon('reroll'), `Reroll (${run.rerolls})`);
+    const shownLevel = run.level - run.pendingLevels + 1;
     const more = run.pendingLevels > 1 ? h('span.more', `+${run.pendingLevels - 1} more`) : null;
     const el = h('div.modal.levelup', { role: 'dialog', 'aria-label': 'Level up' },
-      h('div.modal-head', h('div.kicker', 'Level up'), h('h2', 'Level ' + (run.level - run.pendingLevels + 1), more), h('p', 'Choose an upgrade for this sortie.')),
+      h('div.modal-head', h('div.kicker', 'Level up'), h('h2', shownLevel > 1 ? 'Level ' + shownLevel : 'Pre-flight', more), h('p', shownLevel > 1 ? 'Choose an upgrade for this sortie.' : 'Your veteran crew fits an upgrade before launch.')),
       cards, rr ? h('div.modal-foot', rr) : null);
-    mount('offer', el, (e) => { const n = Number(e.key); if (n >= 1 && n <= run.offer.length) choose(n - 1); else if ((e.key === 'r' || e.key === 'R') && rr) rr.click(); });
+    mount('offer', el, (e) => { const n = Number(e.key); if (n >= 1 && n <= run.offer.length) { choose(n - 1); return true; } if ((e.key === 'r' || e.key === 'R') && rr) { rr.click(); return true; } return false; });
   }
 
   // ------------------------------------------------------------ relics
@@ -56,7 +57,7 @@ export function createOverlays(layer, hooks) {
     });
     const el = h('div.modal.relic-pick', { role: 'dialog', 'aria-label': 'Choose a relic' },
       h('div.modal-head', h('div.kicker', 'Sector cleared'), h('h2', 'Choose a relic'), h('p', 'Hull and shields restored. Relics are powerful and last until the sortie ends.')), cards);
-    mount('relic', el, (e) => { const n = Number(e.key); if (n >= 1 && n <= run.relicOffer.length) choose(n - 1); });
+    mount('relic', el, (e) => { const n = Number(e.key); if (n >= 1 && n <= run.relicOffer.length) { choose(n - 1); return true; } return false; });
   }
 
   // ------------------------------------------------------------ pause / settings
@@ -81,7 +82,7 @@ export function createOverlays(layer, hooks) {
       h('div.modal-actions', h('button.btn.primary', { onclick: close, 'data-autofocus': '' }, uiIcon('play'), 'Resume'),
         h('button.btn.ghost', { onclick: () => showSettings(true) }, uiIcon('gear'), 'Settings'),
         h('button.btn.danger', { onclick: () => confirmAbandon() }, 'Abandon sortie')));
-    mount('pause', el, (e) => { if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') close(); });
+    mount('pause', el, (e) => { if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') { close(); return true; } return false; });
   }
   function buildSummary(run) {
     return h('div.build', run.order.map((id) => h('div.build-item', { style: `--c:#${WEAPONS[id].color.toString(16).padStart(6, '0')}` }, iconKey('weapon:' + id, 'build-icon'), h('span', `${WEAPONS[id].name}`), h('b', 'R' + run.weapons[id]))),
@@ -91,20 +92,20 @@ export function createOverlays(layer, hooks) {
     const el = h('div.modal.confirm', { role: 'alertdialog', 'aria-label': 'Abandon sortie?' },
       h('div.modal-head', h('h2', 'Abandon sortie?'), h('p', 'You keep the salvage collected so far. Cards and relics are lost.')),
       h('div.modal-actions', h('button.btn.ghost', { onclick: showPause, 'data-autofocus': '' }, 'Keep flying'), h('button.btn.danger', { onclick: () => { close(); hooks.abandon(); } }, 'Abandon')));
-    mount('confirm', el, (e) => { if (e.key === 'Escape') showPause(); });
+    mount('confirm', el, (e) => { if (e.key === 'Escape') { showPause(); return true; } return false; });
   }
   function showSettings(fromPause) {
     const el = h('div.modal.settings-modal', { role: 'dialog', 'aria-label': 'Settings' },
       h('div.modal-head', h('h2', 'Settings')), settingsBody(),
       h('div.modal-actions', h('button.btn.primary', { onclick: () => (fromPause ? showPause() : close()), 'data-autofocus': '' }, 'Done'),
         fromPause ? null : h('button.btn.danger.small', { onclick: () => confirmReset() }, 'Erase save')));
-    mount('settings', el, (e) => { if (e.key === 'Escape') (fromPause ? showPause() : close()); });
+    mount('settings', el, (e) => { if (e.key === 'Escape') { if (fromPause) showPause(); else close(); return true; } return false; });
   }
   function confirmReset() {
     const el = h('div.modal.confirm', { role: 'alertdialog', 'aria-label': 'Erase save?' },
       h('div.modal-head', h('h2', 'Erase all progress?'), h('p', 'Salvage, upgrades, ships and contracts will be wiped. This cannot be undone.')),
       h('div.modal-actions', h('button.btn.ghost', { onclick: () => showSettings(false), 'data-autofocus': '' }, 'Cancel'), h('button.btn.danger', { onclick: () => { close(); hooks.hardReset(); } }, 'Erase')));
-    mount('confirm', el, (e) => { if (e.key === 'Escape') showSettings(false); });
+    mount('confirm', el, (e) => { if (e.key === 'Escape') { showSettings(false); return true; } return false; });
   }
 
   // ------------------------------------------------------------ debrief
@@ -121,7 +122,7 @@ export function createOverlays(layer, hooks) {
       h('div.modal-actions', h('button.btn.primary', { onclick: () => { close(); hooks.launch(); }, 'data-autofocus': '' }, uiIcon('launch'), 'Launch again'),
         h('button.btn.gold', { onclick: () => { close(); hooks.toHangar('workshop'); } }, uiIcon('workshop'), 'Workshop'),
         h('button.btn.ghost.wide', { onclick: () => { close(); hooks.toHangar('launch'); } }, uiIcon('home'), 'Back to hangar')));
-    mount('debrief', el, () => {});
+    mount('debrief', el, () => false);
     // Count the salvage up for a little payoff.
     const target = s.salvage, t0 = performance.now(), dur = Math.min(1400, 400 + target * 3);
     const tick = (now) => { const k = Math.min(1, (now - t0) / dur); salvageEl.textContent = fmtInt(Math.round(target * (1 - Math.pow(1 - k, 3)))); if (k < 1 && salvageEl.isConnected) requestAnimationFrame(tick); else if (k >= 1) playSfx('loot'); };
@@ -134,6 +135,6 @@ export function createOverlays(layer, hooks) {
     get kind() { return open?.kind || null; },
     /** Combat freezes while any overlay is up. */
     blocking: () => !!open,
-    key: (e) => { if (open?.keys) { open.keys(e); return true; } return false; },
+    key: (e) => !!open?.keys?.(e),
   };
 }

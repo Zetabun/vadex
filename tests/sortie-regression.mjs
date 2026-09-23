@@ -14,7 +14,7 @@ import { MODS } from '@last-orbit/data/cards.js';
 import { initWorld, step } from '@last-orbit/combat/sim.js';
 import { spawnPickup, collectAll } from '@last-orbit/combat/pickups.js';
 import { hurtPlayer } from '@last-orbit/combat/world.js';
-import { startSortie, endSortie, grantXp, rollOffer, pickCard, cardPool, nextOffer, rollRelics, pickRelic, describeCard, choicePending } from '@last-orbit/progression/run.js';
+import { startSortie, endSortie, recoverInterruptedRun, grantXp, rollOffer, pickCard, cardPool, nextOffer, rollRelics, pickRelic, describeCard, choicePending } from '@last-orbit/progression/run.js';
 import { buyWorkshop, workshopNext, shipStatus, shipContract, buyShip, selectShip, checkContracts } from '@last-orbit/progression/meta.js';
 import { parseSave } from '@last-orbit/save/save.js';
 import { rankMult } from '@last-orbit/progression/stats.js';
@@ -128,6 +128,25 @@ const kill = () => {
 kill(); assert.equal(over, 0, 'First death uses the revive'); assert.ok(G.world.player.alive); assert.equal(run.revivesUsed, 1);
 kill(); assert.equal(over, 1, 'Second death ends the sortie');
 off();
+
+// ---- dying in the safe gap after a wave, then reviving, does not clear that wave twice ----
+fresh(); G.state.workshop.w_revive = 1; recalc(); run = launch(); run.wave = 10;
+G.world.wave.timer = 0; step(TICK); for (const e of G.world.enemies) e.alive = false;
+for (let i = 0; i < 200 && G.world.wave.state !== 'cleared'; i++) step(TICK);
+assert.equal(run.wave, 11); assert.equal(run.pendingRelics, 1);
+G.world.player.invuln = 0; G.world.player.shield = 0; G.world.player.lastStand = false; hurtPlayer(G.world, 1e9);
+for (let i = 0; i < 400; i++) step(TICK);
+assert.ok(G.world.player.alive); assert.equal(run.pendingRelics, 1, 'No second relic'); assert.ok(run.wave <= 11, 'No skipped wave');
+endSortie('abandoned');
+
+// ---- the debrief best-wave flag needs a strictly better wave ----
+fresh(); G.state.stats.bestWave = 7; run = launch(); G.world.wave.num = 7; assert.equal(endSortie('destroyed').best, false);
+run = launch(); G.world.wave.num = 8; const s8 = endSortie('destroyed'); assert.equal(s8.best, true); assert.equal(s8.wave, 8);
+
+// ---- an interrupted sortie in the save banks its salvage at boot ----
+fresh(); G.state.salvage = 100; run = launch(); run.salvage = 80.6;
+const loaded = parseSave(JSON.stringify(G.state)); assert.ok(loaded.run);
+assert.equal(recoverInterruptedRun(loaded), 80); assert.equal(loaded.run, null); assert.equal(loaded.salvage, G.state.salvage + 80);
 
 // ---- saves round-trip and refuse newer schemas ----
 fresh(); G.state.salvage = 1234; G.state.workshop.w_hull = 3;

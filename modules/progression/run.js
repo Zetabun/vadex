@@ -15,7 +15,7 @@ import { checkContracts } from '@last-orbit/progression/meta.js';
 // ---------------------------------------------------------------- sortie lifecycle
 export function startSortie(opts = {}) {
   const st = G.state, ship = SHIP_BY_ID[st.ship] || SHIP_BY_ID.vanguard;
-  st.run = newRun(ship, opts); G.mode = 'sortie';
+  st.run = newRun(ship, opts); st.run.prevBest = st.stats.bestWave || 0; G.mode = 'sortie';
   recalc();
   const run = st.run;
   run.rerolls = Math.round(G.sheet.n('rerolls'));
@@ -28,13 +28,13 @@ export function startSortie(opts = {}) {
 /** Bank the sortie, update lifetime records and contracts, and return a debrief summary. */
 export function endSortie(reason = 'destroyed') {
   const st = G.state, run = st.run; if (!run) return null;
-  const sec = sectorOf(run.wave), banked = Math.floor(run.salvage);
+  const reached = Math.max(1, G.world?.wave?.num || run.wave), sec = sectorOf(reached), banked = Math.floor(run.salvage);
   st.salvage += banked; st.stats.totalSalvage = (st.stats.totalSalvage || 0) + banked; maxStat('bestSalvage', banked);
   if (reason === 'destroyed') count('deaths');
   const summary = {
-    reason, ship: run.ship, wave: run.wave, sector: sec.idx + 1, sectorName: sec.def.name, level: run.level, kills: run.stats.kills || 0,
+    reason, ship: run.ship, wave: reached, sector: sec.idx + 1, sectorName: sec.def.name, level: run.level, kills: run.stats.kills || 0,
     bosses: run.stats.bossKills || 0, time: Math.round(run.time), salvage: banked, cards: run.stats.cards || 0, relics: run.relics.slice(),
-    weapons: run.order.map((id) => [id, run.weapons[id]]), best: run.wave >= (st.stats.bestWave || 0), date: Date.now(),
+    weapons: run.order.map((id) => [id, run.weapons[id]]), best: reached > (run.prevBest || 0), date: Date.now(),
   };
   st.run = null; G.mode = 'hangar';
   // Contracts finished mid-sortie were announced as they happened; the debrief lists them all.
@@ -42,6 +42,14 @@ export function endSortie(reason = 'destroyed') {
   st.history.unshift({ wave: summary.wave, level: summary.level, ship: summary.ship, salvage: banked, time: summary.time, date: summary.date }); st.history.length = Math.min(st.history.length, 12);
   recalc(); bus.emit('sortieEnded', summary);
   return summary;
+}
+
+/** A saved sortie found at boot (closed or discarded tab) cannot be resumed: bank its salvage and drop it. */
+export function recoverInterruptedRun(state) {
+  const run = state.run; if (!run) return 0;
+  const got = Math.floor(run.salvage || 0), s = state.stats;
+  state.salvage += got; s.totalSalvage = (s.totalSalvage || 0) + got; if (!(s.bestSalvage >= got)) s.bestSalvage = got;
+  state.run = null; return got;
 }
 
 // ---------------------------------------------------------------- experience
