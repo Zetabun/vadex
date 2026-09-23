@@ -1,6 +1,7 @@
 // Run-bound Ship Level perks. A point is earned at levels 3, 5, 7, ... .
 // Small capped bonuses keep the skill tree complementary to upgrades and Research.
 export const SKILL_UNLOCK_WAVE = 8;
+export const SKILL_TIER_WAVES = { 1: 8, 2: 12, 3: 20 };
 export const SKILLS = [
   { id: 'calibration', branch: 'Offence', tier: 1, name: 'Calibration', icon: '◎', max: 5, desc: '+3% weapon damage per rank.', fx: [['damage', 'mult', 0.03]] },
   { id: 'rapid', branch: 'Offence', tier: 2, name: 'Rapid Cycling', icon: '⇈', max: 4, req: ['calibration', 2], desc: '+2% fire rate per rank.', fx: [['fireRate', 'mult', 0.02]] },

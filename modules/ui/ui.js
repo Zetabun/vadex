@@ -66,7 +66,7 @@ export function statusEffectItems(st, w) {
 }
 
 export function initUI(root, hooks) {
-  const $ = {}, panels = {}, factories = { upgrades: upgradesPanel, arsenal: arsenalPanel, research: researchPanel, modules: modulesPanel, skills: skillsPanel, rewind: rewindPanel, menu: () => menuPanel(hooks) };
+  const $ = {}, panels = {}, factories = { upgrades: upgradesPanel, arsenal: () => arsenalPanel(() => toggle('modules')), research: researchPanel, modules: modulesPanel, skills: skillsPanel, rewind: rewindPanel, menu: () => menuPanel(hooks) };
   let open = null, lastTouch = -Infinity, bannerT = null, curSig = '', onboardingRouteHoldUntil = 0;
   // ---------- build ----------
   $.scan = h('div#scan'); $.vig = h('div#vig'); $.flash = h('div#flash');
@@ -76,6 +76,7 @@ export function initUI(root, hooks) {
   $.objective = h('div#objective', { role: 'status', 'aria-live': 'polite' }, h('div.obj-head', $.objK, $.objProg), $.objTitle, $.objText, $.objHint);
   $.hud = h('div#hud', h('div.hud-row', h('div.wavebox', h('div.wave-n', h('small', 'Wave'), $.waveN), $.tag, $.sector), $.level, $.choice, $.farm), $.secProg, $.curs, $.boss, $.objective);
   $.buffs = h('div#buff-stack', { role: 'status', 'aria-label': 'Current buffs and boons' });
+  $.boonInfo = h('aside#boon-info', { role: 'status', 'aria-live': 'polite', hidden: true });
   $.banner = h('div#banner', { role: 'status', 'aria-live': 'polite' }); $.toasts = h('div#toasts', { role: 'status', 'aria-live': 'polite', 'aria-atomic': 'false' }); $.hint = h('div#hint', 'Drag to move · hold to fire');
   $.guideSpot = h('div#tutorial-spot', { 'aria-hidden': 'true' }); $.guideK = h('div.tg-k'); $.guideTitle = h('b'); $.guideText = h('span'); $.guideHint = h('small');
   $.guideCard = h('div#tutorial-guide', { role: 'status', 'aria-live': 'polite' }, $.guideK, $.guideTitle, $.guideText, $.guideHint);
@@ -95,30 +96,35 @@ export function initUI(root, hooks) {
   $.abil = h('div#abil'); $.pTitle = h('h3', { id: 'panel-title' }); $.pBody = h('div.p-body');
   $.backGame = h('button.btn.sm.loadout-back', { type: 'button', onclick: () => toggle(null) }, '← Back to game');
   $.skillsLink = h('button.btn.sm.loadout-skills', { type: 'button', onclick: () => toggle('skills') }, 'Skills');
-  $.panel = h('div#panel', { role: 'region', 'aria-labelledby': 'panel-title', 'aria-hidden': 'true' }, $.commandBar, h('div.p-head', $.pTitle, $.skillsLink, $.backGame, h('button.x', { 'aria-label': 'Close panel and return to game', onclick: () => toggle(open) }, '✕')), $.pBody);
+  $.loadoutLink = h('button.btn.sm.skills-loadout-link', { type: 'button', onclick: () => toggle('modules') }, 'Loadout');
+  $.panel = h('div#panel', { role: 'region', 'aria-labelledby': 'panel-title', 'aria-hidden': 'true' }, $.commandBar, h('div.p-head', $.pTitle, $.loadoutLink, $.skillsLink, $.backGame, h('button.x', { 'aria-label': 'Close panel and return to game', onclick: () => toggle(open) }, '✕')), $.pBody);
   $.nav = h('div#nav'); $.navBtns = {};
   for (const [id, name, icon] of NAV) { const b = h('button.nb', { 'aria-label': name, 'aria-pressed': 'false', onclick: () => toggle(id) }, uiIcon(id), name, h('span.pip')); $.navBtns[id] = b; $.nav.append(b); }
   $.bottom = h('div#bottom', $.tactical, $.status, $.abil, $.supply, $.panel, $.nav);
-  root.append($.scan, $.vig, $.hud, $.buffs, $.banner, $.hint, $.intermission, $.toasts, $.bottom, $.guideSpot, $.guideCard, $.flash); initModals(root);
+  root.append($.scan, $.vig, $.hud, $.buffs, $.boonInfo, $.banner, $.hint, $.intermission, $.toasts, $.bottom, $.guideSpot, $.guideCard, $.flash); initModals(root);
   root.addEventListener('pointerdown', () => { lastTouch = performance.now(); }, true);
+  root.addEventListener('pointerdown', (event) => { if (!$.boonInfo.hidden && !event.target.closest('#boon-info,.buff-chip.boon')) $.boonInfo.hidden = true; });
 
   // ---------- panels ----------
   const commandPhase = () => commandPhaseActive(!!open, G.world?.wave);
   function syncManagementLayout() {
     const active = !!open, command = commandPhase();
-    const fullLoadout = open === 'modules';
+    const fullLoadout = open === 'modules', fullSkills = open === 'skills', fullScreen = fullLoadout || fullSkills;
     $.bottom.classList.toggle('management', active);
     $.bottom.classList.toggle('command-phase', command);
     $.bottom.classList.toggle('loadout-fullscreen', fullLoadout);
+    $.bottom.classList.toggle('skills-fullscreen', fullSkills);
     root.classList.toggle('management-open', active);
     root.classList.toggle('command-phase', command);
     root.classList.toggle('loadout-open', fullLoadout);
+    root.classList.toggle('skills-open', fullSkills);
     $.skillsLink.hidden = !fullLoadout || !G.state.unlocks.skills;
+    $.loadoutLink.hidden = !fullSkills;
     $.tactical.classList.toggle('on', active && !command);
     if (active) {
       // Live management preserves the battlefield. A paused intermission instead expands into
       // a Command Phase because there is no active threat to monitor.
-      const ph = fullLoadout ? innerHeight : command
+      const ph = fullScreen ? innerHeight : command
         ? commandPanelHeight(innerHeight, $.hud.offsetHeight, $.nav.offsetHeight)
         : managementPanelHeight(innerHeight, $.hud.offsetHeight, $.status.offsetHeight + $.nav.offsetHeight);
       $.panel.style.setProperty('--management-panel-height', ph + 'px');
@@ -137,7 +143,7 @@ export function initUI(root, hooks) {
   function refreshNav(reveal) { const u = G.state.unlocks; for (const [id, , , gate] of NAV) { const b = $.navBtns[id], show = !gate || !!u[gate]; if (b.classList.contains('hide') !== !show) { b.classList.toggle('hide', !show); if (show && reveal) { b.classList.add('reveal'); setTimeout(() => b.classList.remove('reveal'), 1100); } } setClass(b, 'new', show && gate && !G.state.seen['nav_' + id]); } }
   function measure(predict) {
     syncManagementLayout();
-    if (open === 'modules') { hooks.setInsets(0, 0); return; }
+    if (open === 'modules' || open === 'skills') { hooks.setInsets(0, 0); return; }
     const top = $.hud.offsetHeight, bh = $.bottom.offsetHeight; let bottom = bh;
     if (predict && open) {
       const command = commandPhase();
@@ -210,7 +216,15 @@ export function initUI(root, hooks) {
     const sig = items.map((x) => `${x.id}:${x.value}`).join('|');
     if (sig === buffSig) return; buffSig = sig; clear($.buffs);
     for (const x of items) {
-      const chip = h('div.buff-chip.' + x.kind, { style: '--buff-accent:' + x.color, title: x.detail || x.name, 'aria-label': `${x.name}${x.value ? ', ' + x.value : ''}. ${x.detail || ''}` },
+      const boon = x.kind === 'boon';
+      const chip = h((boon ? 'button' : 'div') + '.buff-chip.' + x.kind, { style: '--buff-accent:' + x.color, type: boon ? 'button' : null, title: x.detail || x.name, 'aria-label': `${x.name}${x.value ? ', ' + x.value : ''}. ${x.detail || ''}${boon ? ' Tap for details.' : ''}`, onclick: boon ? () => {
+        const b = BOON_BY_ID[x.artId], count = G.state.run.boons[x.artId] || 0;
+        if (!b) return;
+        clear($.boonInfo).append(h('div.boon-info-head', gameIcon('boon', b.id, 'boon-info-art', x.icon), h('div', h('b', b.name), h('small', `${count} ${count === 1 ? 'STACK' : 'STACKS'} · ${b.tag.toUpperCase()}`)), h('button.boon-info-close', { type: 'button', 'aria-label': 'Close boon details', onclick: () => { $.boonInfo.hidden = true; chip.focus(); } }, '✕')), h('p', b.desc), h('small.boon-info-foot', 'Effect per stack · lasts until Rewind'));
+        $.boonInfo.hidden = false;
+        const box = chip.getBoundingClientRect(), app = root.getBoundingClientRect();
+        $.boonInfo.style.top = Math.min(Math.max(8, box.top - app.top), Math.max(8, app.height - $.boonInfo.offsetHeight - 8)) + 'px';
+      } : null },
         h('span.buff-icon', x.artKind ? gameIcon(x.artKind, x.artId, 'buff-pixel', x.icon || '◆') : x.icon), h('span.buff-copy', h('b', x.name), h('small', x.value || '')));
       $.buffs.append(chip);
     }

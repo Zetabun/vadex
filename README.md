@@ -22,4 +22,4 @@ Three.js and fonts load from CDNs. The game needs a network connection for its n
 python tools/run_release_gates.py
 ```
 
-The gate checks every module's syntax and runs the skill, lifesteal, respec, and save migration regression test. Current gameplay build: **v1.18.0**; save schema **13**; onboarding schema **6**.
+The gate checks every module's syntax and runs the skill, lifesteal, respec, tier timing, and save migration regression test. Current gameplay build: **v1.18.1**; save schema **13**; onboarding schema **6**.

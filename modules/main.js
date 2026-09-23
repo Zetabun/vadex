@@ -90,7 +90,7 @@ function frame(now) {
   const elapsed = Math.max(0, (now - last) / 1000 || 0.016), real = Math.min(0.1, elapsed); last = now;
   const speed = Math.max(0, stat('gameSpeed') * G.debugSpeed * (G.state.settings.speed || 1)), w0 = G.world;
   const managementOpen = !!ui?.isOpen(), commandPaused = commandPhaseActive(managementOpen, G.world?.wave);
-  const tutorialPaused = onboardingFreezesAll(), loadoutPaused = ui?.isOpen() === 'modules';
+  const tutorialPaused = onboardingFreezesAll(), loadoutPaused = ['modules', 'skills'].includes(ui?.isOpen());
   // Tactical management slows live combat. A between-wave Command Phase and the guided first-upgrade
   // purchase are genuinely paused, while the highlighted UI control remains interactive.
   managementScale = approachManagementScale(managementScale, managementOpen && !commandPaused && !tutorialPaused && !loadoutPaused, real);

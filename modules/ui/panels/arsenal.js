@@ -13,12 +13,13 @@ import { h, clear, setText, setClass, holdable, tabs, multBar, select } from '@l
 import { gameIcon } from '@last-orbit/ui/icons.js';
 
 const hex = (n) => '#' + n.toString(16).padStart(6, '0');
-export function arsenalPanel() {
+export function arsenalPanel(openLoadout) {
   let tab = (G.state.unlocks.drones && !G.state.seen.dronesTab) ? 'drones' : 'weapons', sig = '', selSlot = 0, selAb = 0, rows = [];
   const body = h('div'), mb = multBar(() => update());
   const markDronesSeen = () => { G.state.seen.dronesTab = 1; bus.emit('droneTabOpened'); };
   const bar = tabs([['weapons', 'Weapons'], ['drones', 'Drones'], ['abilities', 'Abilities']], () => tab, (t) => { tab = t; if (t === 'drones') markDronesSeen(); sig = ''; update(); });
-  const root = h('div', h('div.row', { style: 'margin-bottom:8px' }, bar, mb), body); bar.style.cssText = 'flex:1 1 100%;margin:0';
+  const loadout = h('button.btn.sm.arsenal-loadout-link', { type: 'button', onclick: () => { playSfx('tab'); openLoadout?.(); } }, 'Go to Loadout →');
+  const root = h('div', h('div.row', { style: 'margin-bottom:8px' }, bar, mb), h('div.arsenal-loadout-row', h('span', 'Unlocked gear can be fitted on your ship.'), loadout), body); bar.style.cssText = 'flex:1 1 100%;margin:0';
   const offLoadout = bus.on('loadout', () => { sig = ''; });
 
   function buildWeapons() {

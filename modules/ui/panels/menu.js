@@ -28,7 +28,7 @@ import { MATERIAL_TIERS } from '@last-orbit/data/materials.js';
 import { PROJECTS } from '@last-orbit/data/projects.js';
 import { projectRevealed, projectComplete, projectCanBuild, projectCostText, buildProject, projectsAttention } from '@last-orbit/progression/projects.js';
 
-export const VERSION = '1.18.0';
+export const VERSION = '1.18.1';
 export function menuPanel(hooks) {
   let screen = 'home', sig = '', foundryView = null, materialsView = null; const root = h('div'), st = () => G.state;
   const relics = treeView('relics', [['all', 'Relics · permanent']], () => 'all'), alien = treeView('alien', [['all', 'Xeno laboratory']], () => 'all');
@@ -118,7 +118,7 @@ export function menuPanel(hooks) {
         h('div.kv', 'Close panel', h('b', 'Esc')));
       root.append(h('div.sec-h', 'Core loop'), h('p.note', 'Destroy formations to earn Credits, Scrap and Research Data. Credits improve the current timeline, Scrap develops weapons and drones, and Data unlocks research mechanics. Manual flying builds Focus, which increases both damage and Credit income.'));
       root.append(h('div.sec-h', 'Streak'), h('p.note', 'Rapid kills build a Credit payout multiplier. Every kill refreshes a 3.5-second grace window; after the gap expires the streak begins to decay. Streak improves kill income, while Focus is the active-piloting bonus that improves both damage and Credits.'));
-      root.append(h('div.sec-h', 'Ship XP and Skills'), h('p.note', 'Kills and wave clears award Ship XP, with tougher waves, elites and bosses worth more. Each Ship Level above 1 adds +0.8% damage and +0.5% hull for the current timeline. From Level 3, every second level grants a Skill Point. The Skill Tree unlocks at Wave 8; spend points on Offence, Defence and Utility perks, including lifesteal. You can reset your skills freely. Ship XP, Skill Points and ranks reset on Rewind.'));
+      root.append(h('div.sec-h', 'Ship XP and Skills'), h('p.note', 'Kills and wave clears award Ship XP, with tougher waves, elites and bosses worth more. Each Ship Level above 1 adds +0.8% damage and +0.5% hull for the current timeline. From Level 3, every second level grants a Skill Point. The Skill Tree opens at Wave 8, deeper perks at Waves 12 and 20. Tap a node to inspect it, then unlock it with a point. You can reset skills freely. Ship XP, points and ranks reset on Rewind.'));
       root.append(h('div.sec-h', 'Wave pacing'), h('p.note', 'After a clear, the default five-second intermission is completely safe. Start Now skips it; Pause & Shop freezes the countdown while you browse. PUSH means advance into the next, harder wave. HOLD means repeat the wave you just cleared to farm resources without increasing difficulty. The Hold/Push button in the top HUD changes that standing order.'));
       root.append(h('div.sec-h', 'Tactical management'), h('p.note', 'Opening a management panel during combat keeps the battlefield visible and slows combat to 30%. Ship Loadout fills the screen and pauses combat while you fit gear; Back to game returns to the battle. During a safe intermission, Pause & Shop opens an expanded Command Phase. Ordinary modal choices pause combat while persistent production continues; Command Briefing confirmation cards deliberately freeze every game clock until acknowledged.'));
       root.append(h('div.sec-h', 'Ship systems'), h('p.note', 'The normal navigation only shows systems you can use. Menu → Ship Systems previews upcoming layers and their unlock conditions without filling the HUD with locked buttons.'));

@@ -85,8 +85,8 @@ const STEPS = [
   {
     id: 'skills', gate: (s) => !!s.unlocks.skills,
     complete: (s, o) => o.flags.skill || Object.values(s.run.skills || {}).some(rank => Number(rank) > 0),
-    briefing: (s, o) => !ack(o, 'skills') ? brief('skills', 'Ship proficiency', 'Skill tree online', 'Every second Ship Level, starting at Level 3, grants a Skill Point. Spend points on small run perks across Offence, Defence and Utility.', 'Try a first rank now. Vital Siphon later adds lifesteal. Skill ranks and points reset on Rewind.', 'Show Skills', { panel: 'skills' }) : null,
-    view: (s, o) => ack(o, 'skills') ? ({ kicker: 'Ship proficiency', title: 'Spend a Skill Point', text: 'Open Skills and buy any available perk.', hint: 'Branch prerequisites unlock stronger perks. You can respec freely during this run.', targetNav: 'skills' }) : null,
+    briefing: (s, o) => !ack(o, 'skills') ? brief('skills', 'Ship proficiency', 'Skill tree online', 'Every second Ship Level, starting at Level 3, grants a Skill Point. Tap a branch node to inspect it, then unlock it from the panel below.', 'Start with an available Wave 8 perk. Deeper paths open at Waves 12 and 20; Vital Siphon later adds lifesteal. Skills reset on Rewind.', 'Show Skills', { panel: 'skills' }) : null,
+    view: (s, o) => ack(o, 'skills') ? ({ kicker: 'Ship proficiency', title: 'Spend a Skill Point', text: 'Open Skills, tap an available node and unlock a rank.', hint: 'Branch prerequisites lead to deeper perks. You can reset points freely.', targetNav: 'skills' }) : null,
   },
   {
     id: 'research', gate: (s) => !!s.unlocks.research,

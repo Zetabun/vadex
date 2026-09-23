@@ -13,6 +13,10 @@ G.state.unlocks.skills = Date.now();
 G.state.run.xp = xpForLevel(19); // Nine points to test branch prerequisites and effects.
 recalc();
 assert.equal(skillPoints(), 9);
+assert.equal(buySkill('calibration'), false, 'entry perks wait for Wave 8');
+G.state.run.best = 8;
+assert.equal(buySkill('rapid'), false, 'second tier waits for Wave 12');
+G.state.run.best = 20;
 assert.equal(buySkill('siphon'), false, 'deep perks need their prerequisites');
 assert.equal(buySkill('plating'), true);
 assert.equal(buySkill('plating'), true);

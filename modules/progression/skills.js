@@ -1,7 +1,7 @@
 import { G, recalc, toast } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { levelFromXp } from '@last-orbit/data/experience.js';
-import { SKILLS, SKILL_BY_ID, skillPointsEarned } from '@last-orbit/data/skills.js';
+import { SKILLS, SKILL_BY_ID, SKILL_TIER_WAVES, skillPointsEarned } from '@last-orbit/data/skills.js';
 
 export function skillRank(id) { return Math.max(0, Math.min(SKILL_BY_ID[id]?.max || 0, Math.floor(Number(G.state?.run?.skills?.[id]) || 0))); }
 export function skillPoints() {
@@ -12,6 +12,7 @@ export function skillStatus(id) {
   const skill = SKILL_BY_ID[id];
   if (!skill || !G.state?.unlocks?.skills) return 'locked';
   if (skillRank(id) >= skill.max) return 'maxed';
+  if ((G.state.run?.best || 1) < SKILL_TIER_WAVES[skill.tier]) return 'wave';
   if (skill.req && skillRank(skill.req[0]) < skill.req[1]) return 'prerequisite';
   return skillPoints() > 0 ? 'available' : 'no-points';
 }
