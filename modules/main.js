@@ -16,7 +16,7 @@ import { Renderer } from '@last-orbit/rendering/renderer.js';
 import { initUI } from '@last-orbit/ui/ui.js';
 
 const app = document.getElementById('app'), glCanvas = document.getElementById('gl'), overlay = document.getElementById('overlay');
-let renderer, ui, last = 0, saveT = 0, running = false;
+let renderer, ui, last = 0, saveT = 0, running = false, levelBeat = 0;
 
 function adopt(state) {
   G.state = state; G.state.run = null; // an interrupted sortie cannot be resumed; its salvage was banked on exit
@@ -44,6 +44,8 @@ function finish(reason) {
   ui.showDebrief(summary);
 }
 bus.on('sortieOver', (reason) => setTimeout(() => finish(reason), 350));
+// A level-up gets a brief beat of celebration in the battle before the card choice freezes it.
+bus.on('levelUp', (lvl) => { if (G.mode !== 'sortie' || !G.world) return; levelBeat = 0.45; const p = G.world.player; renderer.celebrate(p.x, p.y + 4, '#6dffc8', 50); G.world.fx.push({ k: 'text', a: p.x, b: p.y + 12, c: 'LEVEL ' + lvl, d: '#6dffc8', e: 2 }); });
 
 // ------------------------------------------------------------------ input
 function wireInput() {
@@ -79,7 +81,8 @@ function frame(now) {
   const speed = paused ? 0 : Math.max(0, G.sheet.n('gameSpeed') * G.debugSpeed * (G.state.settings.speed || 1));
   if (speed > 0) advance(real * speed);
   // A level-up or sector relic freezes combat until the pilot chooses.
-  if (G.mode === 'sortie' && !paused && G.state.run && (nextRelic() || nextOffer())) ui.nextChoice();
+  if (levelBeat > 0) levelBeat -= real;
+  else if (G.mode === 'sortie' && !paused && G.state.run && (nextRelic() || nextOffer())) ui.nextChoice();
   const w = G.world;
   setMusicMode(G.mode === 'sortie' ? w.base.sectorIdx % 6 : 0, !!(w.wave.boss && w.wave.boss.alive)); tickMusic();
   renderer.render(real, w, speed); ui.update(real);

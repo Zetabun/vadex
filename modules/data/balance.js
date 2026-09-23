@@ -6,9 +6,10 @@ export const TICK = 1 / 60;
 export const FIELD = { W: 100, H: 150, PLAYER_Y: 9, BARRIER_Y: 27, LAND_Y: 15, TOP: 140, SPAWN_Y: 165 };
 
 export const BAL = {
-  // enemy scaling: base × growth^(wave-1) × sectorJump^sector
-  hpBase: 8, hpGrowth: 1.16, sectorHpJump: 1.35,
-  dmgBase: 7, dmgGrowth: 1.055, sectorDmgJump: 1.2,
+  // enemy scaling: base × growth^(wave-1) × sectorJump^sector. Health grows more slowly after lateWave,
+  // once a typical build has maxed its guns, so Workshop upgrades keep pushing the wall back.
+  hpBase: 8, hpGrowth: 1.175, hpLateGrowth: 1.13, lateWave: 30, sectorHpJump: 1.35,
+  dmgBase: 7, dmgGrowth: 1.045, sectorDmgJump: 1.15,
   eliteHp: 5, eliteReward: 6, bossReward: 40, miniReward: 18,
   // salvage (the permanent currency)
   salvageChance: 0.16, salvagePerWave: 0.12, clearSalvage: 3, clearSalvagePerWave: 0.7, bossSalvage: 30, miniSalvage: 12,
@@ -30,7 +31,8 @@ export const BAL = {
 
 // Enemy stats are multiples of these per-wave baselines (see data/enemies.js).
 export function enemyHp(w, sectorIdx) {
-  return Big.pow(BAL.hpGrowth, w - 1).mul(BAL.hpBase * Math.pow(BAL.sectorHpJump, sectorIdx));
+  const early = Math.min(w, BAL.lateWave) - 1, late = Math.max(0, w - BAL.lateWave);
+  return Big.pow(BAL.hpGrowth, early).mul(Big.pow(BAL.hpLateGrowth, late)).mul(BAL.hpBase * Math.pow(BAL.sectorHpJump, sectorIdx));
 }
 export function enemyDmg(w, sectorIdx) {
   return Big.pow(BAL.dmgGrowth, w - 1).mul(BAL.dmgBase * Math.pow(BAL.sectorDmgJump, sectorIdx));

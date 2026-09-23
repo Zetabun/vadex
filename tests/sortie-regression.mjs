@@ -92,7 +92,7 @@ assert.equal(G.state.history[0].wave, 12);
 fresh(); G.state.salvage = 1e6;
 const dmgBase = G.sheet.n('damage'), c0 = workshopNext('w_dmg');
 assert.equal(c0, workshopCost(WORKSHOP[0], 0)); assert.ok(buyWorkshop('w_dmg')); assert.ok(workshopNext('w_dmg') > c0);
-assert.ok(Math.abs(G.sheet.n('damage') - dmgBase * 1.1) < 1e-9);
+assert.ok(Math.abs(G.sheet.n('damage') - dmgBase * 1.15) < 1e-9);
 for (let i = 0; i < 20; i++) buyWorkshop('w_dmg');
 assert.equal(G.state.workshop.w_dmg, 10); assert.equal(workshopNext('w_dmg'), null);
 G.state.salvage = 0; assert.equal(buyWorkshop('w_hull'), false, 'Cannot buy without salvage');

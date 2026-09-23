@@ -134,7 +134,8 @@ export function updateBullets(w, dt) {
 export function updateHazards(w, dt) {
   const p = w.player, H = w.hazards;
   for (let i = H.length - 1; i >= 0; i--) {
-    const h = H[i]; h.t += dt * (h.kind === 'pool' || h.kind === 'hole' ? 1 : (w.slowT > 0 ? 0.5 : 1)); let done = false;
+    const h = H[i]; if (!h) continue; // a boss death mid-loop can clear the list
+    h.t += dt * (h.kind === 'pool' || h.kind === 'hole' ? 1 : (w.slowT > 0 ? 0.5 : 1)); let done = false;
     if (h.src && !h.src.alive && h.kind !== 'pool') { H.splice(i, 1); continue; }
     switch (h.kind) {
       case 'snipe': if (h.t >= h.telegraph) { const a = Math.atan2(h.ty - h.y, h.tx - h.x); spawnBullet(w, h.src.x, h.src.y, Math.cos(a) * h.speed, Math.sin(a) * h.speed, h.dmg, 'snipe', 1.3); sfx(w, 'snipe'); done = true; } else { h.x = h.src.x; h.y = h.src.y; } break;

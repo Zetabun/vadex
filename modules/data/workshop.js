@@ -1,9 +1,9 @@
 // Workshop: permanent upgrades bought with Salvage between sorties.
 // cost(level) = base × growth^level, rounded. fx applies once per level.
 export const WORKSHOP = [
-  { id: 'w_dmg', name: 'Weapon Calibration', icon: 'misc:damage', max: 10, base: 25, growth: 1.55, fx: [['damage', 'mult', 0.1]], per: '+10% damage' },
-  { id: 'w_rate', name: 'Cycler Tuning', icon: 'misc:multishot', max: 10, base: 35, growth: 1.55, fx: [['fireRate', 'mult', 0.05]], per: '+5% fire rate' },
-  { id: 'w_hull', name: 'Hull Plating', icon: 'misc:armour', max: 10, base: 25, growth: 1.5, fx: [['hull', 'mult', 0.12]], per: '+12% hull' },
+  { id: 'w_dmg', name: 'Weapon Calibration', icon: 'misc:damage', max: 10, base: 25, growth: 1.55, fx: [['damage', 'mult', 0.15]], per: '+15% damage' },
+  { id: 'w_rate', name: 'Cycler Tuning', icon: 'misc:multishot', max: 10, base: 35, growth: 1.55, fx: [['fireRate', 'mult', 0.07]], per: '+7% fire rate' },
+  { id: 'w_hull', name: 'Hull Plating', icon: 'misc:armour', max: 10, base: 25, growth: 1.5, fx: [['hull', 'mult', 0.15]], per: '+15% hull' },
   { id: 'w_shield', name: 'Shield Emitter', icon: 'misc:barrier', max: 5, base: 120, growth: 1.8, fx: [['shieldRatio', 'add', 0.12]], per: 'Shield +12% of hull' },
   { id: 'w_crit', name: 'Targeting Suite', icon: 'misc:critical', max: 5, base: 60, growth: 1.7, fx: [['critChance', 'add', 0.02], ['critDmg', 'add', 0.1]], per: '+2% crit, +10% crit damage' },
   { id: 'w_regen', name: 'Repair Bay', icon: 'misc:repair', max: 5, base: 80, growth: 1.7, fx: [['hullRegen', 'add', 0.003]], per: 'Repair 0.3% hull a second' },
