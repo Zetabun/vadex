@@ -1,5 +1,11 @@
 # Changelog
 
+## v1.20.0 — 2026-09-23
+
+- Restyled live Upgrades as a mobile ship command console with illustrated upgrade plates, shaped category controls, glowing milestone tracks and clearer purchase buttons.
+- Kept the battlefield visible during tactical shopping and enlarged the tactical-time and navigation controls to match the new visual language.
+- Versioned module URLs so the hosted game loads the refreshed interface.
+
 ## v1.19.0 — 2026-09-23
 
 - Added a Mining Drone that extracts extra Ore from enemies and a Target Painter that marks enemies for modest bonus damage. Only one specialist may be fitted at a time; swapping it preserves other drones.

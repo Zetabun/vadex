@@ -14,7 +14,7 @@ From the repository root, start a static server and open its URL:
 python -m http.server 8000
 ```
 
-Three.js and fonts load from CDNs. The game needs a network connection for its normal visual build.
+Three.js and fonts load from CDNs. The game needs a network connection for its normal visual build. The Upgrades view uses a mobile ship-console layout while keeping the live battle visible.
 
 ## Test
 
@@ -22,4 +22,4 @@ Three.js and fonts load from CDNs. The game needs a network connection for its n
 python tools/run_release_gates.py
 ```
 
-The gate checks every module's syntax and runs skill and industry regression tests, including drone fitting, passage gating and save migration. Current gameplay build: **v1.19.0**; save schema **14**; onboarding schema **6**.
+The gate checks every module's syntax and runs skill and industry regression tests, including drone fitting, passage gating and save migration. Current gameplay build: **v1.20.0**; save schema **14**; onboarding schema **6**.

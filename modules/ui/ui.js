@@ -113,6 +113,7 @@ export function initUI(root, hooks) {
     const active = !!open, command = commandPhase();
     const fullLoadout = open === 'modules', fullSkills = open === 'skills', fullScreen = fullLoadout || fullSkills;
     $.bottom.classList.toggle('management', active);
+    $.bottom.classList.toggle('upgrades-mode', open === 'upgrades');
     $.bottom.classList.toggle('command-phase', command);
     $.bottom.classList.toggle('loadout-fullscreen', fullLoadout);
     $.bottom.classList.toggle('skills-fullscreen', fullSkills);

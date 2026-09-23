@@ -17,7 +17,9 @@ export function upgradesPanel() {
   let cat = 'off', cards = [], sig = '';
   const list = h('div'), mb = multBar(() => update(true));
   const bar = tabs(UPGRADE_CATS, () => cat, (c) => { cat = c; sig = ''; update(true); });
-  const root = h('div', h('div.row', { style: 'margin-bottom:8px;align-items:stretch' }, bar, mb)); bar.style.cssText = 'flex:1 1 100%;margin:0'; mb.style.cssText = 'margin:0 0 0 auto'; root.append(list);
+  const tabGlyphs = { off: '▥', def: '⬡', eco: '◈', sys: '⚙' };
+  for (const button of bar.btns) button.prepend(h('span.upgrade-tab-glyph', { 'aria-hidden': 'true' }, tabGlyphs[button._id]));
+  const root = h('div.upgrades-console', h('div.upgrade-controls', bar, h('div.upgrade-orders', h('span', 'Purchase order'), mb)), list);
 
   function build() {
     clear(list); cards = [];
@@ -25,8 +27,9 @@ export function upgradesPanel() {
       const lv = h('b'), val = h('div.c-val'), desc = h('div.c-desc', d.desc), g = h('i'), ms = h('div.ms-note'), cost = h('span'), qty = h('small');
       const buy = holdable(h('button.buy', cost, qty), () => { const n = buyUpgrade(d.id, G.ui.mult); if (!n) { playSfx('deny'); return false; } playSfx('buy'); update(true); });
       const name = h('div.c-name', STAT_NAMES[d.stat] ? h('button.statlink', { 'aria-label': `${d.name}: view stat breakdown`, onclick: () => showBreakdown(d.stat) }, d.name) : h('span', d.name), lv);
-      const heading = h('div.upgrade-name', gameIcon('upgrade', d.id, 'upgrade-pixel', '◆'), name);
-      const el = h('div.card', heading, buy, val, desc, d.noMs || d.type === 'flag' ? null : h('div.c-ms', h('div.gauge', g), ms)); if (d.noMs || d.type === 'flag') el.append(h('div.c-ms', ms));
+      const art = h('div.upgrade-art', { 'aria-hidden': 'true' }, gameIcon('upgrade', d.id, 'upgrade-pixel', '◆'));
+      const heading = h('div.upgrade-name', name);
+      const el = h('div.card.upgrade-card', art, heading, buy, val, desc, d.noMs || d.type === 'flag' ? null : h('div.c-ms', h('div.gauge', g), ms)); if (d.noMs || d.type === 'flag') el.append(h('div.c-ms', ms));
       list.append(el); cards.push({ d, el, lv, val, g, ms, cost, qty, buy });
     }
     if (!cards.length) list.append(h('p.note', 'Nothing here yet. Keep pushing waves.'));
