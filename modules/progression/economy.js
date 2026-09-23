@@ -8,7 +8,7 @@ import { RESEARCH } from '@last-orbit/data/research.js';
 import { PRESTIGE, ASCENSION } from '@last-orbit/data/prestige.js';
 import { RELICS, ALIEN } from '@last-orbit/data/relics.js';
 import { WEAPONS, WEAPON_ORDER, EVO_LEVELS } from '@last-orbit/data/weapons.js';
-import { DRONES } from '@last-orbit/data/drones.js';
+import { DRONES, SPECIALIST_DRONES } from '@last-orbit/data/drones.js';
 import { ABILITIES, ABILITY_ORDER } from '@last-orbit/data/abilities.js';
 import { DEF } from '@last-orbit/progression/stats.js';
 import { sectorOf } from '@last-orbit/data/sectors.js';
@@ -145,7 +145,14 @@ export const droneQuote = (t, n) => { const d = DRONES[t], lvl = G.state.run.dro
 export function levelDrone(t, n = 1) { const q = droneQuote(t, n); if (!spend('scrap', q.cost)) return 0; const L = G.state.run.drones.levels; L[t] = (L[t] || 1) + q.n; recalc(); bus.emit('bought', 'drone', t, {}); return q.n; }
 export function setBay(t, delta) {
   const bays = G.state.run.drones.bays, cap = Math.floor(G.sheet.n('droneBays'));
-  if (delta > 0) { if (bays.length >= cap || !droneTypeOpen(t)) return; bays.push(t); }
+  if (delta > 0) {
+    if (!droneTypeOpen(t)) return;
+    if (SPECIALIST_DRONES.includes(t)) {
+      const specialist = bays.findIndex(x => SPECIALIST_DRONES.includes(x));
+      if (specialist >= 0) { bays[specialist] = t; recalc(); bus.emit('loadout'); return; }
+    }
+    if (bays.length >= cap) return; bays.push(t);
+  }
   else { const i = bays.lastIndexOf(t); if (i < 0) return; bays.splice(i, 1); }
   recalc(); bus.emit('loadout');
 }
@@ -154,6 +161,14 @@ export function equipDroneBay(slot, type) {
   const bays = G.state.run.drones.bays, cap = Math.floor(G.sheet.n('droneBays'));
   slot = Math.max(0, Math.floor(slot)); if (slot >= cap) return false;
   if (type && !droneTypeOpen(type)) return false;
+  if (SPECIALIST_DRONES.includes(type)) {
+    const specialist = bays.findIndex(x => SPECIALIST_DRONES.includes(x));
+    if (specialist >= 0 && specialist !== slot) {
+      if (slot < bays.length) { bays[specialist] = bays[slot]; bays[slot] = type; }
+      else { bays.splice(specialist, 1); bays.push(type); }
+      recalc(); bus.emit('loadout'); return true;
+    }
+  }
   if (!type) {
     if (slot >= bays.length) return false;
     bays.splice(slot, 1);

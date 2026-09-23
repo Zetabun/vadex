@@ -16,6 +16,7 @@ import { FOUNDRY_UPGRADES } from '@last-orbit/data/foundry.js';
 import { FLEET_UPGRADES } from '@last-orbit/data/fleet.js';
 import { levelFromXp, levelBonuses } from '@last-orbit/data/experience.js';
 import { SKILLS } from '@last-orbit/data/skills.js';
+import { MATERIAL_UPGRADES } from '@last-orbit/data/materials.js';
 
 export const STAT_BASE = {
   damage: 1, fireRate: 1, critChance: 0.02, critDmg: 1, projSpeed: 1, multishot: 0, pierce: 0, blast: 1, armorPen: 0, bossDmg: 1, eliteDmg: 1, weakMult: BAL.weakMult,
@@ -97,6 +98,7 @@ export function computeSheet(state, sheet = new Sheet()) {
   }
   for (const id in run.research) sheet.fx(DEF.research[id]?.fx, run.research[id], 'Research');
   for (const skill of SKILLS) sheet.fx(skill.fx, Math.max(0, Math.min(skill.max, Math.floor(Number(run.skills?.[skill.id]) || 0))), 'Skills');
+  for (const upgrade of MATERIAL_UPGRADES) if (upgrade.fx) sheet.fx(upgrade.fx, Math.max(0, Math.min(upgrade.max, Number(state.materials?.upgrades?.[upgrade.id]) || 0)), 'Refined materials');
   for (const id in state.prestige.tree) sheet.fx(DEF.prestige[id]?.fx, state.prestige.tree[id], 'Rewind tree');
   for (const id in state.asc.tree) sheet.fx(DEF.asc[id]?.fx, state.asc.tree[id], 'Ascension');
   for (const id in state.relics) sheet.fx(DEF.relics[id]?.fx, state.relics[id], 'Relics');

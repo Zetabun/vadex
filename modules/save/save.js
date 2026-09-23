@@ -27,6 +27,13 @@ async function del(key) { try { localStorage.removeItem(LS + key); } catch { /* 
 
 // ---------- schema migrations: each entry upgrades v → v+1. Never remove entries. ----------
 const MIGRATIONS = {
+  13: (s) => {
+    s.projects ||= { completed: {} }; s.projects.completed ||= {};
+    // Anyone who has already reached the Graveyard keeps their unlocked route.
+    if (Math.max(Number(s.stats?.bestWave || 1), Number(s.run?.best || 1)) >= 41) s.projects.completed.passage ||= Date.now();
+    s.projects.passageBossCleared ||= false;
+    return s;
+  },
   12: (s) => {
     // Ship Level perks belong to the current run. Keep completed lessons complete,
     // and preserve the position of active tutorials after inserting the Skills lesson.

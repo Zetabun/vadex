@@ -31,6 +31,7 @@ import { treeAffordable } from '@last-orbit/ui/panels/tree.js';
 import { onboardingObjective, onboardingBriefing, acknowledgeOnboarding } from '@last-orbit/meta/onboarding.js';
 import { managementPanelHeight, commandPanelHeight, commandPhaseActive, TACTICAL_TIME_SCALE } from '@last-orbit/ui/management.js';
 import { MATERIAL_TIERS } from '@last-orbit/data/materials.js';
+import { PROJECTS } from '@last-orbit/data/projects.js';
 import { uiIcon } from '@last-orbit/ui/icons.js';
 import { xpProgress } from '@last-orbit/data/experience.js';
 import { skillPoints } from '@last-orbit/progression/skills.js';
@@ -74,7 +75,8 @@ export function initUI(root, hooks) {
   $.curs = h('div.curs'); $.bossName = h('span'); $.bossTitle = h('span'); $.bossI = h('i'); $.bossHp = h('div.boss-hp', $.bossI); $.bossNote = h('div.boss-note'); $.boss = h('div#bossbar', h('div.boss-name', $.bossName, $.bossTitle), $.bossHp, $.bossNote);
   $.objK = h('div.obj-k'); $.objTitle = h('b'); $.objText = h('span'); $.objHint = h('small'); $.objProg = h('i');
   $.objective = h('div#objective', { role: 'status', 'aria-live': 'polite' }, h('div.obj-head', $.objK, $.objProg), $.objTitle, $.objText, $.objHint);
-  $.hud = h('div#hud', h('div.hud-row', h('div.wavebox', h('div.wave-n', h('small', 'Wave'), $.waveN), $.tag, $.sector), $.level, $.choice, $.farm), $.secProg, $.curs, $.boss, $.objective);
+  $.routeText = h('span'); $.routeMeter = h('i'); $.route = h('button.route-tracker', { type: 'button', 'aria-label': 'Open Lunar Passage construction', onclick: () => { if (open !== 'menu') toggle('menu'); panels.menu.goto('projects'); } }, h('span.route-symbol', '◇'), $.routeText, h('span.route-track', $.routeMeter), h('span.route-arrow', '›'));
+  $.hud = h('div#hud', h('div.hud-row', h('div.wavebox', h('div.wave-n', h('small', 'Wave'), $.waveN), $.tag, $.sector), $.level, $.choice, $.farm), $.secProg, $.curs, $.route, $.boss, $.objective);
   $.buffs = h('div#buff-stack', { role: 'status', 'aria-label': 'Current buffs and boons' });
   $.boonInfo = h('aside#boon-info', { role: 'status', 'aria-live': 'polite', hidden: true });
   $.banner = h('div#banner', { role: 'status', 'aria-live': 'polite' }); $.toasts = h('div#toasts', { role: 'status', 'aria-live': 'polite', 'aria-atomic': 'false' }); $.hint = h('div#hint', 'Drag to move · hold to fire');
@@ -183,6 +185,8 @@ export function initUI(root, hooks) {
   bus.on('ascend', (sig) => afterReset('+' + sig + ' Stellar Sigils', 'Above the timeline, everything is permanent.', '#ffffff'));
   bus.on('bossDied', (w, boss) => { if (!boss.boss.def.mini) banner('Sector boss destroyed', boss.boss.def.name, null, 'var(--green)', 2600); });
   bus.on('bossRewardReady', (report) => bossLootDialog(report));
+  bus.on('passageLocked', () => banner('Route sealed', 'Lunar Graveyard', 'Build Lunar Passage with Ore, a Bar and a Boss Core', 'var(--amber)', 3600));
+  bus.on('project', (id) => { if (id === 'passage') banner('Route open', 'Lunar Passage', 'The next sector is yours to explore', 'var(--cyan)', 3200); });
   bus.on('choice', () => { if (G.state.run.pendingChoice && !modalOpen() && performance.now() - lastTouch < 20000 && !(G.sheet.f('f.autoBoon') > 0 && G.state.auto.boonTag !== 'ask')) showChoice(); });
   bus.on('grantModule', () => playSfx('loot'));
 
@@ -275,7 +279,12 @@ export function initUI(root, hooks) {
     }
     if (st.unlocks.drones && !st.seen.droneBriefingV1) {
       st.seen.droneBriefingV1 = 1;
-      onboardingDialog({ kicker: 'Autonomous support online', title: 'Drone bays unlocked', text: 'Drones are managed inside Arsenal → Drones. Each Drone Bay is a slot for an autonomous craft; use Scrap to improve drone types and +/− to deploy them.', hint: 'After you continue, I’ll open the Drones tab so you can see exactly where they live.', okLabel: 'Show Drones' }, () => { if (open !== 'arsenal') toggle('arsenal'); panels.arsenal?.goto?.('drones'); });
+      onboardingDialog({ kicker: 'Autonomous support online', title: 'Drone bays unlocked', text: 'Choose a specialist in Arsenal → Drones: the Mining Drone extracts extra Ore, while the Target Painter marks enemies for extra damage. Only one specialist can be fitted at a time; Scrap improves either drone.', hint: 'Ship Loadout lets you choose its bay. You can swap specialists whenever your build changes.', okLabel: 'Show Drones' }, () => { if (open !== 'arsenal') toggle('arsenal'); panels.arsenal?.goto?.('drones'); });
+      return;
+    }
+    if ((st.stats.bestWave || 1) >= 30 && !st.projects?.completed?.passage && !st.seen.passageBriefingV1) {
+      st.seen.passageBriefingV1 = 1;
+      onboardingDialog({ kicker: 'New route charted', title: 'Build the Lunar Passage', text: 'The Outer Orbit ends at Wave 40. To cross into the Lunar Graveyard, secure its boss and build a transit beacon with 40 Palladium Ore, one Iridium Bar and one Boss Core.', hint: 'A small route tracker now sits beneath your resources. Tap it to see construction progress. Hold mode mines whichever discovered ore you select in Smelting.', okLabel: 'View route' }, () => { if (open !== 'menu') toggle('menu'); panels.menu?.goto?.('projects'); });
     }
   }
   function followOnboardingAction(action) {
@@ -302,10 +311,20 @@ export function initUI(root, hooks) {
     maybeShowOnboardingBriefing();
     setText($.waveN, String(run.wave)); setText($.sector, sec.def.name); setWidth($.secI, (sec.n - 1) / sec.len);
     const xp = xpProgress(run.xp || 0); setText($.xpN, `LV ${xp.level}`); setWidth($.xpI, xp.fraction); $.level.setAttribute('aria-label', `Ship Level ${xp.level}. ${xp.current} of ${xp.needed} XP toward next level.`); $.level.title = `${xp.current}/${xp.needed} XP`;
+    const passage = PROJECTS.find((p) => p.id === 'passage'), routeVisible = (st.stats.bestWave || 1) >= passage.wave && !st.projects?.completed?.passage && !run.challenge;
+    $.route.style.display = routeVisible ? '' : 'none';
+    if (routeVisible) {
+      const costs = passage.costs, ready = costs.filter(([cur, n]) => st.cur[cur].gte(n)).length;
+      const detail = costs.map(([cur, n]) => `${CUR[cur]?.name || cur} ${fmt(st.cur[cur])}/${n}`).join(' · ');
+      setText($.routeText, ready === costs.length ? 'LUNAR PASSAGE · READY' : `LUNAR PASSAGE · ${ready}/${costs.length}`);
+      setWidth($.routeMeter, ready / costs.length); $.route.classList.toggle('ready', ready === costs.length);
+      $.route.title = detail; $.route.setAttribute('aria-label', `Lunar Passage: ${detail}. Tap to open Ship Projects.`);
+    }
     const kind = w.wave.info?.kind, tagTxt = kind === 'boss' ? 'Boss' : kind === 'mini' ? 'Mini boss' : kind === 'elite' ? 'Elite' : kind === 'challenge' ? w.wave.info.mod.name : kind === 'resource' ? 'Convoy' : kind === 'swarm' ? 'Swarm' : ''; setText($.tag, tagTxt); $.tag.className = 'wave-tag' + (tagTxt ? ' on' : '') + (kind === 'boss' || kind === 'mini' ? ' boss' : kind === 'elite' ? ' elite' : kind === 'resource' ? ' resource' : '');
     const showFarm = run.farm || (st.stats.bestWave || 1) >= 2 || (st.stats.deaths || 0) > 0; $.farm.style.display = showFarm ? '' : 'none'; if (showFarm) {
       setText($.farm, run.farm ? '▮▮ Hold' : '▲ Push'); $.farm.className = 'hbtn ' + (run.farm ? 'hold' : 'push');
-      const farmTip = run.farm ? `Holding: repeat Wave ${w.wave.clearedNum || run.wave} after each clear to farm safely. Tap to Push forward.` : 'Pushing: advance to the next wave after each clear. Tap to Hold and repeat the current wave.';
+      const selectedOre = MATERIAL_TIERS.find((m) => m.id === st.materials.selected);
+      const farmTip = run.farm ? `Holding: repeat Wave ${w.wave.clearedNum || run.wave} and mine ${selectedOre?.name || 'selected'} Ore. Change ore in Menu → Smelting. Tap to Push forward.` : 'Pushing: advance to the next wave after each clear. Tap to Hold and mine the selected discovered ore.';
       $.farm.setAttribute('aria-label', farmTip); $.farm.title = farmTip;
     }
     const inter = w.wave.state === 'cleared' && w.wave.intermission;

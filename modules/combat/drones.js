@@ -29,7 +29,7 @@ export function syncDrones(w) {
   for (const d of next) delete d._used;
   w.drones = next.concat(keep); w.droneVersion = G.sheet.version; w.droneBays = want.join();
 }
-function makeDrone(w, type, life) { const p = w.player; return { type, x: p.x, y: p.y - 4, t: rand() * 10, cd: rand(), temp: !!life, life: life || 0, flash: 0, tx: 0, ty: 0 }; }
+function makeDrone(w, type, life) { const p = w.player; return { type, x: p.x, y: p.y - 4, t: rand() * 10, cd: rand(), temp: !!life, life: life || 0, flash: 0, tx: 0, ty: 0, target: null }; }
 export function addSwarm(w, n, life) { for (let i = 0; i < n; i++) if (w.drones.length < 26) w.drones.push(makeDrone(w, 'attack', life)); }
 
 export function updateDrones(w, dt) {
@@ -45,6 +45,25 @@ export function updateDrones(w, dt) {
     d.x += (Math.max(-47, Math.min(47, ax)) - d.x) * Math.min(1, 5 * dt); d.y += (ay - d.y) * Math.min(1, 5 * dt);
     if (!fighting) continue;
     const def = DRONES[d.type]; d.cd -= dt * rate;
+    if (d.type === 'mining' || d.type === 'survey') {
+      const target = w.painted?.alive ? w.painted : d.target?.alive && !d.target.invuln ? d.target : pickTarget(w, null, d);
+      if (d.type === 'survey' && d.target && d.target !== target) d.target.droneMarkT = 0;
+      d.target = target;
+      if (target) {
+        // Specialists leave the formation to work beside their target. Visuals follow the simulation.
+        d.x += (target.x - d.x) * Math.min(1, 2.5 * dt);
+        d.y += (target.y - 7 - d.y) * Math.min(1, 2.5 * dt);
+        if (d.cd <= 0) {
+          const lvl = st.run.drones.levels[d.type] || 1;
+          if (d.type === 'mining') { target.mined = true; d.cd = Math.max(1.7, 3.2 - 0.08 * (lvl - 1)); }
+          else { target.droneMarkT = 3; target.droneMarkPower = Math.min(0.16, 0.08 + 0.01 * (lvl - 1)); d.cd = 2; }
+          d.flash = 0.22;
+          fx(w, 'beam', d.x, d.y, target.x, target.y, def.color, 0.8, 0.2);
+          fx(w, 'paint', target.x, target.y, target.r);
+        }
+      }
+      continue;
+    }
     switch (d.type) {
       case 'attack': case 'missile': {
         if (d.cd > 0) break; const cc = c[d.type];

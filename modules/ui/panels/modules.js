@@ -20,7 +20,7 @@ import { equipmentPicker } from '@last-orbit/ui/equipment-picker.js';
 import { confirmDialog } from '@last-orbit/ui/modals.js';
 
 const WEAPON_ICONS = { cannon: '▰', laser: '╫', missile: '⇈', tesla: 'ϟ', rail: '━', plasma: '◉', mine: '✣', prism: '◇' };
-const DRONE_ICONS = { attack: '✥', missile: '⌁', repair: '✚', collect: '◆', shield: '⬡', intercept: '✦' };
+const DRONE_ICONS = { attack: '✥', mining: '⛏', survey: '◎', missile: '⌁', repair: '✚', collect: '◆', shield: '⬡', intercept: '✦' };
 const KIND_ORDER = { weapon: 0, module: 1, drone: 2, ability: 3, support: 4 };
 
 function fxText([stat, op, v], scale) { const meta = MODULE_MODS.find((m) => m[0] === stat), label = meta ? meta[3] : stat, x = v * scale; return (op === 'add' ? (meta && meta[4] === 'n' ? '+' + fmt(x, 1) : '+' + pct(x, 1)) : (x < 0 ? '−' : '+') + pct(Math.abs(x), 0)) + ' ' + label; }

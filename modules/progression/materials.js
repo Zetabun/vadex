@@ -1,7 +1,7 @@
 // Persistent multi-material industry. Enemies provide raw ore by wave band; one smelter
 // processes a selected recipe; finished bars must be collected until late automation.
 import { Big } from '@last-orbit/core/big.js';
-import { G, toast } from '@last-orbit/core/game.js';
+import { G, recalc, toast } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { MATERIALS, MATERIAL_TIERS, MATERIAL_BY_ID, MATERIAL_UPGRADES, materialAtCalibrationLevel } from '@last-orbit/data/materials.js';
 import { gain, spend } from '@last-orbit/progression/economy.js';
@@ -147,6 +147,7 @@ export function buyMaterialUpgrade(id) {
   const lvl = materialLevel(id); if (lvl >= d.max) return false;
   const req = materialUpgradeRequirement(d, lvl); if (!spend(req.cur, req.amount)) return false;
   G.state.materials.upgrades[id] = lvl + 1;
+  recalc();
   bus.emit('bought', 'materials', id, { after: lvl + 1 }); bus.emit('materials'); return true;
 }
 

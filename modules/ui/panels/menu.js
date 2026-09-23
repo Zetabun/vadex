@@ -3,6 +3,7 @@ import { G, toast } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { fmt, fmtTime, fmtInt, setNotation } from '@last-orbit/core/format.js';
 import { Big } from '@last-orbit/core/big.js';
+import { CUR } from '@last-orbit/core/state.js';
 import { UPGRADES } from '@last-orbit/data/upgrades.js';
 import { WEAPONS, WEAPON_ORDER } from '@last-orbit/data/weapons.js';
 import { CHALLENGES, ACHIEVEMENTS } from '@last-orbit/data/goals.js';
@@ -28,7 +29,7 @@ import { MATERIAL_TIERS } from '@last-orbit/data/materials.js';
 import { PROJECTS } from '@last-orbit/data/projects.js';
 import { projectRevealed, projectComplete, projectCanBuild, projectCostText, buildProject, projectsAttention } from '@last-orbit/progression/projects.js';
 
-export const VERSION = '1.18.2';
+export const VERSION = '1.19.0';
 export function menuPanel(hooks) {
   let screen = 'home', sig = '', foundryView = null, materialsView = null; const root = h('div'), st = () => G.state;
   const relics = treeView('relics', [['all', 'Relics · permanent']], () => 'all'), alien = treeView('alien', [['all', 'Xeno laboratory']], () => 'all');
@@ -62,8 +63,20 @@ export function menuPanel(hooks) {
       for (const a of ACHIEVEMENTS.slice().sort((x, y) => (s.ach[y.id] ? 1 : 0) - (s.ach[x.id] ? 1 : 0))) { const done = s.ach[a.id], hid = a.hidden && !done; root.append(h('div.ach' + (done ? '.done' : ''), h('i', done ? '★' : '☆'), h('div', hid ? '???' : a.name, h('small', hid ? 'Hidden achievement' : a.desc)))); } },
     projects() {
       root.append(back('Ship Projects'), h('p.note', 'Reaching a milestone now reveals technology instead of granting it for free. Recover materials, then commission the system when you are ready.'));
-      const visible = PROJECTS.filter(projectRevealed);
-      for (const p of visible) { const done = projectComplete(p.id), can = projectCanBuild(p); root.append(h('div.card' + (done ? '.maxed' : can ? '.can' : ''), h('div.c-name', p.name, h('b', done ? 'ONLINE' : `WAVE ${p.wave}`)), done ? h('div') : h('button.buy' + (can ? '.can' : ''), { disabled: !can, onclick: () => { if (buildProject(p.id)) { playSfx('milestone'); sig=''; update(); } else playSfx('deny'); } }, can ? 'Commission' : 'Gather'), h('div.c-desc', p.desc), h('div.c-val', done ? 'Construction complete' : projectCostText(p)))); }
+      const visible = PROJECTS.filter(projectRevealed).sort((a, b) => (a.id === 'passage' ? -1 : b.id === 'passage' ? 1 : 0));
+      for (const p of visible) { const done = projectComplete(p.id), can = projectCanBuild(p);
+        if (p.id === 'passage') {
+          const s = st(), costs = p.costs.map(([cur, need]) => ({ cur, need, have: Math.min(need, s.cur[cur].toNumber()), name: CUR[cur]?.name || cur }));
+          root.append(h('section.passage-project' + (can ? '.ready' : ''),
+            h('div.passage-sky', h('span.passage-world.origin', 'OUTER ORBIT'), h('span.passage-line', '· · · · · · ·'), h('span.passage-world.destination', 'LUNAR GRAVEYARD')),
+            h('div.passage-title', h('span', '◇  LUNAR PASSAGE'), h('b', done ? 'ROUTE OPEN' : s.projects.passageBossCleared ? 'BOSS DEFEATED' : 'SECTOR GATE')),
+            h('p', p.desc),
+            h('div.passage-costs', ...costs.map(({ cur, need, have, name }) => h('div.passage-resource' + (have >= need ? '.complete' : ''), h('span', name), h('b', `${fmt(have)} / ${need}`), h('i', { style: `width:${Math.min(100, have / need * 100)}%` })) )),
+            h('div.passage-actions', done ? h('span', 'Transit beacon online · survives Rewind') : h('button.btn.pri', { disabled: !can, onclick: () => { if (buildProject(p.id)) { playSfx('milestone'); sig = ''; update(); } else playSfx('deny'); } }, can ? 'Power the passage' : 'Gather resources'), !done ? h('button.btn.sm', { onclick: () => go('materials') }, 'Choose ore in Smelting') : null),
+            !done ? h('small', 'Iridium begins at Wave 30 and Palladium at Wave 35. Hold a cleared wave and select either in Smelting to farm it. Defeat the sector boss to open the route.') : null));
+          continue;
+        }
+        root.append(h('div.card' + (done ? '.maxed' : can ? '.can' : ''), h('div.c-name', p.name, h('b', done ? 'ONLINE' : `WAVE ${p.wave}`)), done ? h('div') : h('button.buy' + (can ? '.can' : ''), { disabled: !can, onclick: () => { if (buildProject(p.id)) { playSfx('milestone'); sig=''; update(); } else playSfx('deny'); } }, can ? 'Commission' : 'Gather'), h('div.c-desc', p.desc), h('div.c-val', done ? 'Construction complete' : projectCostText(p)))); }
       if (!visible.length) root.append(h('p.note', 'No major ship projects discovered yet. Push deeper to find new technology.'));
     },
     systems() {
@@ -77,6 +90,7 @@ export function menuPanel(hooks) {
         ['Research Lab', 'Spend Research Data to unlock new mechanics and automation.', online('research'), 'Unlocks at Wave 12'],
         ['Recovery Fleet', 'Persistent autonomous salvage and long-term support protocols.', online('fleet'), projectRevealed(PROJECTS[0]) ? 'Blueprint discovered · construct in Ship Projects' : 'Blueprint at Wave 10'],
         ['Orbital Foundry', 'Manufacture tactical supplies and permanent ship calibration.', online('foundry'), projectRevealed(PROJECTS[1]) ? 'Blueprint discovered · construct in Ship Projects' : 'Blueprint at Wave 20'],
+        ['Lunar Passage', 'Mine Palladium and smelt Iridium to chart the next sector.', projectComplete('passage'), projectRevealed(PROJECTS[2]) ? 'Route charted · construct in Ship Projects' : 'Blueprint at Wave 30'],
         ['Ship Loadout', 'See and fit all equipped weapons, modules, drones, abilities and support gear in one place.', online('arsenal'), 'Unlock the Arsenal'],
         ['Chrono Rewind', 'Reset the timeline for permanent Chrono Shards and push farther.', online('rewind') && s.stats.bestWave >= 30, 'Available from Wave 30'],
         ['Challenge Runs', 'Fresh timelines with special rules and permanent rewards.', online('challenges'), 'Unlocks after 2 Rewinds'],
@@ -122,7 +136,9 @@ export function menuPanel(hooks) {
       root.append(h('div.sec-h', 'Wave pacing'), h('p.note', 'After a clear, the default five-second intermission is completely safe. Start Now skips it; Pause & Shop freezes the countdown while you browse. PUSH means advance into the next, harder wave. HOLD means repeat the wave you just cleared to farm resources without increasing difficulty. The Hold/Push button in the top HUD changes that standing order.'));
       root.append(h('div.sec-h', 'Tactical management'), h('p.note', 'Opening a management panel during combat keeps the battlefield visible and slows combat to 30%. Ship Loadout fills the screen and pauses combat while you fit gear; Back to game returns to the battle. During a safe intermission, Pause & Shop opens an expanded Command Phase. Ordinary modal choices pause combat while persistent production continues; Command Briefing confirmation cards deliberately freeze every game clock until acknowledged.'));
       root.append(h('div.sec-h', 'Ship systems'), h('p.note', 'The normal navigation only shows systems you can use. Menu → Ship Systems previews upcoming layers and their unlock conditions without filling the HUD with locked buttons.'));
-      root.append(h('div.sec-h', 'Materials and smelting'), h('p.note', 'Wave 1 starts with Iron, then a new raw material enters the drop pool every five waves. Material icons use the metal colour rather than a generic pickaxe. Buy the Basic Smelter with Credits, choose a discovered recipe, load its Ore, wait for the batch, then collect the finished Bar before it becomes spendable. Two furnace-calibration levels use each material before the requirement advances to the next tier. Ores, Bars and industry upgrades survive Rewind and Ascension; extraction automation remains a late unlock.'));
+      root.append(h('div.sec-h', 'Materials and smelting'), h('p.note', 'Wave 1 starts with Iron, then a new raw material appears every five waves. Choose a discovered recipe, load its Ore into the shared smelter, then collect the finished Bar. Hold mode mines your selected material, so you can revisit older recipes. Bars permanently improve ship systems and build projects. The Auto-loader opens at Wave 12; the Output Conveyor at Wave 22. Ores, Bars and industry upgrades survive Rewind and Ascension.'));
+      root.append(h('div.sec-h', 'Specialist drones'), h('p.note', 'From Wave 15, fit one specialist in a Drone Bay: a Mining Drone extracts extra Ore from enemies, or a Target Painter marks a priority target for more damage. You can swap between them freely in Arsenal or Ship Loadout. Manual target painting remains stronger and takes priority.'));
+      root.append(h('div.sec-h', 'Sector passages'), h('p.note', 'At Wave 30, the Lunar Passage project appears. Mine 40 Palladium Ore, smelt one Iridium Bar, keep one Boss Core, and defeat the Wave 40 boss to enter the Lunar Graveyard. The beacon stays built across Rewinds.'));
       root.append(h('div.sec-h', 'Recovery Fleet'), h('p.note', 'Wave 10 reveals the Recovery Fleet project. Commission it with Credits, Iron Bars and Copper Bars; once online it runs beside combat in real time. It has its own Fleet Supplies and upgrade tree, continues while you are away, and survives Rewinds and Ascension.'));
       root.append(h('div.sec-h', 'Orbital Foundry'), h('p.note', 'Wave 20 reveals the Orbital Foundry project. Commission it with Credits, Silver Bars and Gold Bars, then choose a production line in Menu → Orbital Foundry: Overclock cells, Repair capsules (wave 15), or Salvage beacons (wave 20). Every cycle also earns Blueprints for Foundry upgrades. Use the Supply button or Q to deploy your quick-slot item. Progress and reserves persist through both resets. Automatic dispatch unlocks at wave 25.'));
       root.append(h('div.sec-h', 'Rewind'), h('p.note', 'At wave 30 the Chrono Core can convert run depth into permanent Chrono Shards. Rewinding is the intended long-term loop: the timeline resets, but permanent power lets later runs recover and push farther.'));
@@ -152,7 +168,7 @@ export function menuPanel(hooks) {
       let taps = 0; root.append(h('p.note', { style: 'text-align:center;margin-top:16px', onclick: () => { if (++taps >= 7) { taps = 0; hooks.openDebug(); } } }, `Last Orbit v${VERSION}`)); },
   };
   function update() {
-    const live = screen === 'stats' ? Math.floor(performance.now() / 1000) : screen === 'missions' ? st().missions.active.map((m) => missionProgress(m)).join() : screen === 'fleet' ? fleetSignature() : screen === 'materials' ? materialsSignature() : screen === 'home' ? (projectsAttention() ? 'p|' : '') + missionsReady() + '|' + achievementCount() + '|' + Object.keys(st().unlocks).length + '|' + treeAffordable('relics') + '|' + treeAffordable('alien') + '|' + (st().unlocks.fleet ? fleetSignature() : '') + '|' + (st().materials.discovered ? materialsSignature() : '') + '|' + onboardingStatus().step + '|' + onboardingStatus().enabled : screen === 'systems' ? Object.keys(st().unlocks).length + '|' + (st().stats.bestWave || 1) + '|' + (st().stats.bestSector || 1) + '|' + st().prestige.count + '|' + st().materials.discovered : screen === 'challenges' ? st().run.best + (st().run.challenge || '') : '';
+    const live = screen === 'stats' ? Math.floor(performance.now() / 1000) : screen === 'missions' ? st().missions.active.map((m) => missionProgress(m)).join() : screen === 'fleet' ? fleetSignature() : screen === 'materials' ? materialsSignature() : screen === 'projects' ? PROJECTS.filter(projectRevealed).map((p) => p.id + ':' + !!st().projects.completed[p.id] + ':' + p.costs.map(([cur]) => fmt(st().cur[cur])).join(',')).join('|') + ':' + !!st().projects.passageBossCleared : screen === 'home' ? (projectsAttention() ? 'p|' : '') + missionsReady() + '|' + achievementCount() + '|' + Object.keys(st().unlocks).length + '|' + treeAffordable('relics') + '|' + treeAffordable('alien') + '|' + (st().unlocks.fleet ? fleetSignature() : '') + '|' + (st().materials.discovered ? materialsSignature() : '') + '|' + onboardingStatus().step + '|' + onboardingStatus().enabled : screen === 'systems' ? Object.keys(st().unlocks).length + '|' + (st().stats.bestWave || 1) + '|' + (st().stats.bestSector || 1) + '|' + st().prestige.count + '|' + st().materials.discovered : screen === 'challenges' ? st().run.best + (st().run.challenge || '') : '';
     const k = screen + '|' + live; if (k !== sig) { sig = k; const sc = root.parentNode?.scrollTop; clear(root); screens[screen](); if (sc && root.parentNode) root.parentNode.scrollTop = sc; }
     if (screen === 'foundry') foundryView?.update();
     if (screen === 'materials') materialsView?.update();

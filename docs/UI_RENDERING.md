@@ -5,3 +5,5 @@
 The paper doll renders artwork only for fitted items. Empty and locked sockets keep their outline and status text; inventory cards, picker options and forge choices display equipment art. `modules/ui/icons.js` owns the pixel images and uses the text `¢` for Credits. Decorative artwork has no pointer input. `modules/ui/modals.js` owns focus and blocking dialogs; `modules/meta/onboarding.js` owns tutorial progression.
 
 The renderer reads `G.world` and does not change progression. CSS lives in `index.html`. The import map must resolve each `@last-orbit/` module to its published relative path.
+
+The combat HUD shows a compact Lunar Passage tracker after Wave 30. It opens Ship Projects, where the passage appears first as a star chart with three resource meters. Mining and Target Painter drones have different colours; mined enemies receive an amber ring, and drone-marked enemies a magenta reticle.

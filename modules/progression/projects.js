@@ -19,8 +19,14 @@ export function buildProject(id) {
     if (G.state.fleet.lifetime.isZero() && G.state.fleet.spent.isZero()) { G.state.fleet.supply = G.state.fleet.supply.add(25); G.state.fleet.lifetime = G.state.fleet.lifetime.add(25); }
   } else if (id === 'foundry') {
     G.state.unlocks.foundry ||= Date.now(); G.state.foundry.commissioned = true; G.state.foundry.blueprints += 4; G.state.foundry.stock.burst += 1;
+  } else if (id === 'passage' && G.state.projects.passageBossCleared && G.state.run.wave === 40) {
+    G.state.run.farm = false; G.state.run.wave = 41;
+    G.state.run.best = Math.max(G.state.run.best, 41);
+    G.state.stats.bestWave = Math.max(G.state.stats.bestWave || 1, 41);
+    G.state.stats.bestSector = Math.max(G.state.stats.bestSector || 1, 2);
+    bus.emit('stats');
   }
-  toast(`${p.name} commissioned. New ship system online.`, 'unlock');
+  toast(id === 'passage' ? 'Lunar Passage powered. The Graveyard route is open!' : `${p.name} commissioned. New ship system online.`, 'unlock');
   bus.emit('project', id); bus.emit('unlock', id); return true;
 }
 

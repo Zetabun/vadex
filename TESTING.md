@@ -1,5 +1,7 @@
 # Testing
 
-Run `python tools/run_release_gates.py` from the repository root. It checks all 76 JavaScript modules with `node --check`, then runs `tests/skills-regression.mjs` through the alias loader. That regression covers points, branch prerequisites, stat effects, lifesteal, free respec, and migration of an active schema 12 tutorial.
+Run `python tools/run_release_gates.py` from the repository root. It checks all 76 JavaScript modules with `node --check`, then runs the skills and industry regression suites through the alias loader. The latter covers specialist swapping, ore and paint effects, Bar upgrades, passage gating and migration of older saves.
 
 For browser verification, serve the root over HTTP. Confirm the page boots, Loadout opens across the viewport, empty slots have no icons, Back to game returns to combat, Arsenal's Go to Loadout opens the fitting screen, Wave 8 unlocks Skills, skill nodes can be inspected before purchase, a bought node opens an adjacent branch, deeper tiers open at Waves 12 and 20, and buying a rank updates available points. Drag the skill map from blank space and a node, use zoom and jump controls, inspect a future placeholder, and check at 320px and 390px phone widths. Tap a boon chip to inspect its effect and stacks. Use `?debug=1` only in its isolated sandbox when accelerating progression.
+
+At Wave 15, fit Mining or Target Painter in Arsenal and confirm the other specialist swaps out even with full bays. At Wave 30, inspect the route tracker and project view at phone width. Hold a wave with Palladium selected in Smelting, then confirm the Lunar Passage consumes its listed resources and opens Wave 41 after the Wave 40 boss. Check that old Wave 41+ saves retain the passage.

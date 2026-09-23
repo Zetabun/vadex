@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.19.0 — 2026-09-23
+
+- Added a Mining Drone that extracts extra Ore from enemies and a Target Painter that marks enemies for modest bonus damage. Only one specialist may be fitted at a time; swapping it preserves other drones.
+- Hold mode now mines the discovered Ore selected in Smelting, letting players revisit earlier recipes. Mining and marking have distinct battlefield effects. Manual target painting remains stronger.
+- Gave six early refined Bars permanent, capped ship upgrades. Moved the Auto-loader to Wave 12 and Output Conveyor to Wave 22 to reduce repeated smelter chores.
+- Added the Lunar Passage project at Wave 30. It consumes 40 Palladium Ore, one Iridium Bar and one Boss Core; Wave 40 cannot lead to the Lunar Graveyard until it is built. Existing saves already past Wave 40 keep access.
+- Added a compact combat route tracker, chart-style construction view and progression briefings. Updated offline progression, save migration and regression coverage.
+
 ## v1.18.2 — 2026-09-23
 
 - Turned the Skill Tree into a draggable, zoomable web with connected branches, cross-links, map jump controls and future-path placeholders.

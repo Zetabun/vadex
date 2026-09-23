@@ -4,7 +4,7 @@ import { bus } from '@last-orbit/core/events.js';
 import { fmt, fmtTime } from '@last-orbit/core/format.js';
 import { CUR } from '@last-orbit/core/state.js';
 import { WEAPONS, WEAPON_ORDER, EVO_LEVELS } from '@last-orbit/data/weapons.js';
-import { DRONES, DRONE_ORDER } from '@last-orbit/data/drones.js';
+import { DRONES, DRONE_ORDER, SPECIALIST_DRONES } from '@last-orbit/data/drones.js';
 import { ABILITIES, ABILITY_ORDER, AUTO_CONDITIONS } from '@last-orbit/data/abilities.js';
 import { weaponOwned, weaponGate, weaponUnlockCost, unlockWeapon, weaponQuote, levelWeapon, equipWeapon, droneTypeOpen, droneQuote, levelDrone, setBay, abilityOpen, equipAbility, can } from '@last-orbit/progression/economy.js';
 import { abilityCooldown } from '@last-orbit/combat/abilities.js';
@@ -13,6 +13,7 @@ import { h, clear, setText, setClass, holdable, tabs, multBar, select } from '@l
 import { gameIcon } from '@last-orbit/ui/icons.js';
 
 const hex = (n) => '#' + n.toString(16).padStart(6, '0');
+const droneGlyph = (t) => t === 'mining' ? '⛏' : t === 'survey' ? '◎' : '✥';
 export function arsenalPanel(openLoadout) {
   let tab = (G.state.unlocks.drones && !G.state.seen.dronesTab) ? 'drones' : 'weapons', sig = '', selSlot = 0, selAb = 0, rows = [];
   const body = h('div'), mb = multBar(() => update());
@@ -37,13 +38,14 @@ export function arsenalPanel(openLoadout) {
   function buildDrones() {
     const cap = Math.floor(G.sheet.n('droneBays')), bays = G.state.run.drones.bays;
     if (!cap) { body.append(h('p.note', 'No drone bays yet. Research "Drone bay" in the Drones branch (wave 15).')); return; }
-    const sl = h('div.slots'); for (let i = 0; i < cap; i++) { const t = bays[i], d = t && DRONES[t]; sl.append(h('div.slot' + (d ? '.full' : ''), h('small', 'Bay ' + (i + 1)), d ? [h('span.arsenal-art', { style: 'color:' + hex(d.color) }, gameIcon('drone', t)), h('span', { style: 'color:' + hex(d.color) }, d.name.replace(' drone', ''))] : h('span', { style: 'color:var(--mute)' }, 'Empty'))); } body.append(sl);
-    for (const t of DRONE_ORDER) { const d = DRONES[t]; if (!droneTypeOpen(t)) { body.append(h('div.card.locked', h('div.c-name', h('span.arsenal-art', gameIcon('drone', t)), h('span', d.name)), h('div'), h('div.c-desc', `Research tier ${d.tier} drones to unlock.`))); continue; }
+    const sl = h('div.slots'); for (let i = 0; i < cap; i++) { const t = bays[i], d = t && DRONES[t]; sl.append(h('div.slot' + (d ? '.full' : ''), h('small', 'Bay ' + (i + 1)), d ? [h('span.arsenal-art', { style: 'color:' + hex(d.color) }, gameIcon('drone', t, '', droneGlyph(t))), h('span', { style: 'color:' + hex(d.color) }, d.name.replace(' drone', ''))] : h('span', { style: 'color:var(--mute)' }, 'Empty'))); } body.append(sl);
+    body.append(h('p.note', 'Choose one specialist: Mining Drone extracts extra Ore, or Target Painter marks enemies for damage. Deploying either specialist swaps the other, even when bays are full. Fit exact bays in Ship Loadout.'));
+    for (const t of DRONE_ORDER) { const d = DRONES[t]; if (!droneTypeOpen(t)) { body.append(h('div.card.locked', h('div.c-name', h('span.arsenal-art', gameIcon('drone', t, '', droneGlyph(t))), h('span', d.name)), h('div'), h('div.c-desc', `Research tier ${d.tier} drones to unlock.`))); continue; }
       const lv = h('b'), cnt = h('b', { style: 'min-width:22px;text-align:center;font-family:var(--disp)' }), cost = h('span'), qty = h('small');
       const buy = holdable(h('button.buy.cy', cost, qty), () => { if (!levelDrone(t, G.ui.mult)) { playSfx('deny'); return false; } playSfx('buy'); update(); });
       const minus = h('button.btn.sm', { 'aria-label': `Recall ${d.name}`, onclick: () => { setBay(t, -1); playSfx('tab'); update(); } }, '−');
       const plus = h('button.btn.sm', { 'aria-label': `Deploy ${d.name}`, onclick: () => { setBay(t, 1); playSfx('tab'); update(); } }, '+');
-      const el = h('div.card', h('div.c-name', h('span.arsenal-art', { style: 'color:' + hex(d.color) }, gameIcon('drone', t)), h('span', { style: 'color:' + hex(d.color) }, d.name), lv), buy, h('div.c-desc', d.desc), h('div.row', { style: 'margin-top:6px' }, minus, cnt, plus, h('span.note', { style: 'margin:0 0 0 4px' }, 'deployed')));
+      const el = h('div.card', h('div.c-name', h('span.arsenal-art', { style: 'color:' + hex(d.color) }, gameIcon('drone', t, '', droneGlyph(t))), h('span', { style: 'color:' + hex(d.color) }, d.name), lv), buy, h('div.c-desc', d.desc), h('div.row', { style: 'margin-top:6px' }, minus, cnt, plus, h('span.note', { style: 'margin:0 0 0 4px' }, 'deployed')));
       body.append(el); rows.push({ kind: 'd', t, el, lv, cnt, cost, qty, buy, minus, plus });
     }
   }
@@ -73,7 +75,7 @@ export function arsenalPanel(openLoadout) {
           const ni = EVO_LEVELS.findIndex((l) => lvl < l); r.evo.childNodes.forEach((n, i) => setClass(n, 'on', lvl >= EVO_LEVELS[i])); setText(r.ms, ni >= 0 ? `LV ${EVO_LEVELS[ni]}: ${r.d.evo[ni].name}. ${r.d.evo[ni].desc}` : 'Fully evolved');
           r.fit.style.display = ''; r.fit.disabled = st.run.equipped[selSlot] === r.id; r.fit.classList.toggle('selected', r.fit.disabled); setText(r.fit, eqd ? (st.run.equipped[selSlot] === r.id ? 'Fitted' : 'Move here') : 'Fit'); }
         else { const gate = weaponGate(r.id), costs = weaponUnlockCost(r.id), ok = gate.ok && costs.every(([c, a]) => can(c, a)); setText(r.lv, 'LOCKED'); setText(r.cost, gate.ok ? costs.map(([c, a]) => CUR[c].icon + ' ' + fmt(a)).join('  ') : gate.text); setText(r.qty, gate.ok ? 'Unlock' : ''); setClass(r.buy, 'can', ok); setText(r.val, ''); setText(r.ms, 'First evolution: ' + r.d.evo[0].name); r.fit.style.display = 'none'; }
-      } else { const lvl = st.run.drones.levels[r.t] || 1, q = droneQuote(r.t, G.ui.mult), ok = can('scrap', q.cost); setText(r.lv, 'LV ' + lvl); setText(r.cost, '⚙ ' + fmt(q.cost)); setText(r.qty, '+' + q.n); setClass(r.buy, 'can', ok); const deployed = st.run.drones.bays.filter((x) => x === r.t).length; setText(r.cnt, String(deployed)); r.minus.disabled = deployed === 0; r.plus.disabled = st.run.drones.bays.length >= Math.floor(G.sheet.n('droneBays')); }
+      } else { const lvl = st.run.drones.levels[r.t] || 1, q = droneQuote(r.t, G.ui.mult), ok = can('scrap', q.cost); setText(r.lv, 'LV ' + lvl); setText(r.cost, '⚙ ' + fmt(q.cost)); setText(r.qty, '+' + q.n); setClass(r.buy, 'can', ok); const deployed = st.run.drones.bays.filter((x) => x === r.t).length; setText(r.cnt, String(deployed)); r.minus.disabled = deployed === 0; const swapping = SPECIALIST_DRONES.includes(r.t) && st.run.drones.bays.some((x) => SPECIALIST_DRONES.includes(x)); r.plus.disabled = swapping ? st.run.drones.bays.includes(r.t) : st.run.drones.bays.length >= Math.floor(G.sheet.n('droneBays')); r.plus.textContent = swapping && !r.plus.disabled ? 'Swap' : '+'; }
     }
   }
   return { el: root, update, title: 'Arsenal', goto(next) { if (next === 'drones' && G.state.unlocks.drones) markDronesSeen(); tab = next; sig = ''; update(); }, onOpen() { if (G.state.unlocks.drones && !G.state.seen.dronesTab) { tab = 'drones'; markDronesSeen(); sig = ''; } }, destroy() { offLoadout(); } };

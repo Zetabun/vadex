@@ -9,7 +9,7 @@ import { materialIcon as matIcon } from '@last-orbit/ui/icons.js';
 
 export function materialsScreen(root, back) {
   root.append(back('Smelting'));
-  root.append(h('p.note', 'Enemy wreckage changes as you push deeper. A new raw material enters the drop pool every five waves. Select any discovered recipe below; one shared smelter processes one batch at a time, and finished bars must be collected until late automation.'));
+  root.append(h('p.note', 'Enemy wreckage changes as you push deeper. Select a discovered material, then use Hold mode to mine that Ore from enemies. The Mining Drone extracts a bonus. One shared smelter turns Ore into permanent Bars for ship upgrades and route construction.'));
 
   const recipes = h('div.material-recipes'), recipeCard = h('div.card.mat-selected'), recipeName = h('div.c-name'), recipeStock = h('div.c-val'), recipeDesc = h('div.c-desc');
   recipeCard.append(recipeName, recipeStock, recipeDesc); root.append(recipes, recipeCard);
@@ -27,7 +27,7 @@ export function materialsScreen(root, back) {
     const card = h('div.card', h('div.c-name', d.name, lv), buy, h('div.c-desc', d.desc), gate);
     root.append(card); rows.push({ d, lv, costIcon, cost, costName, gate, buy, card });
   }
-  root.append(h('p.note', `Automation stays late: Auto-loader at Wave ${MATERIALS.autoLoadWave}, Output Conveyor at Wave ${MATERIALS.autoCollectWave}, and targeted passive extraction at Wave ${MATERIALS.extractorWave}. Until then, ore comes from combat and every finished bar is deliberately collected.`));
+  root.append(h('p.note', `Auto-loader opens at Wave ${MATERIALS.autoLoadWave}, Output Conveyor at Wave ${MATERIALS.autoCollectWave}, and passive extraction at Wave ${MATERIALS.extractorWave}. Earlier Bars can improve hull, energy, precision and income, so each material has a purpose.`));
 
   let recipeSig = '', selectedIconId = '', activeIconId = '';
   function buildRecipes() {

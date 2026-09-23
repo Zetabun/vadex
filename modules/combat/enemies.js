@@ -28,7 +28,7 @@ export function updateEnemies(w, dt) {
   for (let i = w.enemies.length - 1; i >= 0; i--) {
     const e = w.enemies[i];
     if (!e.alive) { w.enemies[i] = w.enemies[w.enemies.length - 1]; w.enemies.pop(); continue; }
-    const def = e.def; e.t += edt; if (e.flash > 0) e.flash -= dt; if (e.spawnT > 0) e.spawnT -= dt;
+    const def = e.def; e.t += edt; if (e.flash > 0) e.flash -= dt; if (e.spawnT > 0) e.spawnT -= dt; if (e.droneMarkT > 0) e.droneMarkT = Math.max(0, e.droneMarkT - dt);
     const px = e.x;
     if (e.burnT > 0) { e.burnT -= dt; e.hp -= e.burn * dt; if (rand() < 0.1) fx(w, 'trail', e.x, e.y, 0xff8a3d); if (e.hp <= 0) { e.hp = 0; killEnemy(w, e, e.burnSrc, false, 0); continue; } }
     if (e.regen && e.hp < 1) e.hp = Math.min(1, e.hp + e.regen * dt);

@@ -1,7 +1,7 @@
 // Single source of truth. Everything here is plain data (plus Big) and is what gets saved.
 // Layers, from most to least volatile:  run → (rewind) → prestige → (ascension) → asc / relics / achievements.
 import { Big } from '@last-orbit/core/big.js';
-export const SCHEMA = 13;
+export const SCHEMA = 14;
 export const ONBOARDING_VERSION = 6;
 export const newOnboarding = () => ({
   enabled: true, version: ONBOARDING_VERSION, step: 0, completed: false, done: {}, acknowledged: {},
@@ -30,7 +30,7 @@ export function newState() {
     asc: { count: 0, tree: {}, total: Big.ZERO },
     modules: { inv: [], equipped: {}, nextId: 1 },
     foundry: { commissioned: false, recipe: 'burst', equipped: 'burst', progress: 0, blueprints: 0, stock: { burst: 0, repair: 0, salvage: 0 }, upgrades: {}, auto: false, lifetime: 0, produced: 0, used: 0 },
-    projects: { completed: {} },
+    projects: { completed: {}, passageBossCleared: false },
     fleet: { commissioned: false, supply: Big.ZERO, lifetime: Big.ZERO, spent: Big.ZERO, upgrades: {} },
     materials: { discovered: false, discoveredOres: {}, selected: 'iron', smelter: false, running: false, runningMaterial: null, progress: 0, readyBars: 0, readyMaterial: null, mineProgress: 0, lifetimeOre: Big.ZERO, lifetimeBars: Big.ZERO, lifetimeOreBy: {}, lifetimeBarsBy: {}, barsProduced: 0, batchesStarted: 0, upgrades: {} },
     onboarding: newOnboarding(),

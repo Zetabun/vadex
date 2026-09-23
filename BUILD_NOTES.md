@@ -1,3 +1,3 @@
-# Build notes — v1.18.0
+# Build notes — v1.19.0
 
-Published from `main` as a static GitHub Pages site. `index.html` imports the 76 readable modules under `modules/`; its import map uses a release version query so browsers pick up changed modules after deployment. The old inline base64 bundle is no longer the deployed source of truth. Existing saves migrate from schema 12 to 13. New runs learn Skills after the Wave 8 unlock; completed older tutorials stay completed. Run Skills reset with Ship XP on Rewind. The test gate is `python tools/run_release_gates.py`.
+Published from `main` as a static GitHub Pages site. `index.html` imports the 76 readable modules under `modules/`; its import map uses a release version query so browsers pick up changed modules after deployment. The old inline base64 bundle is no longer the deployed source of truth. Existing saves migrate through schema 14. Players who previously reached Wave 41 retain the Lunar Passage. Ore, Bars, refined upgrades and projects survive Rewind; specialist drones belong to the run. The test gate is `python tools/run_release_gates.py`.

@@ -7,8 +7,8 @@ export const MATERIALS = {
   basicSmelterOreCost: 10,
   smeltSpeedGrowth: 1.10,   // each calibration level divides cycle time by this
   calibrationPerMaterial: 2,
-  autoLoadWave: 35,
-  autoCollectWave: 45,
+  autoLoadWave: 12,
+  autoCollectWave: 22,
   extractorWave: 60,
   baseMineRate: 0.05,       // selected ore / real second after extractor
   mineRateGrowth: 1.50,
@@ -43,8 +43,14 @@ export const materialAtCalibrationLevel = (lvl) => MATERIAL_TIERS[Math.min(MATER
 
 export const MATERIAL_UPGRADES = [
   { id: 'furnace', name: 'Furnace Calibration', max: MATERIAL_TIERS.length * MATERIALS.calibrationPerMaterial, dynamicMaterial: true, desc: 'Smelting speed ×1.10 per level. Every two levels move the bar requirement to the next discovered material.' },
-  { id: 'autoLoad', name: 'Auto-loader', max: 1, cost: [4, 1], bar: 'iridium', wave: 35, desc: 'Automatically loads the selected ore whenever the smelter is empty.' },
-  { id: 'autoCollect', name: 'Output Conveyor', max: 1, cost: [4, 1], bar: 'uranium', wave: 45, desc: 'Automatically transfers finished bars into storage.' },
+  { id: 'autoLoad', name: 'Auto-loader', max: 1, cost: [2, 1], bar: 'silver', wave: 12, desc: 'Automatically loads the selected ore whenever the smelter is empty.' },
+  { id: 'autoCollect', name: 'Output Conveyor', max: 1, cost: [3, 1], bar: 'cobalt', wave: 22, desc: 'Automatically transfers finished bars into storage.' },
   { id: 'extractor', name: 'Ore Extractor', max: 1, cost: [5, 1], bar: 'osmium', wave: 60, desc: 'Unlocks passive extraction of the selected ore at 0.05 Ore/s.' },
   { id: 'extractorRate', name: 'Mining Array', max: 12, cost: [2, 1.8], bar: 'neutronium', wave: 60, req: 'extractor', desc: 'Selected-ore extraction ×1.50 per level.' },
+  { id: 'ironFrame', name: 'Iron Frame', max: 3, cost: [1, 2], bar: 'iron', wave: 4, fx: [['hull', 'mult', 0.035]], desc: '+3.5% hull per level. Permanent across Rewinds.' },
+  { id: 'copperCoils', name: 'Copper Coils', max: 3, cost: [1, 2], bar: 'copper', wave: 6, fx: [['energyRegen', 'add', 0.4]], desc: '+0.4 Energy per second per level. Permanent across Rewinds.' },
+  { id: 'silverOptics', name: 'Silver Optics', max: 3, cost: [1, 2], bar: 'silver', wave: 11, fx: [['critChance', 'add', 0.004]], desc: '+0.4 percentage points critical chance per level.' },
+  { id: 'goldContacts', name: 'Gold Contacts', max: 3, cost: [1, 2], bar: 'gold', wave: 16, fx: [['creditGain', 'mult', 0.025]], desc: '+2.5% Credits per level. Permanent across Rewinds.' },
+  { id: 'cobaltBank', name: 'Cobalt Capacitors', max: 3, cost: [1, 2], bar: 'cobalt', wave: 21, fx: [['shieldRatio', 'add', 0.015]], desc: '+1.5% shield capacity relative to hull per level.' },
+  { id: 'titaniumBore', name: 'Titanium Bore', max: 3, cost: [1, 2], bar: 'titanium', wave: 26, fx: [['armorPen', 'add', 0.012]], desc: '+1.2 percentage points armour penetration per level.' },
 ];

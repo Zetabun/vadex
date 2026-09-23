@@ -7,7 +7,8 @@ import { BAL, FIELD, enemyHp, enemyReward, enemyDmg, dataPerWave } from '@last-o
 import { ENEMIES } from '@last-orbit/data/enemies.js';
 import { gain } from '@last-orbit/progression/economy.js';
 import { awardMaterialOre } from '@last-orbit/progression/materials.js';
-import { materialForWave } from '@last-orbit/data/materials.js';
+import { materialForWave, MATERIAL_BY_ID } from '@last-orbit/data/materials.js';
+import { materialDiscovered } from '@last-orbit/progression/materials.js';
 import { grantXp, killXp } from '@last-orbit/progression/experience.js';
 
 let nextId = 1;
@@ -69,6 +70,7 @@ export function pickTarget(w, skip, from, maxRange) {
     if (prio) s += e.def.prio * 60;
     if (e.state === 'dive') s += 120;
     if (e === w.painted) s += 1e6;
+    else if (e.droneMarkT > 0) s += 1e5;
     if (analysis && e.weakOpen) s += 5e4;
     if (e.shielded) s -= 200;
     if (e.def.projectile) s -= 150;
@@ -95,6 +97,7 @@ export function hitEnemy(w, e, src, mult, hx, hy, noCrit) {
   if (e.shielded && !src.shieldPierce) m *= 0.15;
   if (e.weakOpen && e.weak && Math.abs(hx - (e.x + e.weak.x)) < e.weak.r + 1.5) { weak = true; m *= sh.n('weakMult'); count('weakHits'); }
   if (e === w.painted) m *= BAL.paintMult;
+  else if (e.droneMarkT > 0) m *= 1 + (e.droneMarkPower || 0.08);
   const frac = src.dmg.ratio(e.hpMax) * m;
   const dealt = Math.max(0, Math.min(e.hp, frac));
   e.hp -= frac; e.flash = 0.08;
@@ -130,7 +133,9 @@ export function killEnemy(w, e, src, crit, over) {
   const st = G.state, sh = G.sheet, p = w.player, id = src?.id || 'other';
   // Capture boss rewards before any payout. bossDied/bossLoot listeners run synchronously, so the
   // post-event delta is a complete, readable salvage report (including module drops/auto-salvage).
-  const bossMat = e.boss ? materialForWave(w.wave.num) : null;
+  const selectedMat = MATERIAL_BY_ID[st.materials.selected];
+  const dropMat = st.run.farm && selectedMat && selectedMat.unlockWave <= w.wave.num && materialDiscovered(selectedMat.id) ? selectedMat : materialForWave(w.wave.num);
+  const bossMat = e.boss ? dropMat : null;
   const bossBefore = e.boss ? {
     credits: st.cur.credits, scrap: st.cur.scrap, cores: st.cur.cores, frags: st.cur.frags,
     ore: st.cur[bossMat.oreCur], modules: new Set(st.modules.inv.map((m) => m.id)),
@@ -152,7 +157,8 @@ export function killEnemy(w, e, src, crit, over) {
     // Material ladder: each five-wave band introduces a new ore. Normal enemies yield one piece;
     // capital enemies pay their reward weight so boss-only bands still seed a useful first batch.
     if (!e.parent) {
-      const mat = materialForWave(w.wave.num), oreN = e.boss ? Math.max(1, Math.round(e.rewardMul)) : 1;
+      const mat = dropMat;
+      const oreN = (e.boss ? Math.max(1, Math.round(e.rewardMul)) : 1) + (e.mined ? e.boss ? 3 : 1 : 0);
       awardMaterialOre(mat.id, oreN);
       fx(w, 'ore', e.x, e.y, Math.max(1.5, e.r * 0.7), mat.hex);
       fx(w, 'text', e.x + 3, e.y + 1, `+${oreN} ${mat.name.toUpperCase()}`, mat.color, 1);

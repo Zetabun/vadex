@@ -78,6 +78,7 @@ export function step(dt) {
 // ---------------------------------------------------------------- waves
 export function startWave(w) {
   const st = G.state, run = st.run, ws = w.wave, p = w.player;
+  if (!run.challenge && run.wave > 40 && !st.projects?.completed?.passage) { run.wave = 40; run.farm = true; }
   const info = genWave(run.seed, run.wave, { bossRush: !!w.rules?.bossRush }), sec = info.sector;
   const prevSector = w.base.sectorIdx, first = ws.num === 0;
   ws.num = run.wave; ws.info = info; ws.state = 'fighting'; ws.t = 0; ws.damaged = false; ws.kills = 0; ws.boss = null; ws.pending = []; ws.shotsFired = 0; ws.intermission = false; ws.intermissionPaused = false; ws.clearedNum = 0;
@@ -131,6 +132,12 @@ function clearWave(w) {
   else run.cleanStreak = 0;
   p.hull = Math.min(1, p.hull + 0.2);
   if (run.farm) { if (flag('f.autopush') && st.auto.push && run.cleanStreak >= 3) { run.farm = false; toast('Pushing forward again.', 'info'); } }
+  if (run.wave === 40 && !run.challenge && !st.projects?.completed?.passage) {
+    st.projects.passageBossCleared = true; run.farm = true;
+    toast('Outer Orbit secured. Build the Lunar Passage in Ship Projects to continue.', 'unlock');
+    fx(w, 'text', 0, 72, 'LUNAR PASSAGE REQUIRED', '#ffca65', 1);
+    bus.emit('passageLocked');
+  }
   if (!run.farm) {
     run.wave++; if (run.wave > run.best) { run.best = run.wave; maxStat('bestWave', run.best); const s = sectorOf(run.best).idx + 1; if (s > (st.stats.bestSector || 1)) { st.stats.bestSector = s; } pace(run); }
   }

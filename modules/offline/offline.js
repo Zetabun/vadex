@@ -15,7 +15,7 @@ import { gain, checkUnlocks } from '@last-orbit/progression/economy.js';
 import { bossCoreReward } from '@last-orbit/progression/rewards.js';
 import { simulateFleetOffline, applyFleetOfflineReport } from '@last-orbit/progression/fleet.js';
 import { simulateMaterials, applyMaterialsReport } from '@last-orbit/progression/materials.js';
-import { materialForWave } from '@last-orbit/data/materials.js';
+import { materialForWave, MATERIAL_BY_ID } from '@last-orbit/data/materials.js';
 import { clearXp, grantXp, killXp } from '@last-orbit/progression/experience.js';
 
 /** Expected sustained damage per second as Big: { total, boss, parts:{id:Big} } */
@@ -58,7 +58,7 @@ export function simulateOffline(seconds) {
   const cap = Math.max(0, sh.n('offlineCap')) * 3600, used = Math.min(Math.max(0, seconds), cap), eff = Math.max(0, sh.n('offlineEff')), effective = used * eff;
   // All persistent offline producers share the same progression-controlled reward window. Combat then
   // applies offline efficiency inside that window; Fleet/Foundry/Materials use the capped real seconds.
-  const out = { away: seconds, used, cap, effective, capped: seconds > cap, eff, waves: 0, kills: 0, from: run.wave, to: run.wave, credits: Big.ZERO, scrap: Big.ZERO, data: Big.ZERO, cores: 0, matter: Big.ZERO, xp: 0, ores: {}, wall: false, farmWave: run.wave, fleet: simulateFleetOffline(used), foundry: simulateFoundry(used), materials: null };
+  const out = { away: seconds, used, cap, effective, capped: seconds > cap, eff, waves: 0, kills: 0, from: run.wave, to: run.wave, credits: Big.ZERO, scrap: Big.ZERO, data: Big.ZERO, cores: 0, matter: Big.ZERO, xp: 0, ores: {}, wall: false, passageBossCleared: false, farmWave: run.wave, fleet: simulateFleetOffline(used), foundry: simulateFoundry(used), materials: null };
   const dps = estimateDps(); let left = effective, w = run.wave, push = flag('f.offlineCombat') && !run.farm, iter = 0;
   const pay = (wave, c, reps = 1) => {
     const waveBase = enemyReward(wave, c.sec.idx), units = c.tot.rewardUnits || [];
@@ -92,15 +92,18 @@ export function simulateOffline(seconds) {
       if (expectedMatter > 0) out.matter = out.matter.add(Big.from(expectedMatter * reps).mul(sh.b('matterGain')));
     }
     if (c.tot.boss) out.cores += bossCoreReward(c.tot.boss) * reps;
-    const mat = materialForWave(wave), oreN = units.reduce((n, u) => n + (u.boss ? Math.max(1, Math.round(u.reward || 1)) : 1), 0);
-    out.ores[mat.id] = (out.ores[mat.id] || 0) + oreN * reps;
+    const selected = MATERIAL_BY_ID[st.materials.selected];
+    const mat = !push && selected && st.materials.discoveredOres?.[selected.id] && selected.unlockWave <= wave ? selected : materialForWave(wave);
+    const oreN = units.reduce((n, u) => n + (u.boss ? Math.max(1, Math.round(u.reward || 1)) : 1), 0);
+    const miner = run.drones.bays.includes('mining') ? Math.min(units.length * 0.3, c.t / Math.max(1.7, 3.2 - 0.08 * ((run.drones.levels.mining || 1) - 1))) : 0;
+    out.ores[mat.id] = (out.ores[mat.id] || 0) + Math.floor((oreN + miner) * reps);
     const killXpTotal = units.reduce((n, u) => n + killXp(wave, u.reward, { boss: !!u.boss, elite: !!u.elite }), 0);
     out.xp += (killXpTotal + clearXp(wave, c.tot.kind)) * reps;
     out.kills += c.tot.count * reps; out.waves += reps;
   };
   while (left > 0 && iter++ < 4000) {
     let c = clearTime(w, dps);
-    if (push && c && !run.challenge) { if (c.t > left) break; left -= c.t; pay(w, c); w++; continue; }
+    if (push && c && (run.challenge || w <= 40 || st.projects.completed.passage)) { if (c.t > left) break; left -= c.t; pay(w, c); if (!run.challenge && w === 40 && !st.projects.completed.passage) { out.passageBossCleared = true; out.wall = true; break; } w++; continue; }
     // hold: farm the best non-boss wave we can clear, for all remaining time in one step
     out.wall = push; let fw = w; if (!c || isBossWave(fw, waveOpts())) { fw = Math.max(1, w - 1); while (fw > 1 && (isBossWave(fw, waveOpts()) || !clearTime(fw, dps))) fw--; }
     c = clearTime(fw, dps); if (!c) break;
@@ -112,6 +115,7 @@ export function simulateOffline(seconds) {
 
 export function applyOffline(r) {
   const st = G.state, run = st.run;
+  if (r.passageBossCleared) st.projects.passageBossCleared = true;
   gain('credits', r.credits); gain('scrap', r.scrap); gain('data', r.data); gain('matter', r.matter); if (r.cores) gain('cores', r.cores); if (r.xp) grantXp(r.xp, 'offline'); applyFleetOfflineReport(r.fleet); applyFoundryReport(r.foundry); applyMaterialsReport(r.materials);
   count('kills', r.kills); count('wavesCleared', r.waves); count('offlineSeconds', Math.max(0, r.away || 0)); st.stats.offlineHours = (st.stats.offlineSeconds || 0) / 3600;
   if (r.to > run.wave) { run.wave = r.to; if (r.to > run.best) run.best = r.to; if (run.best > st.stats.bestWave) st.stats.bestWave = run.best; const s = sectorOf(run.best).idx + 1; if (s > (st.stats.bestSector || 1)) st.stats.bestSector = s; const q0 = (run.pendingChoice ? 1 : 0) + (run.choiceQueue?.length || 0); queueChoicesThrough(run.best); r.choicesQueued = Math.max(0, (run.pendingChoice ? 1 : 0) + (run.choiceQueue?.length || 0) - q0); }

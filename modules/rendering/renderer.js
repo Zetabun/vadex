@@ -164,6 +164,8 @@ export class Renderer {
       if (e.def.aura && !e.cloaked) { const ar = e.def.aura.radius * 2; B.ring.add(e.x, e.y, ar * 1.15, ar * 1.15, -t * 0.3, c, 0.1); }
       if (e.weak) { const wx = e.x + e.weak.x, wy = e.y - e.r * 0.55; if (e.weakOpen) { const s = e.weak.r * 2.6 * (1 + 0.15 * Math.sin(t * 12)); B.soft.add(wx, wy, s * 1.6, s * 1.6, 0, AMBER, 1.2); B.reticle.add(wx, wy, s * 1.5, s * 1.5, t * 2, WHITE, 1); } else B.soft.add(wx, wy, e.weak.r * 1.4, e.weak.r * 1.4, 0, RED, 0.35); }
       if (e.boss?.enraged) B.soft.add(e.x, e.y, e.r * 5, e.r * 5, 0, RED, 0.25 + 0.15 * Math.sin(t * 9));
+      if (e.mined) B.ring.add(e.x, e.y, e.r * 3.1, e.r * 3.1, t * 0.7, rgb(0xffca65), 0.75);
+      if (e.droneMarkT > 0 && e !== w.painted) B.reticle.add(e.x, e.y, e.r * 3.5, e.r * 3.5, t * 2, rgb(0xf077b5), 0.9);
       if (e === w.painted) B.reticle.add(e.x, e.y, e.r * 3.6, e.r * 3.6, -t * 3, AMBER, 1);
       if (e.def.projectile && Math.random() < 0.5) this.parts.emit(e.x, e.y + e.r, 0, 8, 0.3, 1.6, AMBER, 1);
     }
