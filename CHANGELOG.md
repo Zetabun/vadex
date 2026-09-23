@@ -1,5 +1,19 @@
 # Changelog
 
+## v2.0.0 — 2026-09-24
+
+A ground-up redesign of progression and interface. The combat engine, enemies, bosses, weapons and artwork carry over.
+
+- **Roguelite sorties.** Runs through ten-wave sectors with elite/mini-boss, convoy and boss waves. Death ends the sortie; salvage is banked either way.
+- **Auto-fire and pickups.** Guns fire on their own; steering, dodging and target focus are the skill. Kills drop XP orbs, salvage canisters and repair kits that fly to the ship.
+- **Level-up cards.** Choose new weapons, weapon ranks (every rank is an evolution), abilities and 30 stackable modules. Relics after every sector boss.
+- **The Hangar.** Launch, Workshop (15 permanent upgrades), Armory, Ships (five hulls with their own gun and ability) and Contracts (24 goals that pay salvage and unlock weapons, abilities and ships).
+- **New interface.** Glass-over-space HUD with wave pips, XP and boss bars, a loadout strip and round ability buttons; a close-up ship camera in the Hangar; card, relic, pause and debrief screens.
+- **Removed** credits, scrap, research data, 13 ores and bars, smelting, foundry, recovery fleet, projects, modules, skills, Rewind/Ascension, automation and offline progress.
+- Fixed a crash when a boss death cleared hazards while they were being updated.
+- New regression suite (`tests/sortie-regression.mjs`) and a headless balance bot (`tests/balance-sim.mjs`).
+- v2 uses separate save keys; players with a v1 save receive a one-time salvage gift.
+
 ## v1.24.0 — 2026-09-23
 
 - Moved active abilities, Foundry supplies, buffs, debuffs, boons and combat rates into a compact drawer above the hull and shield bars.

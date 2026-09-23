@@ -51,7 +51,7 @@ export function createHangar(hooks) {
     const card = h('section.launch-card',
       h('div.ship-head', h('div', h('div.kicker', ship.role), h('h1', ship.name)), h('button.link', { onclick: () => show('ships') }, 'Change ship', uiIcon('chevron'))),
       fresh ? h('p.lede', 'Invaders are descending on the last orbit. Fly a sortie, level up mid-fight by picking upgrades, and bring salvage home to build a better ship.')
-        : h('div.stat-row', stat('Best wave', best || '—'), stat('Furthest', SECTORS[bestSector - 1].name), stat('Sorties', fmtInt(s.sorties))),
+        : h('div.stat-row', stat('Best wave', best || '—'), stat('Furthest', 'Sector ' + bestSector), stat('Sorties', fmtInt(s.sorties))),
       next.length ? h('div.next', h('div.kicker', next.length > 1 ? 'Next contracts' : 'Next contract'), next.map((c) => contractLine(c, true))) : null);
     const go = h('div.launch-dock', h('button.launch-btn', { onclick: () => hooks.launch() }, uiIcon('launch'), h('span', 'Launch sortie'), h('small', ship.name + ' · ' + WEAPONS[ship.weapon].name + ' · ' + ABILITIES[ship.ability].name)));
     return h('div.launch', h('div.ship-stage', { 'aria-hidden': 'true' }), card, history(), go);

@@ -4,18 +4,13 @@
 
 | Directory | Responsibility |
 |---|---|
-| `modules/core/` | Persistent state defaults, large numbers, events, formatting and runtime context |
-| `modules/data/` | Game definitions and balance, including the XP curve and Skill Tree |
-| `modules/combat/` | Fixed-step battle simulation, damage, player, weapons, enemies and bosses |
-| `modules/progression/` | Economy, derived stats, XP, Skills and producers |
-| `modules/modules/` | Generated gear, fitting, salvage and forging |
-| `modules/meta/` | Onboarding, goals and achievements |
+| `modules/core/` | Save-state defaults, large numbers, events, formatting and the shared `G` context |
+| `modules/data/` | Definitions and tuning: sectors, enemies, bosses, weapons, abilities, cards, relics, ships, Workshop, contracts, balance |
+| `modules/combat/` | Fixed-step battle simulation, damage, loot pickups, player, weapons, drones, enemies and bosses |
+| `modules/progression/` | Derived stats (`stats.js`), the sortie (`run.js`) and between-sortie spending and contracts (`meta.js`) |
 | `modules/save/` | Storage, backup and schema migration |
-| `modules/offline/` | Away-time approximation |
-| `modules/ui/` | Navigation, panels, dialogs, artwork and management layout |
-| `modules/rendering/`, `modules/audio/` | Visual and sound presentation |
-| `tests/`, `tools/` | Regression test and release gate |
+| `modules/ui/` | HUD, Hangar screens, overlays (level-up, relics, pause, debrief), icons and the debug panel |
+| `modules/rendering/`, `modules/audio/` | Three.js presentation and synthesized sound |
+| `tests/`, `tools/` | Regression tests, balance bot, import-map builder and release gate |
 
-`G.state.run.skills` holds current-run ranks. `skillPoints()` derives unspent points from Ship Level. `modules/ui/panels/xp.js` presents the level roadmap, and `modules/ui/weapon-readout.js` estimates fitted weapon DPS from combat configurations. `computeSheet()` applies skill bonuses. `hitEnemy()` applies capped lifesteal from actual enemy health removed. Rewind creates a new run, clearing skills and XP.
-
-`modules/ui/ui.js` builds the collapsible Systems drawer above the shield and hull bars. It holds active ability and Foundry controls, followed by buffs, debuffs, boons and combat rates. `index.html` styles the compact mobile drawer and keeps it hidden while a management panel is open.
+A sortie: `startSortie()` creates `G.state.run` from the selected ship. Kills spawn XP, salvage and repair pickups (`combat/pickups.js`); `grantXp()` queues level-ups; the frame loop opens `rollOffer()` and `pickCard()` applies the choice, then `recalc()` rebuilds `G.sheet` and the weapon configs. Clearing a sector's tenth wave queues a relic choice. Death (after any revives) emits `sortieOver`; `endSortie()` banks salvage, updates lifetime stats, completes contracts and returns a debrief summary.

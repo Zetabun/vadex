@@ -121,10 +121,10 @@ function clearWave(w) {
   ws.state = 'cleared'; ws.timer = BAL.waveGap;
   w.ebullets.length = 0;
   count('wavesCleared');
-  const pay = grantSalvage(clearSalvage(run.wave));
-  fx(w, 'text', 0, 70, `WAVE ${run.wave} CLEAR  +${Math.round(pay)} ¢`, '#ffc857', 2);
+  const pay = grantSalvage(clearSalvage(run.wave)), bossWave = sec.n === sec.len;
+  if (!bossWave) fx(w, 'text', 0, 52, `WAVE ${run.wave} CLEAR  +${Math.round(pay)} ¢`, '#ffc857', 2);
   grantXp(1 + run.wave * 0.25);
-  if (!ws.damaged) { count('flawless'); fx(w, 'text', 0, 62, 'FLAWLESS', '#6dffc8', 1); }
+  if (!ws.damaged) { count('flawless'); if (!bossWave) fx(w, 'text', 0, 45, 'FLAWLESS', '#6dffc8', 1); }
   p.hull = Math.min(1, p.hull + 0.06);
   if (sec.n === sec.len) {
     maxStat('sectorsCleared', sec.idx + 1);

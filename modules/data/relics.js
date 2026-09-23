@@ -5,7 +5,7 @@ export const RELICS = [
   { id: 'r_glass', name: 'Glass Reactor', icon: 'misc:energy', desc: '×1.9 damage, but −30% hull', fx: [['damage', 'pow', 1.9], ['hull', 'pow', 0.7]] },
   { id: 'r_aegis', name: 'Aegis Matrix', icon: 'module:shieldgen', desc: 'Shield +80% of hull, recharges twice as fast', fx: [['shieldRatio', 'add', 0.8], ['shieldRegen', 'pow', 2]] },
   { id: 'r_phoenix', name: 'Phoenix Core', icon: 'support:repair', desc: 'Revive once at full hull when destroyed', fx: [['revives', 'add', 1]] },
-  { id: 'r_midas', name: 'Midas Hold', icon: 'currency:credits', desc: '+75% salvage for the rest of the sortie', fx: [['salvageGain', 'pow', 1.75]] },
+  { id: 'r_midas', name: 'Midas Hold', icon: 'misc:salvage', desc: '+75% salvage for the rest of the sortie', fx: [['salvageGain', 'pow', 1.75]] },
   { id: 'r_swarm', name: 'Hive Beacon', icon: 'ability:swarm', desc: '+2 attack drones, +50% drone damage', fx: [['drones', 'add', 2], ['droneDmg', 'pow', 1.5]] },
   { id: 'r_barrel', name: 'Overclocked Barrels', icon: 'module:weaponmod', desc: '+1 projectile on every gun', fx: [['multishot', 'add', 1]] },
   { id: 'r_chain', name: 'Singularity Rounds', icon: 'ability:hole', desc: '30% of kills explode, +25% blast radius', fx: [['f.killExplode', 'add', 0.3], ['blast', 'pow', 1.25]] },

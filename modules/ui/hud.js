@@ -40,8 +40,8 @@ export function createHud(hooks) {
 
   let pipSig = '', loadSig = '', abilSig = '', hintT = 0;
   const abilBtns = {};
-  function buildPips(run) {
-    const sec = sectorOf(run.wave), sig = sec.start + ':' + sec.len; if (sig === pipSig) return; pipSig = sig; clear($.pips);
+  function buildPips(wave) {
+    const sec = sectorOf(wave), sig = sec.start + ':' + sec.len; if (sig === pipSig) return; pipSig = sig; clear($.pips);
     for (let i = 0; i < sec.len; i++) { const k = waveKind(sec.start + i); $.pips.append(h('span.pip.' + k)); }
   }
   function buildLoadout(run) {
@@ -63,10 +63,10 @@ export function createHud(hooks) {
 
   function update(dt) {
     const run = G.state.run, w = G.world; if (!run || !w) return;
-    const sec = sectorOf(run.wave), waveShown = w.wave.num || run.wave;
-    buildPips(run); buildLoadout(run); buildAbilities(run);
-    setText($.sector, `Sector ${sec.idx + 1} · ${sec.def.name}`); setText($.waveN, `${sectorOf(waveShown).n}/${sec.len}`);
-    const cur = sectorOf(waveShown).n - 1, cleared = w.wave.state === 'cleared';
+    const waveShown = w.wave.num || run.wave, sec = sectorOf(waveShown);
+    buildPips(waveShown); buildLoadout(run); buildAbilities(run);
+    setText($.sector, `Sector ${sec.idx + 1} · ${sec.def.name}`); setText($.waveN, `${sec.n}/${sec.len}`);
+    const cur = sec.n - 1, cleared = w.wave.state === 'cleared';
     [...$.pips.children].forEach((p, i) => { setClass(p, 'done', i < cur || (i === cur && cleared)); setClass(p, 'now', i === cur && !cleared); });
     setText($.salvage, fmt(Math.floor(run.salvage)));
     setText($.level, String(run.level)); setWidth($.xp, xpProgress(run));
