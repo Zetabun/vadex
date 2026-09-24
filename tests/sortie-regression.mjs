@@ -253,6 +253,9 @@ G.state.stats.kills = 600; G.state.stats.bestWave = 12; G.state.stats.bossKills 
 assert.ok(G.state.banners.signal, 'Three medals unlock the first banner'); assert.equal(selectBanner('signal'), true); assert.equal(G.state.banner, 'signal');
 run = launch(); run.score = 60000; sc = endSortie('abandoned'); assert.ok(sc.banners.includes('ember'), 'A 50,000 score unlocks a banner and the debrief lists it');
 assert.ok(BANNERS.every((b) => !b.req || bannerReqLabel(b)), 'Every banner explains its unlock');
+{ const legends = BANNERS.filter((b) => b.rarity === 'legendary'); assert.ok(legends.length >= 6, 'Several legendary stat trackers');
+  for (const b of legends) { assert.ok(b.live && b.label && b.emblem && b.colors.length === 3, b.id + ' is a complete stat tracker'); assert.ok(b.live in newState().stats, b.id + ' tracks a real stat'); }
+  G.state.stats.flawless = 500; checkAchievements({ silent: true }); assert.ok(G.state.banners.t_flawless, 'Legendary banners unlock from their stat'); }
 
 // ---- saves round-trip and refuse newer schemas ----
 fresh(); G.state.salvage = 1234; G.state.workshop.w_hull = 3;

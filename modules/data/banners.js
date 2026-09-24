@@ -2,7 +2,8 @@
 // earning medals, setting high scores and a few long-haul feats, and are chosen in the Ships tab next to paint jobs.
 // shape: how the cloth is cut (flag, pennant, swallowtail, streamer). pattern + colors: the design (rendering/bannerArt.js).
 // req: { medals } medals earned, { score } best sortie score, or { stat, n, label } a lifetime stat.
-// live: a lifetime stat the banner displays and keeps up to date as it changes (a kill counter). rare: highlighted in the picker.
+// Legendary banners (rarity: 'legendary') are stat trackers: live names a lifetime stat the banner displays and keeps up
+// to date as it changes; label is printed above the number; emblem and colors [cloth, accent, digits] set the look.
 import { MEDAL_COUNT } from '@last-orbit/data/achievements.js';
 
 export const BANNERS = [
@@ -17,8 +18,15 @@ export const BANNERS = [
   { id: 'comet', name: 'Comet Tail', shape: 'streamer', pattern: 'gradient', colors: ['#ffffff', '#7ae8ff', '#3a4bff'], req: { score: 250000 } },
   { id: 'void', name: 'Void Banner', shape: 'swallow', pattern: 'stars', colors: ['#120b2e', '#b69cff'], req: { medals: 45 } },
   { id: 'laurel', name: "Victor's Laurel", shape: 'swallow', pattern: 'emblem', emblem: 'laurel', colors: ['#7a560f', '#ffe08a'], req: { score: 750000 } },
-  { id: 'tally', name: 'Kill Counter', shape: 'flag', pattern: 'tally', colors: ['#0b0d14', '#ff8a3d'], live: 'kills', rare: true, req: { stat: 'kills', n: 25000, label: '25,000 kills' } },
   { id: 'aurora', name: 'Aurora', shape: 'streamer', pattern: 'rainbow', colors: ['#ffffff'], req: { medals: MEDAL_COUNT } }, // every medal
+  // ---- legendary stat trackers
+  { id: 'tally', name: 'Kill Counter', rarity: 'legendary', shape: 'flag', pattern: 'tally', emblem: 'skull', label: 'KILLS', live: 'kills', colors: ['#0b0d14', '#ff8a3d', '#ffd8b0'], req: { stat: 'kills', n: 25000, label: '25,000 kills' } },
+  { id: 't_boss', name: 'Headsman', rarity: 'legendary', shape: 'swallow', pattern: 'tally', emblem: 'crown', label: 'BOSSES', live: 'bossKills', colors: ['#1a0710', '#ff4d7a', '#ffd1dc'], req: { stat: 'bossKills', n: 75, label: '75 boss kills' } },
+  { id: 't_wave', name: 'Deep Record', rarity: 'legendary', shape: 'flag', pattern: 'tally', emblem: 'chevron', label: 'BEST WAVE', live: 'bestWave', colors: ['#04121c', '#5ee6ff', '#dffaff'], req: { stat: 'bestWave', n: 61, label: 'Clear sector 6' } },
+  { id: 't_score', name: 'Scoreboard', rarity: 'legendary', shape: 'flag', pattern: 'tally', emblem: 'star', label: 'HIGH SCORE', live: 'bestScore', colors: ['#141004', '#ffc857', '#fff2c2'], req: { score: 500000 } },
+  { id: 't_salvage', name: 'Treasure Log', rarity: 'legendary', shape: 'swallow', pattern: 'tally', emblem: 'hex', label: 'SALVAGE', live: 'totalSalvage', colors: ['#0f0c04', '#e8a33c', '#ffe6a6'], req: { stat: 'totalSalvage', n: 250000, label: '250,000 salvage earned' } },
+  { id: 't_flawless', name: 'Ghost Ledger', rarity: 'legendary', shape: 'flag', pattern: 'tally', emblem: 'shield', label: 'FLAWLESS', live: 'flawless', colors: ['#06140e', '#6dffc8', '#d9fff0'], req: { stat: 'flawless', n: 500, label: '500 flawless waves' } },
+  { id: 't_sorties', name: "Veteran's Log", rarity: 'legendary', shape: 'swallow', pattern: 'tally', emblem: 'wings', label: 'SORTIES', live: 'sorties', colors: ['#0d0a1c', '#b69cff', '#ece4ff'], req: { stat: 'sorties', n: 150, label: '150 sorties flown' } },
 ];
 export const BANNER_BY_ID = Object.fromEntries(BANNERS.map((b) => [b.id, b]));
 /** Short unlock requirement, e.g. '10 medals' or 'Score 50,000'. */

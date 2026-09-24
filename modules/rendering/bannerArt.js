@@ -29,6 +29,19 @@ function laurel(ctx, x, y, r) {
   star(ctx, x, y + r * 0.05, r * 0.42);
 }
 
+/** Small emblems for the legendary stat trackers, drawn in the current fill style. */
+function emblem(ctx, kind, x, y, r, bg) {
+  ctx.beginPath();
+  if (kind === 'skull') return skull(ctx, x, y, r, bg);
+  if (kind === 'star') return star(ctx, x, y, r * 1.1);
+  if (kind === 'crown') { ctx.moveTo(x - r, y + r * 0.6); ctx.lineTo(x - r, y - r * 0.5); ctx.lineTo(x - r * 0.45, y); ctx.lineTo(x, y - r * 0.8); ctx.lineTo(x + r * 0.45, y); ctx.lineTo(x + r, y - r * 0.5); ctx.lineTo(x + r, y + r * 0.6); }
+  else if (kind === 'chevron') { for (const dy of [-0.55, 0.15]) { ctx.moveTo(x - r, y + (dy - 0.25) * r); ctx.lineTo(x, y + (dy + 0.35) * r); ctx.lineTo(x + r, y + (dy - 0.25) * r); ctx.lineTo(x + r, y + (dy + 0.1) * r); ctx.lineTo(x, y + (dy + 0.7) * r); ctx.lineTo(x - r, y + (dy + 0.1) * r); ctx.closePath(); } }
+  else if (kind === 'hex') { for (let i = 0; i < 6; i++) { const a = Math.PI / 6 + i * Math.PI / 3; ctx.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); } ctx.closePath(); ctx.fill(); ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(x, y, r * 0.38, 0, 7); }
+  else if (kind === 'shield') { ctx.moveTo(x, y - r); ctx.lineTo(x + r * 0.85, y - r * 0.6); ctx.lineTo(x + r * 0.7, y + r * 0.4); ctx.lineTo(x, y + r); ctx.lineTo(x - r * 0.7, y + r * 0.4); ctx.lineTo(x - r * 0.85, y - r * 0.6); }
+  else if (kind === 'wings') { for (const s of [-1, 1]) { ctx.moveTo(x, y); ctx.lineTo(x + s * r * 1.1, y - r * 0.6); ctx.lineTo(x + s * r * 0.9, y - r * 0.1); ctx.lineTo(x + s * r * 1.0, y + r * 0.05); ctx.lineTo(x + s * r * 0.7, y + r * 0.35); ctx.closePath(); } ctx.moveTo(x + r * 0.28, y); ctx.arc(x, y, r * 0.28, 0, 7); }
+  ctx.fill();
+}
+
 /** Paint banner design b onto a w×h canvas context. value: the live stat for banners that display one. */
 export function paintBanner(ctx, b, w, h, value = 0) {
   ctx.clearRect(0, 0, w, h); if (!b || !b.shape) return;
@@ -49,13 +62,15 @@ export function paintBanner(ctx, b, w, h, value = 0) {
       break;
     }
     case 'tally': {
-      // A kill counter: skull at the pinned edge, then the lifetime count glowing down the cloth's length.
-      ctx.fillStyle = c0; ctx.fillRect(0, 0, w, h); ctx.fillStyle = c1; ctx.fillRect(0, 0, w * 0.06, h); ctx.fillRect(w * 0.94, 0, w * 0.06, h);
-      skull(ctx, w / 2, h * 0.1, w * 0.2, c0);
-      const text = Math.floor(value).toLocaleString('en-GB'), lead = w * 0.62, room = h * 0.94 - h * 0.21 - lead, size = Math.min(w * 0.6, room / (text.length * 0.6));
+      // A stat tracker: emblem at the pinned edge, then the live count glowing down the cloth's length.
+      const g = ctx.createLinearGradient(0, 0, w, 0); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(0.5, c1); g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = c0; ctx.fillRect(0, 0, w, h); ctx.globalAlpha = 0.14; ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); ctx.globalAlpha = 1;
+      ctx.fillStyle = c1; ctx.fillRect(0, 0, w * 0.06, h); ctx.fillRect(w * 0.94, 0, w * 0.06, h); ctx.fillRect(w * 0.12, 0, w * 0.02, h); ctx.fillRect(w * 0.86, 0, w * 0.02, h);
+      emblem(ctx, b.emblem || 'skull', w / 2, h * 0.1, w * 0.2, c0); ctx.fillStyle = c1;
+      const text = Math.floor(value).toLocaleString('en-GB'), lead = w * 0.16 * 0.62 * (b.label || 'KILLS').length + w * 0.12, room = h * (b.shape === 'swallow' ? 0.75 : 0.94) - h * 0.21 - lead, size = Math.min(w * 0.6, room / (text.length * 0.6));
       ctx.save(); ctx.translate(w / 2, h * 0.21); ctx.rotate(Math.PI / 2);
-      ctx.font = `700 ${w * 0.16}px "Chakra Petch", monospace`; ctx.textBaseline = 'middle'; ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.fillText('KILLS', 0, 0);
-      ctx.font = `700 ${size}px "Chakra Petch", monospace`; ctx.shadowColor = c1; ctx.shadowBlur = w * 0.12; ctx.fillStyle = '#ffd8b0'; ctx.fillText(text, lead, 0);
+      ctx.font = `700 ${w * 0.16}px "Chakra Petch", monospace`; ctx.textBaseline = 'middle'; ctx.fillStyle = 'rgba(255,255,255,.6)'; ctx.fillText(b.label || 'KILLS', 0, 0);
+      ctx.font = `700 ${size}px "Chakra Petch", monospace`; ctx.shadowColor = c1; ctx.shadowBlur = w * 0.12; ctx.fillStyle = c2 || '#fff'; ctx.fillText(text, lead, 0);
       ctx.restore(); break;
     }
     default: ctx.fillStyle = c0; ctx.fillRect(0, 0, w, h);

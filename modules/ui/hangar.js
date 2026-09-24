@@ -184,13 +184,15 @@ export function createHangar(hooks) {
       const short = pt.source === 'mastery' ? 'Mastery 10' : pt.source === 'contract' ? 'Contract' : 'Rank ' + paintRank(pt.id);
       return h('button.paint' + (on ? '.on' : '') + (owned ? '' : '.locked'), { disabled: !owned, title: owned ? pt.name : `${pt.name}: ${how}`, onclick: () => { if (selectPaint(pt.id)) { playSfx('tab'); render(); } } }, swatch(pt.id), h('span', owned ? pt.name : short));
     }));
-    const banners = h('div.paints.banners', BANNERS.map((b) => {
-      const owned = !!st.banners[b.id], on = (st.banner || 'none') === b.id, pr = bannerProgress(b);
-      return h('button.paint.banner-pick' + (on ? '.on' : '') + (owned ? '' : '.locked') + (b.rare ? '.rare' : ''), { disabled: !owned, title: owned ? b.name : `${b.name}: ${bannerReqLabel(b)}`, onclick: () => { if (selectBanner(b.id)) { playSfx('tab'); render(); } } },
-        bannerThumb(b), h('span', owned ? b.name : bannerReqLabel(b), b.rare ? h('small.rare-tag', 'Rare') : null), owned || !b.req ? null : h('i.banner-meter', { style: `width:${(pr.frac * 100).toFixed(0)}%` }));
-    }));
+    const pick = (b) => {
+      const owned = !!st.banners[b.id], on = (st.banner || 'none') === b.id, pr = bannerProgress(b), legend = b.rarity === 'legendary';
+      return h('button.paint.banner-pick' + (on ? '.on' : '') + (owned ? '' : '.locked') + (legend ? '.legendary' : ''), { disabled: !owned, title: owned ? b.name : `${b.name}: ${bannerReqLabel(b)}`, style: legend ? `--lg:${b.colors[1]}` : null, onclick: () => { if (selectBanner(b.id)) { playSfx('tab'); render(); } } },
+        bannerThumb(b), h('span', owned ? b.name : bannerReqLabel(b), legend ? h('small.legend-tag', owned ? 'Legendary · ' + fmt(st.stats[b.live] || 0) : `Legendary · ${fmt(pr.cur)}/${fmt(pr.goal)}`) : null), owned || !b.req ? null : h('i.banner-meter', { style: `width:${(pr.frac * 100).toFixed(0)}%` }));
+    };
+    const banners = h('div.paints.banners', BANNERS.filter((b) => b.rarity !== 'legendary').map(pick));
+    const legends = h('div.legend-box', h('div.legend-head', h('b', 'Legendary'), h('span', 'Stat trackers: each one shows a lifetime record, live.')), h('div.paints.banners.legends', BANNERS.filter((b) => b.rarity === 'legendary').map(pick)));
     return h('div.screen', h('div.screen-head', h('h2', 'Ships'), h('p', 'Each hull starts with its own gun and signature ability. Workshop upgrades apply to all of them.')),
-      h('h3', 'Paint job'), paints, h('h3', 'Banner'), h('p.sub-note', 'Cloth banners that stream from your ship. Earn them with medals and high scores.'), banners, h('h3', 'Hulls'), list);
+      h('h3', 'Paint job'), paints, h('h3', 'Banner'), h('p.sub-note', 'Cloth banners that stream from your ship. Earn them with medals and high scores.'), banners, legends, h('h3', 'Hulls'), list);
   }
 
   function bannerThumb(b) {

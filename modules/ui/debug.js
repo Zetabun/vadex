@@ -34,9 +34,16 @@ function runScene(scene, hooks, ui) {
   st.stats.bestScore = 48210; st.stats.bestKills = 612; st.stats.longestRun = 402; st.stats.maxLevel = 22; st.stats.bestSalvage = 931; st.stats.flawless = 40; st.stats.bossKills = 7; st.stats.flawlessBosses = 1; st.medals = { a_kills: 1, a_wave: 1, a_boss: 1, a_flawless: 1, a_score: 1, f_cleanboss: 1 };
   st.records.top = [48210, 40555, 31204, 22950, 9120].map((score, i) => ({ score, wave: [28, 26, 23, 19, 11][i], ship: i === 1 ? 'striker' : 'vanguard', level: 24 - i * 3, kills: 600 - i * 90, threat: i === 0 ? 2 : 0, daily: i === 2, date: Date.now() - i * 86400000 }));
   st.records.ships = { vanguard: { score: 48210, wave: 28 }, striker: { score: 40555, wave: 26 } }; recalc();
-  const [name, arg] = scene.split(':');
+  const [name, arg, arg2] = scene.split(':');
   if (name === 'paint') { st.paints[arg] = 1; st.paint = arg; hooks.toHangar('launch'); return; }
-  if (name === 'bannershow' && arg === 'tally') { st.stats.kills = 48213; st.banners.tally = 1; st.banner = 'tally'; hooks.toHangar('launch'); setInterval(() => { st.stats.kills += 1 + Math.floor(Math.random() * 3); }, 300); return; }
+  if (name === 'bannershow' && arg === 'legendary') {
+    // Every legendary stat tracker in turn with plausible stats, the kill counter ticking.
+    Object.assign(st.stats, { kills: 48213, bossKills: 91, bestWave: 64, bestScore: 612840, totalSalvage: 318400, flawless: 523, sorties: 164 });
+    const ids = BANNERS.filter((b) => b.rarity === 'legendary').map((b) => b.id); let k = 0; for (const id of ids) st.banners[id] = 1;
+    const next = () => { st.banner = ids[k++ % ids.length]; toast(BANNER_BY_ID[st.banner].name + ' · Legendary', 'info'); };
+    next(); setInterval(next, 4000); setInterval(() => { st.stats.kills += 1 + Math.floor(Math.random() * 3); }, 300);
+    hooks.toHangar(arg2 === 'ships' ? 'ships' : 'launch'); return;
+  }
   if (name === 'bannershow') {
     // Every banner in turn, four seconds each: in the hangar close-up (default) or in flight (bannershow:fly).
     const ids = BANNERS.filter((b) => b.shape).map((b) => b.id); let k = 0;

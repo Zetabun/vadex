@@ -63,7 +63,7 @@ export function initUI(app, hooks) {
   function post(el, kind, ms) {
     $.toasts.append(el); while ($.toasts.children.length > 2) $.toasts.firstChild.remove();
     setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 320); }, ms);
-    if (kind === 'unlock') playSfx('unlock');
+    if (kind === 'unlock' || kind === 'legendary') playSfx('unlock');
   }
   function toast(text, kind) { post(h('div.toast.' + kind, h('span.toast-text', text)), kind, kind === 'unlock' ? 5200 : 3200); }
   /** Structured notice: artwork, kicker, title, detail line and an optional salvage reward. */

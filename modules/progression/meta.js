@@ -147,12 +147,12 @@ export function unlockBanners({ silent = false } = {}) {
   for (const b of BANNERS) {
     if (!b.req || st.banners[b.id] || bannerProgress(b).frac < 1) continue;
     st.banners[b.id] = Date.now(); out.push(b.id); if (st.run) (st.run.bannersDone ||= []).push(b.id);
-    if (!silent) bus.emit('notice', { kind: 'unlock', kicker: 'Banner unlocked', title: b.name, sub: 'Fly it from the Ships tab', art: 'ach:flag' });
+    if (!silent) bus.emit('notice', b.rarity === 'legendary' ? { kind: 'legendary', kicker: 'Legendary banner unlocked', title: b.name, sub: `Tracks your ${b.label.toLowerCase()} live · Ships tab`, art: 'ach:trophy' } : { kind: 'unlock', kicker: 'Banner unlocked', title: b.name, sub: 'Fly it from the Ships tab', art: 'ach:flag' });
   }
   return out;
 }
 /** The next locked banner of a kind ('medals' or 'score'), for "next unlock" hints. */
-export const nextBanner = (kind) => BANNERS.find((b) => b.req?.[kind] && !G.state.banners[b.id]) || null;
+export const nextBanner = (kind) => BANNERS.filter((b) => b.req?.[kind] && !G.state.banners[b.id]).sort((a, b) => a.req[kind] - b.req[kind])[0] || null;
 export function selectBanner(id) { if (!G.state.banners[id] || !BANNER_BY_ID[id]) return false; G.state.banner = id; bus.emit('banner', id); return true; }
 const ROMAN = ['0', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
 /** Description of a medal tier with its goal filled in. */

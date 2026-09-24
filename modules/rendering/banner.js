@@ -31,12 +31,14 @@ export class Banner {
   }
   paint(b) {
     this.shown = b.live ? G.state.stats[b.live] || 0 : 0; this.paintedAt = performance.now();
+    this.legendary = b.rarity === 'legendary'; this.accent = new window.THREE.Color(b.colors[1]);
     paintBanner(this.canvas.getContext('2d'), b, this.canvas.width, this.canvas.height, this.shown); this.tex.needsUpdate = true;
   }
   /** ship: the player's Three.js group (already positioned); dt: simulated seconds (0 while paused). */
   update(ship, dt, t, visible) {
     if (!visible || !BANNER_BY_ID[this.id]?.shape) { this.mesh.visible = false; this.reset = true; return; }
     this.mesh.visible = true;
+    if (this.legendary) this.mat.emissive.copy(this.accent).multiplyScalar(0.22 + 0.14 * Math.sin(t * 3.2)); else this.mat.emissive.setHex(0x333333);
     const { px, py, ox, oy } = this, a = this.anchor.set(0, -1.05, 0).applyMatrix4(ship.matrixWorld), ax = a.x, ay = a.y;
     if (this.reset || Math.hypot(ax - px[0], ay - py[0]) > 12) { for (let i = 0; i < N; i++) { px[i] = ox[i] = ax; py[i] = oy[i] = ay - i * SEG; } this.reset = false; }
     const h = Math.min(dt, 1 / 30) / 2;

@@ -431,8 +431,21 @@ button.stat-row{width:100%;text-align:left}
 .banner-hint .ui-icon{width:18px;height:18px;color:var(--mute)}
 .unlocks.medals .unlock .build-icon{width:22px;height:22px}
 .item.mystery .item-main b{color:var(--dim);letter-spacing:.06em}
-.banner-pick.rare{border-color:rgba(255,200,87,.45);background:linear-gradient(135deg,rgba(255,138,61,.12),var(--panel) 60%)}
-.rare-tag{display:block;font:700 9px var(--cond);letter-spacing:.2em;text-transform:uppercase;color:var(--gold)}
+/* legendary banners: their own box, a slowly turning gradient rim, a glow in each banner's accent colour */
+@property --lga{syntax:'<angle>';inherits:false;initial-value:0deg}
+.legend-box{margin-top:12px;padding:12px;border-radius:14px;background:linear-gradient(160deg,rgba(255,138,61,.1),rgba(199,125,255,.08) 50%,rgba(94,230,255,.08));border:1px solid rgba(255,200,87,.35);box-shadow:0 0 24px rgba(255,160,70,.12)}
+.legend-head{display:flex;align-items:baseline;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.legend-head b{font:700 14px var(--disp);letter-spacing:.2em;text-transform:uppercase;background:linear-gradient(90deg,#ffd166,#ff8a3d,#ff5fa2,#c77dff,#5ee6ff,#ffd166);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:legendText 5s linear infinite}
+.legend-head span{font:500 12px var(--body);color:var(--dim)}
+.banner-pick.legendary{--lg:#ffc857;border:1.5px solid transparent;background:linear-gradient(var(--panel2),var(--panel2)) padding-box,conic-gradient(from var(--lga),#ffd166,#ff5fa2,#c77dff,#5ee6ff,#6dffc8,#ffd166) border-box;animation:legendSpin 6s linear infinite;box-shadow:0 0 14px color-mix(in srgb,var(--lg) 35%,transparent)}
+.banner-pick.legendary.locked{animation:none;background:linear-gradient(var(--panel),var(--panel)) padding-box,linear-gradient(135deg,rgba(255,200,87,.35),rgba(199,125,255,.25)) border-box;box-shadow:none;opacity:.7}
+.banner-pick.legendary.on{box-shadow:0 0 0 1px var(--lg),0 0 20px color-mix(in srgb,var(--lg) 55%,transparent)}
+.legend-tag{display:block;margin-top:2px;font:700 9px var(--cond);letter-spacing:.16em;text-transform:uppercase;color:var(--lg,#ffc857)}
+.toast.legendary{border:1.5px solid transparent;background:linear-gradient(100deg,rgba(40,24,8,.97),rgba(24,10,44,.97)) padding-box,conic-gradient(from var(--lga),#ffd166,#ff5fa2,#c77dff,#5ee6ff,#ffd166) border-box;animation:legendSpin 4s linear infinite}
+.toast.legendary .notice-main small{background:linear-gradient(90deg,#ffd166,#ff5fa2,#c77dff);-webkit-background-clip:text;background-clip:text;color:transparent}
+@keyframes legendSpin{to{--lga:360deg}}
+@keyframes legendText{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.banner-pick.legendary,.toast.legendary,.legend-head b{animation:none}}
 </style>
 </head>
 <body>
