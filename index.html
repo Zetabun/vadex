@@ -500,6 +500,12 @@ button.stat-row{width:100%;text-align:left}
 /* ---- Counterattack ---- */
 .ca-panel{margin-bottom:14px;border-color:rgba(255,95,122,.35);background:linear-gradient(160deg,rgba(255,95,122,.1),var(--panel) 45%)}
 .ca-panel.locked{border-color:var(--line);background:var(--panel)}.ca-panel p{margin-top:6px;font:500 13px/1.4 var(--body);color:var(--dim)}
+.ca-how{margin-left:8px;padding:2px 8px;border-radius:99px;border:1px solid var(--line2);background:none;color:var(--dim);font:600 10px var(--body);letter-spacing:.08em;text-transform:uppercase;cursor:pointer;vertical-align:1px}.ca-how:hover{color:var(--cyan)}
+.ca-intro-body{display:flex;gap:14px;align-items:flex-start}.ca-intro-map{flex:0 0 96px;color:var(--cyan)}.ca-intro-map svg{width:96px;display:block}
+.ca-intro-map .f{fill:rgba(8,14,40,.7);stroke:var(--line2)}.ca-intro-map .air{fill:rgba(94,230,255,.1)}.ca-intro-map .edge{stroke:var(--cyan);stroke-dasharray:3 3;opacity:.7}
+.ca-intro-map .foe{fill:#ff5d8f}.ca-intro-map .you path:first-child{fill:#e8f6ff}.ca-intro-map .lbl{font:700 7px var(--body);letter-spacing:.08em;fill:var(--cyan);text-anchor:middle}
+.ca-tips{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}.ca-tips li b{display:block;font:700 14px var(--disp);letter-spacing:.05em;text-transform:uppercase;color:var(--cyan)}.ca-tips li span{font:500 13px var(--body);color:var(--dim)}
+@media (max-width:360px){.ca-intro-map{flex-basis:72px}.ca-intro-map svg{width:72px}}
 .ca-head{display:flex;justify-content:space-between;align-items:center;gap:10px}.ca-head h3{margin:2px 0 0;font:700 20px var(--disp);letter-spacing:.06em;text-transform:uppercase;color:#ffb3c4}
 .ca-cores{display:flex;align-items:center;gap:5px;padding:6px 10px;border-radius:999px;background:rgba(94,230,255,.1);border:1px solid rgba(94,230,255,.3)}.ca-cores b{font:700 16px var(--disp)}.ca-cores small{font:600 11px var(--body);color:var(--dim)}.ca-core-ico{width:22px;height:22px}
 .ca-meta{display:flex;justify-content:space-between;align-items:center;margin:10px 0 8px;font:700 12px var(--disp);color:var(--gold)}

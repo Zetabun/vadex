@@ -21,6 +21,7 @@ export function initUI(app, hooks) {
     flash: (color) => flash(color),
     nextChoice: () => nextChoice(),
     settings: () => overlays.showSettings(false),
+    counterIntro: (go) => overlays.showCounterIntro(go),
     pause: () => { if (G.mode === 'sortie' && !overlays.blocking()) { playSfx('tab'); overlays.showPause(); } },
     toHangar: (tab) => hooks.toHangar(tab),
     toast: (text, kind = 'good') => toast(text, kind),

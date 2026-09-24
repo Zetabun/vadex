@@ -19,6 +19,8 @@ import { BAL } from '@last-orbit/data/balance.js';
 import { unlockLabel, pilotProgress, medalDesc } from '@last-orbit/progression/meta.js';
 import { PAINT_BY_ID, rankTitle } from '@last-orbit/data/career.js';
 import { THREATS } from '@last-orbit/data/threat.js';
+import { COUNTER_TOP, STAR_HITS, STAR_KILLS } from '@last-orbit/data/counter.js';
+import { FIELD } from '@last-orbit/data/balance.js';
 import { MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
 import { applyVolumes, playSfx } from '@last-orbit/audio/audio.js';
 import { h, clear, toggle, slider, select } from '@last-orbit/ui/dom.js';
@@ -162,6 +164,32 @@ export function createOverlays(layer, hooks) {
     return h('div.build', run.order.map((id) => h('div.build-item', { style: `--c:#${WEAPONS[id].color.toString(16).padStart(6, '0')}` }, art('weapon:' + id, 'build-icon'), h('span', `${WEAPONS[id].name}`), h('b', 'R' + run.weapons[id]))),
       run.relics.map((id) => h('div.build-item.relic', art('relic:' + id, 'build-icon'), h('span', RELIC_BY_ID[id].name))));
   }
+  // ------------------------------------------------------------ counterattack briefing
+  /** What Counterattack is and how it flies, before the first stage (go launches it) or from the Missions panel. */
+  function showCounterIntro(go) {
+    // The field in miniature: the ship's airspace (it can climb to COUNTER_TOP) under the incoming squads.
+    const top = FIELD.H - COUNTER_TOP, low = FIELD.H - FIELD.PLAYER_Y, sy = low - 16;
+    const arrow = (x, y, r) => `<path d="M0 -7l4 5h-8z" transform="translate(${x} ${y}) rotate(${r})" fill="currentColor"/>`;
+    const diagram = h('div.ca-intro-map', { 'aria-hidden': 'true', html: `<svg viewBox="0 0 100 150" focusable="false">
+      <rect x="1" y="1" width="98" height="148" rx="6" class="f"/>
+      <rect x="1" y="${top}" width="98" height="${149 - top}" rx="6" class="air"/>
+      <line x1="4" y1="${top}" x2="96" y2="${top}" class="edge"/>
+      ${[[26, 22], [50, 14], [74, 22], [38, 44], [62, 44]].map(([x, y]) => `<path d="M${x - 5} ${y - 3}l5 7 5-7-5 2z" class="foe"/>`).join('')}
+      <g class="you"><path d="M50 ${sy - 7}l6 12-6-3-6 3z"/>${arrow(50, sy - 14, 0)}${arrow(50, sy + 12, 180)}${arrow(38, sy, 270)}${arrow(62, sy, 90)}</g>
+      <text x="50" y="${top - 5}" class="lbl">YOUR AIRSPACE</text></svg>` });
+    const tip = (title, text) => h('li', h('b', title), h('span', text));
+    const el = h('div.modal.ca-intro', { role: 'dialog', 'aria-label': 'Counterattack briefing' },
+      h('div.modal-head', h('div.kicker', 'New mode'), h('h2', 'Counterattack'), h('p', 'A vertical shooter. The invaders are falling back: chase them through six stages and take the fight to them.')),
+      h('div.ca-intro-body', diagram, h('ul.ca-tips',
+        tip('Fly anywhere', 'Drag to steer: up and down as well as side to side, anywhere in the lower half. W/A/S/D on a keyboard.'),
+        tip('Dash through fire', 'Double-tap a side (Shift on a keyboard). Your guns fire on their own.'),
+        tip('Break through', 'Squads fly in on set paths. A mini-boss holds the middle and the sector boss waits at the end.'),
+        tip('Earn stars', `Clear the stage, take ${STAR_HITS} hits or fewer, and destroy ${Math.round(STAR_KILLS * 100)}% of the assault force. Stars pay Alien Cores for Alien Tech, which powers up both modes.`))),
+      h('div.modal-actions', go ? h('button.btn.ghost', { onclick: close }, 'Not yet') : null,
+        h('button.btn.primary', { onclick: () => { close(); go?.(); }, 'data-autofocus': '' }, go ? 'Launch' : 'Got it')));
+    mount('counter-intro', el, (e) => { if (e.key === 'Escape') { close(); return true; } return false; });
+  }
+
   function confirmAbandon() {
     const el = h('div.modal.confirm', { role: 'alertdialog', 'aria-label': 'Abandon sortie?' },
       h('div.modal-head', h('h2', 'Abandon sortie?'), h('p', 'You keep the salvage collected so far. Cards and relics are lost.')),
@@ -229,7 +257,7 @@ export function createOverlays(layer, hooks) {
   };
 
   return {
-    showOffer, showRelics, showRoutes, showPause, showSettings, showDebrief, showLoadout, close,
+    showOffer, showRelics, showRoutes, showPause, showSettings, showDebrief, showLoadout, showCounterIntro, close,
     get kind() { return open?.kind || null; },
     /** Combat freezes while any overlay is up. */
     blocking: () => !!open,

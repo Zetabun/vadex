@@ -331,7 +331,7 @@ fresh(); run = launch(); step(TICK); { const p = G.world.player, x0 = p.x; G.wor
   for (const kind of ['column', 'vee', 'sweep', 'swirl', 'hover', 'dive']) { const [path] = squadPaths(kind, 1, 0, 1, 0, Math.random); const e = { x: 0, y: 160, rot: 0, path }; let alive = true, n = 0; while (alive && n++ < 4000) alive = movePath(e, 1 / 60, { x: 0, y: 9 }); assert.ok(!alive, kind + ' leaves the field'); }
   // a stage flies in 2D, pays stars and cores on a clear, and records the best score
   run = startSortie({ counter: 1, seed: 3 }); initWorld(); run.offer = null; run.pendingLevels = 0;
-  assert.equal(run.mode, 'counter'); assert.ok(G.world.counter); assert.equal(G.world.barriers.length, 0, 'No bunkers in Counterattack');
+  assert.equal(run.mode, 'counter'); assert.equal(G.state.stats.counterRuns, 1, 'Counterattack flights are counted for the flight lesson'); assert.ok(G.world.counter); assert.equal(G.world.barriers.length, 0, 'No bunkers in Counterattack');
   G.world.input.keysY = 1; for (let i = 0; i < 60; i++) step(TICK); assert.ok(G.world.player.y > 20, 'The ship flies up in Counterattack'); G.world.input.keysY = 0;
   for (let i = 0; i < 60 * 6; i++) step(TICK); assert.ok(run.pathSpawned > 0, 'Squads arrive');
   run.stageCleared = true; run.hits = 2; run.pathKills = run.pathSpawned; run.score = 1234;

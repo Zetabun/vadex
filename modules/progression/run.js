@@ -36,6 +36,7 @@ export function startSortie(opts = {}) {
   const warp = daily || counter ? 1 : Math.max(1, Math.min(warpMax(), opts.warp ?? st.warp ?? 1));
   if (warp > 1) { run.warp = warp; run.wave = (warp - 1) * BAL.sectorWaves + 1; run.level = 1 + (warp - 1) * BAL.warpCards; }
   // Counterattack: a stage of the vertical shooter. It gets the same catch-up as a warp to its sector.
+  if (counter) st.stats.counterRuns = (st.stats.counterRuns || 0) + 1;
   if (counter) { run.mode = 'counter'; run.stage = counter.n; run.hard = !!opts.hard; run.threat = 0; run.wave = counter.wave; run.level = 1 + (counter.n - 1) * BAL.warpCards; run.catchUp = counter.n; }
   const start = MUTATOR_BY_ID[run.mutator]?.start;
   if (start?.weapon) { const pool = WEAPON_ORDER.filter((id) => !run.weapons[id]); const id = pool[Math.floor(rand() * pool.length)]; run.weapons[id] = 1; run.order.push(id); }

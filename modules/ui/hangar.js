@@ -281,6 +281,8 @@ export function createHangar(hooks) {
 
   // ------------------------------------------------------------ counterattack
   let counterHard = false;
+  // The first Counterattack launch opens the briefing; launching from it marks it seen.
+  const launchCounter = (opts) => G.state.seen.counterIntro ? hooks.launch(opts) : hooks.counterIntro(() => { G.state.seen.counterIntro = true; hooks.launch(opts); });
   function counterPanel() {
     const st = G.state, c = st.counter;
     if (!c.unlocked) return h('section.panel.ca-panel.locked', h('div.ca-head', h('div', h('div.kicker', 'New mode'), h('h3', 'Counterattack')), uiIcon('lock')),
@@ -293,11 +295,11 @@ export function createHangar(hooks) {
         h('div.ca-num', h('small', 'Stage'), h('b', String(sg.n))),
         h('div.ca-main', h('b', sg.name), h('small', open ? `${SECTORS[sg.sector].name} · best ${fmtInt(c.best[sg.n] || 0)}` : `Clear stage ${sg.n - 1} to unlock`),
           h('div.ca-stars', [1, 2, 3].map((i) => h('i' + (i <= got ? '.on' : ''), '★')), open ? h('span.ca-rec' + (ok ? '.ok' : '.low'), `Power ${power}/${rec}`) : null)),
-        open ? h('button.btn.' + (hard ? 'danger' : 'primary') + '.ca-go', { onclick: () => hooks.launch({ counter: sg.n, hard }) }, uiIcon('launch')) : uiIcon('lock'));
+        open ? h('button.btn.' + (hard ? 'danger' : 'primary') + '.ca-go', { onclick: () => launchCounter({ counter: sg.n, hard }) }, uiIcon('launch')) : uiIcon('lock'));
     });
     const anyHard = STAGES.some((sg) => (c.stars[sg.n] || 0) > 0);
     return h('section.panel.ca-panel',
-      h('div.ca-head', h('div', h('div.kicker', 'Counterattack'), h('h3', 'Take the fight to them')), h('div.ca-cores', art('relic:r_quantum', 'ca-core-ico'), h('b', String(c.cores)), h('small', 'cores'))),
+      h('div.ca-head', h('div', h('div.kicker', 'Counterattack', h('button.ca-how', { onclick: () => hooks.counterIntro(null) }, 'How it works')), h('h3', 'Take the fight to them')), h('div.ca-cores', art('relic:r_quantum', 'ca-core-ico'), h('b', String(c.cores)), h('small', 'cores'))),
       h('p', 'Fly free in every direction: drag to move, double-tap a side to dash. Each stage ends with its sector boss. Stars earn Alien Cores for Alien Tech in the Workshop.'),
       h('div.ca-meta', h('span', `★ ${stars(c.stars)}/18` + (anyHard ? ` · Hard ★ ${stars(c.hard)}/18` : '')), anyHard ? h('button.ca-toggle' + (counterHard ? '.on' : ''), { onclick: () => { counterHard = !counterHard; playSfx('tab'); render(); } }, counterHard ? 'Hard mode on' : 'Hard mode off') : null),
       h('div.ca-list', rows));

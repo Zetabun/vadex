@@ -41,10 +41,10 @@ export function createHud(hooks) {
     h('div.dock-row',
       h('div.bars', $.shieldRow, h('div.bar-row', h('span.lbl', 'HULL'), h('div.meter.hull', $.hull), $.hullTxt)),
       $.abil));
-  $.hint = h('div.fly-hint', h('b', 'Hold a side or drag to steer'), h('span', 'Double-tap a side to dash through fire. Your guns shoot on their own; tap an enemy to focus it.'));
+  $.hintB = h('b'); $.hintS = h('span'); $.hint = h('div.fly-hint', $.hintB, $.hintS);
   const el = h('div.hud-layer', top, dock, $.hint);
 
-  let pipSig = '', loadSig = '', abilSig = '', hintT = 0;
+  let pipSig = '', loadSig = '', abilSig = '', hintT = 0, hintKind = '';
   const abilBtns = {};
   function buildPips(wave) {
     const sec = sectorOf(wave), sig = sec.start + ':' + sec.len; if (sig === pipSig) return; pipSig = sig; clear($.pips);
@@ -92,10 +92,14 @@ export function createHud(hooks) {
       const deg = Math.round((ch > 0 ? 1 : 1 - cd / full) * 360); if (a.deg !== deg) { a.deg = deg; a.ring.style.setProperty('--p', deg + 'deg'); }
       setClass(a.b, 'ready', ready); setClass(a.b, 'active', (w.abil.active[id] || 0) > 0); setText(a.charges, max > 1 ? String(ch) : '');
     }
-    // Opening lesson: show the flight hint during the first two waves of a pilot's first sorties.
-    hintT += dt; setClass($.hint, 'on', G.state.stats.sorties <= 2 && run.wave <= 2 && hintT < 14 && w.wave.state !== 'dead' && !hooks.blocking?.());
+    // Opening lessons: the flight hint in the first two waves of a pilot's first sorties, and in Counterattack the reminder
+    // that the ship flies up and down too, for the first few stages flown.
+    const ca = !!w.counter, kind = ca ? 'ca' : 'main';
+    if (kind !== hintKind) { hintKind = kind; setText($.hintB, ca ? 'Drag to fly anywhere' : 'Hold a side or drag to steer'); setText($.hintS, ca ? 'Up and down too, across the lower half. Double-tap a side to dash through fire.' : 'Double-tap a side to dash through fire. Your guns shoot on their own; tap an enemy to focus it.'); }
+    const lesson = ca ? (G.state.stats.counterRuns || 0) <= 3 && hintT < 9 : G.state.stats.sorties <= 2 && run.wave <= 2 && hintT < 14;
+    hintT += dt; setClass($.hint, 'on', lesson && w.wave.state !== 'dead' && !hooks.blocking?.());
   }
-  function reset() { pipSig = loadSig = abilSig = ''; hintT = 0; for (const k in abilBtns) delete abilBtns[k]; }
+  function reset() { pipSig = loadSig = abilSig = hintKind = ''; hintT = 0; for (const k in abilBtns) delete abilBtns[k]; }
   /** The loadout icon under a screen point (a tap there explains the loadout), padded to be easy to hit. */
   function loadoutAt(x, y) {
     for (const c of $.loadout.children) { const r = c.getBoundingClientRect(); if (x >= r.left - 4 && x <= r.right + 4 && y >= r.top - 8 && y <= r.bottom + 8) return c.dataset.key || null; }
