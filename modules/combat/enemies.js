@@ -4,6 +4,7 @@ import { rand } from '@last-orbit/core/rng.js';
 import { BAL, FIELD } from '@last-orbit/data/balance.js';
 import { ENEMIES } from '@last-orbit/data/enemies.js';
 import { fx, sfx, spawnEnemy, spawnBullet, hurtPlayer, hitEnemy, killEnemy } from '@last-orbit/combat/world.js';
+import { movePath } from '@last-orbit/combat/paths.js';
 
 const HALF = FIELD.W / 2;
 
@@ -53,6 +54,8 @@ export function updateEnemies(w, dt) {
         e.y -= d.speed * edt; e.rot += edt * 6;
         if (def.kamikaze && Math.hypot(e.x - p.x, e.y - p.y) < e.r + p.r + 1) { hurtPlayer(w, d.dmg, e); e.rewardMul = 0; killEnemy(w, e, null, false, 0); continue; }
         if (e.y < -8) { if (def.kamikaze) { e.rewardMul = 0; e.alive = false; continue; } e.y = FIELD.H + 10; e.state = 'form'; }
+      } else if (e.state === 'path') { // Counterattack squads fly scripted lines and simply leave at the end
+        if (!movePath(e, edt, p)) { e.rewardMul = 0; e.alive = false; continue; } alive++;
       } else { // free: swarmlings, split spawn, cruisers
         if (def.cruiser) { e.x += e.vx * edt; e.y += Math.sin(e.t * 2) * 3 * edt; if (Math.abs(e.x) > HALF + 14) { e.rewardMul = 0; e.alive = false; continue; } alive++; }
         else {
@@ -62,8 +65,14 @@ export function updateEnemies(w, dt) {
         }
       }
       // landing: anything marching past the defence line costs hull and is gone
-      if (e.y < FIELD.LAND_Y && e.state !== 'dive' && !def.cruiser) { hurtPlayer(w, 0, e); landed(w, e); continue; }
-      if (def.fire && f.enter <= 0 && e.spawnT <= 0 && !(def.fire.onlyDiving && e.state !== 'dive')) {
+      if (w.counter) {
+        // In Counterattack there is no line to defend: enemies that slip past just leave, but ramming the ship hurts.
+        if (e.y < -12 && e.state !== 'path') { e.rewardMul = 0; e.alive = false; continue; }
+        if (p.alive && Math.abs(e.x - p.x) < e.r + p.r && Math.abs(e.y - p.y) < e.r + p.r && Math.hypot(e.x - p.x, e.y - p.y) < e.r * e.scale + p.r * 0.8) {
+          hurtPlayer(w, 1, e); if (!e.elite) { killEnemy(w, e, null, false, 0); continue; }
+        }
+      } else if (e.y < FIELD.LAND_Y && e.state !== 'dive' && !def.cruiser) { hurtPlayer(w, 0, e); landed(w, e); continue; }
+      if (def.fire && f.enter <= 0 && e.spawnT <= 0 && !(def.fire.onlyDiving && e.state !== 'dive') && !(w.counter && (e.y > FIELD.H - 2 || e.y < p.y + 6))) {
         e.fireT -= edt * w.sim.fireRate * (w.wave.info?.mod?.fireRate || 1) * (e.buffed ? 1.6 : 1) * (e.elite?.fireRate || 1);
         if (e.fireT <= 0) { e.fireT = def.fire.every * (0.75 + rand() * 0.5); if (!e.cloaked) enemyFire(w, e, def.fire); }
       }

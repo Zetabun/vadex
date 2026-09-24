@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.5.0 — 2026-09-25
+
+- **Counterattack: a new vertical shooter mode.** Unlocked by defeating the sector 3 boss, and found at the top of Missions. Six stages carry the fight back through the six sectors (about 3–5 minutes each). Fly freely in every direction (drag to move, W/A/S/D on a keyboard), dash through fire, and face squads on scripted flight paths, a mid-stage mini-boss and the sector boss.
+  - **Stars:** each stage awards up to three: clear it, take 5 hits or fewer, and destroy 80% of the assault force. Clearing a stage opens the next and a Hard version of itself.
+  - **Recommended power:** each stage shows a recommended power level against yours (Workshop levels, ship mastery and Alien Tech). Power helps but skill can carry you.
+  - **Alien Cores and Alien Tech:** new stars pay Alien Cores, spent on Alien Tech in the Workshop (Xeno Alloy, Phase Drive, Star Charts, Core Siphon). It strengthens both modes. Counterattack only pays modest salvage, so the main mode stays the place to farm.
+  - **Exclusive rewards:** a first-clear salvage bounty per stage, the Xeno paint job for clearing stage 6, the legendary Star Map banner (tracks your stars, unlocks at 18), and the feats Counterattack and Home Invasion.
+- **A tougher opening.** Enemies in the first sectors have extra health (peaking around waves 6–12, where early upgrade cards pile up, and gone by wave 25), scouts fire a little more often, enemies take their first shot sooner, and the first levels need a little more XP. In the bot probes, the opening waves last about twice as long and a brand-new pilot's first run usually ends around wave 20 instead of 30.
+- **New settings cog** in the top corner, replacing the icon that looked like a brightness control.
+
 ## v2.4.0 — 2026-09-25
 
 - **Warp start.** Once you've beaten a sector's boss, start sorties at the next sector (up to sector 6) from the Launch card. Warped runs get catch-up upgrade cards and relics for the sectors skipped. Mastery and pilot XP count only the waves you actually fly, and warped runs are tagged on the leaderboard. The Daily Sortie always starts at wave 1.

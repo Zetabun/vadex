@@ -19,6 +19,8 @@ export const PAINTS = [
   { id: 'inferno', name: 'Inferno', trim: 0xff3d1f, hull: 0x5a1e14, source: 'contract' },
   { id: 'deepvoid', name: 'Deep Void', trim: 0x8a7dff, hull: 0x0d0b1f, source: 'contract' },
   { id: 'apex', name: 'Apex', trim: 0xfff2c2, hull: 0xc9a44c, source: 'contract' },
+  // Counterattack paint (clear stage 6)
+  { id: 'xeno', name: 'Xeno', trim: 0x6dffc8, hull: 0x1d3b3a, source: 'counter' },
   // ship mastery paints (mastery 10 with that ship)
   { id: 'm_vanguard', name: 'Vanguard Prime', trim: 0x9ff4ff, hull: 0x3d5f8c, source: 'mastery', ship: 'vanguard' },
   { id: 'm_striker', name: 'Striker Prime', trim: 0xff9bff, hull: 0x5b2a6e, source: 'mastery', ship: 'striker' },

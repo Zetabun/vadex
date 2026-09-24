@@ -9,6 +9,7 @@ import { RELIC_BY_ID } from '@last-orbit/data/relics.js';
 import { BAL } from '@last-orbit/data/balance.js';
 import { THREATS } from '@last-orbit/data/threat.js';
 import { ROUTE_BY_ID } from '@last-orbit/data/routes.js';
+import { counterProgress } from '@last-orbit/combat/counter.js';
 import { useAbility, abilityCooldown, abilityMaxCharges } from '@last-orbit/combat/abilities.js';
 import { xpProgress } from '@last-orbit/progression/run.js';
 import { h, clear, setText, setClass, setWidth } from '@last-orbit/ui/dom.js';
@@ -26,7 +27,7 @@ export function createHud(hooks) {
   $.bossName = h('span'); $.bossHp = h('i'); $.boss = h('div.bossbar', { hidden: true }, h('div.boss-label', art('relic:r_giant', 'boss-ico'), $.bossName), h('div.meter.boss', $.bossHp));
   const top = h('div#hud',
     h('div.hud-top', $.pause,
-      h('div.wave-block', $.sector, h('div.wave-line', h('small', 'WAVE'), $.waveN, $.pips)),
+      h('div.wave-block', $.sector, h('div.wave-line', $.waveLbl = h('small', 'WAVE'), $.waveN, $.pips)),
       h('div.chip.salvage', { title: 'Salvage collected this sortie' }, art('cur:salvage', 'cur-ico'), $.salvage)),
     h('div.xp-row', h('div.lv', h('small', 'LV'), $.level), h('div.meter.xp', $.xp), h('div.hud-score', h('small', 'SCORE'), $.score)),
     $.boss);
@@ -70,8 +71,12 @@ export function createHud(hooks) {
   function update(dt) {
     const run = G.state.run, w = G.world; if (!run || !w) return;
     const waveShown = w.wave.num || run.wave, sec = sectorOf(waveShown);
-    buildPips(waveShown); buildLoadout(run); buildAbilities(run);
-    setText($.sector, `Sector ${sec.idx + 1} · ${sec.def.name}` + (run.mutator ? ' · Daily' : run.threat ? ` · Threat ${THREATS[run.threat].roman}` : '') + (run.route ? ' · ' + ROUTE_BY_ID[run.route].name : '')); setText($.waveN, `${sec.n}/${sec.len}`);
+    buildLoadout(run); buildAbilities(run);
+    if (w.counter) {
+      const c = w.counter; setText($.sector, `Counterattack · Stage ${c.stage.n}: ${c.stage.name}` + (c.hard ? ' · Hard' : ''));
+      setText($.waveN, Math.round(counterProgress(w) * 100) + '%'); setText($.waveLbl, 'STAGE'); $.pips.hidden = true;
+    } else { $.pips.hidden = false; setText($.waveLbl, 'WAVE'); buildPips(waveShown); }
+    if (!w.counter) setText($.sector, `Sector ${sec.idx + 1} · ${sec.def.name}` + (run.mutator ? ' · Daily' : run.threat ? ` · Threat ${THREATS[run.threat].roman}` : '') + (run.route ? ' · ' + ROUTE_BY_ID[run.route].name : '')); if (!w.counter) setText($.waveN, `${sec.n}/${sec.len}`);
     const cur = sec.n - 1, cleared = w.wave.state === 'cleared';
     const pips = $.pips.children; for (let i = 0; i < pips.length; i++) { setClass(pips[i], 'done', i < cur || (i === cur && cleared)); setClass(pips[i], 'now', i === cur && !cleared); }
     setText($.salvage, fmt(Math.floor(run.salvage)));

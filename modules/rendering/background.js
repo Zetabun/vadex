@@ -42,7 +42,7 @@ export class Background {
     this.decor = d.decor; this.accent = rgb(d.accent);
     for (const s of this.stars) s.material.uniforms.col.value.set(d.star);
     this.grid.visible = d.decor === 'grid'; this.rocks.visible = d.decor === 'rocks' || d.decor === 'rings'; this.disc.visible = d.decor === 'rings';
-    this.planet.visible = d.decor !== 'mist' && d.decor !== 'spores';
+    this.planetOn = this.planet.visible = d.decor !== 'mist' && d.decor !== 'spores';
     const p = this.planet;
     if (d.decor === 'none') { p.position.set(-40, -235, -120); p.scale.setScalar(260); p.material.color.set(0x2a5fa8); p.material.emissive.set(0x061a3a); }
     else if (d.decor === 'rocks') { p.position.set(95, 215, -130); p.scale.setScalar(55); p.material.color.set(0x9a9aa8); p.material.emissive.set(0x0c0c12); }

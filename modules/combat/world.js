@@ -49,7 +49,7 @@ export function spawnEnemy(w, type, x, y, opts = {}) {
   const def = opts.def || ENEMIES[type]; if (w.enemies.length >= 110) return null;
   const hpMul = (opts.hp ?? def.hp) * (w.wave.info?.mod?.hp || 1);
   const e = { id: nextId++, type, def, x, y, r: opts.r ?? def.r, hpMax: w.base.hp.mul(hpMul), hp: 1, armour: opts.armour ?? def.armour ?? 0, rewardMul: opts.reward ?? def.reward,
-    slot: opts.slot || null, state: opts.slot ? 'form' : (opts.state || 'free'), t: rand() * 10, fireT: (def.fire?.every || 5) * (0.4 + rand()), spawnT: 0, diveT: 0,
+    slot: opts.slot || null, state: opts.slot ? 'form' : (opts.state || 'free'), t: rand() * 10, fireT: (def.fire?.every || 5) * (0.25 + rand() * 0.8), spawnT: 0, diveT: 0,
     elite: null, shielded: false, buffed: false, cloaked: false, stunT: 0, burn: 0, burnT: 0, flash: 0, vx: opts.vx || 0, vy: opts.vy || 0, boss: null, part: null, parent: null, invuln: false, alive: true, rot: 0, scale: opts.scale || 1, leech: 0, regen: 0, color: def.color, weak: null, weakOpen: false, rampId: 0 };
   w.enemies.push(e); return e;
 }
@@ -146,6 +146,7 @@ export function killEnemy(w, e, src, crit, over) {
   if (!e.alive) return; e.alive = false;
   const sh = G.sheet, p = w.player;
   count('kills'); w.wave.kills++; bus.emit('kill', w, e);
+  if (e.path && G.state.run) G.state.run.pathKills = (G.state.run.pathKills || 0) + 1;
   if (e.elite) count('eliteKills');
   const hadStreak = p.combo > BAL.comboStep * 0.5;
   p.combo = Math.min(sh.n('comboMax'), p.combo + BAL.comboStep); p.comboT = BAL.comboWindow;
@@ -184,6 +185,7 @@ export function hurtPlayer(w, dmgMul, source) {
     dmg *= 1 - p.shield / need; p.shield = 0; fx(w, 'shieldhit', p.x, p.y);
   }
   if (w.passive === 'stalwart' && p.hull < 0.5) dmg *= 0.7;
+  if (G.state.run) { const run = G.state.run, by = source?.type || source?.kind || 'other'; run.hits = (run.hits || 0) + 1; (run.hitBy ||= {})[by] = (run.hitBy[by] || 0) + 1; }
   p.hull -= dmg * w.base.dmgPerHull; w.wave.damaged = true; w.wave.bossDamaged = true;
   const run = G.state.run;
   if (w.passive === 'secondwind' && run && !run.windUsed && p.hull < 0.3) { run.windUsed = true; p.hull = Math.max(p.hull, 0) + 0.4; p.invuln = 2; fx(w, 'text', p.x, p.y + 10, 'SECOND WIND', '#6dffc8', 2); fx(w, 'boom', p.x, p.y, 20, 0x6dffc8); sfx(w, 'milestone'); }

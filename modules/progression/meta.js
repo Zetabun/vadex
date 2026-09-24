@@ -11,6 +11,8 @@ import { MAX_THREAT, THREAT_UNLOCK_SECTOR } from '@last-orbit/data/threat.js';
 import { dayKey, dailyFor } from '@last-orbit/data/daily.js';
 import { ACHIEVEMENTS, FEATS, TIERS, FEAT_XP, MEDAL_COUNT } from '@last-orbit/data/achievements.js';
 import { BANNERS, BANNER_BY_ID } from '@last-orbit/data/banners.js';
+import { COUNTER_UNLOCK_SECTOR } from '@last-orbit/data/counter.js';
+import { ALIEN_BY_ID } from '@last-orbit/data/alientech.js';
 
 // ---------------------------------------------------------------- workshop
 export const workshopLevel = (id) => G.state.workshop[id] || 0;
@@ -160,4 +162,24 @@ export function medalDesc(a, tier = 0) {
   if (!a.goals) return a.desc;
   const g = a.goals[Math.min(tier, a.goals.length - 1)];
   return a.desc.replace('{n}', a.roman ? ROMAN[g] : g.toLocaleString('en-GB'));
+}
+
+// ---------------------------------------------------------------- counterattack
+/** Open Counterattack once the sector 3 boss has fallen. Returns true the moment it unlocks. */
+export function unlockCounter({ silent = false } = {}) {
+  const c = G.state.counter; if (c.unlocked || (G.state.stats.sectorsCleared || 0) < COUNTER_UNLOCK_SECTOR) return false;
+  c.unlocked = true;
+  if (!silent) bus.emit('notice', { kind: 'legendary', kicker: 'New mode unlocked', title: 'Counterattack', sub: 'The invaders are retreating. Take the fight to them from the Missions tab.', art: 'ship:vanguard' });
+  return true;
+}
+export const techLevel = (id) => G.state.counter.tech[id] || 0;
+export function buyTech(id) {
+  const u = ALIEN_BY_ID[id], c = G.state.counter, l = techLevel(id); if (!u || l >= u.max || c.cores < u.cost) return false;
+  c.cores -= u.cost; c.tech[id] = l + 1; recalc(); bus.emit('bought', 'tech', id); return true;
+}
+/** A rough measure of permanent strength for Counterattack's recommendations: Workshop levels, ship mastery and Alien Tech. */
+export function powerRating() {
+  const st = G.state, ws = Object.values(st.workshop).reduce((a, b) => a + b, 0), m = (st.mastery[st.ship]?.level || 1) - 1;
+  const tech = Object.values(st.counter?.tech || {}).reduce((a, b) => a + b, 0);
+  return ws + m * 2 + tech * 2;
 }

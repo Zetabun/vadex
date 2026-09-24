@@ -4,7 +4,7 @@ import { bus } from '@last-orbit/core/events.js';
 import { WEAPON_ORDER } from '@last-orbit/data/weapons.js';
 import { ABILITY_ORDER } from '@last-orbit/data/abilities.js';
 import { SHIPS } from '@last-orbit/data/ships.js';
-import { grantXp } from '@last-orbit/progression/run.js';
+import { grantXp, nextOffer, nextRelic, pickCard, pickRelic, autoPickIndex } from '@last-orbit/progression/run.js';
 import { debugSetWave } from '@last-orbit/combat/sim.js';
 import { killEnemy } from '@last-orbit/combat/world.js';
 import { enterSandbox } from '@last-orbit/save/save.js';
@@ -37,6 +37,9 @@ function runScene(scene, hooks, ui) {
   const [name, arg, arg2] = scene.split(':');
   if (name === 'hull' || name === 'hullfly') { st.unlocked.ships[arg] = 1; st.ship = arg; st.banner = 'none'; recalc(); if (name === 'hull') { hooks.toHangar('launch'); return; } }
   if (name === 'paint') { st.paints[arg] = 1; st.paint = arg; hooks.toHangar('launch'); return; }
+  if (name === 'counter') { st.counter.unlocked = true; st.stats.sectorsCleared = 6; st.counter.cores = 7; st.counter.stars = { 1: 3, 2: 2 }; if (!arg) { hooks.toHangar('missions'); return; }
+    hooks.launch({ counter: +arg }); for (let g = 0; g < 60 && (nextRelic() || nextOffer()); g++) { if (st.run.relicOffer) pickRelic(0); else pickCard(autoPickIndex(st.run)); } ui.closeOverlays();
+    let t = 0; setInterval(() => { const w = G.world; if (!w?.player) return; w.player.hull = 1; t += 0.2; w.input.keysY = Math.sin(t * 0.7) > 0.2 ? 1 : Math.sin(t * 0.7) < -0.6 ? -1 : 0; w.input.keys = Math.sin(t * 0.45) > 0.3 ? 1 : Math.sin(t * 0.45) < -0.3 ? -1 : 0; }, 200); return; }
   if (name === 'warp') { st.stats.sectorsCleared = 4; st.warp = +(arg || 3); if (!arg2) { hooks.toHangar('launch'); return; } }
   if (name === 'bannershow' && arg === 'legendary') {
     // Every legendary stat tracker in turn with plausible stats, the kill counter ticking.

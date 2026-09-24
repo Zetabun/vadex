@@ -9,21 +9,21 @@ import { initWorld, advance } from '@last-orbit/combat/sim.js';
 import { useAbility } from '@last-orbit/combat/abilities.js';
 import { collectAll } from '@last-orbit/combat/pickups.js';
 import { startSortie, endSortie, nextOffer, nextRelic, nextRoute, recoverInterruptedRun } from '@last-orbit/progression/run.js';
-import { checkContracts } from '@last-orbit/progression/meta.js';
+import { checkContracts, unlockCounter } from '@last-orbit/progression/meta.js';
 import { save, load, hardReset, legacyBestWave } from '@last-orbit/save/save.js';
 import { initAudio, applyVolumes, tickMusic, setMusicMode, suspendAudio } from '@last-orbit/audio/audio.js';
 import { Renderer } from '@last-orbit/rendering/renderer.js';
 import { initUI } from '@last-orbit/ui/ui.js';
 
 const app = document.getElementById('app'), glCanvas = document.getElementById('gl'), overlay = document.getElementById('overlay');
-let renderer, ui, last = 0, saveT = 0, running = false, levelBeat = 0;
+let renderer, ui, last = 0, saveT = 0, running = false, levelBeat = 0, lastLaunch = {};
 
 function adopt(state) {
   // A sortie interrupted by a closed or discarded tab cannot be resumed, but its salvage is kept.
   const recovered = recoverInterruptedRun(state);
   G.state = state;
   if (recovered > 0) setTimeout(() => toast(`Recovered ${recovered} salvage from your last sortie.`, 'good'), 600);
-  setNotation(state.settings.notation); recalc(); checkContracts({ silent: true }); initWorld(); applyVolumes();
+  setNotation(state.settings.notation); recalc(); checkContracts({ silent: true }); unlockCounter({ silent: true }); initWorld(); applyVolumes();
   if (renderer) { renderer.lastSector = -1; renderer.lookV = -1; renderer.setQuality(); }
 }
 
@@ -31,8 +31,10 @@ const hooks = {
   setInsets: (t, b) => renderer && renderer.setInsets(t, b),
   applySettings: () => { renderer.setQuality(); setNotation(G.state.settings.notation); document.getElementById('scan')?.classList.toggle('off', !G.state.settings.scanlines); },
   celebrate: (color) => { const p = G.world.player; renderer.celebrate(p.x, p.y + 6, color, 40); },
-  launch: (opts = {}) => { initAudio(); if (!startSortie(opts)) { toast('Today\'s Daily Sortie has already been flown.', 'warn'); return; } initWorld(); ui.setMode('sortie'); save('launch'); if (nextOffer()) ui.nextChoice(); },
+  launch: (opts = {}) => { initAudio(); lastLaunch = opts; if (!startSortie(opts)) { toast('Today\'s Daily Sortie has already been flown.', 'warn'); return; } initWorld(); ui.setMode('sortie'); save('launch'); if (nextOffer()) ui.nextChoice(); },
   abandon: () => finish('abandoned'),
+  relaunch: (next) => hooks.launch(next ? { ...lastLaunch, counter: lastLaunch.counter + 1 } : lastLaunch),
+  counterNotice: () => {},
   toHangar: (tab) => { initWorld(); ui.setMode('hangar', tab); },
   pendingOffer: () => nextOffer(),
   pendingRelic: () => nextRelic(),
@@ -68,16 +70,17 @@ function wireInput() {
     const p = at(e), now = performance.now(), side = sideOf(e);
     // Double-tap a side to dash that way.
     if (lastDown && now - lastDown.t < 300 && lastDown.side === side && Math.abs(e.clientX - lastDown.x) < 90) { inp().dash = side; lastDown = null; } else lastDown = { t: now, side, x: e.clientX };
-    cur = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), sx: p.x, lx: p.x, px: G.world.player.x, drag: !holdOn(), side: sideOf(e) };
-    touches.set(e.pointerId, cur); inp().targetX = G.world.player.x; steer();
+    const counter = !!G.world.counter; // Counterattack always steers by dragging, in both directions
+    cur = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), sx: p.x, lx: p.x, sy: p.y, ly: p.y, px: G.world.player.x, py: G.world.player.y, drag: counter || !holdOn(), side: sideOf(e) };
+    touches.set(e.pointerId, cur); inp().targetX = G.world.player.x; inp().targetY = G.world.player.y; steer();
   });
   glCanvas.addEventListener('pointermove', (e) => {
-    const d = touches.get(e.pointerId); if (!d) return; const p = at(e); d.lx = p.x;
+    const d = touches.get(e.pointerId); if (!d) return; const p = at(e); d.lx = p.x; d.ly = p.y;
     if (!d.drag) {
       if (performance.now() - d.t < 200 && Math.abs(e.clientX - d.x) > 18) { d.drag = true; d.sx = p.x; d.px = G.world.player.x; }
       else d.side = sideOf(e);
     }
-    if (d === cur) { if (d.drag) inp().targetX = d.px + (p.x - d.sx) * 1.35; steer(); }
+    if (d === cur) { if (d.drag) { inp().targetX = d.px + (p.x - d.sx) * 1.35; inp().targetY = d.py + (p.y - d.sy) * 1.35; } steer(); }
   });
   const up = (e) => {
     const d = touches.get(e.pointerId); if (!d) return; touches.delete(e.pointerId);
@@ -86,7 +89,7 @@ function wireInput() {
     }
     if (d === cur) {
       cur = [...touches.values()].pop() || null; // hand steering back to a finger still down
-      if (cur?.drag) { cur.sx = cur.lx; cur.px = G.world.player.x; inp().targetX = G.world.player.x; }
+      if (cur?.drag) { cur.sx = cur.lx; cur.sy = cur.ly; cur.px = G.world.player.x; cur.py = G.world.player.y; inp().targetX = G.world.player.x; inp().targetY = G.world.player.y; }
     }
     steer();
   };
@@ -94,15 +97,16 @@ function wireInput() {
   // Anything that interrupts the page drops every touch, so the ship never flies off on a finger lifted elsewhere.
   const drop = () => { touches.clear(); cur = null; if (G.world) steer(); };
   addEventListener('blur', drop); document.addEventListener('visibilitychange', drop);
-  const keys = { l: false, r: false };
+  const keys = { l: false, r: false, u: false, d: false };
   addEventListener('keydown', (e) => {
     if (G.mode !== 'sortie' || ui.blocking() || e.target.closest?.('input,textarea,select')) return;
     const i = inp();
     if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyF') { i.dash = i.keys || (G.world.player.vx < 0 ? -1 : 1); e.preventDefault(); }
     else if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.l = true; else if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.r = true;
+    else if (e.code === 'ArrowUp' || e.code === 'KeyW') { keys.u = true; e.preventDefault(); } else if (e.code === 'ArrowDown' || e.code === 'KeyS') { keys.d = true; e.preventDefault(); }
     else if (/^Digit[1-2]$/.test(e.code) || e.code === 'KeyQ' || e.code === 'KeyE' || e.code === 'Space') { const idx = e.code === 'KeyE' || e.code === 'Digit2' ? 1 : 0; const id = G.state.run.abilities[idx]; if (id) useAbility(G.world, id); e.preventDefault(); }
-    i.keys = (keys.r ? 1 : 0) - (keys.l ? 1 : 0); });
-  addEventListener('keyup', (e) => { if (!G.world) return; const i = inp(); if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.l = false; else if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.r = false; i.keys = (keys.r ? 1 : 0) - (keys.l ? 1 : 0); });
+    i.keys = (keys.r ? 1 : 0) - (keys.l ? 1 : 0); i.keysY = (keys.u ? 1 : 0) - (keys.d ? 1 : 0); });
+  addEventListener('keyup', (e) => { if (!G.world) return; const i = inp(); if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.l = false; else if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.r = false; else if (e.code === 'ArrowUp' || e.code === 'KeyW') keys.u = false; else if (e.code === 'ArrowDown' || e.code === 'KeyS') keys.d = false; i.keys = (keys.r ? 1 : 0) - (keys.l ? 1 : 0); i.keysY = (keys.u ? 1 : 0) - (keys.d ? 1 : 0); });
   const editable = (target) => !!target?.closest?.('input,textarea,select');
   const block = (e) => { if (!editable(e.target) && e.cancelable) e.preventDefault(); };
   for (const ev of ['contextmenu', 'selectstart', 'dragstart']) app.addEventListener(ev, block);

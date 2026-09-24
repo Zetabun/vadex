@@ -1,0 +1,32 @@
+// Counterattack: a vertical shoot-'em-up mode. Six stages carry the fight back through the six sectors: squads fly in
+// on scripted paths while the ship moves freely in two dimensions, a mini-boss holds the middle and the sector boss
+// ends the stage. It unlocks by defeating the sector 3 boss in the main game and pays in stars and Alien Cores.
+// wave: the main-game wave whose enemy strength the stage uses. rec: recommended power (see progression/meta.js).
+// len: seconds of squads before the boss. fire: enemy fire-rate multiplier. Hard mode adds hardWaves and the multipliers in HARD.
+import { SECTORS } from '@last-orbit/data/sectors.js';
+
+const TITLES = ['Breakout', 'Graveyard Run', 'Into the Red', 'Iron Curtain', 'Hive Breach', 'Event Horizon'];
+const BRIEFS = [
+  'The invaders are falling back. Chase them out of orbit.',
+  'Their salvage fleets hide among the wrecks. Burn them out.',
+  'Follow the retreat into the nebula. Watch for cloaked hunters.',
+  'Punch through the machine lines to the foundries.',
+  'Strike the hive before it can swarm again.',
+  'The Singularity waits at the heart of it all. End this.',
+];
+export const COUNTER_UNLOCK_SECTOR = 3;
+export const STAGES = SECTORS.slice(0, 6).map((sec, i) => ({
+  n: i + 1, sector: i, name: TITLES[i], brief: BRIEFS[i], boss: sec.boss, mini: sec.mini,
+  wave: [4, 12, 21, 30, 39, 45][i], rec: [0, 18, 32, 46, 60, 72][i], len: [170, 190, 205, 220, 235, 250][i],
+  fire: [1, 1, 1, 1, 1, 0.8][i], // enemy fire-rate multiplier: sector 6's artillery, rockets and beams all aim at the ship
+}));
+export const STAGE_BY_N = Object.fromEntries(STAGES.map((s) => [s.n, s]));
+export const HARD = { waves: 8, hp: 1.3, dmg: 1.25, gap: 0.8 };
+/** Highest y the ship may fly to (the field's lower half, so there is always room to react). */
+export const COUNTER_TOP = 72;
+/** Stars: 1 for clearing the stage, 1 for taking few hits, 1 for destroying most of the assault force. */
+export const STAR_HITS = 5, STAR_KILLS = 0.8;
+/** Alien Cores paid per new star (normal and hard stars count separately). */
+export const CORES_PER_STAR = 1;
+/** Salvage paid the first time each stage is cleared (normal / hard). */
+export const clearBounty = (n, hard) => (hard ? 400 : 150) * n;

@@ -317,6 +317,30 @@ fresh(); run = launch(); step(TICK); { const p = G.world.player, x0 = p.x; G.wor
   const intel = G.state.intel[boss.boss.id]; assert.equal(intel, 1, 'Dying to a sector boss records intel');
   const s = endSortie('destroyed'); assert.equal(s.intel.level, 1); }
 
+// ---- v2.5: Counterattack ----
+{ const { unlockCounter, buyTech, powerRating } = await import('@last-orbit/progression/meta.js'); const { buildTimeline } = await import('@last-orbit/combat/counter.js');
+  const { STAGES } = await import('@last-orbit/data/counter.js'); const { movePath, squadPaths } = await import('@last-orbit/combat/paths.js');
+  fresh(); assert.equal(unlockCounter({ silent: true }), false, 'Locked before the sector 3 boss');
+  G.state.stats.sectorsCleared = 3; assert.equal(unlockCounter({ silent: true }), true); assert.ok(G.state.counter.unlocked);
+  // every stage builds a timeline that fills its length with squads of real enemies
+  for (const sg of STAGES) { const tl = buildTimeline(sg, false); assert.ok(tl.length > 30, 'stage ' + sg.n + ' has squads'); assert.ok(tl.every((ev) => ev.type && ev.pattern && ev.n > 0)); assert.ok(buildTimeline(sg, true).length > tl.length, 'Hard mode is denser'); }
+  // every path pattern moves an enemy and eventually lets it leave
+  for (const kind of ['column', 'vee', 'sweep', 'swirl', 'hover', 'dive']) { const [path] = squadPaths(kind, 1, 0, 1, 0, Math.random); const e = { x: 0, y: 160, rot: 0, path }; let alive = true, n = 0; while (alive && n++ < 4000) alive = movePath(e, 1 / 60, { x: 0, y: 9 }); assert.ok(!alive, kind + ' leaves the field'); }
+  // a stage flies in 2D, pays stars and cores on a clear, and records the best score
+  run = startSortie({ counter: 1, seed: 3 }); initWorld(); run.offer = null; run.pendingLevels = 0;
+  assert.equal(run.mode, 'counter'); assert.ok(G.world.counter); assert.equal(G.world.barriers.length, 0, 'No bunkers in Counterattack');
+  G.world.input.keysY = 1; for (let i = 0; i < 60; i++) step(TICK); assert.ok(G.world.player.y > 20, 'The ship flies up in Counterattack'); G.world.input.keysY = 0;
+  for (let i = 0; i < 60 * 6; i++) step(TICK); assert.ok(run.pathSpawned > 0, 'Squads arrive');
+  run.stageCleared = true; run.hits = 2; run.pathKills = run.pathSpawned; run.score = 1234;
+  let cs = endSortie('cleared'); assert.equal(cs.counter.stars, 3); assert.equal(cs.counter.cores, 3); assert.ok(cs.counter.bounty > 0);
+  assert.equal(G.state.counter.stars[1], 3); assert.equal(G.state.counter.best[1], 1234); assert.equal(G.state.stats.counterStars, 3);
+  run = startSortie({ counter: 1, seed: 3 }); initWorld(); run.stageCleared = true; run.hits = 9; cs = endSortie('cleared'); assert.equal(cs.counter.cores, 0, 'Stars pay once');
+  // Alien Tech spends cores and strengthens both modes
+  const d0 = G.sheet.n('damage'); assert.ok(buyTech('x_alloy')); assert.equal(G.state.counter.cores, 1); assert.ok(G.sheet.n('damage') > d0); assert.equal(buyTech('x_phase'), false, 'Needs enough cores');
+  assert.ok(powerRating() >= 2);
+  // clearing stage 6 unlocks the Xeno paint
+  run = startSortie({ counter: 6, seed: 3 }); initWorld(); run.stageCleared = true; endSortie('cleared'); assert.ok(G.state.paints.xeno); }
+
 // ---- saves round-trip and refuse newer schemas ----
 fresh(); G.state.salvage = 1234; G.state.workshop.w_hull = 3;
 const back = parseSave(JSON.stringify(G.state)); assert.equal(back.salvage, 1234); assert.equal(back.workshop.w_hull, 3); assert.equal(back.v, SCHEMA);

@@ -27,6 +27,9 @@ import { SYNERGIES } from '@last-orbit/data/synergies.js';
 import { BAL } from '@last-orbit/data/balance.js';
 import { MOD_BY_ID } from '@last-orbit/data/cards.js';
 import { warpMax } from '@last-orbit/progression/run.js';
+import { STAGES, COUNTER_UNLOCK_SECTOR } from '@last-orbit/data/counter.js';
+import { ALIEN_TECH } from '@last-orbit/data/alientech.js';
+import { techLevel, buyTech, powerRating } from '@last-orbit/progression/meta.js';
 import { MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
 
 const TABS = [['launch', 'Launch'], ['missions', 'Missions'], ['workshop', 'Workshop'], ['armory', 'Armory'], ['ships', 'Ships'], ['contracts', 'Career'], ['records', 'Records'], ['awards', 'Awards']];
@@ -153,7 +156,13 @@ export function createHangar(hooks) {
         cost == null ? 'MAX' : [art('cur:salvage', 'cur-ico'), fmt(cost)]);
       list.append(h('div.row' + (cost == null ? '.maxed' : ''), art('ws:' + u.id, 'row-icon'), h('div.row-main', h('div.row-title', h('b', u.name), h('span.lv', `${lvl}/${u.max}`)), h('div.row-desc', u.per + ' per level'), pips), btn));
     }
-    return h('div.screen', h('div.screen-head', h('h2', 'Workshop'), h('p', 'Permanent upgrades. They apply to every ship on every sortie.')), list);
+    const c = G.state.counter, tech = c.unlocked ? h('div.rows', ALIEN_TECH.map((u) => {
+      const lvl = techLevel(u.id), maxed = lvl >= u.max, pips = h('div.lvl-pips'); for (let i = 0; i < u.max; i++) pips.append(h('i' + (i < lvl ? '.on' : '')));
+      const btn = h('button.buy.tech', { disabled: maxed || c.cores < u.cost, onclick: () => { if (buyTech(u.id)) { playSfx('unlock'); render(); hooks.flash?.('#6dffc8'); } else playSfx('deny'); } }, maxed ? 'MAX' : [art('relic:r_quantum', 'cur-ico'), String(u.cost)]);
+      return h('div.row.tech-row' + (maxed ? '.maxed' : ''), art(u.art, 'row-icon'), h('div.row-main', h('div.row-title', h('b', u.name), h('span.lv', `${lvl}/${u.max}`)), h('div.row-desc', u.per + ' per level'), pips), btn);
+    })) : null;
+    return h('div.screen', h('div.screen-head', h('h2', 'Workshop'), h('p', 'Permanent upgrades. They apply to every ship on every sortie.')), list,
+      tech ? [h('h3.tech-h', 'Alien Tech', h('span', `${c.cores} cores`)), h('p.sub-note', 'Built from Alien Cores, which only Counterattack stars pay. Works in every mode.'), tech] : null);
   }
 
   // ------------------------------------------------------------ armory
@@ -199,8 +208,8 @@ export function createHangar(hooks) {
     }
     const paints = h('div.paints', PAINTS.map((pt) => {
       const owned = !!st.paints[pt.id], on = st.paint === pt.id;
-      const how = pt.source === 'mastery' ? `${SHIP_BY_ID[pt.ship].name} mastery 10` : pt.source === 'contract' ? `Contract: ${CONTRACTS.find((c) => c.unlock?.paint === pt.id)?.name}` : `Pilot rank ${paintRank(pt.id)}`;
-      const short = pt.source === 'mastery' ? 'Mastery 10' : pt.source === 'contract' ? 'Contract' : 'Rank ' + paintRank(pt.id);
+      const how = pt.source === 'counter' ? 'Clear Counterattack stage 6' : pt.source === 'mastery' ? `${SHIP_BY_ID[pt.ship].name} mastery 10` : pt.source === 'contract' ? `Contract: ${CONTRACTS.find((c) => c.unlock?.paint === pt.id)?.name}` : `Pilot rank ${paintRank(pt.id)}`;
+      const short = pt.source === 'counter' ? 'Counterattack' : pt.source === 'mastery' ? 'Mastery 10' : pt.source === 'contract' ? 'Contract' : 'Rank ' + paintRank(pt.id);
       return h('button.paint' + (on ? '.on' : '') + (owned ? '' : '.locked'), { disabled: !owned, title: owned ? pt.name : `${pt.name}: ${how}`, onclick: () => { if (selectPaint(pt.id)) { playSfx('tab'); render(); } } }, swatch(pt.id), h('span', owned ? pt.name : short));
     }));
     const pick = (b) => {
@@ -261,13 +270,37 @@ export function createHangar(hooks) {
           on ? uiIcon('check') : open ? null : uiIcon('lock')));
       }
     }
-    return h('div.screen', h('div.screen-head', h('h2', 'Missions'), h('p', 'A fresh Daily Sortie every day, and Threat levels for when the sectors stop being scary.')),
-      daily, h('h3', 'Threat level'), threat);
+    return h('div.screen', h('div.screen-head', h('h2', 'Missions'), h('p', 'Counterattack, a fresh Daily Sortie every day, and Threat levels for when the sectors stop being scary.')),
+      counterPanel(), daily, h('h3', 'Threat level'), threat);
   }
 
   async function shareDaily() {
     const d = G.state.daily, r = await shareText(dailyShareText({ key: d.day, mutator: MUTATOR_BY_ID[d.mutator]?.name, wave: d.wave, score: d.score, streak: d.streak }));
     if (r === 'copied') hooks.toast?.('Result copied. Paste it to a friend!'); else if (r === 'failed') hooks.toast?.('Could not share from this browser.');
+  }
+
+  // ------------------------------------------------------------ counterattack
+  let counterHard = false;
+  function counterPanel() {
+    const st = G.state, c = st.counter;
+    if (!c.unlocked) return h('section.panel.ca-panel.locked', h('div.ca-head', h('div', h('div.kicker', 'New mode'), h('h3', 'Counterattack')), uiIcon('lock')),
+      h('p', `A vertical shooter where you fly free and take the fight to the invaders. Unlocks when you defeat the sector ${COUNTER_UNLOCK_SECTOR} boss.`));
+    const power = powerRating(), stars = (tbl) => Object.values(tbl).reduce((a, b) => a + b, 0);
+    const rows = STAGES.map((sg) => {
+      const open = sg.n === 1 || (c.stars[sg.n - 1] || 0) > 0, hardOpen = (c.stars[sg.n] || 0) > 0, hard = counterHard && hardOpen, got = (hard ? c.hard : c.stars)[sg.n] || 0;
+      const rec = sg.rec + (hard ? 12 : 0), ok = power >= rec;
+      return h('div.ca-stage' + (open ? '' : '.locked') + (hard ? '.hard' : ''),
+        h('div.ca-num', h('small', 'Stage'), h('b', String(sg.n))),
+        h('div.ca-main', h('b', sg.name), h('small', open ? `${SECTORS[sg.sector].name} · best ${fmtInt(c.best[sg.n] || 0)}` : `Clear stage ${sg.n - 1} to unlock`),
+          h('div.ca-stars', [1, 2, 3].map((i) => h('i' + (i <= got ? '.on' : ''), '★')), open ? h('span.ca-rec' + (ok ? '.ok' : '.low'), `Power ${power}/${rec}`) : null)),
+        open ? h('button.btn.' + (hard ? 'danger' : 'primary') + '.ca-go', { onclick: () => hooks.launch({ counter: sg.n, hard }) }, uiIcon('launch')) : uiIcon('lock'));
+    });
+    const anyHard = STAGES.some((sg) => (c.stars[sg.n] || 0) > 0);
+    return h('section.panel.ca-panel',
+      h('div.ca-head', h('div', h('div.kicker', 'Counterattack'), h('h3', 'Take the fight to them')), h('div.ca-cores', art('relic:r_quantum', 'ca-core-ico'), h('b', String(c.cores)), h('small', 'cores'))),
+      h('p', 'Fly free in every direction: drag to move, double-tap a side to dash. Each stage ends with its sector boss. Stars earn Alien Cores for Alien Tech in the Workshop.'),
+      h('div.ca-meta', h('span', `★ ${stars(c.stars)}/18` + (anyHard ? ` · Hard ★ ${stars(c.hard)}/18` : '')), anyHard ? h('button.ca-toggle' + (counterHard ? '.on' : ''), { onclick: () => { counterHard = !counterHard; playSfx('tab'); render(); } }, counterHard ? 'Hard mode on' : 'Hard mode off') : null),
+      h('div.ca-list', rows));
   }
 
   // ------------------------------------------------------------ contracts
@@ -338,7 +371,7 @@ export function createHangar(hooks) {
   function badges() {
     const st = G.state, canBuy = WORKSHOP.some((u) => { const c = workshopNext(u.id); return c != null && st.salvage >= c; });
     const ship = SHIPS.some((s) => shipStatus(s.id) === 'buyable' && st.salvage >= s.cost);
-    const daily = st.stats.sorties > 0 && !dailyToday().done;
+    const daily = (st.stats.sorties > 0 && !dailyToday().done) || (st.counter.unlocked && !Object.keys(st.counter.stars).length);
     setClass(navBtns.records, 'badged', !st.seen.records); setClass(navBtns.awards, 'badged', medalTotal().earned > (st.seen.medals || 0));
     setClass(navBtns.workshop, 'badged', canBuy); setClass(navBtns.ships, 'badged', ship); setClass(navBtns.missions, 'badged', daily);
     const hidden = (p) => TABS.some(([id], i) => Math.floor(i / PER_PAGE) === p && navBtns[id].classList.contains('badged'));

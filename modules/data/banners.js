@@ -26,6 +26,7 @@ export const BANNERS = [
   { id: 't_score', name: 'Scoreboard', rarity: 'legendary', shape: 'flag', pattern: 'tally', emblem: 'star', label: 'HIGH SCORE', tracks: 'your high score', live: 'bestScore', colors: ['#141004', '#ffc857', '#fff2c2'], req: { score: 500000 } },
   { id: 't_salvage', name: 'Treasure Log', rarity: 'legendary', shape: 'swallow', pattern: 'tally', emblem: 'hex', label: 'SALVAGE', tracks: 'salvage earned', live: 'totalSalvage', colors: ['#0f0c04', '#e8a33c', '#ffe6a6'], req: { stat: 'totalSalvage', n: 250000, label: '250,000 salvage earned' } },
   { id: 't_flawless', name: 'Ghost Ledger', rarity: 'legendary', shape: 'flag', pattern: 'tally', emblem: 'shield', label: 'FLAWLESS', tracks: 'flawless waves', live: 'flawless', colors: ['#06140e', '#6dffc8', '#d9fff0'], req: { stat: 'flawless', n: 500, label: '500 flawless waves' } },
+  { id: 't_stars', name: 'Star Map', rarity: 'legendary', shape: 'swallow', pattern: 'tally', emblem: 'star', label: 'STARS', tracks: 'Counterattack stars', live: 'counterStars', colors: ['#0a0c22', '#6dffc8', '#e0fff4'], req: { stat: 'counterStars', n: 18, label: '18 Counterattack stars' } },
   { id: 't_sorties', name: "Veteran's Log", rarity: 'legendary', shape: 'swallow', pattern: 'tally', emblem: 'wings', label: 'SORTIES', tracks: 'sorties flown', live: 'sorties', colors: ['#0d0a1c', '#b69cff', '#ece4ff'], req: { stat: 'sorties', n: 150, label: '150 sorties flown' } },
 ];
 export const BANNER_BY_ID = Object.fromEntries(BANNERS.map((b) => [b.id, b]));

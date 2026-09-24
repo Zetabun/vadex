@@ -25,16 +25,19 @@ import { MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
 import { ROUTE_BY_ID } from '@last-orbit/data/routes.js';
 import { SHIP_BY_ID } from '@last-orbit/data/ships.js';
 import { updatePassives } from '@last-orbit/combat/passives.js';
+import { initCounter, counterStep } from '@last-orbit/combat/counter.js';
 
 const BARRIER_X = [-34, -11.5, 11.5, 34];
 
 export function initWorld() {
   const w = (G.world = createWorld());
-  if (G.state.run) for (const x of BARRIER_X) w.barriers.push({ x, w: 13, hp: 1, flash: 0 });
+  const counter = G.state.run?.mode === 'counter';
+  if (G.state.run && !counter) for (const x of BARRIER_X) w.barriers.push({ x, w: 13, hp: 1, flash: 0 });
   applyRunMods(w);
   w.passive = SHIP_BY_ID[G.state.run?.ship]?.passive?.id || null; w.staticN = 0;
   w.dps = Big.ZERO; w.dpsT = 0;
   syncDrones(w); w.wave.state = 'idle'; w.wave.timer = 1.4;
+  if (counter) initCounter(w);
   return w;
 }
 
@@ -62,7 +65,8 @@ export function step(dt) {
   if (!run) { parade(w, dt); return; }
   run.time += dt;
   updatePlayer(w, dt); updatePassives(w, dt); updateAbilities(w, dt);
-  switch (ws.state) {
+  if (w.counter) counterStep(w, dt, afterDeath);
+  else switch (ws.state) {
     case 'idle': ws.timer -= dt; updatePickups(w, dt); if (ws.timer <= 0) startWave(w); break;
     case 'fighting': {
       spawnPending(w, dt);

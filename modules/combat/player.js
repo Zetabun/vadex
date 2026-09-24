@@ -4,6 +4,7 @@ import { bus } from '@last-orbit/core/events.js';
 import { BAL, FIELD } from '@last-orbit/data/balance.js';
 import { fx, sfx, pickTarget, hitEnemy } from '@last-orbit/combat/world.js';
 import { bestDps } from '@last-orbit/combat/abilities.js';
+import { COUNTER_TOP } from '@last-orbit/data/counter.js';
 
 const HALF = FIELD.W / 2 - 3.5;
 
@@ -18,7 +19,7 @@ export function updatePlayer(w, dt) {
   const manual = inp.manualT < BAL.manualWindow;
 
   // ---- dodge dash: a quick burst sideways, briefly untouchable ----
-  if (inp.dash) { const d = inp.dash; inp.dash = 0; if (!(p.dashCd > 0)) { p.dashDir = d; p.dodged = false; p.dashT = BAL.dashTime; p.dashCd = BAL.dashCd; p.dashInv = BAL.dashInvuln; inp.manualT = 0; fx(w, 'dash', p.x, p.y, d); sfx(w, 'dash', 0.8); count('dashes'); } }
+  if (inp.dash) { const d = inp.dash; inp.dash = 0; if (!(p.dashCd > 0)) { p.dashDir = d; p.dodged = false; p.dashT = BAL.dashTime; p.dashCd = BAL.dashCd * sh.n('dashCd'); p.dashInv = BAL.dashInvuln; inp.manualT = 0; fx(w, 'dash', p.x, p.y, d); sfx(w, 'dash', 0.8); count('dashes'); } }
   if (p.dashT > 0) {
     p.dashT -= dt; const x0 = p.x; p.x = Math.max(-HALF, Math.min(HALF, p.x + p.dashDir * BAL.dashSpeed * dt));
     p.vx = (p.x - x0) / Math.max(dt, 1e-4); p.tilt += (p.dashDir - p.tilt) * Math.min(1, 14 * dt); inp.targetX = p.x;
@@ -32,6 +33,10 @@ export function updatePlayer(w, dt) {
   else if (flag('f.autopilot') && w.wave.state === 'fighting') want = autopilot(w, p, sh.n('autoDodge'), dt);
   else { p.autoThinkT = 0; p.autoWantX = p.x; }
   const dx = Math.max(-HALF, Math.min(HALF, want)) - p.x, stepX = Math.sign(dx) * Math.min(Math.abs(dx), speed * dt);
+  if (w.counter) { // Counterattack: the ship also flies up and down the lower half of the field
+    const dirY = inp.keysY || 0, wantY = dirY ? p.y + dirY * 30 : inp.active && inp.targetY != null ? inp.targetY : p.y;
+    const dy = Math.max(FIELD.PLAYER_Y, Math.min(COUNTER_TOP, wantY)) - p.y; p.y += Math.sign(dy) * Math.min(Math.abs(dy), speed * 0.9 * dt);
+  }
   p.x += stepX; p.vx = stepX / Math.max(dt, 1e-4); p.tilt += (Math.max(-1, Math.min(1, p.vx / 60)) - p.tilt) * Math.min(1, 10 * dt);
 
   // ---- active-play meters ----

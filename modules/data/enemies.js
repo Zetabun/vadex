@@ -1,7 +1,7 @@
 // Enemy archetypes. hp/reward/dmg are multipliers on the per-wave baseline (balance.js).
 // cost = formation budget, prio = auto-targeting priority once Priority Targeting is researched.
 export const ENEMIES = {
-  grunt:     { name: 'Scout', hp: 1, reward: 1, r: 3.4, cost: 1, prio: 1, color: 0x6fd3ff, shape: 'scout', fire: { every: 7, kind: 'bolt', speed: 38, dmg: 1 }, desc: 'Holds formation and takes pot shots.' },
+  grunt:     { name: 'Scout', hp: 1, reward: 1, r: 3.4, cost: 1, prio: 1, color: 0x6fd3ff, shape: 'scout', fire: { every: 5.5, kind: 'bolt', speed: 38, dmg: 1 }, desc: 'Holds formation and takes pot shots.' },
   weaver:    { name: 'Weaver', hp: 0.85, reward: 1.2, r: 3.2, cost: 1.3, prio: 1, color: 0x9dff8a, shape: 'weaver', weave: 7, fire: { every: 6, kind: 'bolt', speed: 42, dmg: 0.9 }, desc: 'Sways out of line. Hard to hit with slow shots.' },
   diver:     { name: 'Stooper', hp: 1.3, reward: 1.6, r: 3.4, cost: 1.8, prio: 2, color: 0xffb547, shape: 'diver', dive: { every: 9, speed: 55 }, fire: { every: 3.2, kind: 'aimed', speed: 50, dmg: 1, onlyDiving: true }, desc: 'Peels off and strafes you on the way down.' },
   lancer:    { name: 'Lancer', hp: 0.7, reward: 1.5, r: 3, cost: 1.6, prio: 3, color: 0xff4d7a, shape: 'lancer', kamikaze: { every: 7, speed: 70, dmg: 4 }, desc: 'Suicide run. Kill it or dodge it.' },

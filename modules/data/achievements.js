@@ -47,6 +47,8 @@ export const FEATS = [
   { id: 'f_fleet', name: 'Old Hands', desc: 'Reach mastery 5 with all five ships', get: (st) => Math.min(...SHIPS.map((s) => st.mastery?.[s.id]?.level || 0)), goal: 5, art: 'ship:revenant' },
   { id: 'f_fusion', name: 'Fusion Reactor', desc: 'Fuse two fully evolved weapons', get: S('fusions'), goal: 1, art: 'weapon:plasma' },
   { id: 'f_signature', name: 'Signature Move', desc: 'Unleash a ship\u2019s signature evolution', get: S('signatures'), goal: 1, art: 'ship:vanguard' },
+  { id: 'f_counter', name: 'Counterattack', desc: 'Clear a Counterattack stage', get: S('counterBest'), goal: 1, art: 'ship:striker' },
+  { id: 'f_homerun', name: 'Home Invasion', desc: 'Clear Counterattack stage 6', get: S('counterBest'), goal: 6, art: 'ach:trophy' },
   { id: 'f_fame', name: 'Hall of Fame', desc: 'Score 750,000 in one sortie', get: S('bestScore'), goal: 750000, art: 'ach:trophy' },
 ];
 export const MEDAL_COUNT = ACHIEVEMENTS.length * TIERS.length + FEATS.length;
