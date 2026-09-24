@@ -10,6 +10,9 @@ import { killEnemy } from '@last-orbit/combat/world.js';
 import { enterSandbox } from '@last-orbit/save/save.js';
 import { h } from '@last-orbit/ui/dom.js';
 import { BANNERS, BANNER_BY_ID } from '@last-orbit/data/banners.js';
+import { WORKSHOP } from '@last-orbit/data/workshop.js';
+import { STAGE_BY_N } from '@last-orbit/data/counter.js';
+import { powerRating } from '@last-orbit/progression/meta.js';
 
 export async function initDebug(app, { hooks, ui } = {}) {
   await enterSandbox(); if (!location.search.includes('scene=')) toast('Debug sandbox: progress here is kept apart from your real save.', 'warn');
@@ -41,6 +44,8 @@ function runScene(scene, hooks, ui) {
     setTimeout(() => { if (G.renderer?.ground) { G.renderer.groundWorld = G.world; G.renderer.ground.reset(); G.renderer.ground.scroll = G.world.counter.t * 13; for (const row of G.renderer.ground.rows) { row.y += G.renderer.ground.scroll; row.plan = G.renderer.ground.planRow(row.y); } G.renderer.ground.rebuild(); } }, 50);
     setInterval(() => { const run = st.run; if (!run) return; run.offer = null; run.pendingLevels = 0; ui.closeOverlays(); if (G.world?.player) G.world.player.hull = 1; }, 150); return; }
   if (name === 'counter') { st.counter.unlocked = true; st.stats.sectorsCleared = 6; st.counter.cores = 7; st.counter.stars = { 1: 3, 2: 2 }; if (!arg) { hooks.toHangar('missions'); return; }
+    // Bring the sandbox up to the stage's recommended power, so the stage plays at the strength a player would bring.
+    for (let g = 0; g < 20 && powerRating() < STAGE_BY_N[+arg].rec; g++) { for (const u of WORKSHOP) if (u.id !== 'w_revive' && u.id !== 'w_choice') st.workshop[u.id] = Math.min(u.max, (st.workshop[u.id] || 0) + 1); recalc(); }
     hooks.launch({ counter: +arg }); for (let g = 0; g < 60 && (nextRelic() || nextOffer()); g++) { if (st.run.relicOffer) pickRelic(0); else pickCard(autoPickIndex(st.run)); } ui.closeOverlays();
     let t = 0; setInterval(() => { const w = G.world; if (!w?.player) return; w.player.hull = 1; t += 0.2; w.input.keysY = Math.sin(t * 0.7) > 0.2 ? 1 : Math.sin(t * 0.7) < -0.6 ? -1 : 0; w.input.keys = Math.sin(t * 0.45) > 0.3 ? 1 : Math.sin(t * 0.45) < -0.3 ? -1 : 0; }, 200); return; }
   if (name === 'warp') { st.stats.sectorsCleared = 4; st.warp = +(arg || 3); if (!arg2) { hooks.toHangar('launch'); return; } }
