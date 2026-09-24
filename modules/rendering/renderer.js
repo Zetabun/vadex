@@ -177,7 +177,7 @@ export class Renderer {
     this.bg.planet.visible = !!this.bg.planetOn && !(w.counter && this.bg.decor === 'none');
     // Liftoff: the city below until the ship climbs clear of it; stars only once in the dark.
     const gs = w.counter?.stage.ground || 0, fade = gs ? Math.max(0, Math.min(1, (gs + 0.07 - counterProgress(w)) / 0.14)) : 0;
-    this.ground.update(gs > 0, fade, dt * Math.min(3, speedMul)); for (const s of this.bg.stars) s.visible = fade < 0.6;
+    this.ground.update(gs > 0, fade, dt * Math.min(3, speedMul), gs ? w.enemies.filter((e) => e.alive && e.def.ground) : []); for (const s of this.bg.stars) s.visible = fade < 0.6;
     this.bg.update(dt * (w.counter ? 3.2 : 1), speedMul); this.drain(w);
     const fdt = dt * Math.min(3, speedMul); this.parts.update(fdt); this.trans.update(fdt);
     const B = this.B; for (const k in B) B[k].begin();

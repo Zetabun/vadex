@@ -25,7 +25,7 @@ export async function initDebug(app, { hooks, ui } = {}) {
   app.append(panel);
   // ?debug=1&scene=… jumps straight to a screen, for screenshots and layout checks.
   const scene = new URLSearchParams(location.search).get('scene');
-  if (scene) { panel.style.display = 'none'; runScene(scene, hooks, ui); }
+  if (scene) { panel.style.display = 'none'; G.demo = true; runScene(scene, hooks, ui); } // demo scenes never auto-pause
 }
 
 function runScene(scene, hooks, ui) {

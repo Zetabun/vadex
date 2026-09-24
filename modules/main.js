@@ -162,7 +162,7 @@ async function boot() {
   wireInput();
   addEventListener('resize', () => { renderer.resize(); ui.measure(); }); new ResizeObserver(() => { renderer.resize(); ui.measure(); }).observe(app);
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) { running = false; suspendAudio(true); if (G.mode === 'sortie' && !ui.blocking()) ui.pause(); save('hidden'); }
+    if (document.hidden) { running = false; suspendAudio(true); if (G.mode === 'sortie' && !ui.blocking() && !G.demo) ui.pause(); save('hidden'); }
     else { suspendAudio(false); last = performance.now(); running = true; }
   });
   // The run stays in the save; if the page never comes back, the next boot banks its salvage (see adopt).
