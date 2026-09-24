@@ -26,6 +26,8 @@ import { setWaveBase, killEnemy } from '@last-orbit/combat/world.js';
 import { killScore, waveScore, scoreMult, TOP_N } from '@last-orbit/data/score.js';
 import { ACHIEVEMENTS, FEATS, TIERS, FEAT_XP, MEDAL_COUNT } from '@last-orbit/data/achievements.js';
 import { checkAchievements, medalProgress, medalTotal, medalDesc } from '@last-orbit/progression/meta.js';
+import { selectBanner } from '@last-orbit/progression/meta.js';
+import { BANNERS, bannerReqLabel } from '@last-orbit/data/banners.js';
 
 const fresh = () => { G.state = newState(); G.mode = 'hangar'; recalc(); initWorld(); };
 const launch = (opts) => { const r = startSortie({ seed: 7, ...opts }); initWorld(); return r; };
@@ -244,6 +246,13 @@ assert.ok(G.state.stats.soloWave >= 20, 'Solo-weapon waves are tracked'); endSor
 // migration from schema 22 keeps everything and adds records
 { const old = JSON.parse(JSON.stringify(newState())); old.v = 22; delete old.records; delete old.medals; old.stats.bestWave = 33;
   const m = parseSave(JSON.stringify(old)); assert.deepEqual(m.records, { top: [], ships: {} }); assert.deepEqual(m.medals, {}); assert.equal(m.stats.bestWave, 33); assert.equal(m.seen.medals, 0); }
+
+// ---- banners: unlocked by medals and scores, selectable once owned ----
+fresh(); assert.equal(G.state.banner, 'none'); assert.equal(selectBanner('signal'), false, 'Locked banners cannot be flown');
+G.state.stats.kills = 600; G.state.stats.bestWave = 12; G.state.stats.bossKills = 6; checkAchievements({ silent: true });
+assert.ok(G.state.banners.signal, 'Three medals unlock the first banner'); assert.equal(selectBanner('signal'), true); assert.equal(G.state.banner, 'signal');
+run = launch(); run.score = 60000; sc = endSortie('abandoned'); assert.ok(sc.banners.includes('ember'), 'A 50,000 score unlocks a banner and the debrief lists it');
+assert.ok(BANNERS.every((b) => !b.req || bannerReqLabel(b)), 'Every banner explains its unlock');
 
 // ---- saves round-trip and refuse newer schemas ----
 fresh(); G.state.salvage = 1234; G.state.workshop.w_hull = 3;

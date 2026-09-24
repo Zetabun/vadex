@@ -23,6 +23,8 @@ export function newState() {
     pilot: { rank: 1, xp: 0 },
     paints: { factory: 1 },
     paint: 'factory',
+    banners: { none: 1 },
+    banner: 'none',
     threat: 0,
     daily: { day: '', done: false, wave: 0, streak: 0, lastDay: '', best: 0 },
     mastery: {},

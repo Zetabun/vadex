@@ -4,6 +4,7 @@ import { fmt, fmtInt, fmtTime } from '@last-orbit/core/format.js';
 import { RARITY, MOD_BY_ID } from '@last-orbit/data/cards.js';
 import { ABILITIES } from '@last-orbit/data/abilities.js';
 import { ACHIEVEMENTS, FEATS, TIERS } from '@last-orbit/data/achievements.js';
+import { BANNER_BY_ID } from '@last-orbit/data/banners.js';
 import { RELIC_BY_ID } from '@last-orbit/data/relics.js';
 import { WEAPONS } from '@last-orbit/data/weapons.js';
 import { SHIP_BY_ID } from '@last-orbit/data/ships.js';
@@ -157,6 +158,7 @@ export function createOverlays(layer, hooks) {
         s.pilot.rewards.length ? h('div.rank-rewards', s.pilot.rewards.map((r) => h('span.reward' + (r.paint ? '.paint' : ''), r.paint ? `${PAINT_BY_ID[r.paint].name} paint unlocked` : [art('cur:salvage', 'cur-ico'), '+' + fmtInt(r.salvage)]))) : null) : null,
       s.medals?.length ? h('div.unlocks.medals', h('div.kicker', `Achievements earned (${s.medals.length})`), s.medals.map((m) => { const a = ACHIEVEMENTS.find((x) => x.id === m.id) || FEATS.find((x) => x.id === m.id), tier = a.goals ? TIERS[m.tier].id : 'feat';
         return h('div.unlock', h('span.medal-frame.sm.tier-' + tier, art(a.art, 'medal-ico')), h('b', a.name), h('small', `${a.goals ? TIERS[m.tier].name : 'Feat'} · ${medalDesc(a, m.tier)} · +${m.xp} XP`)); })) : null,
+      s.banners?.length ? h('div.unlocks.medals', h('div.kicker', 'Banners unlocked'), s.banners.map((id) => h('div.unlock', art('ach:flag', 'build-icon'), h('b', BANNER_BY_ID[id].name), h('small', 'Fly it from the Ships tab')))) : null,
       done.length ? h('div.unlocks', h('div.kicker', `Contracts complete (${done.length})`), done.map((c) => h('div.unlock', uiIcon('check'), h('b', c.name), h('small', `+${c.salvage} salvage` + (c.unlock ? ' · ' + unlockLabel(c.unlock) : ''))))) : null,
       h('div.build', s.weapons.map(([id, r]) => h('div.build-item', { style: `--c:#${WEAPONS[id].color.toString(16).padStart(6, '0')}` }, art('weapon:' + id, 'build-icon'), h('span', WEAPONS[id].name), h('b', 'R' + r))), s.relics.map((id) => h('div.build-item.relic', art('relic:' + id, 'build-icon'), h('span', RELIC_BY_ID[id].name)))),
       h('div.modal-actions', h('button.btn.primary', { onclick: () => { close(); hooks.launch(); }, 'data-autofocus': '' }, uiIcon('launch'), s.daily ? 'Launch a sortie' : 'Launch again'),

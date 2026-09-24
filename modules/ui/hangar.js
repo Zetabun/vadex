@@ -13,7 +13,9 @@ import { PAINTS, MAX_RANK, rankNeed, rankReward, rankTitle, paintRank, MAX_MASTE
 import { THREATS, MAX_THREAT, THREAT_UNLOCK_SECTOR, threatSalvage, threatPilotXp } from '@last-orbit/data/threat.js';
 import { dailyBonus } from '@last-orbit/data/daily.js';
 import { ACHIEVEMENTS, FEATS, TIERS, FEAT_XP } from '@last-orbit/data/achievements.js';
-import { workshopLevel, workshopNext, buyWorkshop, shipStatus, shipContract, buyShip, selectShip, contractProgress, nextContracts, unlockLabel, pilotProgress, selectPaint, threatMax, setThreat, dailyToday, masteryOf, masteryProgress, medalProgress, medalTotal, medalDesc } from '@last-orbit/progression/meta.js';
+import { BANNERS, bannerReqLabel } from '@last-orbit/data/banners.js';
+import { paintBanner } from '@last-orbit/rendering/bannerArt.js';
+import { workshopLevel, workshopNext, buyWorkshop, shipStatus, shipContract, buyShip, selectShip, contractProgress, nextContracts, unlockLabel, pilotProgress, selectPaint, threatMax, setThreat, dailyToday, masteryOf, masteryProgress, medalProgress, medalTotal, medalDesc, bannerProgress, nextBanner, selectBanner } from '@last-orbit/progression/meta.js';
 import { weaponDps, buildWeapon } from '@last-orbit/progression/stats.js';
 import { playSfx } from '@last-orbit/audio/audio.js';
 import { h, clear, setText, setClass } from '@last-orbit/ui/dom.js';
@@ -117,10 +119,14 @@ export function createHangar(hooks) {
     const pr = contractProgress(c);
     return h('div.contract' + (pr.done ? '.done' : '') + (compact ? '.compact' : ''),
       h('div.c-main', h('div.c-title', pr.done ? uiIcon('check') : null, h('b', c.name), h('span.gold', art('cur:salvage', 'cur-ico'), fmtInt(c.salvage))), h('div.c-desc', c.desc),
-        c.unlock ? h('div.c-unlock', 'Unlocks ' + unlockLabel(c.unlock)) : null,
+        c.unlock ? h('div.c-unlock', 'Unlocks ' + (pr.done ? unlockLabel(c.unlock) : secretLabel(c.unlock))) : null,
         pr.done ? null : h('div.meter.small', h('i', { style: `width:${(pr.frac * 100).toFixed(1)}%` }))),
       pr.done ? null : h('div.c-count', `${fmtInt(pr.cur)}/${fmtInt(pr.goal)}`));
   }
+
+  /** Weapons and abilities stay a mystery until unlocked: contracts only say what kind of thing they unlock. */
+  const secretLabel = (u) => u.weapon && !G.state.unlocked.weapons[u.weapon] ? 'a new weapon' : u.ability && !G.state.unlocked.abilities[u.ability] ? 'a new ability' : unlockLabel(u);
+  const howToUnlock = (c) => c ? `Complete the contract “${c.name}”: ${c.desc} (${fmtInt(contractProgress(c).cur)}/${fmtInt(c.goal)}).` : 'Keep flying to discover it.';
 
   // ------------------------------------------------------------ workshop
   function workshopView() {
@@ -140,6 +146,7 @@ export function createHangar(hooks) {
     const st = G.state, weapons = h('div.grid'), abilities = h('div.grid');
     for (const id of WEAPON_ORDER) {
       const d = WEAPONS[id], open = !!st.unlocked.weapons[id], c = unlockedBy('weapon', id);
+      if (!open) { weapons.append(h('details.item.locked.mystery', h('summary', art('ui:unknown', 'item-icon'), h('div.item-main', h('b', 'Unknown weapon'), h('small', c ? 'Contract: ' + c.name : 'Locked')), uiIcon('lock')), h('div.item-body', h('p', howToUnlock(c))))); continue; }
       const dps = open ? weaponDps(buildWeapon(id, 1, G.sheet)) : null;
       weapons.append(h('details.item' + (open ? '' : '.locked'), { style: `--c:${hex(d.color)}` },
         h('summary', art('weapon:' + id, 'item-icon'), h('div.item-main', h('b', d.name), h('small', open ? d.arch + ' · ' + fmt(dps) + ' DPS at rank 1' : c ? 'Contract: ' + c.name : 'Locked')), open ? uiIcon('chevron') : uiIcon('lock')),
@@ -147,10 +154,11 @@ export function createHangar(hooks) {
     }
     for (const id of ABILITY_ORDER) {
       const d = ABILITIES[id], open = !!st.unlocked.abilities[id], c = unlockedBy('ability', id), ship = SHIPS.find((s) => s.ability === id);
+      if (!open && !(ship && st.unlocked.ships[ship.id])) { abilities.append(h('div.item.flat.locked.mystery', art('ui:unknown', 'item-icon'), h('div.item-main', h('b', 'Unknown ability'), h('small', howToUnlock(c))), uiIcon('lock'))); continue; }
       abilities.append(h('div.item.flat' + (open ? '' : '.locked'), { style: `--c:${d.color}` },
         art('ability:' + id, 'item-icon'), h('div.item-main', h('b', d.name), h('small', open ? d.desc : [ship ? `Always available on the ${ship.name}. ` : '', c ? `Contract “${c.name}”: ${c.desc}` : 'Locked'].join(''))), open ? null : uiIcon('lock')));
     }
-    return h('div.screen', h('div.screen-head', h('h2', 'Armory'), h('p', 'Unlocked weapons and abilities can appear as cards when you level up. Weapons evolve at every rank.')),
+    return h('div.screen', h('div.screen-head', h('h2', 'Armory'), h('p', 'Unlocked weapons and abilities can appear as cards when you level up. Weapons evolve at every rank. The rest are yours to discover.')),
       h('h3', 'Weapons'), weapons, h('h3', 'Abilities'), abilities);
   }
 
@@ -176,8 +184,24 @@ export function createHangar(hooks) {
       const short = pt.source === 'mastery' ? 'Mastery 10' : pt.source === 'contract' ? 'Contract' : 'Rank ' + paintRank(pt.id);
       return h('button.paint' + (on ? '.on' : '') + (owned ? '' : '.locked'), { disabled: !owned, title: owned ? pt.name : `${pt.name}: ${how}`, onclick: () => { if (selectPaint(pt.id)) { playSfx('tab'); render(); } } }, swatch(pt.id), h('span', owned ? pt.name : short));
     }));
+    const banners = h('div.paints.banners', BANNERS.map((b) => {
+      const owned = !!st.banners[b.id], on = (st.banner || 'none') === b.id, pr = bannerProgress(b);
+      return h('button.paint.banner-pick' + (on ? '.on' : '') + (owned ? '' : '.locked'), { disabled: !owned, title: owned ? b.name : `${b.name}: ${bannerReqLabel(b)}`, onclick: () => { if (selectBanner(b.id)) { playSfx('tab'); render(); } } },
+        bannerThumb(b), h('span', owned ? b.name : bannerReqLabel(b)), owned || !b.req ? null : h('i.banner-meter', { style: `width:${(pr.frac * 100).toFixed(0)}%` }));
+    }));
     return h('div.screen', h('div.screen-head', h('h2', 'Ships'), h('p', 'Each hull starts with its own gun and signature ability. Workshop upgrades apply to all of them.')),
-      h('h3', 'Paint job'), paints, h('h3', 'Hulls'), list);
+      h('h3', 'Paint job'), paints, h('h3', 'Banner'), h('p.sub-note', 'Cloth banners that stream from your ship. Earn them with medals and high scores.'), banners, h('h3', 'Hulls'), list);
+  }
+
+  function bannerThumb(b) {
+    const c = h('canvas.banner-thumb', { width: 32, height: 96 });
+    if (b.shape) paintBanner(c.getContext('2d'), b, 32, 96); else c.classList.add('none');
+    return c;
+  }
+  /** "Next banner" hint for Awards (medals) and Records (score). */
+  function bannerHint(kind) {
+    const b = nextBanner(kind); if (!b) return null; const pr = bannerProgress(b);
+    return h('button.banner-hint', { onclick: () => show('ships') }, bannerThumb(b), h('div', h('small', 'Next banner'), h('b', b.name), h('span', `${bannerReqLabel(b)} · ${fmt(pr.cur)}/${fmt(pr.goal)}`)), uiIcon('chevron'));
   }
 
   function masteryLine(id) {
@@ -248,7 +272,7 @@ export function createHangar(hooks) {
     const life = h('div.stat-grid.bests', stat('Sorties', fmtInt(s.sorties)), stat('Invaders', fmt(s.kills)), stat('Bosses', fmtInt(s.bossKills)),
       stat('Waves cleared', fmtInt(s.wavesCleared || 0)), stat('Salvage earned', fmt(s.totalSalvage || 0)), stat('Play time', fmtTime(Math.round(st.meta.playTime || 0))));
     return h('div.screen', h('div.screen-head', h('h2', 'Records'), h('p', 'Your personal bests. Every sortie is a shot at a new one.')),
-      hero, h('h3', 'Personal bests'), bests, h('h3', 'Top sorties'), top, h('h3', 'Ship bests'), ships, h('h3', 'Lifetime'), life);
+      hero, bannerHint('score'), h('h3', 'Personal bests'), bests, h('h3', 'Top sorties'), top, h('h3', 'Ship bests'), ships, h('h3', 'Lifetime'), life);
   }
   const dateLabel = (t) => { const d = new Date(t), now = new Date(); return d.toDateString() === now.toDateString() ? 'Today' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); };
 
@@ -273,7 +297,7 @@ export function createHangar(hooks) {
         pr.done ? uiIcon('check') : h('div.c-count', a.roman ? `${roman(pr.cur)}/${roman(pr.goal)}` : `${fmt(pr.cur)}/${fmt(pr.goal)}`));
     };
     return h('div.screen', h('div.screen-head', h('h2', 'Achievements'), h('p', 'Medals for milestones, and feats for the sorties worth bragging about.')),
-      summary, h('h3', 'Medals'), h('div.rows', ACHIEVEMENTS.map(row)), h('h3', 'Feats'), h('div.rows', FEATS.map(row)));
+      summary, bannerHint('medals'), h('h3', 'Medals'), h('div.rows', ACHIEVEMENTS.map(row)), h('h3', 'Feats'), h('div.rows', FEATS.map(row)));
   }
 
   // ------------------------------------------------------------ live updates

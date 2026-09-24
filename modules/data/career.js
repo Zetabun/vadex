@@ -32,7 +32,7 @@ export const paintRank = (id) => Number(Object.keys(PAINT_AT).find((r) => PAINT_
 
 export const MAX_RANK = 40;
 /** Pilot XP needed to go from rank r to r+1. */
-export const rankNeed = (r) => 300 + 120 * (r - 1);
+export const rankNeed = (r) => 350 + 180 * (r - 1);
 // Paint jobs arrive at fixed ranks; every other rank pays salvage that grows with rank.
 export const PAINT_AT = { 2: 'ember', 4: 'crimson', 7: 'aurum', 10: 'toxin', 14: 'nebula', 18: 'glacier', 23: 'obsidian', 28: 'solar', 34: 'phantom', 40: 'singularity' };
 /** What reaching rank r pays out. */

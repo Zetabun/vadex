@@ -11,6 +11,7 @@ import { PAINT_BY_ID } from '@last-orbit/data/career.js';
 import { shapeGeometry, playerParts, unitBox, droneGeometry, supportCraftGeometry } from '@last-orbit/rendering/geometry.js';
 import { SpriteBatch, Particles, Transients, makeTextures, rgb, css, jagged, WHITE } from '@last-orbit/rendering/effects.js';
 import { Background } from '@last-orbit/rendering/background.js';
+import { Banner } from '@last-orbit/rendering/banner.js';
 import { playSfx } from '@last-orbit/audio/audio.js';
 
 const CAP = { swarm: 110, scout: 70, weaver: 70, plate: 60, armourPlate: 12, turret: 12, wyrmSeg: 16, rocket: 30 };
@@ -44,7 +45,7 @@ export class Renderer {
     this.parts = new Particles(1800); this.trans = new Transients(); this.texts = []; this.engineT = 0;
     this.supportWorld = null; this.salvageDrops = []; this.salvageCraft = null; this.repairCraft = null; this.repairBeamT = 0;
     this.view = { ...VIEWS.field }; this.viewTarget = VIEWS.field;
-    this.buildPlayer(); this.resize(); this.lastSector = -1;
+    this.buildPlayer(); this.banner = new Banner(this.scene); this.resize(); this.lastSector = -1;
   }
   inst(geo, mat, cap) { const THREE = window.THREE, m = new THREE.InstancedMesh(geo, mat, cap); m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3).fill(1), 3); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.instanceColor.setUsage(THREE.DynamicDrawUsage); m.frustumCulled = false; m.count = 0; this.scene.add(m); return m; }
   meshFor(shape) { return this.meshes[shape] || (this.meshes[shape] = this.inst(shapeGeometry(shape), this.enemyMat, CAP[shape] || (shape.startsWith('boss') || shape.startsWith('mini') ? 3 : 40))); }
@@ -157,7 +158,7 @@ export class Renderer {
     this.bg.update(dt, speedMul); this.drain(w);
     const fdt = dt * Math.min(3, speedMul); this.parts.update(fdt); this.trans.update(fdt);
     const B = this.B; for (const k in B) B[k].begin();
-    this.drawEnemies(w); this.drawPlayer(w, dt); this.drawShots(w); this.drawHazards(w); this.drawBarriers(w); this.drawDrones(w); this.drawPickups(w); this.drawSupportCraft(w, fdt);
+    this.drawEnemies(w); this.drawPlayer(w, fdt); this.drawShots(w); this.drawHazards(w); this.drawBarriers(w); this.drawDrones(w); this.drawPickups(w); this.drawSupportCraft(w, fdt);
     this.trans.draw(B); this.parts.draw(B.soft);
     for (const k in B) B[k].end();
     this.gl.render(this.scene, this.camera);
@@ -200,10 +201,13 @@ export class Renderer {
   }
 
   drawPlayer(w, dt) {
-    const p = w.player, g = this.player, B = this.B, t = w.t; g.visible = p.alive; if (!p.alive) return;
+    const p = w.player, g = this.player, B = this.B, t = w.t; g.visible = p.alive;
+    this.banner.setDesign(G.state.banner || 'none');
+    if (!p.alive) { this.banner.update(g, 0, t, false); return; }
     const look = G.sheet.version + ':' + G.state.paint + ':' + (G.state.run?.ship || G.state.ship); if (this.lookV !== look) { this.lookV = look; this.refreshPlayerLook(); }
     g.position.set(p.x, p.y, 0); g.rotation.set(0, -p.tilt * 0.6, -p.tilt * 0.12);
     const blink = p.invuln > 0 && Math.sin(t * 40) > 0; g.visible = !blink;
+    g.updateMatrixWorld(true); this.banner.update(g, dt, t, !blink);
     const over = w.abil.active.overdrive > 0, glow = over ? AMBER : this.glow || CYAN;
     B.under.add(p.x, p.y, 15, 15, 0, glow, 0.17 + (p.fireFlash > 0 ? 0.2 : 0));
     // Exhaust follows the actual nozzle transforms, including banking and progression scale.

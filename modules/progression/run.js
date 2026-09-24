@@ -48,6 +48,7 @@ export function endSortie(reason = 'destroyed') {
     weapons: run.order.map((id) => [id, run.weapons[id]]), best: reached > (run.prevBest || 0), date: Date.now(),
   };
   st.run = null; G.mode = 'hangar';
+  const bannersBefore = { ...st.banners };
   summary.threat = run.threat || 0; summary.mutator = run.mutator || null;
   Object.assign(summary, recordSortie(st, run, summary));
   if (run.daily) {
@@ -68,6 +69,7 @@ export function endSortie(reason = 'destroyed') {
     summary.pilot.gained += g.gained; summary.pilot.to = g.to; summary.pilot.rewards.push(...g.rewards);
   }
   summary.medals = (run.medalsDone || []).concat(medals);
+  summary.banners = (run.bannersDone || []).concat(Object.keys(st.banners).filter((id) => !bannersBefore[id]));
   st.history.unshift({ score: summary.score, wave: summary.wave, level: summary.level, ship: summary.ship, salvage: banked, time: summary.time, date: summary.date }); st.history.length = Math.min(st.history.length, 12);
   recalc(); bus.emit('sortieEnded', summary);
   return summary;

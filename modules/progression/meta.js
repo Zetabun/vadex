@@ -10,6 +10,7 @@ import { MAX_RANK, rankNeed, rankReward, PAINT_BY_ID, PAINTS, MAX_MASTERY, maste
 import { MAX_THREAT, THREAT_UNLOCK_SECTOR } from '@last-orbit/data/threat.js';
 import { dayKey, dailyFor } from '@last-orbit/data/daily.js';
 import { ACHIEVEMENTS, FEATS, TIERS, FEAT_XP, MEDAL_COUNT } from '@last-orbit/data/achievements.js';
+import { BANNERS, BANNER_BY_ID } from '@last-orbit/data/banners.js';
 
 // ---------------------------------------------------------------- workshop
 export const workshopLevel = (id) => G.state.workshop[id] || 0;
@@ -130,8 +131,29 @@ export function checkAchievements({ silent = false, pay = true } = {}) {
   for (const a of ACHIEVEMENTS) { const v = Number(a.get(st)) || 0; for (let t = medalsOf(a.id); t < a.goals.length && v >= a.goals[t]; t = medalsOf(a.id)) award(a, t, TIERS[t].xp); }
   for (const f of FEATS) if (!medalsOf(f.id) && (Number(f.get(st)) || 0) >= f.goal) award(f, 0, FEAT_XP);
   if (out.length) bus.emit('medal', out);
+  unlockBanners({ silent });
   return out;
 }
+
+// ---------------------------------------------------------------- banners
+/** Progress towards a banner's requirement. */
+export function bannerProgress(b) {
+  const st = G.state, r = b.req || {}, cur = r.medals ? medalTotal().earned : r.score ? st.stats.bestScore || 0 : Number(st.stats[r.stat]) || 0, goal = r.medals || r.score || r.n || 1;
+  return { cur: Math.min(cur, goal), goal, frac: Math.min(1, cur / goal), done: !!st.banners[b.id] };
+}
+/** Unlock every banner whose requirement is met. Returns the newly unlocked ids. */
+export function unlockBanners({ silent = false } = {}) {
+  const st = G.state, out = [];
+  for (const b of BANNERS) {
+    if (!b.req || st.banners[b.id] || bannerProgress(b).frac < 1) continue;
+    st.banners[b.id] = Date.now(); out.push(b.id); if (st.run) (st.run.bannersDone ||= []).push(b.id);
+    if (!silent) bus.emit('notice', { kind: 'unlock', kicker: 'Banner unlocked', title: b.name, sub: 'Fly it from the Ships tab', art: 'ach:flag' });
+  }
+  return out;
+}
+/** The next locked banner of a kind ('medals' or 'score'), for "next unlock" hints. */
+export const nextBanner = (kind) => BANNERS.find((b) => b.req?.[kind] && !G.state.banners[b.id]) || null;
+export function selectBanner(id) { if (!G.state.banners[id] || !BANNER_BY_ID[id]) return false; G.state.banner = id; bus.emit('banner', id); return true; }
 const ROMAN = ['0', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
 /** Description of a medal tier with its goal filled in. */
 export function medalDesc(a, tier = 0) {

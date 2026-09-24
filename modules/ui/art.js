@@ -103,6 +103,7 @@ const P = {
   wrench: `<path class="a" d="M47 5a14 14 0 0 0-14 18L7 49a5 5 0 0 0 0 7l1 1a5 5 0 0 0 7 0l26-26a14 14 0 0 0 18-14l-8 8-8-2-2-8z"/><circle class="c" cx="11.5" cy="52.5" r="2.5"/><path class="t" d="M20 44l12-12" opacity=".7"/>`,
   brush: `<path class="b" d="M41 5l18 18-20 17-15-15z"/><path class="c" d="M24 25l15 15-5 5-15-15z"/><path class="a" d="M19 30l15 15c-2 9-10 15-21 15H5c4-3 4-8 4-12 0-10 4-16 10-18z"/><path class="k" d="M48 12l-8 8" opacity=".6"/>`,
   trophy: `<path class="t" d="M17 12H7c0 11 5 18 12 19M47 12h10c0 11-5 18-12 19"/><path class="a" d="M15 6h34v14c0 12-8 21-17 21S15 32 15 20z"/><rect class="b" x="27" y="40" width="10" height="9"/><rect class="b" x="17" y="49" width="30" height="10" rx="2"/><path class="k" d="M23 12v9" opacity=".75"/><path class="c" d="M26 53h12v2H26z"/>`,
+  unknown: `<path class="c" d="M32 3l25 14.5v29L32 61 7 46.5v-29z" style="stroke:var(--ic-a);stroke-width:2.5"/><path class="t" d="M32 9l20 11.5v23L32 55 12 43.5v-23z" opacity=".35"/><path class="s" d="M24 25a8 8 0 1 1 11.5 7.2c-2.3 1.1-3.5 2.6-3.5 5.3v1.5" style="stroke-width:5.5"/><circle class="a" cx="32" cy="47" r="3.4"/>`,
   salvage: `<path class="a" d="M32 4l24 14v28L32 60 8 46V18z"/><path class="b" d="M32 14l15 9v18l-15 9-15-9V23z"/><circle class="c" cx="32" cy="32" r="8"/><path class="w" d="M14 19l18-10" style="fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round;opacity:.75"/>`,
   xp: `<path class="a" d="M32 3l20 17-20 41L12 20z"/><path class="b" d="M12 20h40L32 61z"/><path class="w" d="M32 3l6 17H26z" opacity=".8"/>`,
 };
@@ -145,6 +146,7 @@ export const ART = {
   'ach:star': C('star', '#ffc857', '#ff8a3d'), 'ach:flag': C('flag', '#5ee6ff', '#8e9bb8'), 'ach:calendar': C('calendar', '#ff9ec7', '#26304f'),
   'ach:flame': C('flame', '#ff8a3d', '#ffd166'), 'ach:wrench': C('wrench', '#c9d2e8', '#8e9bb8'), 'ach:brush': C('brush', '#ff5fa2', '#c9d2e8'),
   'ach:trophy': C('trophy', '#ffc857', '#b0782a'),
+  'ui:unknown': C('unknown', '#7f8bb0', '#5d6c95'),
   // currencies and supplies
   'cur:salvage': C('salvage', '#ffc857', '#e89a2c'), 'cur:xp': C('xp', UTL, '#2fae8a'),
   'supply:heal': C('nanites', '#6dff8e', '#c3ffd2'), 'supply:cash': C('crate', '#ffc857', '#b0782a'),
