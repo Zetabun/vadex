@@ -100,7 +100,8 @@ export function createOverlays(layer, hooks) {
     const el = h('div.modal.settings-modal', { role: 'dialog', 'aria-label': 'Settings' },
       h('div.modal-head', h('h2', 'Settings')), settingsBody(),
       h('div.modal-actions', h('button.btn.primary', { onclick: () => (fromPause ? showPause() : close()), 'data-autofocus': '' }, 'Done'),
-        fromPause ? null : h('button.btn.danger.small', { onclick: () => confirmReset() }, 'Erase save')));
+        fromPause ? null : h('button.btn.danger.small', { onclick: () => confirmReset() }, 'Erase save')),
+      h('div.display-info', displayInfo()));
     mount('settings', el, (e) => { if (e.key === 'Escape') { if (fromPause) showPause(); else close(); return true; } return false; });
   }
   function confirmReset() {
@@ -134,6 +135,11 @@ export function createOverlays(layer, hooks) {
     setTimeout(() => requestAnimationFrame(tick), 350);
   }
   const stat = (k, v) => h('div.stat', h('small', k), h('b', String(v)));
+  // Small readout to help diagnose layout on unusual screens (e.g. installed home-screen apps).
+  const displayInfo = () => {
+    const app = document.getElementById('app'), sa = getComputedStyle(document.documentElement), standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+    return `v${document.querySelector('script[type=importmap]')?.textContent.match(/v=([0-9.]+)/)?.[1] || '?'} · ${standalone ? 'app' : 'browser'} · screen ${screen.width}×${screen.height} · window ${innerWidth}×${innerHeight} · game ${Math.round(app.clientHeight)}`;
+  };
 
   return {
     showOffer, showRelics, showPause, showSettings, showDebrief, close,

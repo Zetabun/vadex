@@ -99,7 +99,9 @@ function fitStandalone() {
   if (!standalone) return;
   const portrait = matchMedia('(orientation: portrait)').matches, screenH = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
   const full = Math.max(innerHeight, document.documentElement.clientHeight, screenH);
-  document.documentElement.classList.add('standalone');
+  // The root elements must grow too, or the shortened layout viewport clips everything below it.
+  const root = document.documentElement; root.classList.add('standalone');
+  root.style.height = document.body.style.height = full + 'px';
   app.style.bottom = 'auto'; app.style.height = full + 'px';
 }
 fitStandalone();

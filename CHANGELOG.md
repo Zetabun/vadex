@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.1.2 — 2026-09-24
+
+- Second fix for the iOS home-screen app stopping short of the bottom of the screen: the page root now grows to the full screen as well, with a `display-mode: standalone` CSS fallback.
+- Settings shows a small display readout (version, app or browser, screen and window size) to help diagnose layout on specific devices.
+
 ## v2.1.1 — 2026-09-24
 
 - Fixed the home-screen (installed) app on iOS stopping short of the bottom of the screen, which left a strip below the tab bar and cut off its labels.
