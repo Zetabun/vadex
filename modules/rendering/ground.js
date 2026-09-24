@@ -2,8 +2,8 @@
 // the spaceport it launched from, downtown, residential streets and canals, the industrial outskirts, and finally the
 // coast and open sea, before the surface sinks away into space. The layout is built row by row as rows scroll in
 // (a row can be a street of lots, an avenue, a runway, a canal, a railway, a park strip, a beach or open water), lots
-// can merge into larger developments, and everything sits on the ground with soft shadows. A subtle drifting mist and
-// tint between the city and the fighting keeps ships and bullets readable against the buildings.
+// can merge into larger developments, and everything sits on the ground with soft shadows. The city is kept dark, a
+// backdrop far below, so ships, enemies and bullets stand out against it.
 // Gun towers are ordinary enemies riding at GROUND_SPEED; this draws a pillar under each so they stand on the city.
 import { GROUND_SPEED } from '@last-orbit/data/counter.js';
 
@@ -13,6 +13,8 @@ const DISTRICTS = [[0, 'spaceport'], [300, 'downtown'], [650, 'residential'], [9
 const districtAt = (y) => { let d = DISTRICTS[0][1]; for (const [at, name] of DISTRICTS) if (y >= at) d = name; return d; };
 const CAP = { slab: 260, bld: 360, shadow: 380, roof: 520, tree: 520, cyl: 90, pad: 16, pillar: 16 };
 const R = Math.random, pickOf = (list) => list[Math.floor(R() * list.length)];
+// The whole surface is darkened (window and runway lights a little less), so it reads as ground far below.
+const DARK = 0.6, LIGHTS = 0.85;
 
 function padTexture(kind) {
   const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
@@ -23,24 +25,13 @@ function padTexture(kind) {
   g.fillStyle = '#fff'; for (const [x, y] of [[10, 10], [118, 10], [10, 118], [118, 118]]) g.fillRect(x - 3, y - 3, 6, 6);
   return c;
 }
-/** Soft cloud wisps for the mist layer (tiles seamlessly enough at low opacity). */
-function mistTexture() {
-  const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
-  for (let i = 0; i < 26; i++) {
-    const x = R() * 256, y = R() * 256, r = 30 + R() * 70, grad = g.createRadialGradient(x, y, 0, x, y, r);
-    grad.addColorStop(0, `rgba(255,255,255,${0.16 + R() * 0.2})`); grad.addColorStop(1, 'rgba(255,255,255,0)');
-    g.fillStyle = grad; for (const dx of [-256, 0, 256]) for (const dy of [-256, 0, 256]) { g.save(); g.translate(dx, dy); g.fillRect(x - r, y - r, r * 2, r * 2); g.restore(); }
-  }
-  return c;
-}
-
 export class Ground {
   constructor(scene) {
     const THREE = window.THREE, box = new THREE.BoxGeometry(1, 1, 1), flat = new THREE.PlaneGeometry(1, 1);
     const inst = (geo, mat, cap) => { const m = new THREE.InstancedMesh(geo, mat, cap); m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3).fill(1), 3); m.frustumCulled = false; m.count = 0; return m; };
     this.mats = [];
     const mat = (Kind, o, base = 1) => { const m = new Kind({ transparent: true, ...o }); m.baseOpacity = base; this.mats.push(m); return m; };
-    this.street = new THREE.Mesh(new THREE.PlaneGeometry(WIDTH + 60, 330), mat(THREE.MeshLambertMaterial, { color: 0x0e131d, emissive: 0x03050a })); this.street.position.set(0, 75, Z - 0.05);
+    this.street = new THREE.Mesh(new THREE.PlaneGeometry(WIDTH + 60, 330), mat(THREE.MeshLambertMaterial, { color: 0x080b12, emissive: 0x020306 })); this.street.position.set(0, 75, Z - 0.05);
     this.slab = inst(box, mat(THREE.MeshLambertMaterial, { color: 0xffffff, emissive: 0x04060b }), CAP.slab);
     this.bld = inst(box, mat(THREE.MeshLambertMaterial, { color: 0xffffff, emissive: 0x04060c }), CAP.bld);
     this.shadow = inst(flat, mat(THREE.MeshBasicMaterial, { color: 0x000000, depthWrite: false }, 0.45), CAP.shadow);
@@ -48,13 +39,9 @@ export class Ground {
     this.tree = inst(new THREE.ConeGeometry(1, 1, 6).rotateX(Math.PI / 2), mat(THREE.MeshLambertMaterial, { color: 0xffffff, emissive: 0x020805 }), CAP.tree);
     this.cyl = inst(new THREE.CylinderGeometry(1, 1, 1, 12).rotateX(Math.PI / 2), mat(THREE.MeshLambertMaterial, { color: 0xffffff, emissive: 0x05070c }), CAP.cyl);
     this.pillar = inst(new THREE.CylinderGeometry(1, 1.25, 1, 8).rotateX(Math.PI / 2), mat(THREE.MeshLambertMaterial, { color: 0x9aa6bf, emissive: 0x0a0e18 }), CAP.pillar);
-    this.pads = [0, 1, 2].map((k) => inst(flat, mat(THREE.MeshLambertMaterial, { map: new THREE.CanvasTexture(padTexture(k)), color: 0x8a93a6 }), CAP.pad));
-    // Mist: a gentle dark tint plus slow drifting wisps, between the rooftops and the fighting.
-    this.mistTex = new THREE.CanvasTexture(mistTexture()); this.mistTex.wrapS = this.mistTex.wrapT = THREE.RepeatWrapping; this.mistTex.repeat.set(1.4, 2.6);
-    this.tint = new THREE.Mesh(new THREE.PlaneGeometry(WIDTH + 60, 330), mat(THREE.MeshBasicMaterial, { color: 0x0a1226, depthWrite: false }, 0.24)); this.tint.position.set(0, 75, -1.3);
-    this.mist = new THREE.Mesh(new THREE.PlaneGeometry(WIDTH + 60, 330), mat(THREE.MeshBasicMaterial, { map: this.mistTex, color: 0xa9c2e6, depthWrite: false }, 0.2)); this.mist.position.set(0, 75, -0.9);
+    this.pads = [0, 1, 2].map((k) => inst(flat, mat(THREE.MeshLambertMaterial, { map: new THREE.CanvasTexture(padTexture(k)), color: 0x5c6272 }), CAP.pad));
     this.city = new THREE.Group(); this.city.add(this.slab, this.bld, this.shadow, this.roof, this.tree, this.cyl, ...this.pads);
-    this.group = new THREE.Group(); this.group.add(this.street, this.city, this.pillar, this.tint, this.mist); this.group.visible = false; scene.add(this.group);
+    this.group = new THREE.Group(); this.group.add(this.street, this.city, this.pillar); this.group.visible = false; scene.add(this.group);
     this.d = new THREE.Object3D(); this.c = new THREE.Color();
     this.reset();
   }
@@ -128,7 +115,7 @@ export class Ground {
   /** Write every row into the instanced meshes (rows keep their city y). Runs only when a row scrolls off. */
   rebuild() {
     const n = { slab: 0, bld: 0, shadow: 0, roof: 0, tree: 0, cyl: 0, pads: [0, 0, 0] }, d = this.d, c = this.c;
-    const put = (key, mesh, x, y, z, sx, sy, sz, rz, col) => { const i = key === 'pad' ? null : n[key]++; if (i != null && i >= CAP[key]) return; d.position.set(x, y, z); d.scale.set(sx, sy, sz); d.rotation.set(0, 0, rz || 0); d.updateMatrix(); mesh.setMatrixAt(i ?? mesh._i, d.matrix); c.setHex(col); mesh.setColorAt(i ?? mesh._i, c); };
+    const put = (key, mesh, x, y, z, sx, sy, sz, rz, col) => { const i = key === 'pad' ? null : n[key]++; if (i != null && i >= CAP[key]) return; d.position.set(x, y, z); d.scale.set(sx, sy, sz); d.rotation.set(0, 0, rz || 0); d.updateMatrix(); mesh.setMatrixAt(i ?? mesh._i, d.matrix); c.setHex(col).multiplyScalar(key === 'roof' ? LIGHTS : DARK); mesh.setColorAt(i ?? mesh._i, c); };
     const slab = (x, y, w, h, col, z = 0.2, t = 0.4) => put('slab', this.slab, x, y, Z + z, w, h, t, 0, col);
     const light = (x, y, s, col, z = 0.5) => put('roof', this.roof, x, y, Z + z, s, s, s * 0.5, 0, col);
     const building = (x, y, b) => {
@@ -174,8 +161,6 @@ export class Ground {
     let rebuilt = false;
     for (const row of this.rows) if (row.y - this.scroll < BOTTOM) { row.y += ROWS * PITCH; row.plan = this.planRow(row.y); rebuilt = true; }
     if (rebuilt) this.rebuild();
-    // The mist drifts a little slower than the ground and a touch sideways, so it reads as a layer of its own.
-    this.mistTex.offset.y += (GROUND_SPEED * 0.7 * dt) / 330 * this.mistTex.repeat.y; this.mistTex.offset.x += dt * 0.004;
     // As the ship climbs, the surface drops away and dims.
     this.group.position.z = -(1 - fade) * 70;
     for (const m of this.mats) m.opacity = m.baseOpacity * fade;
