@@ -89,6 +89,7 @@ export class Ground {
       if (merge) k++;
     }
     if (kind === 'canal') row.bridges = [0, 1].map(() => Math.floor(R() * COLS));
+    if (kind === 'park') row.trees = this.trees(4, 5); // planned once, so the trees stay put when other rows are rebuilt
     if (kind === 'runway' || kind === 'avenue' || kind === 'rail') row.traffic = Array.from({ length: kind === 'rail' ? 1 : 3 + Math.floor(R() * 4) }, () => ({ x: (R() - 0.5) * WIDTH, lane: R() < 0.5 ? -1 : 1 }));
     return row;
   }
@@ -147,7 +148,7 @@ export class Ground {
         case 'canal': slab(0, cy, WIDTH, 16, 0x0d2a44, 0.05, 0.1); slab(0, cy + 8.3, WIDTH, 0.8, 0x3a5a7a, 0.12, 0.2); slab(0, cy - 8.3, WIDTH, 0.8, 0x3a5a7a, 0.12, 0.2); for (const b of p.bridges) slab((b - (COLS - 1) / 2) * PITCH, cy, 6, 18, 0x3a4458, 0.6, 0.6); break;
         case 'rail': slab(0, cy, WIDTH, 12, 0x1b1e24, 0.05, 0.1); for (const off of [-2.2, 2.2]) slab(0, cy + off, WIDTH, 0.4, 0x6a7080, 0.15, 0.1); for (let x = -WIDTH / 2; x < WIDTH / 2; x += 2.5) slab(x, cy, 0.5, 6, 0x2e3440, 0.1, 0.1);
           for (const t of p.traffic) for (let k = 0; k < 5; k++) building(t.x + k * 7.5, cy, { w: 7, d: 3.4, h: 1.6, c: k === 0 ? 0xc94f5a : 0x4a5468, roof: k === 0 ? [{ x: 3, y: 0, s: 0.8, c: 0xfff2c2 }] : [] }); break;
-        case 'park': slab(0, cy, WIDTH, 22, 0x16301f); for (const t of this.trees(4, 5)) put('tree', this.tree, t.x * 1.3, cy + t.y, Z + 0.4 + t.h / 2, t.r, t.r, t.h, 0, t.c); slab(0, cy, WIDTH, 1.6, 0x4a4436, 0.42, 0.05); break;
+        case 'park': slab(0, cy, WIDTH, 22, 0x16301f); for (const t of p.trees) put('tree', this.tree, t.x * 1.3, cy + t.y, Z + 0.4 + t.h / 2, t.r, t.r, t.h, 0, t.c); slab(0, cy, WIDTH, 1.6, 0x4a4436, 0.42, 0.05); break;
         case 'beach': slab(0, cy + 5, WIDTH, 12, 0x6b6044); slab(0, cy - 7, WIDTH, 12, 0x0d2a44, 0.05, 0.1); for (let x = -WIDTH / 2; x < WIDTH / 2; x += 11) slab(x + (x % 3), cy - 1.2, 6, 0.5, 0x9fc2e0, 0.12, 0.05); break;
         case 'ocean': slab(0, cy, WIDTH + 40, PITCH + 0.5, 0x0b2238, 0.05, 0.1); for (let i = 0; i < 6; i++) slab((((i * 37 + cy * 13) % WIDTH) + WIDTH) % WIDTH - WIDTH / 2, cy + ((i * 7) % 20) - 10, 5, 0.4, 0x5a86b0, 0.12, 0.05); break;
         default: // lots
