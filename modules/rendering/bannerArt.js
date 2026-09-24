@@ -29,8 +29,8 @@ function laurel(ctx, x, y, r) {
   star(ctx, x, y + r * 0.05, r * 0.42);
 }
 
-/** Paint banner design b onto a w×h canvas context. */
-export function paintBanner(ctx, b, w, h) {
+/** Paint banner design b onto a w×h canvas context. value: the live stat for banners that display one. */
+export function paintBanner(ctx, b, w, h, value = 0) {
   ctx.clearRect(0, 0, w, h); if (!b || !b.shape) return;
   const [c0, c1, c2] = b.colors;
   ctx.save(); cut(ctx, b.shape, w, h); ctx.clip();
@@ -47,6 +47,16 @@ export function paintBanner(ctx, b, w, h) {
       const x = w / 2, y = h * 0.24, r = w * 0.26;
       if (b.emblem === 'skull') skull(ctx, x, y, r, c0); else if (b.emblem === 'laurel') laurel(ctx, x, y, r * 1.1); else star(ctx, x, y, r);
       break;
+    }
+    case 'tally': {
+      // A kill counter: skull at the pinned edge, then the lifetime count glowing down the cloth's length.
+      ctx.fillStyle = c0; ctx.fillRect(0, 0, w, h); ctx.fillStyle = c1; ctx.fillRect(0, 0, w * 0.06, h); ctx.fillRect(w * 0.94, 0, w * 0.06, h);
+      skull(ctx, w / 2, h * 0.1, w * 0.2, c0);
+      const text = Math.floor(value).toLocaleString('en-GB'), lead = w * 0.62, room = h * 0.94 - h * 0.21 - lead, size = Math.min(w * 0.6, room / (text.length * 0.6));
+      ctx.save(); ctx.translate(w / 2, h * 0.21); ctx.rotate(Math.PI / 2);
+      ctx.font = `700 ${w * 0.16}px "Chakra Petch", monospace`; ctx.textBaseline = 'middle'; ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.fillText('KILLS', 0, 0);
+      ctx.font = `700 ${size}px "Chakra Petch", monospace`; ctx.shadowColor = c1; ctx.shadowBlur = w * 0.12; ctx.fillStyle = '#ffd8b0'; ctx.fillText(text, lead, 0);
+      ctx.restore(); break;
     }
     default: ctx.fillStyle = c0; ctx.fillRect(0, 0, w, h);
   }

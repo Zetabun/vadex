@@ -36,6 +36,7 @@ function runScene(scene, hooks, ui) {
   st.records.ships = { vanguard: { score: 48210, wave: 28 }, striker: { score: 40555, wave: 26 } }; recalc();
   const [name, arg] = scene.split(':');
   if (name === 'paint') { st.paints[arg] = 1; st.paint = arg; hooks.toHangar('launch'); return; }
+  if (name === 'bannershow' && arg === 'tally') { st.stats.kills = 48213; st.banners.tally = 1; st.banner = 'tally'; hooks.toHangar('launch'); setInterval(() => { st.stats.kills += 1 + Math.floor(Math.random() * 3); }, 300); return; }
   if (name === 'bannershow') {
     // Every banner in turn, four seconds each: in the hangar close-up (default) or in flight (bannershow:fly).
     const ids = BANNERS.filter((b) => b.shape).map((b) => b.id); let k = 0;

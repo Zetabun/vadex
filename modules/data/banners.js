@@ -2,6 +2,7 @@
 // earning medals, setting high scores and a few long-haul feats, and are chosen in the Ships tab next to paint jobs.
 // shape: how the cloth is cut (flag, pennant, swallowtail, streamer). pattern + colors: the design (rendering/bannerArt.js).
 // req: { medals } medals earned, { score } best sortie score, or { stat, n, label } a lifetime stat.
+// live: a lifetime stat the banner displays and keeps up to date as it changes (a kill counter). rare: highlighted in the picker.
 import { MEDAL_COUNT } from '@last-orbit/data/achievements.js';
 
 export const BANNERS = [
@@ -16,6 +17,7 @@ export const BANNERS = [
   { id: 'comet', name: 'Comet Tail', shape: 'streamer', pattern: 'gradient', colors: ['#ffffff', '#7ae8ff', '#3a4bff'], req: { score: 250000 } },
   { id: 'void', name: 'Void Banner', shape: 'swallow', pattern: 'stars', colors: ['#120b2e', '#b69cff'], req: { medals: 45 } },
   { id: 'laurel', name: "Victor's Laurel", shape: 'swallow', pattern: 'emblem', emblem: 'laurel', colors: ['#7a560f', '#ffe08a'], req: { score: 750000 } },
+  { id: 'tally', name: 'Kill Counter', shape: 'flag', pattern: 'tally', colors: ['#0b0d14', '#ff8a3d'], live: 'kills', rare: true, req: { stat: 'kills', n: 25000, label: '25,000 kills' } },
   { id: 'aurora', name: 'Aurora', shape: 'streamer', pattern: 'rainbow', colors: ['#ffffff'], req: { medals: MEDAL_COUNT } }, // every medal
 ];
 export const BANNER_BY_ID = Object.fromEntries(BANNERS.map((b) => [b.id, b]));

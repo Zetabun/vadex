@@ -10,6 +10,7 @@
 - **Workshop keeps its place.** Buying an upgrade no longer scrolls the list back to the top, so rapid taps land on the upgrade you meant.
 - **Fixed** locked weapon icons in the Armory drawing outside their cards in iOS Safari.
 - **Ship banners.** Eleven cosmetic cloth banners that stream from your ship's tail, swinging as you dodge. Earn them with medals, high scores, a long daily streak and 100 boss kills; pick one in the Ships tab. Awards and Records show the next banner to chase.
+- **Kill Counter banner (rare).** Unlocked at 25,000 lifetime kills: a dark banner showing your lifetime kill count, updating live as you fly.
 - **Armory mystery.** Weapons and abilities you haven't unlocked stay hidden as "Unknown" until you earn them; contracts only say they unlock "a new weapon".
 - **Balance pass.** A headless progression probe (`tests/progression-sim.mjs`) showed a strong bot maxing the whole Workshop in 7 sorties (it cost 34k salvage in total). Early Workshop levels cost the same, but later levels now climb much more steeply (160k for everything; about 25 sorties for a strong pilot, 40 for a weaker one). Ships cost more (800 / 2,000 / 4,500 / 9,000) and pilot ranks need about 45% more XP. The new medal XP adds only ~3% to salvage income.
 

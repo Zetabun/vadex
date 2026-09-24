@@ -186,8 +186,8 @@ export function createHangar(hooks) {
     }));
     const banners = h('div.paints.banners', BANNERS.map((b) => {
       const owned = !!st.banners[b.id], on = (st.banner || 'none') === b.id, pr = bannerProgress(b);
-      return h('button.paint.banner-pick' + (on ? '.on' : '') + (owned ? '' : '.locked'), { disabled: !owned, title: owned ? b.name : `${b.name}: ${bannerReqLabel(b)}`, onclick: () => { if (selectBanner(b.id)) { playSfx('tab'); render(); } } },
-        bannerThumb(b), h('span', owned ? b.name : bannerReqLabel(b)), owned || !b.req ? null : h('i.banner-meter', { style: `width:${(pr.frac * 100).toFixed(0)}%` }));
+      return h('button.paint.banner-pick' + (on ? '.on' : '') + (owned ? '' : '.locked') + (b.rare ? '.rare' : ''), { disabled: !owned, title: owned ? b.name : `${b.name}: ${bannerReqLabel(b)}`, onclick: () => { if (selectBanner(b.id)) { playSfx('tab'); render(); } } },
+        bannerThumb(b), h('span', owned ? b.name : bannerReqLabel(b), b.rare ? h('small.rare-tag', 'Rare') : null), owned || !b.req ? null : h('i.banner-meter', { style: `width:${(pr.frac * 100).toFixed(0)}%` }));
     }));
     return h('div.screen', h('div.screen-head', h('h2', 'Ships'), h('p', 'Each hull starts with its own gun and signature ability. Workshop upgrades apply to all of them.')),
       h('h3', 'Paint job'), paints, h('h3', 'Banner'), h('p.sub-note', 'Cloth banners that stream from your ship. Earn them with medals and high scores.'), banners, h('h3', 'Hulls'), list);
@@ -195,7 +195,7 @@ export function createHangar(hooks) {
 
   function bannerThumb(b) {
     const c = h('canvas.banner-thumb', { width: 32, height: 96 });
-    if (b.shape) paintBanner(c.getContext('2d'), b, 32, 96); else c.classList.add('none');
+    if (b.shape) paintBanner(c.getContext('2d'), b, 32, 96, b.live ? G.state.stats[b.live] : 0); else c.classList.add('none');
     return c;
   }
   /** "Next banner" hint for Awards (medals) and Records (score). */

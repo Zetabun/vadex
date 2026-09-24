@@ -2,6 +2,7 @@
 // slipstream (down the screen, as the ship flies up it) and rippled by a travelling flutter, so it trails, swings
 // when the ship darts sideways and settles when it holds still. The strip is rebuilt from the spine each frame with a
 // little twist, and lit, so the folds catch the light. Purely visual: it never touches game state.
+import { G } from '@last-orbit/core/game.js';
 import { BANNER_BY_ID } from '@last-orbit/data/banners.js';
 import { paintBanner } from '@last-orbit/rendering/bannerArt.js';
 
@@ -16,16 +17,21 @@ export class Banner {
     for (let i = 0; i < N; i++) { const v = 1 - i / (N - 1); uv.push(0, v, 1, v); if (i < N - 1) { const a = i * 2; idx.push(a, a + 1, a + 2, a + 1, a + 3, a + 2); } }
     this.pos = new THREE.Float32BufferAttribute(new Float32Array(N * 6), 3); this.pos.setUsage(THREE.DynamicDrawUsage);
     geo.setAttribute('position', this.pos); geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx);
-    this.canvas = document.createElement('canvas'); this.canvas.width = 64; this.canvas.height = 256;
+    this.canvas = document.createElement('canvas'); this.canvas.width = 128; this.canvas.height = 512;
     this.tex = new THREE.CanvasTexture(this.canvas); this.tex.anisotropy = 4;
     this.mat = new THREE.MeshLambertMaterial({ map: this.tex, side: THREE.DoubleSide, alphaTest: 0.5, emissive: 0x333333 });
     this.mesh = new THREE.Mesh(geo, this.mat); this.mesh.frustumCulled = false; this.mesh.visible = false; scene.add(this.mesh);
     this.id = 'none'; this.reset = true; this.anchor = new THREE.Vector3();
   }
   setDesign(id) {
-    if (id === this.id) return; this.id = id; this.reset = true;
-    const b = BANNER_BY_ID[id]; if (!b?.shape) return;
-    paintBanner(this.canvas.getContext('2d'), b, this.canvas.width, this.canvas.height); this.tex.needsUpdate = true;
+    const b = BANNER_BY_ID[id];
+    // Banners that display a stat repaint when it changes, at most a few times a second.
+    if (id === this.id) { if (b?.live && G.state.stats[b.live] !== this.shown && performance.now() - this.paintedAt > 250) this.paint(b); return; }
+    this.id = id; this.reset = true; if (b?.shape) this.paint(b);
+  }
+  paint(b) {
+    this.shown = b.live ? G.state.stats[b.live] || 0 : 0; this.paintedAt = performance.now();
+    paintBanner(this.canvas.getContext('2d'), b, this.canvas.width, this.canvas.height, this.shown); this.tex.needsUpdate = true;
   }
   /** ship: the player's Three.js group (already positioned); dt: simulated seconds (0 while paused). */
   update(ship, dt, t, visible) {
