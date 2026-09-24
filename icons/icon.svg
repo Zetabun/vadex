@@ -1,53 +1,112 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Last Orbit app icon: the Vanguard (same drawing as the in-game ship icon, ×5.2) climbing out of orbit with its
+       banner streaming, over a planet horizon, with an invader formation ahead. Key art stays inside the central
+       ~80% so iOS's rounded mask never clips it. Rendered to PNG by tools/render-icons.mjs. -->
   <defs>
-    <radialGradient id="sky" cx="50%" cy="30%" r="80%">
-      <stop offset="0" stop-color="#1b3a86"/>
-      <stop offset=".55" stop-color="#0a1440"/>
+    <radialGradient id="sky" cx="50%" cy="38%" r="78%">
+      <stop offset="0" stop-color="#23449a"/>
+      <stop offset=".5" stop-color="#0c1748"/>
       <stop offset="1" stop-color="#030616"/>
     </radialGradient>
+    <radialGradient id="nebula" cx="78%" cy="18%" r="45%">
+      <stop offset="0" stop-color="#c77dff" stop-opacity=".45"/>
+      <stop offset="1" stop-color="#c77dff" stop-opacity="0"/>
+    </radialGradient>
     <linearGradient id="planet" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#6fdcff"/>
-      <stop offset=".25" stop-color="#2b8cf0"/>
-      <stop offset="1" stop-color="#0b2a78"/>
+      <stop offset="0" stop-color="#8ae8ff"/>
+      <stop offset=".18" stop-color="#3a9cf5"/>
+      <stop offset="1" stop-color="#0a2466"/>
     </linearGradient>
-    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
-      <stop offset="0" stop-color="#5ee6ff" stop-opacity=".55"/>
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#5ee6ff" stop-opacity=".6"/>
+      <stop offset=".45" stop-color="#5ee6ff" stop-opacity=".18"/>
       <stop offset="1" stop-color="#5ee6ff" stop-opacity="0"/>
     </radialGradient>
     <linearGradient id="hull" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="#bcd0e6"/>
-      <stop offset=".5" stop-color="#ffffff"/>
-      <stop offset="1" stop-color="#9fb4cc"/>
+      <stop offset="0" stop-color="#cfdcee"/>
+      <stop offset=".45" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#9eb2cc"/>
+    </linearGradient>
+    <linearGradient id="trim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a6f4ff"/>
+      <stop offset="1" stop-color="#2fc6ef"/>
     </linearGradient>
     <linearGradient id="flame" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#ffffff"/>
-      <stop offset=".35" stop-color="#7ff0ff"/>
+      <stop offset=".3" stop-color="#8ff3ff"/>
       <stop offset="1" stop-color="#2a7dff" stop-opacity="0"/>
     </linearGradient>
+    <linearGradient id="cloth" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8a55e0"/>
+      <stop offset=".55" stop-color="#5b2a9e"/>
+      <stop offset="1" stop-color="#3a1870"/>
+    </linearGradient>
+    <linearGradient id="bolt" x1="0" y1="1" x2="0" y2="0">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#5ee6ff" stop-opacity="0"/>
+    </linearGradient>
   </defs>
+
+  <!-- space -->
   <rect width="512" height="512" fill="url(#sky)"/>
+  <rect width="512" height="512" fill="url(#nebula)"/>
   <g fill="#fff">
-    <circle cx="70" cy="90" r="3" opacity=".8"/><circle cx="420" cy="70" r="2.5" opacity=".7"/><circle cx="455" cy="190" r="2" opacity=".6"/>
-    <circle cx="120" cy="210" r="2" opacity=".6"/><circle cx="385" cy="130" r="3.5" opacity=".9"/><circle cx="60" cy="300" r="2.5" opacity=".5"/>
-    <circle cx="200" cy="60" r="2" opacity=".6"/><circle cx="330" cy="40" r="2" opacity=".5"/><circle cx="460" cy="320" r="2.5" opacity=".5"/>
+    <circle cx="64" cy="84" r="3" opacity=".85"/><circle cx="440" cy="64" r="2.5" opacity=".7"/><circle cx="468" cy="210" r="2" opacity=".6"/>
+    <circle cx="96" cy="236" r="2" opacity=".6"/><circle cx="410" cy="150" r="3.5" opacity=".9"/><circle cx="48" cy="330" r="2.5" opacity=".5"/>
+    <circle cx="176" cy="44" r="2" opacity=".6"/><circle cx="352" cy="30" r="2" opacity=".5"/><circle cx="470" cy="330" r="2.5" opacity=".5"/>
+    <circle cx="140" cy="150" r="1.6" opacity=".5"/><circle cx="380" cy="250" r="1.6" opacity=".45"/>
   </g>
-  <!-- invader formation -->
-  <g fill="#ffc857" opacity=".95">
-    <path d="M150 118l14 10 14-10-4 18h-20z"/><path d="M226 104l14 10 14-10-4 18h-20z"/><path d="M302 104l14 10 14-10-4 18h-20z"/><path d="M378 118l14 10 14-10-4 18h-20z"/>
+
+  <!-- invader formation ahead, with incoming fire -->
+  <g fill="#ffc857" stroke="#1a1030" stroke-width="4" stroke-linejoin="round">
+    <path d="M98 128l15 11 15-11-4 20h-22z"/><path d="M384 128l15 11 15-11-4 20h-22z"/>
+    <path d="M146 96l13 9 13-9-3 17h-20z" opacity=".8"/><path d="M340 96l13 9 13-9-3 17h-20z" opacity=".8"/>
   </g>
+  <path d="M399 160v26" stroke="#ff5d8f" stroke-width="6" stroke-linecap="round"/>
+  <path d="M113 160v22" stroke="#ff5d8f" stroke-width="6" stroke-linecap="round" opacity=".8"/>
+
   <!-- planet horizon -->
-  <ellipse cx="256" cy="690" rx="470" ry="300" fill="url(#planet)"/>
-  <ellipse cx="256" cy="690" rx="470" ry="300" fill="none" stroke="#bff4ff" stroke-width="6" opacity=".7"/>
-  <!-- orbit ring -->
-  <ellipse cx="256" cy="300" rx="215" ry="62" fill="none" stroke="#5ee6ff" stroke-width="5" opacity=".35" transform="rotate(-12 256 300)"/>
-  <!-- ship -->
-  <circle cx="256" cy="300" r="170" fill="url(#glow)"/>
-  <path d="M232 408h16l-8 70zM264 408h16l-8 70z" fill="url(#flame)"/>
-  <path d="M256 238l112 96-18 34-94-44-94 44-18-34z" fill="#5ee6ff" stroke="#051024" stroke-width="10" stroke-linejoin="round"/>
-  <path d="M256 150c24 36 36 82 36 136v74l-36 42-36-42v-74c0-54 12-100 36-136z" fill="url(#hull)" stroke="#051024" stroke-width="10" stroke-linejoin="round"/>
-  <path d="M256 206c10 14 14 32 14 50h-28c0-18 4-36 14-50z" fill="#5ee6ff" stroke="#051024" stroke-width="6" stroke-linejoin="round"/>
-  <path d="M232 318h48v14h-48z" fill="#ffc857" stroke="#051024" stroke-width="5"/>
-  <!-- bolts -->
-  <path d="M256 128v-50" stroke="#fff" stroke-width="9" stroke-linecap="round"/>
-  <path d="M256 128v-50" stroke="#5ee6ff" stroke-width="20" stroke-linecap="round" opacity=".3"/>
+  <ellipse cx="256" cy="720" rx="520" ry="320" fill="url(#planet)"/>
+  <ellipse cx="256" cy="720" rx="520" ry="320" fill="none" stroke="#c8f6ff" stroke-width="7" opacity=".75"/>
+  <ellipse cx="256" cy="720" rx="520" ry="320" fill="none" stroke="#5ee6ff" stroke-width="26" opacity=".18"/>
+
+  <!-- orbit ring (back half) and halo -->
+  <ellipse cx="256" cy="262" rx="222" ry="58" fill="none" stroke="#5ee6ff" stroke-width="5" opacity=".28" transform="rotate(-14 256 262)"/>
+  <circle cx="256" cy="250" r="190" fill="url(#halo)"/>
+
+  <!-- the ship's shot -->
+  <path d="M256 60V8" stroke="url(#bolt)" stroke-width="22" stroke-linecap="round" opacity=".45"/>
+  <path d="M256 60V14" stroke="#fff" stroke-width="8" stroke-linecap="round"/>
+
+  <!-- banner: the Royal Standard streaming from the tail -->
+  <path d="M242 330c-6 34 10 60 2 92c-4 16-14 30-22 46l30-14 20 26c2-22 6-40 10-58c7-32-6-58 4-92z"
+        fill="url(#cloth)" stroke="#040816" stroke-width="8" stroke-linejoin="round"/>
+  <path d="M248 342c-3 26 8 48 2 76" fill="none" stroke="#ffc857" stroke-width="4" opacity=".7"/>
+  <path d="M258 372l5 11 12 1-9 8 3 12-11-6-10 6 3-12-9-8 12-1z" fill="#ffc857" stroke="#3a1870" stroke-width="2"/>
+
+  <!-- engine flames -->
+  <path d="M220 340h22l-11 110zM270 340h22l-11 110z" fill="url(#flame)"/>
+  <path d="M225 340h12l-6 44zM275 340h12l-6 44z" fill="#fff" opacity=".85"/>
+
+  <!-- the Vanguard (in-game icon geometry, 64-unit grid × 5.2) -->
+  <g transform="translate(89.6 62) scale(5.2)" stroke="#040816" stroke-width="1.7" stroke-linejoin="round" paint-order="stroke">
+    <path d="M32 24L58 44l-1 7-18-3H25l-18 3-1-7z" fill="url(#hull)"/>
+    <path d="M58 44l-1 7-6-1 1-8zM6 44l1 7 6-1-1-8z" fill="url(#trim)"/>
+    <rect x="23.5" y="47" width="6" height="8" rx="1.5" fill="#0b1330"/><rect x="34.5" y="47" width="6" height="8" rx="1.5" fill="#0b1330"/>
+    <path d="M32 2c4 7 7 16 8 26l1 20-4 5H27l-4-5 1-20c1-10 4-19 8-26z" fill="url(#hull)"/>
+    <path d="M25 21l-8 5 1 3 7-2zM39 21l8 5-1 3-7-2z" fill="url(#trim)"/>
+    <rect x="22.2" y="31" width="2.6" height="7" rx="1" fill="#0b1330"/><rect x="39.2" y="31" width="2.6" height="7" rx="1" fill="#0b1330"/>
+    <path d="M32 4c4 7 7 16 8 24l1 20-4 5h-5z" fill="#0b1330" opacity=".14" stroke="none"/>
+    <path d="M32 10c2.6 3.4 4 8 4 13l-4 4-4-4c0-5 1.4-9.6 4-13z" fill="#12304a"/>
+    <path d="M32 12.5c1.6 2.4 2.4 5.4 2.4 9L32 24l-2.4-2.5c0-3.6.8-6.6 2.4-9z" fill="#7fe9ff" stroke="none"/>
+    <path d="M31 13.5c.6-.8 1.2-1 1.6-.4l-.4 5" fill="none" stroke="#fff" stroke-width=".7" opacity=".9"/>
+    <path d="M32 30v14" fill="none" stroke="#fff" stroke-width=".9" opacity=".45"/>
+    <path d="M27 45h10" fill="none" stroke="#fff" stroke-width=".9" opacity=".35"/>
+    <circle cx="57" cy="46.5" r="1.8" fill="#bff8ff"/><circle cx="7" cy="46.5" r="1.8" fill="#bff8ff"/>
+  </g>
+  <!-- rim light on the leading edge -->
+  <path d="M256 78c20 36 36 82 42 134" fill="none" stroke="#fff" stroke-width="3" opacity=".55" stroke-linecap="round"/>
+
+  <!-- orbit ring (front half) -->
+  <path d="M42 318c80 30 290 -8 430 -104" fill="none" stroke="#5ee6ff" stroke-width="5" opacity=".5" stroke-linecap="round"/>
 </svg>
