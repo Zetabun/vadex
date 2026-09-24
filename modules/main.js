@@ -113,6 +113,11 @@ function wireInput() {
   document.addEventListener('dblclick', block, { passive: false }); // no double-tap zoom anywhere
   for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) app.addEventListener(ev, block, { passive: false });
   app.addEventListener('touchmove', (e) => { if (e.touches.length > 1) block(e); }, { passive: false });
+  // iOS raises its magnifier on a long press or a double-tap-and-hold (a dodge, or holding a corner to steer) unless the
+  // touch itself is cancelled; cancelling pointer events is not enough. In a sortie, cancel touches on the battlefield,
+  // leaving buttons and the overlay layer (level-ups, pause) alone so their taps still land.
+  const control = (t) => t?.closest?.('button, a, input, select, textarea, #layer');
+  for (const ev of ['touchstart', 'touchend']) app.addEventListener(ev, (e) => { if (G.mode === 'sortie' && e.cancelable && !control(e.target)) e.preventDefault(); }, { passive: false });
 }
 
 // ------------------------------------------------------------------ loop

@@ -16,6 +16,7 @@ import { Ground } from '@last-orbit/rendering/ground.js';
 import { counterProgress } from '@last-orbit/combat/counter.js';
 import { TRAIL_BY_ID } from '@last-orbit/data/prestige.js';
 import { SetPieces } from '@last-orbit/rendering/setpieces.js';
+import { renderAlpha } from '@last-orbit/combat/sim.js';
 import { playSfx } from '@last-orbit/audio/audio.js';
 
 const CAP = { swarm: 110, scout: 70, weaver: 70, plate: 60, armourPlate: 12, turret: 12, wyrmSeg: 16, rocket: 30 };
@@ -172,6 +173,7 @@ export class Renderer {
   // ------------------------------------------------------------------ frame
   render(dt, w, speedMul = 1) {
     const st = G.state, t0 = performance.now(); if (!w) return;
+    this.lerpIn(w, renderAlpha());
     if (this.supportWorld !== w) { this.supportWorld = w; this.salvageDrops.length = 0; this.salvageCraft = null; this.repairCraft = null; this.repairBeamT = 0; }
     this.fitCamera(dt); if (this.shake > 0) this.shake = Math.max(0, this.shake - dt * 2.2);
     const secIdx = w.base.sectorIdx % 6; if (secIdx !== this.lastSector) { this.bg.setSector(secIdx, this.lastSector < 0); this.lastSector = secIdx; this.rails.material.color.set(this.bg.target.mistCol); }
@@ -193,6 +195,7 @@ export class Renderer {
     for (const k in B) B[k].end();
     this.gl.render(this.scene, this.camera);
     this.drawOverlay(w, dt);
+    this.lerpOut();
     // Adaptive quality uses hysteresis: degrade after sustained slow frames, recover only after a longer stable period.
     const ms = performance.now() - t0; this.frameMs += (ms - this.frameMs) * 0.05;
     if (st.settings.quality === 'auto') {
@@ -235,6 +238,15 @@ export class Renderer {
     }
     for (const k in this.meshes) { const m = this.meshes[k]; if (m.count) { m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true; } }
   }
+
+  /** Draw moving things part-way between their last two simulated positions (restored by lerpOut after the frame).
+   *  Anything that jumped (spawned, wrapped, teleported) is drawn where it is. */
+  lerpIn(w, a) {
+    const L = (this.lerped ||= []); L.length = 0;
+    const one = (o) => { if (o.px === undefined) return; const dx = o.x - o.px, dy = o.y - o.py; if (dx * dx + dy * dy > 400) return; o._rx = o.x; o._ry = o.y; o.x = o.px + dx * a; o.y = o.py + dy * a; L.push(o); };
+    one(w.player); for (const list of [w.enemies, w.shots, w.ebullets, w.drones]) for (let i = 0; i < list.length; i++) one(list[i]);
+  }
+  lerpOut() { const L = this.lerped; if (!L) return; for (let i = 0; i < L.length; i++) { const o = L[i]; o.x = o._rx; o.y = o._ry; } L.length = 0; }
 
   /** Overhaul engine trails: particles shed from each nozzle, in the style of the trail the pilot flies. */
   trail(x, y, k, t, dt) {

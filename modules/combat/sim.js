@@ -50,6 +50,13 @@ export function applyRunMods(w) {
 bus.on('routePicked', () => { if (G.world) applyRunMods(G.world); });
 
 let accum = 0;
+/** How far the next tick has come, 0..1: the renderer draws moving things this far between their last two positions,
+ *  so motion stays smooth when frames do not line up with the 60 Hz simulation (or run at 120 Hz). */
+export const renderAlpha = () => Math.max(0, Math.min(1, accum / TICK));
+function snapshot(w) {
+  const p = w.player; p.px = p.x; p.py = p.y;
+  for (const L of [w.enemies, w.shots, w.ebullets, w.drones]) for (let i = 0; i < L.length; i++) { const o = L[i]; o.px = o.x; o.py = o.y; }
+}
 /** Advance the simulation by real seconds (already scaled by game speed). Returns the number of ticks run. */
 export function advance(seconds) {
   accum += Math.min(seconds, 0.25); let n = 0;
@@ -60,7 +67,7 @@ export function advance(seconds) {
 
 export function step(dt) {
   const w = G.world, st = G.state, run = st.run, ws = w.wave;
-  w.t += dt; ws.t += dt;
+  snapshot(w); w.t += dt; ws.t += dt;
   if (w.sheetVersion !== G.sheet.version) { w.sheetVersion = G.sheet.version; refreshDefence(w); }
   if (!run) { parade(w, dt); return; }
   run.time += dt;

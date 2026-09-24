@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.6.2 — unreleased
+
+- **Smoother motion:** ships, enemies and bullets are now drawn between simulation steps, so movement stays smooth when frames do not line up with the 60 Hz simulation, and uses the full refresh rate on 120 Hz screens. Before, uneven frame timing made the ship step in small jerks that read as a low frame rate.
+- **No more magnifier:** touches on the battlefield are cancelled during a sortie, so iOS no longer brings up its magnifier on a long press or a double-tap-and-hold (a dodge, or holding a corner to steer). Text selection is off everywhere except input fields.
+- The dash cooldown chip and the thruster sound only update when they change.
+
 ## v2.6.1 — unreleased
 
 - **Dodge feedback:** the dash now has a proper whoosh (and a soft ping when it recharges; a dud tap while it recharges gives a short buzz). A » chip by the hull bar fills as the dash recharges and glows when it is ready, and a short tip explains dodging in your next two sorties.

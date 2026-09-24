@@ -106,10 +106,10 @@ export function createHud(hooks) {
     hintT += dt; setClass($.hint, 'on', lesson && w.wave.state !== 'dead' && !hooks.blocking?.());
     // dash readiness
     const dcd = Math.max(0, p.dashCd || 0), dfull = BAL.dashCd * G.sheet.n('dashCd'), dk = dcd > 0 ? 1 - dcd / dfull : 1;
-    $.dashRing.style.setProperty('--p', Math.round(dk * 360) + 'deg'); setClass($.dash, 'ready', dk >= 1 && p.alive);
-    setThrust(p.alive && w.wave.state !== 'dead' && !hooks.blocking?.() ? Math.min(1, Math.abs(p.vx || 0) / 70) : 0);
+    const deg = Math.round(dk * 90) * 4; if (deg !== $.dashDeg) { $.dashDeg = deg; $.dashRing.style.setProperty('--p', deg + 'deg'); } setClass($.dash, 'ready', dk >= 1 && p.alive);
+    const th = p.alive && w.wave.state !== 'dead' && !hooks.blocking?.() ? Math.round(Math.min(1, Math.abs(p.vx || 0) / 70) * 20) / 20 : 0; if (th !== $.thrust) { $.thrust = th; setThrust(th); }
   }
-  function reset() { pipSig = loadSig = abilSig = hintKind = ''; hintT = 0; $.dodgeCounted = false; setThrust(0); for (const k in abilBtns) delete abilBtns[k]; }
+  function reset() { pipSig = loadSig = abilSig = hintKind = ''; hintT = 0; $.dodgeCounted = false; $.thrust = 0; $.dashDeg = -1; setThrust(0); for (const k in abilBtns) delete abilBtns[k]; }
   /** The loadout icon under a screen point (a tap there explains the loadout), padded to be easy to hit. */
   function loadoutAt(x, y) {
     for (const c of $.loadout.children) { const r = c.getBoundingClientRect(); if (x >= r.left - 4 && x <= r.right + 4 && y >= r.top - 8 && y <= r.bottom + 8) return c.dataset.key || null; }
