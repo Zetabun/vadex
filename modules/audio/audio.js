@@ -59,18 +59,23 @@ export function playSfx(id, vol = 1) {
 }
 
 // ------------------------------------------------------------------ thrusters
-// A soft filtered-noise hiss that follows how hard the ship is steering (0..1). Built lazily on the live context.
+// A soft engine hum that swells a little when the ship steers (level 0..1): two slightly detuned low tones and a
+// touch of low rumble, all under a low-pass filter, so it sits under the music rather than hissing over it.
 let thrust = null;
 export function setThrust(level) {
   if (!ctx || ctx.state !== 'running') { thrust = null; return; }
   if (!thrust || thrust.ctx !== ctx) {
-    const src = ctx.createBufferSource(); src.buffer = noiseBuf; src.loop = true;
-    const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 500; f.Q.value = 0.8;
-    const g = ctx.createGain(); g.gain.value = 0; src.connect(f); f.connect(g); g.connect(sfxBus); src.start();
-    thrust = { ctx, f, g };
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 260; lp.Q.value = 0.7;
+    const g = ctx.createGain(); g.gain.value = 0; lp.connect(g); g.connect(sfxBus);
+    const a = ctx.createOscillator(), b = ctx.createOscillator(); a.type = 'triangle'; b.type = 'sawtooth'; a.frequency.value = 92; b.frequency.value = 138; b.detune.value = 7;
+    const bg = ctx.createGain(); bg.gain.value = 0.25; a.connect(lp); b.connect(bg); bg.connect(lp);
+    const n = ctx.createBufferSource(); n.buffer = noiseBuf; n.loop = true; n.playbackRate.value = 0.35; const ng = ctx.createGain(); ng.gain.value = 0.35; n.connect(ng); ng.connect(lp);
+    a.start(); b.start(); n.start(); thrust = { ctx, lp, g, a, b };
   }
   const t = ctx.currentTime, k = Math.max(0, Math.min(1, level));
-  thrust.g.gain.setTargetAtTime(0.035 * k * k, t, 0.06); thrust.f.frequency.setTargetAtTime(380 + 700 * k, t, 0.08);
+  thrust.g.gain.setTargetAtTime(0.013 * k, t, 0.14);
+  thrust.lp.frequency.setTargetAtTime(240 + 380 * k, t, 0.14);
+  thrust.a.frequency.setTargetAtTime(88 + 26 * k, t, 0.2); thrust.b.frequency.setTargetAtTime(132 + 40 * k, t, 0.2);
 }
 
 // ------------------------------------------------------------------ music
