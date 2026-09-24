@@ -2,7 +2,7 @@
 // and tells the renderer how much of the screen the battlefield may use.
 import { G } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
-import { playSfx } from '@last-orbit/audio/audio.js';
+import { playSfx, setThrust } from '@last-orbit/audio/audio.js';
 import { h, clear } from '@last-orbit/ui/dom.js';
 import { createHud } from '@last-orbit/ui/hud.js';
 import { createHangar } from '@last-orbit/ui/hangar.js';
@@ -35,7 +35,7 @@ export function initUI(app, hooks) {
   // ------------------------------------------------------------ mode
   function setMode(mode, tab) {
     G.mode = mode; app.dataset.mode = mode;
-    if (mode === 'hangar') { hangar.show(tab || 'launch', true); G.renderer?.setView('hangar'); }
+    if (mode === 'hangar') { hangar.show(tab || 'launch', true); G.renderer?.setView('hangar'); setThrust(0); }
     else { hud.reset(); G.renderer?.setView('field'); }
     $.scan.classList.toggle('off', !G.state.settings.scanlines);
     measure();

@@ -278,7 +278,22 @@ export class Renderer {
     }
     if (p.fireFlash > 0) B.soft.add(p.x, p.y + 5.5, 5, 5, 0, WHITE, p.fireFlash * 8);
     if (p.dashT > 0) for (let k = 1; k <= 3; k++) B.soft.add(p.x - p.dashDir * k * 3.2, p.y, 9 - k * 2, 11 - k * 2, 0, CYAN, 0.5 - k * 0.12);
-    if (w.base.hasShield && p.shield > 0.02) B.ring.add(p.x, p.y, 15, 15, t, CYAN, 0.25 + p.shield * 0.5);
+    // Shield: a bubble round the ship, brighter the fuller it is, flaring when it takes a hit and bursting when it fails.
+    const sh = w.base.hasShield ? p.shield : 0, sk = this.drawScale / 3.1;
+    if (sh > 0.02) { const r = 13 * sk + 1.5, fl = p.shieldFlash > 0 ? p.shieldFlash * 4 : 0; B.soft.add(p.x, p.y, r * 1.9, r * 1.9, 0, CYAN, 0.09 + 0.12 * sh + fl * 0.3); B.ring.add(p.x, p.y, r * 1.6, r * 1.6, t * 0.8, CYAN, 0.35 + 0.45 * sh + fl); B.ring.add(p.x, p.y, r * 1.48, r * 1.48, -t * 1.3, WHITE, 0.12 + 0.2 * sh * (0.7 + 0.3 * Math.sin(t * 3))); }
+    if (this.lastShield > 0.05 && sh <= 0.02 && w.base.hasShield) { this.parts.burst(p.x, p.y, 26, CYAN, 40, 1.6, 0.5); this.trans.add({ k: 'ring', x: p.x, y: p.y, r: 16 * sk, c: CYAN, t: 0, life: 0.4 }); }
+    this.lastShield = sh; if (p.shieldFlash > 0) p.shieldFlash -= dt;
+    if (this.smoke?.length) for (let i = this.smoke.length - 1; i >= 0; i--) { const q = this.smoke[i]; q.t += dt; if (q.t >= q.life) { this.smoke.splice(i, 1); continue; } q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= 1 - dt; const u = q.t / q.life, sz = q.s * (1 + u * 1.5) * (u > 0.75 ? (1 - u) / 0.25 : 1);
+      B.dark.add(q.x, q.y, sz * 1.3, sz * 1.3, 0, WHITE, 1); B.soft.add(q.x + 0.3, q.y + 0.4, sz, sz, 0, [0.5, 0.52, 0.58], 0.18 * (1 - u)); }
+    // Damage: under 40% hull the ship smokes and sparks; under 20% it burns.
+    if (p.hull < 0.4) {
+      const k = 1 - p.hull / 0.4, R = Math.random;
+      // Smoke billows round the ship (it sits low in the field, so smoke that trailed behind would be off screen).
+      this.smoke ||= []; if (R() < dt * (7 + 16 * k) && this.smoke.length < 40) { const side = R() < 0.5 ? -1 : 1; this.smoke.push({ x: p.x + side * (2.6 + R() * 1.4) * sk, y: p.y + (R() - 0.3) * 1.5 * sk, vx: side * (3 + R() * 5) - p.vx * 0.05, vy: 2 + R() * 5, t: 0, life: 1 + R() * 0.6, s: (1.6 + R() * 1.2) * sk }); }
+      if (R() < dt * (2 + 8 * k)) this.parts.emit(p.x + (R() - 0.5) * 6 * sk, p.y + (R() - 0.5) * 4 * sk, (R() - 0.5) * 30, (R() - 0.2) * 24, 0.25, 0.7 * sk, rgb(0xffb347), 2.5);
+      B.soft.add(p.x, p.y, 16 * sk, 16 * sk, 0, RED, (0.06 + 0.12 * k) * (0.6 + 0.4 * Math.sin(t * 9)));
+      if (p.hull < 0.2) for (const s of [-1, 1]) { const f = 0.7 + 0.3 * Math.sin(t * 23 + s * 2); B.soft.add(p.x + s * 3.2 * sk, p.y + 0.5 * sk, 2.2 * sk * f, 3.2 * sk * f, 0, rgb(0xff8a3d), 1.1); B.soft.add(p.x + s * 3.2 * sk, p.y + 0.3 * sk, 1 * sk, 1.6 * sk, 0, rgb(0xfff2b0), 1); }
+    }
     if (w.abil.active.aegis > 0) { B.ring.add(p.x, p.y, 19, 19, -t * 2, WHITE, 1); B.soft.add(p.x, p.y, 22, 22, 0, rgb(0x7aa2ff), 0.6); }
     if (p.focus > 0.05) B.ring.add(p.x, p.y, 10 + p.focus * 6, 10 + p.focus * 6, -t * 1.4, AMBER, p.focus * 0.9);
     if (w.chargeShots > 0) B.soft.add(p.x, p.y + 4, 8, 8, 0, rgb(0xffe066), 0.8 + 0.4 * Math.sin(t * 20));

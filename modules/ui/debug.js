@@ -40,6 +40,9 @@ function runScene(scene, hooks, ui) {
   const [name, arg, arg2, arg3] = scene.split(':');
   if (name === 'hull' || name === 'hullfly') { st.unlocked.ships[arg] = 1; st.ship = arg; st.banner = 'none'; recalc(); if (name === 'hull') { hooks.toHangar('launch'); return; } }
   if (name === 'paint') { st.paints[arg] = 1; st.paint = arg; hooks.toHangar('launch'); return; }
+  // shipfx:<hull%>: a shielded ship held at that hull, dodging now and then (shield bubble, damage smoke, dodge chip).
+  if (name === 'shipfx') { st.workshop.w_shield = 3; recalc(); hooks.launch(); st.run.offer = null; st.run.pendingLevels = 0; ui.closeOverlays(); let k = 0;
+    setInterval(() => { const w = G.world, run = st.run; if (!w?.player || !run) return; if (run.offer || run.relicOffer) { run.offer = run.relicOffer = null; run.pendingLevels = run.pendingRelics = 0; ui.closeOverlays(); } w.player.hull = (+arg || 20) / 100; w.player.shield = arg2 === 'noshield' ? 0 : Math.max(w.player.shield, 0.6); if (++k % 25 === 0) w.input.dash = k % 50 ? 1 : -1; }, 100); return; }
   if (name === 'caintro') { st.counter.unlocked = true; hooks.toHangar('missions'); setTimeout(() => document.querySelector('.ca-how')?.click(), 400); return; }
   // counter:<n>:boss jumps to the stage's boss; counter:<n>:foe sends in the stage's own enemy again and again. The ship cannot die.
   if (name === 'counter' && (arg2 === 'boss' || arg2 === 'foe')) {
@@ -91,7 +94,8 @@ function runScene(scene, hooks, ui) {
       const s = Math.sin(performance.now() / 1100); w.input.hold = s > 0.3 ? 1 : s < -0.3 ? -1 : 0; w.player.hull = 1; }, 120); return;
   }
   if (arg === 'locked') { st.unlocked.weapons = { cannon: 1, laser: 1 }; st.unlocked.abilities = { overdrive: 1 }; }
-  if (['workshop', 'armory', 'ships', 'contracts', 'launch', 'missions', 'records', 'awards'].includes(name)) { hooks.toHangar(name); return; }
+  // A tab scene can scroll to a section by its heading: ships:engine shows the engine trails.
+  if (['workshop', 'armory', 'ships', 'contracts', 'launch', 'missions', 'records', 'awards'].includes(name)) { hooks.toHangar(name); if (arg && arg !== 'locked') setTimeout(() => [...document.querySelectorAll('h3')].find((x) => x.textContent.toLowerCase().includes(arg))?.scrollIntoView(), 500); return; }
   hooks.launch();
   if (name !== 'levelup') { st.run.offer = null; st.run.pendingLevels = 0; ui.closeOverlays(); }
   if (name === 'levelup') { grantXp(40); ui.nextChoice(); }

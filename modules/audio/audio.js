@@ -17,7 +17,7 @@ const S = {
   snipe: ['sine', 1800, 1800, 0.25, 0.06, 0.3, 0, 0], ebeam: ['sawtooth', 90, 70, 0.6, 0.12, 0.4, 0.5, 0], graze: ['sine', 1400, 2100, 0.07, 0.07, 0.06, 0, 0.1],
   bossintro: ['sawtooth', 55, 110, 1.8, 0.3, 2, 0.3, 0], phase: ['square', 110, 440, 0.7, 0.2, 0.5, 0.3, 0], weak: ['sine', 880, 1760, 0.18, 0.1, 0.2, 0, 0],
   ring: ['triangle', 500, 250, 0.3, 0.07, 0.25, 0, 0.1], charge: ['sine', 120, 900, 0.9, 0.09, 0.6, 0, 0], teleport: ['sine', 2000, 200, 0.18, 0.08, 0.15, 0.2, 0.2],
-  ability: ['triangle', 330, 990, 0.3, 0.16, 0.1, 0.1, 0], dash: ['sine', 500, 1500, 0.14, 0.1, 0.12, 0.35, 0.05], paint: ['sine', 1100, 1500, 0.08, 0.09, 0.08, 0, 0], hauler: ['triangle', 1320, 1760, 0.25, 0.1, 0.5, 0, 0],
+  ability: ['triangle', 330, 990, 0.3, 0.16, 0.1, 0.1, 0], dash: ['sawtooth', 240, 1100, 0.24, 0.2, 0.12, 0.85, 0.06], dashReady: ['sine', 1320, 1980, 0.09, 0.06, 0.3, 0, 0], paint: ['sine', 1100, 1500, 0.08, 0.09, 0.08, 0, 0], hauler: ['triangle', 1320, 1760, 0.25, 0.1, 0.5, 0, 0],
   // ui
   buy: ['triangle', 660, 880, 0.06, 0.08, 0.03, 0, 0.04], deny: ['square', 140, 110, 0.09, 0.06, 0.1, 0, 0], tab: ['sine', 520, 620, 0.04, 0.05, 0.03, 0, 0],
   milestone: ['triangle', 523, 1046, 0.5, 0.16, 0.2, 0, 0], unlock: ['sine', 440, 1320, 0.6, 0.14, 0.3, 0, 0], rewind: ['sawtooth', 1200, 40, 2.2, 0.25, 2, 0.4, 0], loot: ['sine', 990, 1480, 0.2, 0.1, 0.1, 0, 0.05],
@@ -56,6 +56,21 @@ export function playSfx(id, vol = 1) {
   const o = ctx.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0 * p, now); o.frequency.exponentialRampToValueAtTime(Math.max(10, f1 * p), now + dur); o.connect(g); o.start(now); o.stop(now + dur + 0.02);
   voices++; o.onended = () => { voices = Math.max(0, voices - 1); g.disconnect(); };
   if (nz) { const n = ctx.createBufferSource(); n.buffer = noiseBuf; n.playbackRate.value = 0.5 + Math.random(); const ng = ctx.createGain(), f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(Math.max(300, f0 * 4), now); f.frequency.exponentialRampToValueAtTime(120, now + dur); ng.gain.value = nz; n.connect(f); f.connect(ng); ng.connect(g); n.start(now, Math.random() * 0.5, dur + 0.02); }
+}
+
+// ------------------------------------------------------------------ thrusters
+// A soft filtered-noise hiss that follows how hard the ship is steering (0..1). Built lazily on the live context.
+let thrust = null;
+export function setThrust(level) {
+  if (!ctx || ctx.state !== 'running') { thrust = null; return; }
+  if (!thrust || thrust.ctx !== ctx) {
+    const src = ctx.createBufferSource(); src.buffer = noiseBuf; src.loop = true;
+    const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 500; f.Q.value = 0.8;
+    const g = ctx.createGain(); g.gain.value = 0; src.connect(f); f.connect(g); g.connect(sfxBus); src.start();
+    thrust = { ctx, f, g };
+  }
+  const t = ctx.currentTime, k = Math.max(0, Math.min(1, level));
+  thrust.g.gain.setTargetAtTime(0.035 * k * k, t, 0.06); thrust.f.frequency.setTargetAtTime(380 + 700 * k, t, 0.08);
 }
 
 // ------------------------------------------------------------------ music

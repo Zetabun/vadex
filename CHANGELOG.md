@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.6.1 — unreleased
+
+- **Dodge feedback:** the dash now has a proper whoosh (and a soft ping when it recharges; a dud tap while it recharges gives a short buzz). A » chip by the hull bar fills as the dash recharges and glows when it is ready, and a short tip explains dodging in your next two sorties.
+- **Thrusters:** a subtle engine hiss rises and falls with how hard you steer.
+- **Battle damage:** under 40% hull the ship smokes from its wings and throws sparks, with a flickering red glow; under 20% its wingtips burn.
+- **Shield bubble:** an active shield now shows as a bubble round the ship, brighter the fuller it is, flaring when it soaks a hit and bursting when it fails.
+- **Redrawn icons:** Pulse Cannon, Lance Laser, Tesla, Railgun, Hollow Points, Tungsten Tips and Singularity Rounds, bolder so they read at the loadout strip's small size.
+- **Locked content:** locked paints, banners, trails, Threat levels, Counterattack stages, ships and armoury entries share one matte grey look instead of fading out, and picker labels wrap inside their tiles (the engine-trail row no longer spills over).
+
 ## v2.6.0 — unreleased
 
 - **Counterattack stages 2–6 each get a set piece, a new enemy and a boss of their own.**

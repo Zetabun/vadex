@@ -245,7 +245,7 @@ export function createHangar(hooks) {
     const paints = h('div.paints', PAINTS.map((pt) => {
       const owned = !!st.paints[pt.id], on = st.paint === pt.id;
       const how = pt.source === 'counter' ? 'Clear Counterattack stage 6' : pt.source === 'mastery' ? `${SHIP_BY_ID[pt.ship].name} mastery 10` : pt.source === 'contract' ? `Contract: ${CONTRACTS.find((c) => c.unlock?.paint === pt.id)?.name}` : `Pilot rank ${paintRank(pt.id)}`;
-      const short = pt.source === 'counter' ? 'Counterattack' : pt.source === 'mastery' ? 'Mastery 10' : pt.source === 'contract' ? 'Contract' : 'Rank ' + paintRank(pt.id);
+      const short = pt.source === 'counter' ? 'Stage 6' : pt.source === 'mastery' ? 'Mastery 10' : pt.source === 'contract' ? 'Contract' : 'Rank ' + paintRank(pt.id);
       return h('button.paint' + (on ? '.on' : '') + (owned ? '' : '.locked'), { disabled: !owned, title: owned ? pt.name : `${pt.name}: ${how}`, onclick: () => { if (selectPaint(pt.id)) { playSfx('tab'); render(); } } }, swatch(pt.id), h('span', owned ? pt.name : short));
     }));
     const pick = (b) => {
@@ -255,7 +255,7 @@ export function createHangar(hooks) {
     };
     const banners = h('div.paints.banners', BANNERS.filter((b) => b.rarity !== 'legendary').map(pick));
     const trails = h('div.paints', TRAILS.map((t) => { const owned = trailUnlocked(t.id), on = (st.trail || 'none') === t.id;
-      return h('button.paint' + (on ? '.on' : '') + (owned ? '' : '.locked'), { disabled: !owned, title: owned ? t.name : `${t.name}: Overhaul rank ${t.at}`, onclick: () => { if (selectTrail(t.id)) { playSfx('tab'); render(); } } }, trailSwatch(t), h('span', owned ? t.name : `Overhaul ${t.at}`)); }));
+      return h('button.paint' + (on ? '.on' : '') + (owned ? '' : '.locked'), { disabled: !owned, title: owned ? t.name : `${t.name}: Overhaul rank ${t.at}`, onclick: () => { if (selectTrail(t.id)) { playSfx('tab'); render(); } } }, trailSwatch(t), h('span', owned ? t.name : `Rank ${t.at}`)); }));
     const legendRow = (b) => {
       const owned = !!st.banners[b.id], on = st.banner === b.id, pr = bannerProgress(b), v = st.stats[b.live] || 0;
       return h('button.legend-row' + (on ? '.on' : '') + (owned ? '' : '.locked'), { disabled: !owned, style: `--lg:${b.colors[1]}`, onclick: () => { if (selectBanner(b.id)) { playSfx('tab'); render(); } } },

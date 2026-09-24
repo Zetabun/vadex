@@ -17,6 +17,7 @@ import { uiIcon } from '@last-orbit/ui/icons.js';
 import { art } from '@last-orbit/ui/art.js';
 import { SHIP_BY_ID } from '@last-orbit/data/ships.js';
 import { FUSION_BY_ID } from '@last-orbit/data/fusions.js';
+import { setThrust } from '@last-orbit/audio/audio.js';
 
 export function createHud(hooks) {
   const $ = {};
@@ -36,10 +37,12 @@ export function createHud(hooks) {
   $.hullTxt = h('span.val'); $.hull = h('i'); $.shield = h('i'); $.shieldTxt = h('span.val');
   $.shieldRow = h('div.bar-row.shield-row', h('span.lbl', 'SHIELD'), h('div.meter.shield', $.shield), $.shieldTxt);
   $.abil = h('div.abilities');
+  // Dodge: a small chip beside the hull bar, its ring filling as the dash recharges.
+  $.dashRing = h('i.cd'); $.dash = h('div.dash-chip', { title: 'Dodge: double-tap a side' }, h('span.dash-glyph', '»'), $.dashRing);
   const dock = h('div#dock',
     $.loadout,
     h('div.dock-row',
-      h('div.bars', $.shieldRow, h('div.bar-row', h('span.lbl', 'HULL'), h('div.meter.hull', $.hull), $.hullTxt)),
+      $.dash, h('div.bars', $.shieldRow, h('div.bar-row', h('span.lbl', 'HULL'), h('div.meter.hull', $.hull), $.hullTxt)),
       $.abil));
   $.hintB = h('b'); $.hintS = h('span'); $.hint = h('div.fly-hint', $.hintB, $.hintS);
   const el = h('div.hud-layer', top, dock, $.hint);
@@ -96,10 +99,17 @@ export function createHud(hooks) {
     // that the ship flies up and down too, for the first few stages flown.
     const ca = !!w.counter, kind = ca ? 'ca' : 'main';
     if (kind !== hintKind) { hintKind = kind; setText($.hintB, ca ? 'Drag to fly anywhere' : 'Hold a side or drag to steer'); setText($.hintS, ca ? 'Up and down too. Fly higher to hit harder; climb or dive out of beams and lungers.' : 'Double-tap a side to dash through fire. Your guns shoot on their own; tap an enemy to focus it.'); }
-    const lesson = ca ? (G.state.stats.counterRuns || 0) <= 3 && hintT < 9 : G.state.stats.sorties <= 2 && run.wave <= 2 && hintT < 14;
+    let lesson = ca ? (G.state.stats.counterRuns || 0) <= 3 && hintT < 9 : G.state.stats.sorties <= 2 && run.wave <= 2 && hintT < 14;
+    // The dodge lesson: the first two sorties after it arrives, once the steering tip (if any) has had its turn.
+    const seen = G.state.seen, dodgeOn = (seen.dodgeTips || 0) < 2 && hintT > (lesson ? 15 : 3) && hintT < (lesson ? 24 : 12);
+    if (dodgeOn && !lesson) { if (hintKind !== 'dodge') { hintKind = 'dodge'; setText($.hintB, 'Dodge'); setText($.hintS, 'Double-tap a side to dash that way. You cannot be hit mid-dash. The » chip by your hull bar lights up when it is ready.'); } lesson = true; if (!$.dodgeCounted) { $.dodgeCounted = true; seen.dodgeTips = (seen.dodgeTips || 0) + 1; } }
     hintT += dt; setClass($.hint, 'on', lesson && w.wave.state !== 'dead' && !hooks.blocking?.());
+    // dash readiness
+    const dcd = Math.max(0, p.dashCd || 0), dfull = BAL.dashCd * G.sheet.n('dashCd'), dk = dcd > 0 ? 1 - dcd / dfull : 1;
+    $.dashRing.style.setProperty('--p', Math.round(dk * 360) + 'deg'); setClass($.dash, 'ready', dk >= 1 && p.alive);
+    setThrust(p.alive && w.wave.state !== 'dead' && !hooks.blocking?.() ? Math.min(1, Math.abs(p.vx || 0) / 70) : 0);
   }
-  function reset() { pipSig = loadSig = abilSig = hintKind = ''; hintT = 0; for (const k in abilBtns) delete abilBtns[k]; }
+  function reset() { pipSig = loadSig = abilSig = hintKind = ''; hintT = 0; $.dodgeCounted = false; setThrust(0); for (const k in abilBtns) delete abilBtns[k]; }
   /** The loadout icon under a screen point (a tap there explains the loadout), padded to be easy to hit. */
   function loadoutAt(x, y) {
     for (const c of $.loadout.children) { const r = c.getBoundingClientRect(); if (x >= r.left - 4 && x <= r.right + 4 && y >= r.top - 8 && y <= r.bottom + 8) return c.dataset.key || null; }

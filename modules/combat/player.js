@@ -12,14 +12,14 @@ export function updatePlayer(w, dt) {
   const p = w.player, inp = w.input, sh = G.sheet;
   inp.manualT += dt; p.sinceHit += dt;
   if (p.invuln > 0) p.invuln -= dt; if (p.fireFlash > 0) p.fireFlash -= dt;
-  if (p.dashCd > 0) { p.dashCd -= dt; if (p.dashCd <= 0 && p.alive) fx(w, 'dashReady', p.x, p.y); } if (p.dashInv > 0) p.dashInv -= dt;
+  if (p.dashCd > 0) { p.dashCd -= dt; if (p.dashCd <= 0 && p.alive) { fx(w, 'dashReady', p.x, p.y); sfx(w, 'dashReady', 0.8); } } if (p.dashInv > 0) p.dashInv -= dt;
   if (w.paintT > 0) { w.paintT -= dt; if (w.paintT <= 0 || !w.painted?.alive) w.painted = null; }
   if (inp.tap) { paint(w, inp.tap.x, inp.tap.y); inp.tap = null; }
   if (!p.alive) return;
   const manual = inp.manualT < BAL.manualWindow;
 
   // ---- dodge dash: a quick burst sideways, briefly untouchable ----
-  if (inp.dash) { const d = inp.dash; inp.dash = 0; if (!(p.dashCd > 0)) { p.dashDir = d; p.dodged = false; p.dashT = BAL.dashTime; p.dashCd = BAL.dashCd * sh.n('dashCd'); p.dashInv = BAL.dashInvuln; inp.manualT = 0; fx(w, 'dash', p.x, p.y, d); sfx(w, 'dash', 0.8); count('dashes'); } }
+  if (inp.dash) { const d = inp.dash; inp.dash = 0; if (!(p.dashCd > 0)) { p.dashDir = d; p.dodged = false; p.dashT = BAL.dashTime; p.dashCd = BAL.dashCd * sh.n('dashCd'); p.dashInv = BAL.dashInvuln; inp.manualT = 0; fx(w, 'dash', p.x, p.y, d); sfx(w, 'dash', 1); count('dashes'); } else sfx(w, 'deny', 0.5); }
   if (p.dashT > 0) {
     p.dashT -= dt; const x0 = p.x; p.x = Math.max(-HALF, Math.min(HALF, p.x + p.dashDir * BAL.dashSpeed * dt));
     p.vx = (p.x - x0) / Math.max(dt, 1e-4); p.tilt += (p.dashDir - p.tilt) * Math.min(1, 14 * dt); inp.targetX = p.x;

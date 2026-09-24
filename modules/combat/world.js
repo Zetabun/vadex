@@ -184,6 +184,7 @@ export function hurtPlayer(w, dmgMul, source) {
   let dmg = dmgMul; // in units of base enemy damage
   if (w.base.hasShield && p.shield > 0) {
     const need = dmg * w.base.dmgPerShield;
+    p.shieldFlash = 0.25; // the ship's shield bubble flares (rendering)
     if (need <= p.shield) { p.shield -= need; fx(w, 'shieldhit', p.x, p.y); sfx(w, 'shield'); return; }
     dmg *= 1 - p.shield / need; p.shield = 0; fx(w, 'shieldhit', p.x, p.y);
   }
