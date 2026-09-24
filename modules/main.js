@@ -92,6 +92,19 @@ function frame(now) {
   saveT += real; if (saveT > 15) { saveT = 0; save('auto'); }
 }
 
+// iOS home-screen apps with a translucent status bar lay the page out one status-bar height short of the
+// screen, leaving a strip at the bottom and clipping the tab bar. Size the app to the whole screen instead.
+function fitStandalone() {
+  const standalone = navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+  if (!standalone) return;
+  const portrait = matchMedia('(orientation: portrait)').matches, screenH = portrait ? Math.max(screen.width, screen.height) : Math.min(screen.width, screen.height);
+  const full = Math.max(innerHeight, document.documentElement.clientHeight, screenH);
+  document.documentElement.classList.add('standalone');
+  app.style.bottom = 'auto'; app.style.height = full + 'px';
+}
+fitStandalone();
+addEventListener('resize', fitStandalone); addEventListener('orientationchange', () => setTimeout(fitStandalone, 250));
+
 async function boot() {
   const r = await load();
   renderer = G.renderer = new Renderer(glCanvas, overlay);

@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.1.1 — 2026-09-24
+
+- Fixed the home-screen (installed) app on iOS stopping short of the bottom of the screen, which left a strip below the tab bar and cut off its labels.
+
 ## v2.1.0 — 2026-09-24
 
 - **New artwork.** Every weapon, ability, card, relic, Workshop upgrade and ship has its own hand-drawn vector icon in one consistent style (`modules/ui/art.js`), replacing the reused pixel sprites. Salvage has a proper icon instead of the ¢ text symbol. The page is about 430 KB lighter.
