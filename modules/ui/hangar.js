@@ -21,6 +21,8 @@ import { playSfx } from '@last-orbit/audio/audio.js';
 import { h, clear, setText, setClass } from '@last-orbit/ui/dom.js';
 import { uiIcon } from '@last-orbit/ui/icons.js';
 import { art } from '@last-orbit/ui/art.js';
+import { dailyShareText, shareText } from '@last-orbit/ui/share.js';
+import { MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
 
 const TABS = [['launch', 'Launch'], ['missions', 'Missions'], ['workshop', 'Workshop'], ['armory', 'Armory'], ['ships', 'Ships'], ['contracts', 'Career'], ['records', 'Records'], ['awards', 'Awards']];
 const PER_PAGE = 4; // with more tabs than fit, the bar pages with chevrons
@@ -176,6 +178,8 @@ export function createHangar(hooks) {
         h('p', s.desc),
         status === 'owned' ? masteryLine(s.id) : null,
         h('ul.perks', s.perks.map((p, i) => h('li' + (p.startsWith('−') ? '.neg' : ''), p)), h('li', 'Ability: ' + ABILITIES[s.ability].name)),
+        h('div.traits', h('div.trait', h('small', 'Trait'), h('b', s.passive.name), h('span', s.passive.desc)),
+          h('div.trait' + ((masteryOf(s.id).level || 1) >= 5 ? '.on' : ''), h('small', 'Signature · mastery 5'), h('b', s.signature.name), h('span', `${WEAPONS[s.weapon].name} at rank 7: ${s.signature.desc}.`))),
         action));
     }
     const paints = h('div.paints', PAINTS.map((pt) => {
@@ -190,13 +194,20 @@ export function createHangar(hooks) {
         bannerThumb(b), h('span', owned ? b.name : bannerReqLabel(b), legend ? h('small.legend-tag', owned ? 'Legendary · ' + fmt(st.stats[b.live] || 0) : `Legendary · ${fmt(pr.cur)}/${fmt(pr.goal)}`) : null), owned || !b.req ? null : h('i.banner-meter', { style: `width:${(pr.frac * 100).toFixed(0)}%` }));
     };
     const banners = h('div.paints.banners', BANNERS.filter((b) => b.rarity !== 'legendary').map(pick));
-    const legends = h('div.legend-box', h('div.legend-head', h('b', 'Legendary'), h('span', 'Stat trackers: each one shows a lifetime record, live.')), h('div.paints.banners.legends', BANNERS.filter((b) => b.rarity === 'legendary').map(pick)));
+    const legendRow = (b) => {
+      const owned = !!st.banners[b.id], on = st.banner === b.id, pr = bannerProgress(b), v = st.stats[b.live] || 0;
+      return h('button.legend-row' + (on ? '.on' : '') + (owned ? '' : '.locked'), { disabled: !owned, style: `--lg:${b.colors[1]}`, onclick: () => { if (selectBanner(b.id)) { playSfx('tab'); render(); } } },
+        bannerThumb(b, 'legend-thumb'),
+        h('div.lr-main', h('b', b.name), h('small', owned ? (on ? 'Flying now · ' : '') + 'Tracks ' + b.tracks : bannerReqLabel(b)), owned ? null : h('div.meter.small', h('i', { style: `width:${(pr.frac * 100).toFixed(1)}%` }))),
+        h('div.lr-stat', h('b', owned ? fmt(v) : `${fmt(pr.cur)}/${fmt(pr.goal)}`), h('small', owned ? b.label : 'Locked')));
+    };
+    const legends = h('div.legend-box', h('div.legend-head', h('b', 'Legendary'), h('span', 'Stat trackers: each shows a lifetime record, live.')), h('div.legend-list', BANNERS.filter((b) => b.rarity === 'legendary').map(legendRow)));
     return h('div.screen', h('div.screen-head', h('h2', 'Ships'), h('p', 'Each hull starts with its own gun and signature ability. Workshop upgrades apply to all of them.')),
       h('h3', 'Paint job'), paints, h('h3', 'Banner'), h('p.sub-note', 'Cloth banners that stream from your ship. Earn them with medals and high scores.'), banners, legends, h('h3', 'Hulls'), list);
   }
 
-  function bannerThumb(b) {
-    const c = h('canvas.banner-thumb', { width: 32, height: 96 });
+  function bannerThumb(b, cls = 'banner-thumb') {
+    const c = h('canvas.' + cls, { width: 32, height: 96 });
     if (b.shape) paintBanner(c.getContext('2d'), b, 32, 96, b.live ? G.state.stats[b.live] : 0); else c.classList.add('none');
     return c;
   }
@@ -220,7 +231,8 @@ export function createHangar(hooks) {
       h('div.daily-head', h('div', h('div.kicker', 'Daily sortie · ' + d.key), h('h3', d.mutator.name)), h('div.streak', art('relic:r_phoenix', 'streak-ico'), h('b', String(d.streak || 0)), h('small', 'day streak'))),
       h('p', d.mutator.desc),
       h('ul.perks', h('li', 'Same seed for every pilot today'), h('li', 'One attempt'), h('li', 'Double pilot XP'), h('li', `Bonus ${fmtInt(dailyBonus(20, streakNext))}+ salvage`)),
-      d.done ? h('div.lock-note', uiIcon('check'), h('span', `Flown today: reached wave ${d.wave}. Next daily in ${untilMidnight()}.`))
+      d.done ? h('div.daily-done', h('div.lock-note', uiIcon('check'), h('span', `Flown today: reached wave ${d.wave}. Next daily in ${untilMidnight()}.`)),
+          G.state.daily.score != null ? h('button.btn.ghost.share-btn', { onclick: () => shareDaily() }, uiIcon('share'), 'Share result') : null)
         : h('button.btn.gold.daily-go', { onclick: () => hooks.launch({ daily: true }) }, uiIcon('launch'), 'Fly the daily'));
     let threat;
     if (!tmax) threat = h('div.lock-note', uiIcon('lock'), h('span', `Threat levels open when you reach sector ${THREAT_UNLOCK_SECTOR} (Machine Territory).`));
@@ -236,6 +248,11 @@ export function createHangar(hooks) {
     }
     return h('div.screen', h('div.screen-head', h('h2', 'Missions'), h('p', 'A fresh Daily Sortie every day, and Threat levels for when the sectors stop being scary.')),
       daily, h('h3', 'Threat level'), threat);
+  }
+
+  async function shareDaily() {
+    const d = G.state.daily, r = await shareText(dailyShareText({ key: d.day, mutator: MUTATOR_BY_ID[d.mutator]?.name, wave: d.wave, score: d.score, streak: d.streak }));
+    if (r === 'copied') hooks.toast?.('Result copied. Paste it to a friend!'); else if (r === 'failed') hooks.toast?.('Could not share from this browser.');
   }
 
   // ------------------------------------------------------------ contracts

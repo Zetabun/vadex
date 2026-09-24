@@ -15,6 +15,8 @@ import { TOP_N } from '@last-orbit/data/score.js';
 import { sortiePilotXp } from '@last-orbit/data/career.js';
 import { threatPilotXp } from '@last-orbit/data/threat.js';
 import { MUTATOR_BY_ID, prevDayKey, dailyBonus } from '@last-orbit/data/daily.js';
+import { FUSIONS, FUSION_BY_ID } from '@last-orbit/data/fusions.js';
+import { ROUTES, ROUTE_BY_ID } from '@last-orbit/data/routes.js';
 
 // ---------------------------------------------------------------- sortie lifecycle
 export function startSortie(opts = {}) {
@@ -53,7 +55,7 @@ export function endSortie(reason = 'destroyed') {
   Object.assign(summary, recordSortie(st, run, summary));
   if (run.daily) {
     const d = st.daily; d.streak = d.lastDay === prevDayKey(run.daily) ? d.streak + 1 : d.lastDay === run.daily ? d.streak : 1; d.lastDay = run.daily;
-    d.wave = reached; d.best = Math.max(d.best || 0, reached); count('dailies'); maxStat('bestStreak', d.streak);
+    d.wave = reached; d.score = summary.score; d.mutator = run.mutator; d.best = Math.max(d.best || 0, reached); count('dailies'); maxStat('bestStreak', d.streak);
     const bonus = dailyBonus(reached, d.streak); st.salvage += bonus; summary.daily = { bonus, streak: d.streak };
   }
   summary.mastery = addMastery(run.ship, reached);
@@ -120,6 +122,10 @@ const unlockedAbilities = (run) => ABILITY_ORDER.filter((id) => G.state.unlocked
 export function cardPool(run = G.state.run) {
   const out = [], sh = G.sheet;
   for (const id of run.order) { const r = run.weapons[id]; if (r < BAL.maxRank) out.push({ kind: 'upgrade', id, rank: r + 1, weight: 9, group: 'weapon', rarity: r + 1 === BAL.maxRank ? 'evo' : r + 1 >= 4 ? 'rare' : 'common' }); }
+  // Special weapon cards once weapons are fully evolved: the ship's signature (mastery 5) and weapon fusions.
+  const ship = SHIP_BY_ID[run.ship], max = BAL.maxRank;
+  if (ship?.signature && !run.signature && run.weapons[ship.weapon] >= max && (G.state.mastery?.[ship.id]?.level || 1) >= 5) out.push({ kind: 'signature', id: ship.id, weight: 14, group: 'weapon', rarity: 'signature' });
+  for (const f of FUSIONS) if (!(run.fusions || []).includes(f.id) && run.weapons[f.a] >= max && run.weapons[f.b] >= max) out.push({ kind: 'fusion', id: f.id, weight: 14, group: 'weapon', rarity: 'fusion' });
   if (run.order.length < BAL.maxWeapons) for (const id of unlockedWeapons()) if (!run.weapons[id]) out.push({ kind: 'weapon', id, weight: 5, group: 'weapon', rarity: 'rare' });
   if (run.abilities.length < BAL.maxAbilities) for (const id of unlockedAbilities(run)) if (!run.abilities.includes(id)) out.push({ kind: 'ability', id, weight: 2.5, rarity: 'rare' });
   for (const m of MODS) {
@@ -176,6 +182,8 @@ export function pickCard(idx) {
     case 'upgrade': run.weapons[c.id] = Math.min(BAL.maxRank, (run.weapons[c.id] || 1) + 1); maxStat('maxRank', run.weapons[c.id]); maxStat('maxedWeapons', run.order.filter((id) => run.weapons[id] >= BAL.maxRank).length); break;
     case 'ability': if (!run.abilities.includes(c.id)) run.abilities.push(c.id); break;
     case 'mod': { const m = MOD_BY_ID[c.id]; run.cards[c.id] = (run.cards[c.id] || 0) + 1; if (m.heal && p) p.hull = Math.min(1, p.hull + m.heal); break; }
+    case 'signature': run.signature = true; count('signatures'); break;
+    case 'fusion': (run.fusions ||= []).push(c.id); maxStat('fusions', run.fusions.length); break;
     case 'heal': if (p) p.hull = Math.min(1, p.hull + 0.4); break;
     case 'cash': grantSalvage(10 + run.wave * 2); break;
   }
@@ -208,8 +216,28 @@ export function pickRelic(idx) {
   return id;
 }
 
+// ---------------------------------------------------------------- routes (chosen after each sector boss)
+/** Offer Steady Course and two random routes for the next sector. */
+export function rollRoutes(run = G.state.run) {
+  const pool = ROUTES.filter((r) => r.id !== 'steady'), out = ['steady'];
+  while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(rand() * pool.length), 1)[0].id);
+  run.routeOffer = out; bus.emit('routeOffer', out); return out;
+}
+export function nextRoute() {
+  const run = G.state.run; if (!run) return false;
+  if (run.routeOffer) return true;
+  if (run.pendingRoute) { run.pendingRoute = false; rollRoutes(run); return true; }
+  return false;
+}
+export function pickRoute(idx) {
+  const run = G.state.run, id = run?.routeOffer?.[idx]; if (!id) return null;
+  run.route = id === 'steady' ? null : id; run.routeOffer = null; recalc();
+  bus.emit('routePicked', id); // the sim re-applies enemy-side modifiers
+  return ROUTE_BY_ID[id];
+}
+
 /** True while the pilot must choose something; combat is frozen until they do. */
-export function choicePending() { const run = G.state.run; return !!(run && (run.offer || run.relicOffer)); }
+export function choicePending() { const run = G.state.run; return !!(run && (run.offer || run.relicOffer || run.routeOffer)); }
 
 // ---------------------------------------------------------------- descriptions (shared by the card UI and tests)
 export function describeCard(c, run = G.state.run) {
@@ -218,6 +246,8 @@ export function describeCard(c, run = G.state.run) {
     case 'upgrade': { const d = WEAPONS[c.id], evo = d.evo[c.rank - 2]; return { title: d.name, kicker: `Rank ${c.rank - 1} → ${c.rank}`, icon: 'weapon:' + c.id, body: `${evo.name}: ${evo.desc}. +30% damage.`, color: '#' + d.color.toString(16).padStart(6, '0'), evo: evo.name }; }
     case 'ability': { const d = ABILITIES[c.id]; return { title: d.name, kicker: 'New ability', icon: 'ability:' + c.id, body: d.desc, color: d.color }; }
     case 'mod': { const m = MOD_BY_ID[c.id], have = run?.cards[c.id] || 0; return { title: m.name, kicker: m.max > 1 ? `${have ? 'Level ' + (have + 1) : 'New'} · max ${m.max}` : 'Unique', icon: 'mod:' + c.id, body: m.desc, color: RARITY[m.rarity].color }; }
+    case 'signature': { const s = SHIP_BY_ID[c.id], d = WEAPONS[s.weapon]; return { title: s.signature.name, kicker: `${s.name} signature`, icon: 'weapon:' + s.weapon, body: `${d.name}: ${s.signature.desc}.`, color: '#' + s.trim.toString(16).padStart(6, '0') }; }
+    case 'fusion': { const f = FUSION_BY_ID[c.id]; return { title: f.name, kicker: `${WEAPONS[f.a].name} + ${WEAPONS[f.b].name}`, icon: 'weapon:' + f.a, icon2: 'weapon:' + f.b, body: f.desc, color: '#ff8bff' }; }
     case 'heal': return { title: 'Field Repairs', kicker: 'Supply', icon: 'supply:heal', body: 'Repair 40% hull.', color: '#6dff8e' };
     case 'cash': return { title: 'Salvage Cache', kicker: 'Supply', icon: 'supply:cash', body: `+${10 + (run?.wave || 1) * 2} salvage.`, color: '#ffc857' };
   }

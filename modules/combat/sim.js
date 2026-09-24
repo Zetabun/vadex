@@ -2,7 +2,7 @@
 //   idle → fighting → cleared → (next wave)      fighting → dead → (revive | sortie over)
 // Between sorties (no G.state.run) the world is an empty parade ground for the Hangar backdrop.
 import { Big } from '@last-orbit/core/big.js';
-import { G, count, maxStat, toast } from '@last-orbit/core/game.js';
+import { G, count, maxStat, toast, recalc } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { rand } from '@last-orbit/core/rng.js';
 import { BAL, FIELD, TICK, clearSalvage } from '@last-orbit/data/balance.js';
@@ -22,20 +22,29 @@ import { grantSalvage, grantXp } from '@last-orbit/progression/run.js';
 import { checkContracts } from '@last-orbit/progression/meta.js';
 import { threatMods, THREAT_GATE_WAVE } from '@last-orbit/data/threat.js';
 import { MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
+import { ROUTE_BY_ID } from '@last-orbit/data/routes.js';
+import { SHIP_BY_ID } from '@last-orbit/data/ships.js';
+import { updatePassives } from '@last-orbit/combat/passives.js';
 
 const BARRIER_X = [-34, -11.5, 11.5, 34];
 
 export function initWorld() {
   const w = (G.world = createWorld());
   if (G.state.run) for (const x of BARRIER_X) w.barriers.push({ x, w: 13, hp: 1, flash: 0 });
-  // Enemy-side rules from the threat level and any daily mutator.
-  const run = G.state.run, m = threatMods(run?.threat || 0), mw = MUTATOR_BY_ID[run?.mutator]?.world || {};
-  w.mods = { hp: m.hp * (mw.hp || 1), dmg: m.dmg, bossHp: m.bossHp, elites: m.elites + (mw.elites || 0) };
-  w.sim.fireRate = m.fireRate * (mw.fireRate || 1); w.sim.formSpeed = m.formSpeed * (mw.formSpeed || 1);
+  applyRunMods(w);
+  w.passive = SHIP_BY_ID[G.state.run?.ship]?.passive?.id || null; w.staticN = 0;
   w.dps = Big.ZERO; w.dpsT = 0;
   syncDrones(w); w.wave.state = 'idle'; w.wave.timer = 1.4;
   return w;
 }
+
+/** Enemy-side rules from the threat level, any daily mutator and the current route. */
+export function applyRunMods(w) {
+  const run = G.state.run, m = threatMods(run?.threat || 0), mw = MUTATOR_BY_ID[run?.mutator]?.world || {}, rw = ROUTE_BY_ID[run?.route]?.world || {};
+  w.mods = { hp: m.hp * (mw.hp || 1) * (rw.hp || 1), dmg: m.dmg * (rw.dmg || 1), bossHp: m.bossHp, elites: m.elites + (mw.elites || 0) + (rw.elites || 0) };
+  w.sim.fireRate = m.fireRate * (mw.fireRate || 1) * (rw.fireRate || 1); w.sim.formSpeed = m.formSpeed * (mw.formSpeed || 1) * (rw.formSpeed || 1);
+}
+bus.on('routePicked', () => { if (G.world) applyRunMods(G.world); });
 
 let accum = 0;
 /** Advance the simulation by real seconds (already scaled by game speed). Returns the number of ticks run. */
@@ -52,7 +61,7 @@ export function step(dt) {
   if (w.sheetVersion !== G.sheet.version) { w.sheetVersion = G.sheet.version; refreshDefence(w); }
   if (!run) { parade(w, dt); return; }
   run.time += dt;
-  updatePlayer(w, dt); updateAbilities(w, dt);
+  updatePlayer(w, dt); updatePassives(w, dt); updateAbilities(w, dt);
   switch (ws.state) {
     case 'idle': ws.timer -= dt; updatePickups(w, dt); if (ws.timer <= 0) startWave(w); break;
     case 'fighting': {
@@ -98,7 +107,7 @@ export function startWave(w) {
   w.enemies = w.enemies.filter((e) => e.alive && e.def.cruiser); w.ebullets.length = 0; w.hazards = w.hazards.filter((h) => h.kind === 'pool');
   const p = w.player; p.lastStand = true;
   const newSector = sec.idx !== prevSector;
-  if (newSector) run.sectorHit = sec.n > 1; // a sector joined part-way (debug jumps) cannot be perfect
+  if (newSector) { run.sectorHit = sec.n > 1; run.windUsed = false; } // a sector joined part-way (debug jumps) cannot be perfect
   for (const b of w.barriers) b.hp = newSector ? 1 : Math.min(1, Math.max(0, b.hp) + 0.25);
   const f = w.form; f.x = 0; f.dir = rand() < 0.5 ? 1 : -1; f.enter = BAL.formationEnter; f.total = 0; f.alive = 0;
   f.speed = BAL.formSpeed * (1 + sec.n * 0.04 + Math.min(6, sec.idx) * 0.1);
@@ -132,18 +141,22 @@ function clearWave(w) {
   w.ebullets.length = 0;
   for (const e of w.enemies) if (e.alive && (e.def.projectile || e.homingRocket)) { e.alive = false; e.rewardMul = 0; }
   count('wavesCleared');
-  const pay = grantSalvage(clearSalvage(run.wave)), bossWave = sec.n === sec.len;
+  const route = ROUTE_BY_ID[run.route], clearMul = route?.clearMul || 1;
+  const pay = grantSalvage(clearSalvage(run.wave) * clearMul), bossWave = sec.n === sec.len;
   if (!bossWave) fx(w, 'text', 0, 52, `WAVE ${run.wave} CLEAR  +${Math.round(pay)} SALVAGE`, '#ffc857', 2);
   grantXp(1 + run.wave * 0.25);
   if (!ws.damaged) { count('flawless'); if (!bossWave) fx(w, 'text', 0, 45, 'FLAWLESS', '#6dffc8', 1); } else run.sectorHit = true;
-  score(w, waveScore(run.wave, !ws.damaged));
+  score(w, waveScore(run.wave, !ws.damaged) * clearMul);
+  if (route?.repair) p.hull = Math.min(1, p.hull + route.repair);
   p.hull = Math.min(1, p.hull + 0.06);
   if (sec.n === sec.len) {
     maxStat('sectorsCleared', sec.idx + 1);
     if (!ws.damaged) count('flawlessBosses');
     if (!run.sectorHit) count('perfectSectors');
     if (run.wave === THREAT_GATE_WAVE && run.threat) maxStat('threatClear', run.threat);
-    run.pendingRelics++; p.hull = 1; p.shield = 1; ws.timer = 2.6;
+    run.pendingRelics += 1 + (route?.relic || 0); p.hull = 1; p.shield = 1; ws.timer = 2.6;
+    // The route ends with its sector; the pilot picks the next one after the relic.
+    run.route = null; run.pendingRoute = true; recalc(); applyRunMods(w);
     fx(w, 'sectorClear', sec.idx, sec.def.name); sfx(w, 'milestone');
   }
   run.wave++;

@@ -38,14 +38,14 @@ export const BOSSES = {
       { at: 1, attacks: [{ kind: 'teleport', every: 6 }, { kind: 'spiral', arms: 4, dur: 3, rate: 0.14, speed: 34, every: 6 }, { kind: 'summon', type: 'swarmling', n: 8, every: 9 }] },
       { at: 0.6, attacks: [{ kind: 'teleport', every: 4.5 }, { kind: 'ring', n: 20, speed: 36, every: 3 }, { kind: 'summon', type: 'splitter', n: 3, every: 10 }] },
       { at: 0.25, attacks: [{ kind: 'teleport', every: 3.2 }, { kind: 'spiral', arms: 6, dur: 4, rate: 0.1, speed: 40, every: 6 }, { kind: 'aimed', n: 7, spread: 0.6, speed: 56, every: 2.2 }, { kind: 'summon', type: 'lancer', n: 5, every: 8 }] }] },
-  singularity: { name: 'The Singularity', title: 'Final boss', hp: 200, r: 14, shape: 'bossSing', color: 0xffd166, move: 'hover', y: 114,
-    parts: [{ kind: 'plate', n: 5, orbit: 20, speed: 1.1, hp: 0.5, r: 5, shape: 'armourPlate', armour: 0.95, blocker: true, respawnPhase: true }],
+  singularity: { name: 'The Singularity', title: 'Final boss', hp: 130, r: 14, shape: 'bossSing', color: 0xffd166, move: 'hover', y: 114,
+    parts: [{ kind: 'plate', n: 4, orbit: 20, speed: 1.1, hp: 0.3, r: 5, shape: 'armourPlate', armour: 0.8, blocker: true, respawnPhase: true }],
     weak: { every: 8, dur: 3.5, x: 0, r: 5 }, cores: 5,
     phases: [
       { at: 1, attacks: [{ kind: 'well', dur: 5, pull: 26, every: 11 }, { kind: 'ring', n: 18, speed: 34, every: 3.5 }] },
       { at: 0.7, attacks: [{ kind: 'well', dur: 5, pull: 32, every: 10 }, { kind: 'spiral', arms: 5, dur: 4, rate: 0.1, speed: 38, every: 6 }, { kind: 'shell', n: 3, radius: 12, telegraph: 1.2, every: 5 }] },
-      { at: 0.4, attacks: [{ kind: 'teleport', every: 7 }, { kind: 'beam', cols: 3, telegraph: 1, dur: 1.2, every: 5 }, { kind: 'ring', n: 24, speed: 40, every: 3 }, { kind: 'summon', type: 'herald', n: 2, every: 12 }] },
-      { at: 0.15, attacks: [{ kind: 'well', dur: 6, pull: 40, every: 9 }, { kind: 'spiral', arms: 8, dur: 5, rate: 0.08, speed: 44, every: 6 }, { kind: 'aimed', n: 9, spread: 0.8, speed: 60, every: 2 }, { kind: 'beam', cols: 4, telegraph: 0.9, dur: 1.2, every: 5 }] }] },
+      { at: 0.4, attacks: [{ kind: 'teleport', every: 7 }, { kind: 'beam', cols: 3, telegraph: 1, dur: 1.2, every: 5 }, { kind: 'ring', n: 20, speed: 40, every: 3.2 }, { kind: 'summon', type: 'herald', n: 2, every: 12 }] },
+      { at: 0.15, attacks: [{ kind: 'well', dur: 6, pull: 40, every: 9 }, { kind: 'spiral', arms: 6, dur: 5, rate: 0.08, speed: 44, every: 6.5 }, { kind: 'aimed', n: 7, spread: 0.8, speed: 58, every: 2.2 }, { kind: 'beam', cols: 3, telegraph: 1, dur: 1.2, every: 5 }] }] },
 
   // ---- mini bosses (every 10th wave) ----
   warden: { name: 'Picket Warden', title: 'Mini boss', mini: true, hp: 22, r: 8, shape: 'miniA', color: 0x6fd3ff, move: 'hover', y: 118, weak: { every: 8, dur: 3.5, x: 0, r: 4 }, cores: 0,

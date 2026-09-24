@@ -68,25 +68,86 @@ export const SHAPE_IDS = Object.keys(SHAPES);
 const cache = {};
 export function shapeGeometry(id) { return cache[id] || (cache[id] = merge((SHAPES[id] || SHAPES.scout)())); }
 
-/** Player ship pieces; the renderer shows more of them as the build grows. Faces +Y. */
-export function playerParts() {
-  return {
-    // Base silhouette is complete from wave one; upgrade geometry adds outboard hardware.
-    hull: merge([gem(.49, 1.5, .27, 0, .32), box(.76, 1.05, .34, 0, -.32), ...mirror(s => gem(.7, .68, .15, s * .76, -.37, -.03, s * -.65)), ...mirror(s => box(.31, .96, .34, s * .62, -.48))]),
-    deck: merge([gem(.28, .9, .14, 0, .62, .24), ...mirror(s => gem(.52, .42, .09, s * .77, -.27, .16, s * -.65)), ...mirror(s => box(.22, .7, .1, s * .62, -.4, .23))]),
-    cockpit: merge([gem(.21, .48, .19, 0, .26, .39)]),
-    chassis: merge([box(.9, .9, .18, 0, -.38, -.19), ...mirror(s => box(.26, .34, .34, s * .62, -.94)), ...mirror(s => box(.12, .67, .16, s * 1.11, -.23, .03))]),
-    markings: merge([...mirror(s => box(.06, .39, .025, s * .64, -.22, .295)), ...mirror(s => box(.32, .06, .025, s * .89, -.4, .27)), box(.08, .33, .025, 0, 1.05, .30)]),
-    lights: merge([...mirror(s => box(.1, .15, .04, s * 1.15, -.05, .12)), box(.07, .21, .03, 0, -.38, .38)]),
+/** Player ship pieces for one hull; the renderer shows more of them as the build grows. Faces +Y.
+ *  Every hull fills the same material slots (hull, deck, cockpit, chassis, markings, lights, engine), so paint jobs
+ *  recolour them all alike; the outboard upgrade hardware (wings, pods, armour, fins, crown) is shared. */
+export function playerParts(ship = 'vanguard') {
+  const base = (HULLS[ship] || HULLS.vanguard)();
+  const out = {};
+  for (const k in base) out[k] = merge(base[k]);
+  Object.assign(out, {
     wings: merge(mirror(s => gem(.48, .65, .11, s * 1.28, -.52, -.02, s * -.32))),
     pods: merge([...mirror(s => box(.24, .85, .25, s * 1.47, -.14)), ...mirror(s => part(P().cyl, s * 1.47, .41, .03, .085, .5, .085))]),
     pods2: merge([...mirror(s => box(.17, .7, .2, s * .38, .33, .19)), ...mirror(s => part(P().cyl, s * .38, .83, .19, .065, .36, .065))]),
     armour: merge([...mirror(s => gem(.26, .67, .18, s * .78, -.28, .27)), box(.66, .2, .15, 0, -.73, .26)]),
     fins: merge(mirror(s => gem(.17, .72, .21, s * 1.8, -.5, .02, s * -.25))),
     crown: merge([ring(.32, 0, -.23, .43), ...mirror(s => gem(.1, .34, .1, s * 1.08, .2, .15))]),
-    engine: merge(mirror(s => box(.18, .09, .2, s * .62, -1.12, .015))),
-  };
+  });
+  return out;
 }
+/** Engine nozzles (x, y in model units) per hull: the renderer hangs exhaust flames from them. */
+export const NOZZLES = {
+  vanguard: [[-.62, -1.17], [.62, -1.17]],
+  striker: [[0, -1.3]],
+  bulwark: [[-.95, -1.28], [-.36, -1.17], [.36, -1.17], [.95, -1.28]],
+  tempest: [[-.32, -1.2], [.32, -1.2]],
+  revenant: [[-.3, -1.2], [.3, -1.2]],
+};
+/** Where the cosmetic banner is pinned on each hull. */
+export const BANNER_PIN = { vanguard: -1.05, striker: -1.2, bulwark: -1.1, tempest: -1.12, revenant: -1.1 };
+
+const HULLS = {
+  // All-rounder: a clean arrowhead with swept wings, intakes and a dorsal spine.
+  vanguard: () => ({
+    hull: [gem(.49, 1.5, .27, 0, .32), box(.76, 1.05, .34, 0, -.32), ...mirror(s => gem(.7, .68, .15, s * .76, -.37, -.03, s * -.65)), ...mirror(s => box(.31, .96, .34, s * .62, -.48)), spike(.07, .5, 0, 1.95, 0)],
+    deck: [gem(.28, .9, .14, 0, .62, .24), ...mirror(s => gem(.52, .42, .09, s * .77, -.27, .16, s * -.65)), ...mirror(s => box(.22, .7, .1, s * .62, -.4, .23)), ...mirror(s => gem(.26, .12, .06, s * .36, .72, .12, s * -.4))],
+    cockpit: [gem(.21, .48, .19, 0, .26, .39)],
+    chassis: [box(.9, .9, .18, 0, -.38, -.19), ...mirror(s => box(.26, .34, .34, s * .62, -.94)), ...mirror(s => box(.12, .67, .16, s * 1.11, -.23, .03)), ...mirror(s => box(.14, .3, .2, s * .38, .05, .22)), box(.08, .8, .1, 0, -.35, .36)],
+    markings: [...mirror(s => box(.06, .39, .025, s * .64, -.22, .295)), ...mirror(s => box(.32, .06, .025, s * .89, -.4, .27)), box(.08, .33, .025, 0, 1.05, .30)],
+    lights: [...mirror(s => box(.1, .15, .04, s * 1.15, -.05, .12)), box(.07, .21, .03, 0, -.38, .38), ...mirror(s => box(.05, .05, .05, s * .38, .22, .34))],
+    engine: mirror(s => box(.18, .09, .2, s * .62, -1.12, .015)),
+  }),
+  // Glass cannon: a long needle with forward-swept blades and twin laser barrels.
+  striker: () => ({
+    hull: [gem(.3, 1.95, .22, 0, .45), gem(.42, .75, .28, 0, -.55), ...mirror(s => gem(.95, .2, .09, s * .72, -.3, 0, s * .38)), ...mirror(s => gem(.42, .12, .07, s * .3, .95, 0, s * .5)), spike(.05, .45, 0, 2.55, 0)],
+    deck: [gem(.16, 1.2, .09, 0, .85, .17), ...mirror(s => gem(.62, .1, .05, s * .72, -.26, .07, s * .38)), gem(.3, .45, .12, 0, -.55, .2)],
+    cockpit: [gem(.14, .46, .15, 0, .3, .24)],
+    chassis: [box(.36, .5, .16, 0, -.9, -.1), ...mirror(s => part(P().cyl, s * .46, .45, .02, .05, 1.35, .05)), ...mirror(s => box(.12, .35, .14, s * .46, -.2, .02)), ...mirror(s => gem(.1, .45, .12, s * 1.2, .05, 0, s * .38))],
+    markings: [...mirror(s => box(.035, .6, .02, s * .12, 1.05, .2)), ...mirror(s => box(.28, .045, .02, s * .7, -.22, .12, s * .38))],
+    lights: [...mirror(s => box(.07, .18, .04, s * 1.33, .12, .06)), ...mirror(s => box(.05, .05, .05, s * .46, 1.14, .03)), box(.05, .3, .03, 0, -.62, .27)],
+    engine: [box(.3, .1, .22, 0, -1.2, 0)],
+  }),
+  // Tank: a broad armoured slab with twin side hulls, a shield emitter dome and four engines.
+  bulwark: () => ({
+    hull: [box(1.25, 1.45, .46, 0, -.1), gem(.62, .8, .36, 0, .82), ...mirror(s => box(.46, 1.35, .52, s * .96, -.25)), ...mirror(s => gem(.35, .5, .3, s * .96, .55)), box(1.9, .22, .3, 0, .25, -.05)],
+    deck: [box(.86, .95, .1, 0, -.1, .28), ...mirror(s => box(.3, 1.05, .08, s * .96, -.25, .3)), ...mirror(s => box(.5, .16, .08, s * .45, .5, .22))],
+    cockpit: [gem(.26, .3, .17, 0, .58, .34)],
+    chassis: [...mirror(s => box(.36, .38, .42, s * .96, -1.04)), ...mirror(s => box(.26, .3, .32, s * .36, -.95)), box(.36, .3, .3, 0, -.95), ...mirror(s => box(.1, .5, .2, s * 1.24, .15, .1)), ...mirror(s => box(.2, .2, .24, s * .55, -.55, .3))],
+    markings: [...mirror(s => box(.06, .75, .02, s * .6, -.1, .34)), box(.6, .07, .02, 0, .36, .34), ...mirror(s => box(.2, .05, .02, s * .96, .1, .35)), ...mirror(s => box(.2, .05, .02, s * .96, -.05, .35))],
+    lights: [gem(.24, .24, .12, 0, -.38, .38, 0, 'ico'), ...mirror(s => box(.08, .08, .06, s * 1.24, .45, .2))],
+    engine: [...mirror(s => box(.24, .1, .22, s * .95, -1.24)), ...mirror(s => box(.18, .09, .2, s * .36, -1.12))],
+  }),
+  // Swarm control: a round coil-ship. A charged ring around a glowing core, three forward prongs.
+  tempest: () => ({
+    hull: [disc(.72, .34, 0, -.1, 0, 'hex'), gem(.34, .85, .24, 0, .62), ...mirror(s => gem(.3, .55, .16, s * .7, -.7, 0, s * -.4))],
+    deck: [ring(.98, 0, -.1, 0), disc(.5, .1, 0, -.1, .19, 'hex')],
+    cockpit: [gem(.26, .26, .26, 0, -.1, .3, 0, 'ico')],
+    chassis: [spike(.1, .75, 0, 1.25, 0), ...mirror(s => spike(.09, .62, s * .5, .92, s * -.35)), box(.42, .3, .2, 0, -.98), ...mirror(s => box(.12, .12, .3, s * .98, -.1, .05))],
+    markings: [...mirror(s => gem(.1, .22, .08, s * .98, -.1, .14)), gem(.1, .22, .08, 0, .88, .14), gem(.1, .22, .08, 0, -1.08, .14)],
+    lights: [...mirror(s => box(.05, .05, .08, s * .5, 1.2, .05)), box(.05, .05, .08, 0, 1.6, .05), ...mirror(s => box(.06, .14, .04, s * .69, -.1, .2))],
+    engine: mirror(s => box(.16, .09, .2, s * .32, -1.14)),
+  }),
+  // Boss hunter: a dark raptor between two long railgun spines, with a glowing charge channel.
+  revenant: () => ({
+    hull: [gem(.4, 1.25, .26, 0, -.25), ...mirror(s => gem(1.05, .46, .12, s * .78, -.55, 0, s * -.58)), ...mirror(s => box(.13, 2.05, .2, s * .22, .72)), ...mirror(s => gem(.35, .3, .1, s * 1.45, -.95, 0, s * -.9))],
+    deck: [...mirror(s => gem(.55, .2, .07, s * .72, -.5, .1, s * -.58)), ...mirror(s => box(.06, 1.9, .06, s * .22, .72, .12))],
+    cockpit: [gem(.16, .36, .16, 0, -.05, .26)],
+    chassis: [box(.5, .6, .2, 0, -.82, -.1), ...mirror(s => box(.14, .38, .3, s * 1.32, -.85)), ...mirror(s => box(.2, .14, .26, s * .22, 1.72)), box(.46, .12, .16, 0, .35, 0)],
+    markings: [...mirror(s => box(.3, .05, .02, s * .7, -.44, .16, s * -.58)), box(.05, .5, .02, 0, -.55, .24)],
+    lights: [box(.07, 1.75, .05, 0, .82, .04), ...mirror(s => box(.06, .06, .06, s * .22, 1.82, .1)), ...mirror(s => box(.05, .14, .04, s * 1.5, -.9, .08))],
+    engine: mirror(s => box(.2, .1, .2, s * .3, -1.14)),
+  }),
+};
 export function unitBox() { return new (T().BoxGeometry)(1, 1, 1); }
 export function droneGeometry() { return merge([gem(0.7, 1, 0.5), ...mirror((s) => box(0.8, 0.18, 0.15, s * 0.6, -0.2, 0, s * -0.4))]); }
 /** Compact service craft with outboard grabber arms and two thrusters; faces +Y. */

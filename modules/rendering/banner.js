@@ -6,7 +6,7 @@ import { G } from '@last-orbit/core/game.js';
 import { BANNER_BY_ID } from '@last-orbit/data/banners.js';
 import { paintBanner } from '@last-orbit/rendering/bannerArt.js';
 
-const N = 14, LEN = 8, WID = 2.4, SEG = LEN / (N - 1);
+const N = 14, LEN = 8, WID0 = 2.4, SEG0 = LEN / (N - 1);
 const PULL = 240, FLUTTER = 75, DAMP = 0.975;
 
 export class Banner {
@@ -35,11 +35,12 @@ export class Banner {
     paintBanner(this.canvas.getContext('2d'), b, this.canvas.width, this.canvas.height, this.shown); this.tex.needsUpdate = true;
   }
   /** ship: the player's Three.js group (already positioned); dt: simulated seconds (0 while paused). */
-  update(ship, dt, t, visible) {
+  /** k: size relative to the standard ship; pin: y of the tail pin in model units. */
+  update(ship, dt, t, visible, k = 1, pin = -1.05) {
     if (!visible || !BANNER_BY_ID[this.id]?.shape) { this.mesh.visible = false; this.reset = true; return; }
     this.mesh.visible = true;
     if (this.legendary) this.mat.emissive.copy(this.accent).multiplyScalar(0.22 + 0.14 * Math.sin(t * 3.2)); else this.mat.emissive.setHex(0x333333);
-    const { px, py, ox, oy } = this, a = this.anchor.set(0, -1.05, 0).applyMatrix4(ship.matrixWorld), ax = a.x, ay = a.y;
+    const { px, py, ox, oy } = this, a = this.anchor.set(0, pin, 0).applyMatrix4(ship.matrixWorld), ax = a.x, ay = a.y, SEG = SEG0 * k, WID = WID0 * k;
     if (this.reset || Math.hypot(ax - px[0], ay - py[0]) > 12) { for (let i = 0; i < N; i++) { px[i] = ox[i] = ax; py[i] = oy[i] = ay - i * SEG; } this.reset = false; }
     const h = Math.min(dt, 1 / 30) / 2;
     for (let s = 0; h > 0 && s < 2; s++) {

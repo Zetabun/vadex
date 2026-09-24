@@ -43,5 +43,7 @@ export const RARITY = {
   rare: { name: 'Rare', weight: 4.5, color: '#5ee6ff' },
   epic: { name: 'Epic', weight: 1.6, color: '#d68cff' },
   evo: { name: 'Evolution', weight: 0, color: '#ffc857' },
+  signature: { name: 'Signature', weight: 0, color: '#ff9e5e' },
+  fusion: { name: 'Fusion', weight: 0, color: '#ff8bff' },
 };
 export const MOD_BY_ID = Object.fromEntries(MODS.map((m) => [m.id, m]));

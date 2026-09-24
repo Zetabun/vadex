@@ -44,10 +44,11 @@ export const sortiePilotXp = (s) => Math.round((s.xpTotal || 0) * 0.35 + s.wave 
 
 // ---------------------------------------------------------------- ship mastery
 // Each ship levels up with the waves it flies. Every level adds 2% damage and hull to that ship;
-// level 3 adds an opening card, level 6 a reroll, and level 10 unlocks the ship's own paint job.
+// level 3 adds an opening card, level 5 unlocks the ship's signature evolution (see data/ships.js), level 6 a reroll,
+// and level 10 unlocks the ship's own paint job.
 export const MAX_MASTERY = 10;
 export const masteryNeed = (lvl) => 40 + 25 * (lvl - 1);
-export const MASTERY_PERKS = { 3: 'Opening upgrade card', 6: '+1 card reroll', 10: 'Prime paint job' };
+export const MASTERY_PERKS = { 3: 'Opening upgrade card', 5: 'Signature evolution', 6: '+1 card reroll', 10: 'Prime paint job' };
 export const masteryFx = (lvl) => {
   const fx = [['damage', 'mult', 0.02 * (lvl - 1)], ['hull', 'mult', 0.02 * (lvl - 1)]];
   if (lvl >= 3) fx.push(['startLevels', 'add', 1]);

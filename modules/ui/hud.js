@@ -8,11 +8,14 @@ import { WEAPONS } from '@last-orbit/data/weapons.js';
 import { RELIC_BY_ID } from '@last-orbit/data/relics.js';
 import { BAL } from '@last-orbit/data/balance.js';
 import { THREATS } from '@last-orbit/data/threat.js';
+import { ROUTE_BY_ID } from '@last-orbit/data/routes.js';
 import { useAbility, abilityCooldown, abilityMaxCharges } from '@last-orbit/combat/abilities.js';
 import { xpProgress } from '@last-orbit/progression/run.js';
 import { h, clear, setText, setClass, setWidth } from '@last-orbit/ui/dom.js';
 import { uiIcon } from '@last-orbit/ui/icons.js';
 import { art } from '@last-orbit/ui/art.js';
+import { SHIP_BY_ID } from '@last-orbit/data/ships.js';
+import { FUSION_BY_ID } from '@last-orbit/data/fusions.js';
 
 export function createHud(hooks) {
   const $ = {};
@@ -47,10 +50,11 @@ export function createHud(hooks) {
     for (let i = 0; i < sec.len; i++) { const k = waveKind(sec.start + i); $.pips.append(h('span.pip.' + k)); }
   }
   function buildLoadout(run) {
-    const sig = run.order.map((id) => id + run.weapons[id]).join() + '|' + run.relics.join(); if (sig === loadSig) return; loadSig = sig; clear($.loadout);
+    const sig = run.order.map((id) => id + run.weapons[id]).join() + '|' + run.relics.join() + '|' + (run.fusions || []).join() + (run.signature ? '*' : ''); if (sig === loadSig) return; loadSig = sig; clear($.loadout);
+    const special = (id) => (run.signature && SHIP_BY_ID[run.ship]?.weapon === id) || (run.fusions || []).some((f) => FUSION_BY_ID[f].a === id || FUSION_BY_ID[f].b === id);
     for (const id of run.order) {
       const r = run.weapons[id], pips = h('span.rank', { 'aria-hidden': 'true' }); for (let i = 1; i <= BAL.maxRank; i++) pips.append(h('i' + (i <= r ? '.on' : '')));
-      $.loadout.append(h('div.gun', { 'data-key': 'weapon:' + id, title: `${WEAPONS[id].name} rank ${r}`, style: `--c:#${WEAPONS[id].color.toString(16).padStart(6, '0')}` }, art('weapon:' + id, 'gun-icon'), pips));
+      $.loadout.append(h('div.gun' + (special(id) ? '.special' : ''), { 'data-key': 'weapon:' + id, title: `${WEAPONS[id].name} rank ${r}`, style: `--c:#${WEAPONS[id].color.toString(16).padStart(6, '0')}` }, art('weapon:' + id, 'gun-icon'), pips));
     }
     for (const id of run.relics) $.loadout.append(h('div.relic-mini', { 'data-key': 'relic:' + id, title: RELIC_BY_ID[id].name }, art('relic:' + id, 'gun-icon')));
   }
@@ -67,7 +71,7 @@ export function createHud(hooks) {
     const run = G.state.run, w = G.world; if (!run || !w) return;
     const waveShown = w.wave.num || run.wave, sec = sectorOf(waveShown);
     buildPips(waveShown); buildLoadout(run); buildAbilities(run);
-    setText($.sector, `Sector ${sec.idx + 1} · ${sec.def.name}` + (run.mutator ? ' · Daily' : run.threat ? ` · Threat ${THREATS[run.threat].roman}` : '')); setText($.waveN, `${sec.n}/${sec.len}`);
+    setText($.sector, `Sector ${sec.idx + 1} · ${sec.def.name}` + (run.mutator ? ' · Daily' : run.threat ? ` · Threat ${THREATS[run.threat].roman}` : '') + (run.route ? ' · ' + ROUTE_BY_ID[run.route].name : '')); setText($.waveN, `${sec.n}/${sec.len}`);
     const cur = sec.n - 1, cleared = w.wave.state === 'cleared';
     const pips = $.pips.children; for (let i = 0; i < pips.length; i++) { setClass(pips[i], 'done', i < cur || (i === cur && cleared)); setClass(pips[i], 'now', i === cur && !cleared); }
     setText($.salvage, fmt(Math.floor(run.salvage)));

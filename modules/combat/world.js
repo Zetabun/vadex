@@ -96,6 +96,7 @@ export function hitEnemy(w, e, src, mult, hx, hy, noCrit) {
   if (e.armour > 0) m *= 1 - e.armour * (1 - (src.armorPen || 0));
   if (e.shielded && !src.shieldPierce) m *= 0.15;
   if (e.weakOpen && e.weak && Math.abs(hx - (e.x + e.weak.x)) < e.weak.r + 1.5) { weak = true; m *= sh.n('weakMult'); count('weakHits'); }
+  if (w.passive === 'execute' && e.hp < 0.3) m *= 1.6;
   if (e === w.painted) m *= BAL.paintMult;
   else if (e.droneMarkT > 0) m *= 1 + (e.droneMarkPower || 0.08);
   const frac = src.dmg.ratio(e.hpMax) * m;
@@ -143,7 +144,7 @@ function dropLoot(w, e) {
 export function killEnemy(w, e, src, crit, over) {
   if (!e.alive) return; e.alive = false;
   const sh = G.sheet, p = w.player;
-  count('kills'); w.wave.kills++;
+  count('kills'); w.wave.kills++; bus.emit('kill', w, e);
   if (e.elite) count('eliteKills');
   const hadStreak = p.combo > BAL.comboStep * 0.5;
   p.combo = Math.min(sh.n('comboMax'), p.combo + BAL.comboStep); p.comboT = BAL.comboWindow;
@@ -180,7 +181,10 @@ export function hurtPlayer(w, dmgMul, source) {
     if (need <= p.shield) { p.shield -= need; fx(w, 'shieldhit', p.x, p.y); sfx(w, 'shield'); return; }
     dmg *= 1 - p.shield / need; p.shield = 0; fx(w, 'shieldhit', p.x, p.y);
   }
+  if (w.passive === 'stalwart' && p.hull < 0.5) dmg *= 0.7;
   p.hull -= dmg * w.base.dmgPerHull; w.wave.damaged = true; w.wave.bossDamaged = true;
+  const run = G.state.run;
+  if (w.passive === 'secondwind' && run && !run.windUsed && p.hull < 0.3) { run.windUsed = true; p.hull = Math.max(p.hull, 0) + 0.4; p.invuln = 2; fx(w, 'text', p.x, p.y + 10, 'SECOND WIND', '#6dffc8', 2); fx(w, 'boom', p.x, p.y, 20, 0x6dffc8); sfx(w, 'milestone'); }
   fx(w, 'hurt', p.x, p.y); fx(w, 'shake', 0.4); sfx(w, 'hurt');
   if (p.hull <= 0) {
     if (p.lastStand && flag('f.lastStand')) { p.lastStand = false; p.hull = 0.01; p.invuln = 2; fx(w, 'text', p.x, p.y + 8, 'LAST STAND', '#ff5fa2', 1); return; }

@@ -9,7 +9,8 @@ export const BAL = {
   // enemy scaling: base × growth^(wave-1) × sectorJump^sector. Health grows more slowly after lateWave,
   // once a typical build has maxed its guns, so Workshop upgrades keep pushing the wall back.
   hpBase: 8, hpGrowth: 1.175, hpLateGrowth: 1.13, lateWave: 30, sectorHpJump: 1.35,
-  dmgBase: 7, dmgGrowth: 1.045, sectorDmgJump: 1.15,
+  // Enemy damage grows more slowly after dmgLateWave, so sector 6 is a climb rather than a wall for a maxed Workshop.
+  dmgBase: 7, dmgGrowth: 1.045, dmgLateGrowth: 1.02, dmgLateWave: 40, sectorDmgJump: 1.15,
   eliteHp: 5, eliteReward: 6, bossReward: 40, miniReward: 18,
   // salvage (the permanent currency)
   salvageChance: 0.16, salvagePerWave: 0.12, clearSalvage: 3, clearSalvagePerWave: 0.7, bossSalvage: 30, miniSalvage: 12,
@@ -35,7 +36,8 @@ export function enemyHp(w, sectorIdx) {
   return Big.pow(BAL.hpGrowth, early).mul(Big.pow(BAL.hpLateGrowth, late)).mul(BAL.hpBase * Math.pow(BAL.sectorHpJump, sectorIdx));
 }
 export function enemyDmg(w, sectorIdx) {
-  return Big.pow(BAL.dmgGrowth, w - 1).mul(BAL.dmgBase * Math.pow(BAL.sectorDmgJump, sectorIdx));
+  const early = Math.min(w, BAL.dmgLateWave) - 1, late = Math.max(0, w - BAL.dmgLateWave);
+  return Big.pow(BAL.dmgGrowth, early).mul(Big.pow(BAL.dmgLateGrowth, late)).mul(BAL.dmgBase * Math.pow(BAL.sectorDmgJump, sectorIdx));
 }
 /** Salvage carried by one dropped canister at this wave. */
 export const salvageDrop = (w) => Math.max(1, Math.round(1 + w * BAL.salvagePerWave));

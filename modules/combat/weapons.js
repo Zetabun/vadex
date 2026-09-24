@@ -4,6 +4,7 @@ import { G, count, flag } from '@last-orbit/core/game.js';
 import { rand } from '@last-orbit/core/rng.js';
 import { FIELD } from '@last-orbit/data/balance.js';
 import { fx, sfx, hitEnemy, blast, pickTarget, bucketOf } from '@last-orbit/combat/world.js';
+import { momentumMul } from '@last-orbit/combat/passives.js';
 
 const MAX_SHOTS = 340;
 const tmpSkip = [];
@@ -30,7 +31,7 @@ export function updateWeapons(w, dt) {
   const p = w.player, sh = G.sheet, cfgs = sh.weapons;
   syncWeaponRuntime(w, sh);
   const firing = p.alive && w.wave.state === 'fighting' && (w.input.fire || flag('f.autofire'));
-  const od = w.abil.active.overdrive > 0 ? 2 : 1;
+  const od = (w.abil.active.overdrive > 0 ? 2 : 1) * momentumMul(p);
   for (const id in cfgs) {
     const c = cfgs[id];
     w.wt[id] = (w.wt[id] ?? 0) - dt * od;

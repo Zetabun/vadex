@@ -45,6 +45,8 @@ export const FEATS = [
   { id: 'f_relics', name: 'Hoarder', desc: 'Hold five relics in one sortie', get: S('maxRelics'), goal: 5, art: 'relic:r_midas' },
   { id: 'f_daily30', name: 'Daily Champion', desc: 'Reach wave 30 on a Daily Sortie', get: (st) => st.daily?.best || 0, goal: 30, art: 'ach:calendar' },
   { id: 'f_fleet', name: 'Old Hands', desc: 'Reach mastery 5 with all five ships', get: (st) => Math.min(...SHIPS.map((s) => st.mastery?.[s.id]?.level || 0)), goal: 5, art: 'ship:revenant' },
+  { id: 'f_fusion', name: 'Fusion Reactor', desc: 'Fuse two fully evolved weapons', get: S('fusions'), goal: 1, art: 'weapon:plasma' },
+  { id: 'f_signature', name: 'Signature Move', desc: 'Unleash a ship\u2019s signature evolution', get: S('signatures'), goal: 1, art: 'ship:vanguard' },
   { id: 'f_fame', name: 'Hall of Fame', desc: 'Score 750,000 in one sortie', get: S('bestScore'), goal: 750000, art: 'ach:trophy' },
 ];
 export const MEDAL_COUNT = ACHIEVEMENTS.length * TIERS.length + FEATS.length;

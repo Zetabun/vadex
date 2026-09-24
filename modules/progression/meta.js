@@ -147,7 +147,7 @@ export function unlockBanners({ silent = false } = {}) {
   for (const b of BANNERS) {
     if (!b.req || st.banners[b.id] || bannerProgress(b).frac < 1) continue;
     st.banners[b.id] = Date.now(); out.push(b.id); if (st.run) (st.run.bannersDone ||= []).push(b.id);
-    if (!silent) bus.emit('notice', b.rarity === 'legendary' ? { kind: 'legendary', kicker: 'Legendary banner unlocked', title: b.name, sub: `Tracks your ${b.label.toLowerCase()} live · Ships tab`, art: 'ach:trophy' } : { kind: 'unlock', kicker: 'Banner unlocked', title: b.name, sub: 'Fly it from the Ships tab', art: 'ach:flag' });
+    if (!silent) bus.emit('notice', b.rarity === 'legendary' ? { kind: 'legendary', kicker: 'Legendary banner unlocked', title: b.name, sub: `Tracks ${b.tracks} live · Ships tab`, art: 'ach:trophy' } : { kind: 'unlock', kicker: 'Banner unlocked', title: b.name, sub: 'Fly it from the Ships tab', art: 'ach:flag' });
   }
   return out;
 }

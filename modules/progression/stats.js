@@ -12,6 +12,8 @@ import { WORKSHOP } from '@last-orbit/data/workshop.js';
 import { masteryFx } from '@last-orbit/data/career.js';
 import { threatMods, threatSalvage } from '@last-orbit/data/threat.js';
 import { MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
+import { ROUTE_BY_ID } from '@last-orbit/data/routes.js';
+import { fusionsFor } from '@last-orbit/data/fusions.js';
 
 export const STAT_BASE = {
   damage: 1, fireRate: 1, critChance: 0.03, critDmg: 1, projSpeed: 1, multishot: 0, pierce: 0, blast: 1, armorPen: 0, bossDmg: 1, eliteDmg: 1, weakMult: BAL.weakMult,
@@ -74,24 +76,33 @@ export function computeSheet(state, sheet = new Sheet()) {
     for (const id in run.cards) sheet.fx(DEF.mods[id]?.fx, run.cards[id], 'Cards');
     for (const id of run.relics) sheet.fx(DEF.relics[id]?.fx, 1, 'Relics');
     if (run.mutator) sheet.fx(MUTATOR_BY_ID[run.mutator]?.fx, 1, 'Daily');
+    if (run.route) sheet.fx(ROUTE_BY_ID[run.route]?.fx, 1, 'Route');
     if (run.threat) { sheet.mul('hull', 'Threat', threatMods(run.threat).hull); sheet.mul('salvageGain', 'Threat', threatSalvage(run.threat)); }
   }
   sheet.finish();
   sheet.weapons = {};
   const order = run ? run.order : [ship.weapon];
-  for (const id of order) sheet.weapons[id] = buildWeapon(id, run ? run.weapons[id] || 1 : 1, sheet);
+  for (const id of order) sheet.weapons[id] = buildWeapon(id, run ? run.weapons[id] || 1 : 1, sheet, specialFx(id, run, ship));
   return sheet;
+}
+
+/** Extra evolutions beyond rank 7: the ship's signature (on its own weapon) and any fusions the weapon belongs to. */
+export function specialFx(id, run, ship) {
+  const out = [];
+  if (run?.signature && ship?.signature && ship.weapon === id) out.push(ship.signature.fx);
+  for (const f of fusionsFor(id, run)) out.push(f.fx[id]);
+  return out;
 }
 
 /** Damage multiplier from weapon rank alone (evolutions add their own effects on top). */
 export const rankMult = (rank) => 1 + 0.3 * (rank - 1);
 
 /** Merge base + evolutions (one per rank above 1) + global stats into the runtime config the simulation fires from. */
-export function buildWeapon(id, rank, sheet) {
+export function buildWeapon(id, rank, sheet, extra = []) {
   const def = WEAPONS[id], c = { id, kind: def.kind, color: def.color, dmgMul: 1, pierce: 0, bounce: 0, splash: 0, homing: 0, split: 0, burn: 0, armorPen: 0, crit: 0, critDmg: 0, bossMul: 1, ...def.base };
   const evos = Math.max(0, Math.min(def.evo.length, rank - 1));
-  for (let i = 0; i < evos; i++) {
-    const fx = def.evo[i].fx;
+  const all = def.evo.slice(0, evos).map((e) => e.fx).concat(extra);
+  for (const fx of all) {
     for (const k in fx) {
       if (k.endsWith('Mul') && k !== 'dmgMul' && k !== 'nthMult') { const t = k.slice(0, -3); c[t] = (c[t] || 1) * fx[k]; }
       else if (k === 'dmgMul' || k === 'bossMul') c[k] *= fx[k];

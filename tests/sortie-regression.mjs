@@ -133,7 +133,7 @@ fresh(); G.state.workshop.w_revive = 1; recalc(); run = launch();
 let over = 0; const off = bus.on('sortieOver', () => over++);
 const kill = () => {
   for (let i = 0; i < 600 && G.world.wave.state !== 'fighting'; i++) step(TICK);
-  const p = G.world.player; p.invuln = 0; p.shield = 0; p.lastStand = false; hurtPlayer(G.world, 1e9);
+  const p = G.world.player; p.invuln = 0; p.shield = 0; p.lastStand = false; G.state.run.windUsed = true; hurtPlayer(G.world, 1e9);
   assert.equal(p.alive, false); for (let i = 0; i < 200; i++) step(TICK); };
 kill(); assert.equal(over, 0, 'First death uses the revive'); assert.ok(G.world.player.alive); assert.equal(run.revivesUsed, 1);
 kill(); assert.equal(over, 1, 'Second death ends the sortie');
@@ -256,6 +256,35 @@ assert.ok(BANNERS.every((b) => !b.req || bannerReqLabel(b)), 'Every banner expla
 { const legends = BANNERS.filter((b) => b.rarity === 'legendary'); assert.ok(legends.length >= 6, 'Several legendary stat trackers');
   for (const b of legends) { assert.ok(b.live && b.label && b.emblem && b.colors.length === 3, b.id + ' is a complete stat tracker'); assert.ok(b.live in newState().stats, b.id + ' tracks a real stat'); }
   G.state.stats.flawless = 500; checkAchievements({ silent: true }); assert.ok(G.state.banners.t_flawless, 'Legendary banners unlock from their stat'); }
+
+// ---- ship passives ----
+fresh(); run = launch(); step(TICK); { const p = G.world.player; p.invuln = 0; p.shield = 0; G.world.passive = 'secondwind'; run.windUsed = false; hurtPlayer(G.world, 1e9);
+  assert.ok(p.alive && p.hull > 0.3 && run.windUsed, 'Second Wind saves the Vanguard once a sector'); } endSortie('abandoned');
+{ const { momentumMul, MOMENTUM_MAX, updatePassives } = await import('@last-orbit/combat/passives.js');
+  fresh(); G.state.ship = 'striker'; G.state.unlocked.ships.striker = 1; run = launch(); assert.equal(G.world.passive, 'momentum');
+  for (let i = 0; i < 15; i++) bus.emit('kill', G.world, { x: 0, y: 100 }); assert.equal(G.world.player.momentum, MOMENTUM_MAX); assert.ok(momentumMul(G.world.player) > 1.25);
+  updatePassives(G.world, 3.1); assert.equal(G.world.player.momentum, 0, 'Momentum falls away'); endSortie('abandoned'); }
+for (const s of SHIPS) assert.ok(s.passive?.name && s.signature?.fx, s.id + ' has a passive and a signature');
+
+// ---- signature and fusion cards appear once weapons are fully evolved ----
+fresh(); G.state.mastery.vanguard = { level: 5, xp: 0 }; for (const id of ['laser']) G.state.unlocked.weapons[id] = 1; run = launch();
+run.weapons.cannon = BAL.maxRank; assert.ok(cardPool(run).some((c) => c.kind === 'signature'), 'Mastery 5 + rank 7 offers the signature');
+const dmgBefore = G.sheet.weapons.cannon.dmg; run.offer = [{ kind: 'signature', id: 'vanguard', rarity: 'signature' }]; pickCard(0);
+assert.ok(run.signature && G.sheet.weapons.cannon.dmg.gt(dmgBefore), 'The signature strengthens the ship weapon'); assert.ok(!cardPool(run).some((c) => c.kind === 'signature'));
+run.order.push('laser'); run.weapons.laser = BAL.maxRank; recalc(); assert.ok(cardPool(run).some((c) => c.kind === 'fusion' && c.id === 'fu_twinsuns'), 'Two rank-7 weapons can fuse');
+const projBefore = G.sheet.weapons.laser.proj; run.offer = [{ kind: 'fusion', id: 'fu_twinsuns', rarity: 'fusion' }]; pickCard(0);
+assert.equal(G.sheet.weapons.laser.proj, projBefore + 1, 'Fusion fx apply'); assert.equal(G.state.stats.fusions, 1);
+assert.ok(describeCard({ kind: 'fusion', id: 'fu_twinsuns' }).icon2); endSortie('abandoned');
+{ const { FUSIONS } = await import('@last-orbit/data/fusions.js'); for (const f of FUSIONS) assert.ok(WEAPONS[f.a] && WEAPONS[f.b] && f.fx[f.a] && f.fx[f.b], f.id);
+  for (const id of WEAPON_ORDER) assert.ok(FUSIONS.some((f) => f.a === id || f.b === id), id + ' has a fusion'); }
+
+// ---- routes: chosen after a sector boss, applied to the next sector ----
+{ const { nextRoute, pickRoute } = await import('@last-orbit/progression/run.js'); const { ROUTE_BY_ID } = await import('@last-orbit/data/routes.js');
+  fresh(); run = launch(); run.pendingRoute = true; assert.ok(nextRoute()); assert.equal(run.routeOffer[0], 'steady'); assert.equal(run.routeOffer.length, 3); assert.ok(choicePending());
+  run.routeOffer = ['steady', 'salvage', 'gauntlet']; const hp0 = G.world.mods.hp, sal0 = G.sheet.n('salvageGain');
+  pickRoute(1); assert.equal(run.route, 'salvage'); assert.ok(G.world.mods.hp > hp0 && G.sheet.n('salvageGain') > sal0, 'A route changes both sides');
+  run.pendingRoute = true; nextRoute(); run.routeOffer = ['steady', 'gauntlet', 'blitz']; pickRoute(0); assert.equal(run.route, null, 'Steady Course clears the route');
+  for (const r of Object.values(ROUTE_BY_ID)) assert.ok(r.name && r.desc && r.art, r.id); endSortie('abandoned'); }
 
 // ---- saves round-trip and refuse newer schemas ----
 fresh(); G.state.salvage = 1234; G.state.workshop.w_hull = 3;

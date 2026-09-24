@@ -8,7 +8,7 @@ import { FIELD } from '@last-orbit/data/balance.js';
 import { DRONES } from '@last-orbit/data/drones.js';
 import { activeShip } from '@last-orbit/progression/stats.js';
 import { PAINT_BY_ID } from '@last-orbit/data/career.js';
-import { shapeGeometry, playerParts, unitBox, droneGeometry, supportCraftGeometry } from '@last-orbit/rendering/geometry.js';
+import { shapeGeometry, playerParts, NOZZLES, BANNER_PIN, unitBox, droneGeometry, supportCraftGeometry } from '@last-orbit/rendering/geometry.js';
 import { SpriteBatch, Particles, Transients, makeTextures, rgb, css, jagged, WHITE } from '@last-orbit/rendering/effects.js';
 import { Background } from '@last-orbit/rendering/background.js';
 import { Banner } from '@last-orbit/rendering/banner.js';
@@ -51,7 +51,7 @@ export class Renderer {
   meshFor(shape) { return this.meshes[shape] || (this.meshes[shape] = this.inst(shapeGeometry(shape), this.enemyMat, CAP[shape] || (shape.startsWith('boss') || shape.startsWith('mini') ? 3 : 40))); }
 
   buildPlayer() {
-    const THREE = window.THREE, g = (this.player = new THREE.Group()), P = playerParts(); this.pp = {};
+    const THREE = window.THREE;
     const mats = {
       hull: new THREE.MeshLambertMaterial({ color: 0x718996, emissive: 0x07121a }),
       deck: new THREE.MeshLambertMaterial({ color: 0xe2eced, emissive: 0x131a20 }),
@@ -61,17 +61,31 @@ export class Renderer {
       gun: new THREE.MeshLambertMaterial({ color: 0x667782, emissive: 0x111b24 }),
       gold: new THREE.MeshLambertMaterial({ color: 0xffb94e, emissive: 0x583000 })
     };
-    const use = { hull: 'hull', deck: 'deck', cockpit: 'glass', chassis: 'dark', markings: 'gold', lights: 'trim', wings: 'deck', pods: 'gun', pods2: 'gun', armour: 'deck', fins: 'hull', crown: 'gold', engine: 'trim' };
-    for (const k in P) { const m = new THREE.Mesh(P[k], mats[use[k]]); g.add(m); this.pp[k] = m; }
-    g.scale.setScalar(3.1); this.scene.add(g); this.playerMats = mats;
+    this.playerMats = mats; this.hulls = {}; this.shipScale = 3.1;
+    this.useHull('vanguard');
+  }
+  /** Each ship has its own model; they are built on first use and share the paintable materials. */
+  useHull(id) {
+    if (this.hullId === id) return; const THREE = window.THREE, M = this.playerMats;
+    if (this.player) this.player.visible = false;
+    let hull = this.hulls[id];
+    if (!hull) {
+      const g = new THREE.Group(), P = playerParts(id), pp = {};
+      const use = { hull: 'hull', deck: 'deck', cockpit: 'glass', chassis: 'dark', markings: 'gold', lights: 'trim', wings: 'deck', pods: 'gun', pods2: 'gun', armour: 'deck', fins: 'hull', crown: 'gold', engine: 'trim' };
+      for (const k in P) { const m = new THREE.Mesh(P[k], M[use[k]]); g.add(m); pp[k] = m; }
+      g.scale.setScalar(3.1); this.scene.add(g); hull = this.hulls[id] = { g, pp };
+    }
+    this.player = hull.g; this.pp = hull.pp; this.hullId = id; this.player.visible = true;
+    this.nozzles = NOZZLES[id] || NOZZLES.vanguard; this.bannerPin = BANNER_PIN[id] ?? -1.05;
   }
   /** The ship visibly grows with the build: extra gun pods per weapon, wings and armour as cards stack up. */
   refreshPlayerLook() {
-    const st = G.state, run = st.run, pp = this.pp, ship = activeShip(st);
+    const st = G.state, run = st.run, ship = activeShip(st); this.useHull(ship.id); const pp = this.pp;
     const cards = run ? Object.values(run.cards).reduce((a, b) => a + b, 0) + run.relics.length * 2 : 0, guns = run ? run.order.length : 1;
-    pp.wings.visible = cards >= 4 || ship.id !== 'vanguard'; pp.pods.visible = guns >= 2; pp.pods2.visible = guns >= 3; pp.armour.visible = cards >= 12 || ship.id === 'bulwark';
-    pp.fins.visible = cards >= 20 || ship.id === 'striker' || ship.id === 'revenant'; pp.crown.visible = (run?.relics.length || 0) >= 2;
-    this.player.scale.setScalar(3.1 + Math.min(0.7, cards / 60));
+    // Outboard hardware grows with the build; each hull's own silhouette is complete from wave one.
+    pp.wings.visible = cards >= 4; pp.pods.visible = guns >= 2; pp.pods2.visible = guns >= 3; pp.armour.visible = cards >= 12;
+    pp.fins.visible = cards >= 20; pp.crown.visible = (run?.relics.length || 0) >= 2;
+    this.shipScale = 3.1 + Math.min(0.7, cards / 60);
     // Paint jobs recolour the big deck and wing panels too, not just the trim lights, so the change is obvious.
     const paint = PAINT_BY_ID[st.paint] || PAINT_BY_ID.factory, trim = paint.trim ?? ship.trim, M = this.playerMats, painted = paint.id !== 'factory';
     const mix = (a, b, k) => new window.THREE.Color(a).lerp(new window.THREE.Color(b), k);
@@ -201,23 +215,28 @@ export class Renderer {
   }
 
   drawPlayer(w, dt) {
+    const look = G.sheet.version + ':' + G.state.paint + ':' + (G.state.run?.ship || G.state.ship); if (this.lookV !== look) { this.lookV = look; this.refreshPlayerLook(); }
     const p = w.player, g = this.player, B = this.B, t = w.t; g.visible = p.alive;
     this.banner.setDesign(G.state.banner || 'none');
     if (!p.alive) { this.banner.update(g, 0, t, false); return; }
-    const look = G.sheet.version + ':' + G.state.paint + ':' + (G.state.run?.ship || G.state.ship); if (this.lookV !== look) { this.lookV = look; this.refreshPlayerLook(); }
+    // In battle the ship is drawn 30% larger than its build size, so details and banners read on a phone
+    // (the hitbox is unchanged). The size eases between the hangar close-up and the battlefield.
+    const want = this.shipScale * (G.mode === 'sortie' ? 1.3 : 1); this.drawScale = this.drawScale ? this.drawScale + (want - this.drawScale) * Math.min(1, dt * 4 + 0.02) : want;
+    g.scale.setScalar(this.drawScale);
     g.position.set(p.x, p.y, 0); g.rotation.set(0, -p.tilt * 0.6, -p.tilt * 0.12);
     const blink = p.invuln > 0 && Math.sin(t * 40) > 0; g.visible = !blink;
-    g.updateMatrixWorld(true); this.banner.update(g, dt, t, !blink);
+    g.updateMatrixWorld(true); this.banner.update(g, dt, t, !blink, this.drawScale / 3.1, this.bannerPin);
     const over = w.abil.active.overdrive > 0, glow = over ? AMBER : this.glow || CYAN;
     B.under.add(p.x, p.y, 15, 15, 0, glow, 0.17 + (p.fireFlash > 0 ? 0.2 : 0));
     // Exhaust follows the actual nozzle transforms, including banking and progression scale.
     this.nozzle ||= new window.THREE.Vector3(); g.updateMatrixWorld(true);
     const flicker = 1 + .12 * Math.sin(t * 37) + .07 * Math.sin(t * 61);
-    for (const side of [-1, 1]) {
-      const n = this.nozzle.set(side * .62, -1.17, 0).applyMatrix4(g.matrixWorld);
-      const length = (over ? 8.6 : 5.3) * flicker;
-      B.soft.add(n.x, n.y - length * .34, 2.1, length, -p.tilt * .12, glow, .85);
-      B.soft.add(n.x, n.y - .7, .85, 2.5, -p.tilt * .12, WHITE, .95);
+    const k = this.drawScale / 3.1, big = this.nozzles.length === 1 ? 1.35 : this.nozzles.length > 2 ? 0.8 : 1;
+    for (const [nx, ny] of this.nozzles) {
+      const n = this.nozzle.set(nx, ny, 0).applyMatrix4(g.matrixWorld);
+      const length = (over ? 8.6 : 5.3) * flicker * k * big;
+      B.soft.add(n.x, n.y - length * .34, 2.1 * k * big, length, -p.tilt * .12, glow, .85);
+      B.soft.add(n.x, n.y - .7 * k, .85 * k * big, 2.5 * k, -p.tilt * .12, WHITE, .95);
     }
     if (p.fireFlash > 0) B.soft.add(p.x, p.y + 5.5, 5, 5, 0, WHITE, p.fireFlash * 8);
     if (w.base.hasShield && p.shield > 0.02) B.ring.add(p.x, p.y, 15, 15, t, CYAN, 0.25 + p.shield * 0.5);

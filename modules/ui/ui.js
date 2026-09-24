@@ -23,6 +23,7 @@ export function initUI(app, hooks) {
     settings: () => overlays.showSettings(false),
     pause: () => { if (G.mode === 'sortie' && !overlays.blocking()) { playSfx('tab'); overlays.showPause(); } },
     toHangar: (tab) => hooks.toHangar(tab),
+    toast: (text, kind = 'good') => toast(text, kind),
     cardPicked: (c) => { if (c.kind === 'upgrade' && c.rank === 7) banner('Final evolution', null, null, 'var(--gold)', 1400); hooks.celebrate?.(c.kind === 'weapon' || c.kind === 'upgrade' ? '#5ee6ff' : '#6dffc8'); },
   };
   const hud = createHud(uiHooks), hangar = createHangar(uiHooks), overlays = createOverlays($.layer, uiHooks);
@@ -50,6 +51,7 @@ export function initUI(app, hooks) {
   function nextChoice() {
     const run = G.state.run; if (!run) return false;
     if (hooks.pendingRelic()) { overlays.showRelics(); return true; }
+    if (hooks.pendingRoute()) { overlays.showRoutes(); return true; }
     if (hooks.pendingOffer()) { overlays.showOffer(); return true; }
     return false;
   }

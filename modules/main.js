@@ -8,7 +8,7 @@ import { FIELD } from '@last-orbit/data/balance.js';
 import { initWorld, advance } from '@last-orbit/combat/sim.js';
 import { useAbility } from '@last-orbit/combat/abilities.js';
 import { collectAll } from '@last-orbit/combat/pickups.js';
-import { startSortie, endSortie, nextOffer, nextRelic, recoverInterruptedRun } from '@last-orbit/progression/run.js';
+import { startSortie, endSortie, nextOffer, nextRelic, nextRoute, recoverInterruptedRun } from '@last-orbit/progression/run.js';
 import { checkContracts } from '@last-orbit/progression/meta.js';
 import { save, load, hardReset, legacyBestWave } from '@last-orbit/save/save.js';
 import { initAudio, applyVolumes, tickMusic, setMusicMode, suspendAudio } from '@last-orbit/audio/audio.js';
@@ -36,6 +36,7 @@ const hooks = {
   toHangar: (tab) => { initWorld(); ui.setMode('hangar', tab); },
   pendingOffer: () => nextOffer(),
   pendingRelic: () => nextRelic(),
+  pendingRoute: () => nextRoute(),
   hardReset: async () => { await hardReset(); const s = newState(); s.meta.sandbox = G.state.meta.sandbox; s.meta.legacyChecked = G.state.meta.legacyChecked; adopt(s); ui.setMode('hangar'); await save('reset'); toast('Save erased. Good luck, pilot.', 'warn'); },
 };
 
@@ -116,7 +117,7 @@ function frame(now) {
   if (speed > 0) advance(real * speed);
   // A level-up or sector relic freezes combat until the pilot chooses.
   if (levelBeat > 0) levelBeat -= real;
-  else if (G.mode === 'sortie' && !paused && G.state.run && (nextRelic() || nextOffer())) ui.nextChoice();
+  else if (G.mode === 'sortie' && !paused && G.state.run && (nextRelic() || nextRoute() || nextOffer())) ui.nextChoice();
   const w = G.world;
   setMusicMode(G.mode === 'sortie' ? w.base.sectorIdx % 6 : 0, !!(w.wave.boss && w.wave.boss.alive)); tickMusic();
   renderer.render(real, w, speed); ui.update(real);

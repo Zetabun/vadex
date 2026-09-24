@@ -35,6 +35,7 @@ function runScene(scene, hooks, ui) {
   st.records.top = [48210, 40555, 31204, 22950, 9120].map((score, i) => ({ score, wave: [28, 26, 23, 19, 11][i], ship: i === 1 ? 'striker' : 'vanguard', level: 24 - i * 3, kills: 600 - i * 90, threat: i === 0 ? 2 : 0, daily: i === 2, date: Date.now() - i * 86400000 }));
   st.records.ships = { vanguard: { score: 48210, wave: 28 }, striker: { score: 40555, wave: 26 } }; recalc();
   const [name, arg, arg2] = scene.split(':');
+  if (name === 'hull' || name === 'hullfly') { st.unlocked.ships[arg] = 1; st.ship = arg; st.banner = 'none'; recalc(); if (name === 'hull') { hooks.toHangar('launch'); return; } }
   if (name === 'paint') { st.paints[arg] = 1; st.paint = arg; hooks.toHangar('launch'); return; }
   if (name === 'bannershow' && arg === 'legendary') {
     // Every legendary stat tracker in turn with plausible stats, the kill counter ticking.
@@ -63,6 +64,9 @@ function runScene(scene, hooks, ui) {
   if (name !== 'levelup') { st.run.offer = null; st.run.pendingLevels = 0; ui.closeOverlays(); }
   if (name === 'levelup') { grantXp(40); ui.nextChoice(); }
   else if (name === 'relic') { st.run.pendingRelics = 1; ui.nextChoice(); }
+  else if (name === 'route') { st.run.offer = null; st.run.pendingLevels = 0; st.run.pendingRoute = true; ui.closeOverlays(); ui.nextChoice(); }
+  else if (name === 'fusion') { const run = st.run; run.offer = null; run.pendingLevels = 0; run.order.push('laser'); run.weapons.cannon = 7; run.weapons.laser = 7; st.mastery.vanguard = { level: 5, xp: 0 }; recalc();
+    run.offer = [{ kind: 'fusion', id: 'fu_twinsuns', rarity: 'fusion' }, { kind: 'signature', id: run.ship, rarity: 'signature' }, { kind: 'mod', id: 'm_dmg', stack: 1, rarity: 'common' }]; ui.closeOverlays(); ui.nextChoice(); }
   else if (name === 'notice') bus.emit('notice', { kind: 'unlock', kicker: 'Contract complete', title: 'Hold the Line', salvage: 40, sub: 'Weapon: Lance Laser unlocked', art: 'weapon:laser' });
   else if (name === 'bannerfly') { let d = 1; setInterval(() => { const i = G.world?.input; if (!i) return; i.hold = d; if (Math.abs(G.world.player.x) > 30) d = -Math.sign(G.world.player.x); const p = G.world.player; p.hull = 1; p.invuln = 0; }, 100); }
   else if (name === 'pause') ui.pause();
