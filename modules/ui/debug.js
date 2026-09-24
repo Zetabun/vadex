@@ -9,6 +9,7 @@ import { debugSetWave } from '@last-orbit/combat/sim.js';
 import { killEnemy } from '@last-orbit/combat/world.js';
 import { enterSandbox } from '@last-orbit/save/save.js';
 import { h } from '@last-orbit/ui/dom.js';
+import { BANNERS, BANNER_BY_ID } from '@last-orbit/data/banners.js';
 
 export async function initDebug(app, { hooks, ui } = {}) {
   await enterSandbox(); if (!location.search.includes('scene=')) toast('Debug sandbox: progress here is kept apart from your real save.', 'warn');
@@ -35,6 +36,18 @@ function runScene(scene, hooks, ui) {
   st.records.ships = { vanguard: { score: 48210, wave: 28 }, striker: { score: 40555, wave: 26 } }; recalc();
   const [name, arg] = scene.split(':');
   if (name === 'paint') { st.paints[arg] = 1; st.paint = arg; hooks.toHangar('launch'); return; }
+  if (name === 'bannershow') {
+    // Every banner in turn, four seconds each: in the hangar close-up (default) or in flight (bannershow:fly).
+    const ids = BANNERS.filter((b) => b.shape).map((b) => b.id); let k = 0;
+    for (const id of ids) st.banners[id] = 1;
+    const next = () => { st.banner = ids[k++ % ids.length]; toast(BANNER_BY_ID[st.banner].name, 'info'); };
+    next(); setInterval(next, 4000);
+    if (arg !== 'fly') { hooks.toHangar('launch'); return; }
+    hooks.launch();
+    setInterval(() => { const w = G.world, run = st.run; if (!w || !run) return; if (run.offer || run.relicOffer) { run.offer = run.relicOffer = null; run.pendingLevels = run.pendingRelics = 0; ui.closeOverlays(); }
+      const s = Math.sin(performance.now() / 900); w.input.hold = s > 0.35 ? 1 : s < -0.35 ? -1 : 0; w.player.hull = 1; w.player.invuln = 0; }, 50);
+    return;
+  }
   if (name === 'banner' || name === 'bannerfly') { for (const id of ['signal', 'checker', 'ember', 'royal', 'jolly']) st.banners[id] = 1; st.banners[arg] = 1; st.banner = arg; if (name === 'banner') { hooks.toHangar(arg === 'royal' ? 'launch' : 'ships'); return; } }
   if (arg === 'locked') { st.unlocked.weapons = { cannon: 1, laser: 1 }; st.unlocked.abilities = { overdrive: 1 }; }
   if (['workshop', 'armory', 'ships', 'contracts', 'launch', 'missions', 'records', 'awards'].includes(name)) { hooks.toHangar(name); return; }
