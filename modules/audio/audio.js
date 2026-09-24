@@ -1,7 +1,8 @@
 // Audio: everything is synthesised with WebAudio, so the game ships no sound files.
 //   master ─┬─ sfx bus  (pooled one-shot voices, per-id rate limit, random pitch spread, global voice cap)
 //           └─ music bus (step sequencer: bass + arp + pad, scale/tempo per sector, extra layer during bosses)
-// The context is created on the first user gesture (browser autoplay rules).
+// The context is created on the first user gesture (browser autoplay rules). When the page is hidden it is closed,
+// because iOS can leave a suspended context silent for good once the screen locks; the next touch builds a fresh one.
 import { G } from '@last-orbit/core/game.js';
 
 let ctx = null, master, sfxBus, musicBus, comp, noiseBuf;
@@ -41,8 +42,11 @@ export function resumeAudio() {
 export function suspendAudio(on) {
   if (!ctx) return;
   if (!on) { resumeAudio(); return; }
-  if (ctx.state === 'running') { try { Promise.resolve(ctx.suspend()).catch(() => {}); } catch { /* page is closing */ } }
+  const old = ctx; ctx = null; pad = null; voices = 0; nextT = 0;
+  try { Promise.resolve(old.close()).catch(() => {}); } catch { /* page is closing */ }
 }
+// Any touch, click or key brings sound back (or starts it), whichever screen it lands on.
+if (typeof document !== 'undefined') for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) document.addEventListener(ev, () => { if (!ctx || ctx.state !== 'running') initAudio(); }, { capture: true, passive: true });
 
 export function playSfx(id, vol = 1) {
   if (!ctx || ctx.state !== 'running') return; const d = S[id]; if (!d) return;
@@ -50,7 +54,7 @@ export function playSfx(id, vol = 1) {
   const [type, f0, f1, dur, v, , nz, spread] = d, p = 1 + (Math.random() * 2 - 1) * spread;
   const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(v * vol, now + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, now + dur); g.connect(sfxBus);
   const o = ctx.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0 * p, now); o.frequency.exponentialRampToValueAtTime(Math.max(10, f1 * p), now + dur); o.connect(g); o.start(now); o.stop(now + dur + 0.02);
-  voices++; o.onended = () => { voices--; g.disconnect(); };
+  voices++; o.onended = () => { voices = Math.max(0, voices - 1); g.disconnect(); };
   if (nz) { const n = ctx.createBufferSource(); n.buffer = noiseBuf; n.playbackRate.value = 0.5 + Math.random(); const ng = ctx.createGain(), f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(Math.max(300, f0 * 4), now); f.frequency.exponentialRampToValueAtTime(120, now + dur); ng.gain.value = nz; n.connect(f); f.connect(ng); ng.connect(g); n.start(now, Math.random() * 0.5, dur + 0.02); }
 }
 

@@ -1,6 +1,6 @@
 // In-sortie HUD: sector/wave track, XP bar, salvage, boss bar, loadout strip, hull/shield bars and ability buttons.
 import { G } from '@last-orbit/core/game.js';
-import { fmt } from '@last-orbit/core/format.js';
+import { fmt, fmtInt } from '@last-orbit/core/format.js';
 import { sectorOf } from '@last-orbit/data/sectors.js';
 import { waveKind } from '@last-orbit/combat/waves.js';
 import { ABILITIES } from '@last-orbit/data/abilities.js';
@@ -19,13 +19,13 @@ export function createHud(hooks) {
   $.pause = h('button.icon-btn', { 'aria-label': 'Pause', onclick: (e) => { e.currentTarget.blur(); hooks.pause(); } }, uiIcon('pause'));
   $.sector = h('div.sector-name'); $.waveN = h('b'); $.pips = h('div.pips', { 'aria-hidden': 'true' });
   $.salvage = h('span');
-  $.level = h('b'); $.xp = h('i');
+  $.level = h('b'); $.xp = h('i'); $.score = h('b');
   $.bossName = h('span'); $.bossHp = h('i'); $.boss = h('div.bossbar', { hidden: true }, h('div.boss-label', art('relic:r_giant', 'boss-ico'), $.bossName), h('div.meter.boss', $.bossHp));
   const top = h('div#hud',
     h('div.hud-top', $.pause,
       h('div.wave-block', $.sector, h('div.wave-line', h('small', 'WAVE'), $.waveN, $.pips)),
       h('div.chip.salvage', { title: 'Salvage collected this sortie' }, art('cur:salvage', 'cur-ico'), $.salvage)),
-    h('div.xp-row', h('div.lv', h('small', 'LV'), $.level), h('div.meter.xp', $.xp)),
+    h('div.xp-row', h('div.lv', h('small', 'LV'), $.level), h('div.meter.xp', $.xp), h('div.hud-score', h('small', 'SCORE'), $.score)),
     $.boss);
 
   $.loadout = h('div.loadout');
@@ -50,9 +50,9 @@ export function createHud(hooks) {
     const sig = run.order.map((id) => id + run.weapons[id]).join() + '|' + run.relics.join(); if (sig === loadSig) return; loadSig = sig; clear($.loadout);
     for (const id of run.order) {
       const r = run.weapons[id], pips = h('span.rank', { 'aria-hidden': 'true' }); for (let i = 1; i <= BAL.maxRank; i++) pips.append(h('i' + (i <= r ? '.on' : '')));
-      $.loadout.append(h('div.gun', { title: `${WEAPONS[id].name} rank ${r}`, style: `--c:#${WEAPONS[id].color.toString(16).padStart(6, '0')}` }, art('weapon:' + id, 'gun-icon'), pips));
+      $.loadout.append(h('div.gun', { 'data-key': 'weapon:' + id, title: `${WEAPONS[id].name} rank ${r}`, style: `--c:#${WEAPONS[id].color.toString(16).padStart(6, '0')}` }, art('weapon:' + id, 'gun-icon'), pips));
     }
-    for (const id of run.relics) $.loadout.append(h('div.relic-mini', { title: RELIC_BY_ID[id].name }, art('relic:' + id, 'gun-icon')));
+    for (const id of run.relics) $.loadout.append(h('div.relic-mini', { 'data-key': 'relic:' + id, title: RELIC_BY_ID[id].name }, art('relic:' + id, 'gun-icon')));
   }
   function buildAbilities(run) {
     const sig = run.abilities.join(); if (sig === abilSig) return; abilSig = sig; clear($.abil);
@@ -71,6 +71,7 @@ export function createHud(hooks) {
     const cur = sec.n - 1, cleared = w.wave.state === 'cleared';
     const pips = $.pips.children; for (let i = 0; i < pips.length; i++) { setClass(pips[i], 'done', i < cur || (i === cur && cleared)); setClass(pips[i], 'now', i === cur && !cleared); }
     setText($.salvage, fmt(Math.floor(run.salvage)));
+    setText($.score, fmtInt(run.score || 0)); setClass($.score, 'hot', !!run.beatBest);
     setText($.level, String(run.level)); setWidth($.xp, xpProgress(run));
     const p = w.player; setWidth($.hull, p.hull); setText($.hullTxt, Math.max(0, Math.round(p.hull * 100)) + '%'); setClass($.hull.parentNode, 'low', p.hull < 0.3);
     const hasShield = !!w.base.hasShield; setClass($.shieldRow, 'off', !hasShield); if (hasShield) { setWidth($.shield, p.shield); setText($.shieldTxt, Math.round(p.shield * 100) + '%'); }
@@ -86,5 +87,10 @@ export function createHud(hooks) {
     hintT += dt; setClass($.hint, 'on', G.state.stats.sorties <= 2 && run.wave <= 2 && hintT < 14 && w.wave.state !== 'dead' && !hooks.blocking?.());
   }
   function reset() { pipSig = loadSig = abilSig = ''; hintT = 0; for (const k in abilBtns) delete abilBtns[k]; }
-  return { el, top, dock, update, reset };
+  /** The loadout icon under a screen point (a tap there explains the loadout), padded to be easy to hit. */
+  function loadoutAt(x, y) {
+    for (const c of $.loadout.children) { const r = c.getBoundingClientRect(); if (x >= r.left - 4 && x <= r.right + 4 && y >= r.top - 8 && y <= r.bottom + 8) return c.dataset.key || null; }
+    return null;
+  }
+  return { el, top, dock, update, reset, loadoutAt };
 }

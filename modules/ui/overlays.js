@@ -1,13 +1,15 @@
 // Full-screen moments that pause combat: level-up cards, relic choice, pause/settings and the sortie debrief.
 import { G } from '@last-orbit/core/game.js';
 import { fmt, fmtInt, fmtTime } from '@last-orbit/core/format.js';
-import { RARITY } from '@last-orbit/data/cards.js';
+import { RARITY, MOD_BY_ID } from '@last-orbit/data/cards.js';
+import { ABILITIES } from '@last-orbit/data/abilities.js';
+import { ACHIEVEMENTS, FEATS, TIERS } from '@last-orbit/data/achievements.js';
 import { RELIC_BY_ID } from '@last-orbit/data/relics.js';
 import { WEAPONS } from '@last-orbit/data/weapons.js';
 import { SHIP_BY_ID } from '@last-orbit/data/ships.js';
 import { CONTRACT_BY_ID } from '@last-orbit/data/contracts.js';
 import { describeCard, pickCard, reroll, pickRelic } from '@last-orbit/progression/run.js';
-import { unlockLabel, pilotProgress } from '@last-orbit/progression/meta.js';
+import { unlockLabel, pilotProgress, medalDesc } from '@last-orbit/progression/meta.js';
 import { PAINT_BY_ID, rankTitle } from '@last-orbit/data/career.js';
 import { THREATS } from '@last-orbit/data/threat.js';
 import { MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
@@ -83,11 +85,35 @@ export function createOverlays(layer, hooks) {
     const run = G.state.run; if (!run) return;
     const el = h('div.modal.pause', { role: 'dialog', 'aria-label': 'Paused' },
       h('div.modal-head', h('div.kicker', `Wave ${run.wave} · Level ${run.level}`), h('h2', 'Paused')),
-      buildSummary(run),
+      h('button.build.build-open', { onclick: () => showLoadout(null, true), 'aria-label': 'Show loadout details' }, [...buildSummary(run).childNodes], h('span.build-more', 'Details', uiIcon('chevron'))),
       h('div.modal-actions', h('button.btn.primary', { onclick: close, 'data-autofocus': '' }, uiIcon('play'), 'Resume'),
         h('button.btn.ghost', { onclick: () => showSettings(true) }, uiIcon('gear'), 'Settings'),
         h('button.btn.danger', { onclick: () => confirmAbandon() }, 'Abandon sortie')));
     mount('pause', el, (e) => { if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') { close(); return true; } return false; });
+  }
+  // ------------------------------------------------------------ loadout: everything active this sortie, explained
+  /** focus: an art key such as 'weapon:laser' to scroll to and highlight. */
+  function showLoadout(focus, fromPause) {
+    const run = G.state.run; if (!run) return;
+    const hex = (n) => '#' + n.toString(16).padStart(6, '0');
+    const row = (key, color, title, tag, body) => h('div.lo-row' + (key === focus ? '.focus' : ''), { style: `--c:${color}`, 'data-key': key }, art(key, 'lo-icon'), h('div.lo-main', h('div.lo-title', h('b', title), tag ? h('span', tag) : null), h('p', body)));
+    const section = (title, rows) => rows.length ? [h('h3.lo-h', title), h('div.lo-list', rows)] : [];
+    const weapons = run.order.map((id) => {
+      const d = WEAPONS[id], r = run.weapons[id], evos = d.evo.slice(0, r - 1);
+      return row('weapon:' + id, hex(d.color), d.name, `Rank ${r}/${d.evo.length + 1}`, d.desc + (evos.length ? ' Evolved: ' + evos.map((e) => e.name).join(', ') + '.' : ''));
+    });
+    const abilities = run.abilities.map((id, i) => row('ability:' + id, ABILITIES[id].color, ABILITIES[id].name, 'Button ' + (i + 1), ABILITIES[id].desc));
+    const relics = run.relics.map((id) => row('relic:' + id, '#b69cff', RELIC_BY_ID[id].name, 'Relic', RELIC_BY_ID[id].desc));
+    const mods = Object.entries(run.cards).filter(([, n]) => n > 0).map(([id, n]) => { const m = MOD_BY_ID[id]; return row('mod:' + id, RARITY[m.rarity].color, m.name, m.max > 1 ? `×${n}` : 'Unique', m.desc); });
+    const rules = [];
+    if (run.mutator) rules.push(row('relic:r_phoenix', '#ffc857', 'Daily: ' + MUTATOR_BY_ID[run.mutator].name, 'Today', MUTATOR_BY_ID[run.mutator].desc));
+    for (let t = 1; t <= (run.threat || 0); t++) rules.push(row('relic:r_giant', '#ff5f7a', 'Threat ' + THREATS[t].roman, null, THREATS[t].rule + '.'));
+    const el = h('div.modal.loadout-sheet', { role: 'dialog', 'aria-label': 'Loadout' },
+      h('div.modal-head', h('div.kicker', `Wave ${run.wave} · Level ${run.level}`), h('h2', 'Loadout'), h('p', 'Everything working for (and against) you this sortie.')),
+      ...section('Weapons', weapons), ...section('Abilities', abilities), ...section('Relics', relics), ...section(`Upgrades (${mods.length})`, mods), ...section('Conditions', rules),
+      h('div.modal-actions', fromPause ? h('button.btn.ghost', { onclick: showPause }, uiIcon('back'), 'Back') : null, h('button.btn.primary', { onclick: close, 'data-autofocus': '' }, uiIcon('play'), 'Resume')));
+    mount('loadout', el, (e) => { if (e.key === 'Escape') { if (fromPause) showPause(); else close(); return true; } return false; });
+    if (focus) setTimeout(() => el.querySelector('.lo-row.focus')?.scrollIntoView({ block: 'center' }), 80);
   }
   function buildSummary(run) {
     return h('div.build', run.order.map((id) => h('div.build-item', { style: `--c:#${WEAPONS[id].color.toString(16).padStart(6, '0')}` }, art('weapon:' + id, 'build-icon'), h('span', `${WEAPONS[id].name}`), h('b', 'R' + run.weapons[id]))),
@@ -120,14 +146,17 @@ export function createOverlays(layer, hooks) {
     const salvageEl = h('b.count', '0');
     const done = s.contracts.map((id) => CONTRACT_BY_ID[id]);
     const el = h('div.modal.debrief', { role: 'dialog', 'aria-label': 'Sortie debrief' },
-      h('div.modal-head', h('div.kicker', `${ship.name} · Sector ${s.sector} · ${s.sectorName}` + (s.threat ? ` · Threat ${THREATS[s.threat].roman}` : '') + (s.mutator ? ` · Daily: ${MUTATOR_BY_ID[s.mutator].name}` : '')), h('h2', win), s.best && s.wave > 1 ? h('div.pb', 'New best wave') : null),
+      h('div.modal-head', h('div.kicker', `${ship.name} · Sector ${s.sector} · ${s.sectorName}` + (s.threat ? ` · Threat ${THREATS[s.threat].roman}` : '') + (s.mutator ? ` · Daily: ${MUTATOR_BY_ID[s.mutator].name}` : '')), h('h2', win), h('div.pbs', s.highScore ? h('div.pb', 'New high score') : null, s.best && s.wave > 1 ? h('div.pb', 'New best wave') : null)),
       h('div.hero-row', h('div.big-wave', h('small', 'Wave'), h('b', String(s.wave))), h('div.earned', h('small', 'Salvage banked'), h('div', art('cur:salvage', 'cur-ico'), salvageEl))),
+      h('div.score-row', h('small', 'Score'), h('b', fmtInt(s.score || 0)), s.place ? h('span', `#${s.place} of your top 10`) : s.prevScore ? h('span', `Best ${fmtInt(s.prevScore)}`) : null),
       h('div.stat-grid', stat('Level', s.level), stat('Kills', fmtInt(s.kills)), stat('Bosses', s.bosses), stat('Time', fmtTime(s.time))),
       s.daily ? h('div.earned.daily-earned', h('small', `Daily bonus · ${s.daily.streak}-day streak`), h('div', art('cur:salvage', 'cur-ico'), '+' + fmtInt(s.daily.bonus))) : null,
       s.mastery ? h('div.pilot-row.mastery-row', h('span', `${SHIP_BY_ID[s.ship].name} mastery ${s.mastery.to}` + (s.mastery.to > s.mastery.from ? ' · level up!' : '')), h('b', '+' + s.mastery.gained)) : null,
       s.pilot ? h('div.pilot-xp', h('div.pilot-row', h('span', s.pilot.to > s.pilot.from ? `Rank up! ${rankTitle(s.pilot.to)} · Rank ${s.pilot.to}` : `Pilot rank ${s.pilot.to}`), h('b', '+' + fmtInt(s.pilot.gained) + ' XP')),
         h('div.meter.rank', h('i', { style: `width:${(pilotProgress() * 100).toFixed(1)}%` })),
         s.pilot.rewards.length ? h('div.rank-rewards', s.pilot.rewards.map((r) => h('span.reward' + (r.paint ? '.paint' : ''), r.paint ? `${PAINT_BY_ID[r.paint].name} paint unlocked` : [art('cur:salvage', 'cur-ico'), '+' + fmtInt(r.salvage)]))) : null) : null,
+      s.medals?.length ? h('div.unlocks.medals', h('div.kicker', `Achievements earned (${s.medals.length})`), s.medals.map((m) => { const a = ACHIEVEMENTS.find((x) => x.id === m.id) || FEATS.find((x) => x.id === m.id), tier = a.goals ? TIERS[m.tier].id : 'feat';
+        return h('div.unlock', h('span.medal-frame.sm.tier-' + tier, art(a.art, 'medal-ico')), h('b', a.name), h('small', `${a.goals ? TIERS[m.tier].name : 'Feat'} · ${medalDesc(a, m.tier)} · +${m.xp} XP`)); })) : null,
       done.length ? h('div.unlocks', h('div.kicker', `Contracts complete (${done.length})`), done.map((c) => h('div.unlock', uiIcon('check'), h('b', c.name), h('small', `+${c.salvage} salvage` + (c.unlock ? ' · ' + unlockLabel(c.unlock) : ''))))) : null,
       h('div.build', s.weapons.map(([id, r]) => h('div.build-item', { style: `--c:#${WEAPONS[id].color.toString(16).padStart(6, '0')}` }, art('weapon:' + id, 'build-icon'), h('span', WEAPONS[id].name), h('b', 'R' + r))), s.relics.map((id) => h('div.build-item.relic', art('relic:' + id, 'build-icon'), h('span', RELIC_BY_ID[id].name)))),
       h('div.modal-actions', h('button.btn.primary', { onclick: () => { close(); hooks.launch(); }, 'data-autofocus': '' }, uiIcon('launch'), s.daily ? 'Launch a sortie' : 'Launch again'),
@@ -147,7 +176,7 @@ export function createOverlays(layer, hooks) {
   };
 
   return {
-    showOffer, showRelics, showPause, showSettings, showDebrief, close,
+    showOffer, showRelics, showPause, showSettings, showDebrief, showLoadout, close,
     get kind() { return open?.kind || null; },
     /** Combat freezes while any overlay is up. */
     blocking: () => !!open,

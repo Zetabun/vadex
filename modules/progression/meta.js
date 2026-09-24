@@ -9,13 +9,14 @@ import { ABILITIES } from '@last-orbit/data/abilities.js';
 import { MAX_RANK, rankNeed, rankReward, PAINT_BY_ID, PAINTS, MAX_MASTERY, masteryNeed } from '@last-orbit/data/career.js';
 import { MAX_THREAT, THREAT_UNLOCK_SECTOR } from '@last-orbit/data/threat.js';
 import { dayKey, dailyFor } from '@last-orbit/data/daily.js';
+import { ACHIEVEMENTS, FEATS, TIERS, FEAT_XP, MEDAL_COUNT } from '@last-orbit/data/achievements.js';
 
 // ---------------------------------------------------------------- workshop
 export const workshopLevel = (id) => G.state.workshop[id] || 0;
 export function workshopNext(id) { const d = WORKSHOP_BY_ID[id], l = workshopLevel(id); return l >= d.max ? null : workshopCost(d, l); }
 export function buyWorkshop(id) {
   const cost = workshopNext(id); if (cost == null || G.state.salvage < cost) return false;
-  G.state.salvage -= cost; G.state.workshop[id] = workshopLevel(id) + 1; recalc(); bus.emit('bought', 'workshop', id); return true;
+  G.state.salvage -= cost; G.state.workshop[id] = workshopLevel(id) + 1; recalc(); checkAchievements(); bus.emit('bought', 'workshop', id); return true;
 }
 
 // ---------------------------------------------------------------- ships
@@ -47,7 +48,7 @@ export function unlockLabel(u) {
   return '';
 }
 /** Complete every contract whose goal is met. Rewards are banked immediately. Returns newly completed ids. */
-export function checkContracts({ silent = false } = {}) {
+export function checkContracts({ silent = false, medals = true } = {}) {
   const st = G.state, done = [];
   for (const c of CONTRACTS) {
     if (st.contracts[c.id] || (Number(st.stats[c.stat]) || 0) < c.goal) continue;
@@ -59,6 +60,7 @@ export function checkContracts({ silent = false } = {}) {
     if (!silent) bus.emit('notice', { kind: 'unlock', kicker: 'Contract complete', title: c.name, salvage: c.salvage, sub: u ? unlockLabel(u) + (u.ship ? ' available in Ships' : ' unlocked') : '', art: u?.weapon ? 'weapon:' + u.weapon : u?.ability ? 'ability:' + u.ability : u?.ship ? 'ship:' + u.ship : 'cur:salvage', paint: u?.paint });
     bus.emit('contract', c.id);
   }
+  if (medals) checkAchievements({ silent });
   return done;
 }
 export const contractById = (id) => CONTRACT_BY_ID[id];
@@ -106,4 +108,34 @@ export function addMastery(ship, amount) {
   if (m.level >= MAX_MASTERY) { m.xp = 0; const paint = PAINTS.find((p) => p.ship === ship); if (paint) G.state.paints[paint.id] ||= Date.now(); }
   const s = G.state.stats; if (!(s.maxMastery >= m.level)) s.maxMastery = m.level;
   return { ship, gained, from, to: m.level, rewards };
+}
+
+// ---------------------------------------------------------------- achievements
+export const medalsOf = (id) => G.state.medals[id] || 0;
+/** Progress towards an achievement's next tier (or a feat). */
+export function medalProgress(a) {
+  const v = Number(a.get(G.state)) || 0, goals = a.goals || [a.goal], got = medalsOf(a.id), goal = goals[Math.min(got, goals.length - 1)];
+  return { cur: Math.min(v, goal), goal, frac: Math.min(1, v / goal), tiers: got, max: goals.length, done: got >= goals.length };
+}
+export const medalTotal = () => { let n = 0; for (const a of ACHIEVEMENTS) n += medalsOf(a.id); for (const f of FEATS) n += medalsOf(f.id); return { earned: n, total: MEDAL_COUNT }; };
+/** Award every medal whose goal is met. Pilot XP is paid at once in the hangar, or with the debrief during a sortie.
+ *  pay: false leaves paying the XP to the caller (the debrief). Returns [{ id, tier, xp }]. */
+export function checkAchievements({ silent = false, pay = true } = {}) {
+  const st = G.state, out = [];
+  const award = (a, tier, xp) => {
+    st.medals[a.id] = tier + 1; out.push({ id: a.id, tier, xp });
+    if (st.run) { st.run.medalXp = (st.run.medalXp || 0) + xp; (st.run.medalsDone ||= []).push({ id: a.id, tier, xp }); } else if (pay) addPilotXp(xp);
+    if (!silent) bus.emit('notice', { kind: 'medal', kicker: a.goals ? `${TIERS[tier].name} medal` : 'Feat', title: a.name, sub: medalDesc(a, tier), art: a.art, tier: a.goals ? TIERS[tier].id : 'feat', xp });
+  };
+  for (const a of ACHIEVEMENTS) { const v = Number(a.get(st)) || 0; for (let t = medalsOf(a.id); t < a.goals.length && v >= a.goals[t]; t = medalsOf(a.id)) award(a, t, TIERS[t].xp); }
+  for (const f of FEATS) if (!medalsOf(f.id) && (Number(f.get(st)) || 0) >= f.goal) award(f, 0, FEAT_XP);
+  if (out.length) bus.emit('medal', out);
+  return out;
+}
+const ROMAN = ['0', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+/** Description of a medal tier with its goal filled in. */
+export function medalDesc(a, tier = 0) {
+  if (!a.goals) return a.desc;
+  const g = a.goals[Math.min(tier, a.goals.length - 1)];
+  return a.desc.replace('{n}', a.roman ? ROMAN[g] : g.toLocaleString('en-GB'));
 }

@@ -6,6 +6,7 @@ import { rand } from '@last-orbit/core/rng.js';
 import { BAL, FIELD, enemyHp, enemyDmg, salvageDrop, killXp } from '@last-orbit/data/balance.js';
 import { ENEMIES } from '@last-orbit/data/enemies.js';
 import { spawnPickup } from '@last-orbit/combat/pickups.js';
+import { addScore, killScore } from '@last-orbit/data/score.js';
 
 let nextId = 1;
 export function createWorld() {
@@ -23,6 +24,11 @@ export function createWorld() {
 
 // ---------- fx queue (renderer + audio consume; capped so headless runs never grow) ----------
 export function fx(w, k, a, b, c, d, e, f, g) { if (w.fx.length < 260) w.fx.push({ k, a, b, c, d, e, f, g }); }
+/** Add to the sortie score; the first time it passes the pilot's high score, celebrate. */
+export function score(w, pts) {
+  const run = G.state.run; if (!run || !(pts > 0)) return;
+  if (addScore(run, pts)) { fx(w, 'text', 0, 60, 'NEW HIGH SCORE', '#ffc857', 2); sfx(w, 'milestone'); bus.emit('highScore', run.score); }
+}
 export const sfx = (w, id, vol) => fx(w, 'sfx', id, vol);
 
 export function setWaveBase(w, waveNum, sectorIdx) {
@@ -142,7 +148,7 @@ export function killEnemy(w, e, src, crit, over) {
   const hadStreak = p.combo > BAL.comboStep * 0.5;
   p.combo = Math.min(sh.n('comboMax'), p.combo + BAL.comboStep); p.comboT = BAL.comboWindow;
   if (hadStreak) bus.emit('streakActive', p.combo);
-  if (e.rewardMul > 0 && !e.parent) dropLoot(w, e);
+  if (e.rewardMul > 0 && !e.parent) { dropLoot(w, e); score(w, killScore(e, w.base.wave || 1)); }
   if (src?.energyOnKill) p.energy = Math.min(sh.n('energyCap'), p.energy + src.energyOnKill);
   fx(w, 'die', e.x, e.y, e.r * e.scale, e.color, e.boss ? 2 : e.elite ? 1 : 0); sfx(w, e.boss ? 'bossdie' : 'die', Math.min(1, e.r / 5));
   if (e.boss || e.elite) fx(w, 'shake', e.boss ? 1 : 0.35);

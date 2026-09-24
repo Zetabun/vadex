@@ -95,6 +95,14 @@ const P = {
   revenant: `<path class="b" d="M32 28L52 58l-20-10-20 10z"/><rect class="a" x="23" y="2" width="6" height="44" rx="2"/><rect class="a" x="35" y="2" width="6" height="44" rx="2"/><path class="a" d="M22 30h20v20l-10 6-10-6z"/><path class="w" d="M31 4h2v30h-2z"/><path class="f" d="M28 56h8l-4 7z"/>`,
 
   // ------------------------------------------------------------------ currencies
+  // ------------------------------------------------------------------ achievements and records
+  star: `<path class="a" d="M32 4l8.2 17.4 18.8 2.3-13.8 13 3.6 18.8L32 46.3l-16.8 9.2 3.6-18.8-13.8-13 18.8-2.3z"/><path class="b" d="M32 17l4.3 9.2 10 1.2-7.3 6.9 1.9 9.9L32 39.4l-8.9 4.8 1.9-9.9-7.3-6.9 10-1.2z"/><path class="k" d="M24 14l4-8" opacity=".8"/>`,
+  flag: `<rect class="b" x="10" y="4" width="6" height="56" rx="2"/><path class="a" d="M16 8h36l-8 12 8 12H16z"/><path class="c" d="M22 12h7v7h-7zM29 19h7v7h-7zM36 12h7v7h-7zM22 26h7v4h-7z"/><circle class="w" cx="13" cy="5" r="4"/>`,
+  calendar: `<rect class="b" x="8" y="12" width="48" height="46" rx="6"/><rect class="a" x="8" y="12" width="48" height="13" rx="5"/><path class="c" d="M18 5h6v13h-6zM40 5h6v13h-6z"/><path class="w" d="M16 31h8v7h-8zM28 31h8v7h-8zM40 31h8v7h-8zM16 43h8v7h-8zM28 43h8v7h-8z"/><path class="f" d="M40 43h8v7h-8z"/>`,
+  flame: `<path class="r" d="M32 61c-13 0-21-9-21-20 0-12 9-17 11-30 6 5 8 11 8 16 3-5 5-11 3-23 12 8 22 22 22 37 0 11-9 20-23 20z"/><path class="f" d="M32 61c-7 0-11-5-11-11 0-6 5-9 7-15 3 4 4 7 4 10 2-3 3-6 2-10 6 4 10 10 10 16 0 6-5 10-12 10z"/><path class="w" d="M32 61c-3 0-5-2-5-5s2-5 4-8c2 3 6 5 6 8s-2 5-5 5z" opacity=".9"/>`,
+  wrench: `<path class="a" d="M47 5a14 14 0 0 0-14 18L7 49a5 5 0 0 0 0 7l1 1a5 5 0 0 0 7 0l26-26a14 14 0 0 0 18-14l-8 8-8-2-2-8z"/><circle class="c" cx="11.5" cy="52.5" r="2.5"/><path class="t" d="M20 44l12-12" opacity=".7"/>`,
+  brush: `<path class="b" d="M41 5l18 18-20 17-15-15z"/><path class="c" d="M24 25l15 15-5 5-15-15z"/><path class="a" d="M19 30l15 15c-2 9-10 15-21 15H5c4-3 4-8 4-12 0-10 4-16 10-18z"/><path class="k" d="M48 12l-8 8" opacity=".6"/>`,
+  trophy: `<path class="t" d="M17 12H7c0 11 5 18 12 19M47 12h10c0 11-5 18-12 19"/><path class="a" d="M15 6h34v14c0 12-8 21-17 21S15 32 15 20z"/><rect class="b" x="27" y="40" width="10" height="9"/><rect class="b" x="17" y="49" width="30" height="10" rx="2"/><path class="k" d="M23 12v9" opacity=".75"/><path class="c" d="M26 53h12v2H26z"/>`,
   salvage: `<path class="a" d="M32 4l24 14v28L32 60 8 46V18z"/><path class="b" d="M32 14l15 9v18l-15 9-15-9V23z"/><circle class="c" cx="32" cy="32" r="8"/><path class="w" d="M14 19l18-10" style="fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round;opacity:.75"/>`,
   xp: `<path class="a" d="M32 3l20 17-20 41L12 20z"/><path class="b" d="M12 20h40L32 61z"/><path class="w" d="M32 3l6 17H26z" opacity=".8"/>`,
 };
@@ -133,6 +141,10 @@ export const ART = {
   // ships
   'ship:vanguard': C('vanguard', '#dbe7f5', '#5ee6ff'), 'ship:striker': C('striker', '#e9dcf5', '#ff6bff'), 'ship:bulwark': C('bulwark', '#e2e6ee', '#ffb547'),
   'ship:tempest': C('tempest', '#dcdcf5', '#b69cff'), 'ship:revenant': C('revenant', '#eadfe3', '#ff4d7a'),
+  // achievements and records
+  'ach:star': C('star', '#ffc857', '#ff8a3d'), 'ach:flag': C('flag', '#5ee6ff', '#8e9bb8'), 'ach:calendar': C('calendar', '#ff9ec7', '#26304f'),
+  'ach:flame': C('flame', '#ff8a3d', '#ffd166'), 'ach:wrench': C('wrench', '#c9d2e8', '#8e9bb8'), 'ach:brush': C('brush', '#ff5fa2', '#c9d2e8'),
+  'ach:trophy': C('trophy', '#ffc857', '#b0782a'),
   // currencies and supplies
   'cur:salvage': C('salvage', '#ffc857', '#e89a2c'), 'cur:xp': C('xp', UTL, '#2fae8a'),
   'supply:heal': C('nanites', '#6dff8e', '#c3ffd2'), 'supply:cash': C('crate', '#ffc857', '#b0782a'),

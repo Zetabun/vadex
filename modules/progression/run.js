@@ -10,7 +10,8 @@ import { ABILITIES, ABILITY_ORDER } from '@last-orbit/data/abilities.js';
 import { MODS, MOD_BY_ID, RARITY } from '@last-orbit/data/cards.js';
 import { RELICS, RELIC_BY_ID } from '@last-orbit/data/relics.js';
 import { SHIP_BY_ID } from '@last-orbit/data/ships.js';
-import { checkContracts, addPilotXp, threatMax, dailyToday, addMastery } from '@last-orbit/progression/meta.js';
+import { checkContracts, checkAchievements, addPilotXp, threatMax, dailyToday, addMastery } from '@last-orbit/progression/meta.js';
+import { TOP_N } from '@last-orbit/data/score.js';
 import { sortiePilotXp } from '@last-orbit/data/career.js';
 import { threatPilotXp } from '@last-orbit/data/threat.js';
 import { MUTATOR_BY_ID, prevDayKey, dailyBonus } from '@last-orbit/data/daily.js';
@@ -21,7 +22,7 @@ export function startSortie(opts = {}) {
   // A Daily Sortie uses the day's shared seed and mutator, at no threat. It can be flown once a day.
   const daily = opts.daily ? dailyToday() : null;
   if (daily && daily.done) return null;
-  st.run = newRun(ship, { ...opts, seed: daily ? daily.seed : opts.seed }); st.run.prevBest = st.stats.bestWave || 0; G.mode = 'sortie';
+  st.run = newRun(ship, { ...opts, seed: daily ? daily.seed : opts.seed }); st.run.prevBest = st.stats.bestWave || 0; st.run.prevScore = st.stats.bestScore || 0; G.mode = 'sortie';
   const run = st.run;
   run.threat = daily ? 0 : Math.max(0, Math.min(threatMax(), st.threat || 0));
   if (daily) { run.daily = daily.key; run.mutator = daily.mutator.id; st.daily.done = true; }
@@ -48,18 +49,42 @@ export function endSortie(reason = 'destroyed') {
   };
   st.run = null; G.mode = 'hangar';
   summary.threat = run.threat || 0; summary.mutator = run.mutator || null;
+  Object.assign(summary, recordSortie(st, run, summary));
   if (run.daily) {
     const d = st.daily; d.streak = d.lastDay === prevDayKey(run.daily) ? d.streak + 1 : d.lastDay === run.daily ? d.streak : 1; d.lastDay = run.daily;
     d.wave = reached; d.best = Math.max(d.best || 0, reached); count('dailies'); maxStat('bestStreak', d.streak);
     const bonus = dailyBonus(reached, d.streak); st.salvage += bonus; summary.daily = { bonus, streak: d.streak };
   }
   summary.mastery = addMastery(run.ship, reached);
-  summary.pilot = addPilotXp(sortiePilotXp({ xpTotal: run.xpTotal, wave: reached, bosses: summary.bosses }) * threatPilotXp(summary.threat) * (run.daily ? 2 : 1));
   // Contracts finished mid-sortie were announced as they happened; the debrief lists them all.
-  summary.contracts = (run.contractsDone || []).concat(checkContracts({ silent: true }));
-  st.history.unshift({ wave: summary.wave, level: summary.level, ship: summary.ship, salvage: banked, time: summary.time, date: summary.date }); st.history.length = Math.min(st.history.length, 12);
+  summary.contracts = (run.contractsDone || []).concat(checkContracts({ silent: true, medals: false }));
+  // Medals earned during the sortie, and those its records just earned, pay their pilot XP with the sortie's own.
+  // Rank-ups can unlock paint jobs, which can earn further medals: keep paying until nothing new is earned.
+  let medals = checkAchievements({ silent: true, pay: false });
+  const sum = (list) => list.reduce((n, m) => n + m.xp, 0);
+  summary.pilot = addPilotXp(sortiePilotXp({ xpTotal: run.xpTotal, wave: reached, bosses: summary.bosses }) * threatPilotXp(summary.threat) * (run.daily ? 2 : 1) + (run.medalXp || 0) + sum(medals));
+  for (let more; (more = checkAchievements({ silent: true, pay: false })).length;) {
+    medals = medals.concat(more); const g = addPilotXp(sum(more));
+    summary.pilot.gained += g.gained; summary.pilot.to = g.to; summary.pilot.rewards.push(...g.rewards);
+  }
+  summary.medals = (run.medalsDone || []).concat(medals);
+  st.history.unshift({ score: summary.score, wave: summary.wave, level: summary.level, ship: summary.ship, salvage: banked, time: summary.time, date: summary.date }); st.history.length = Math.min(st.history.length, 12);
   recalc(); bus.emit('sortieEnded', summary);
   return summary;
+}
+
+/** File a finished sortie in the records: personal bests, the top 10 by score and the ship's best. */
+function recordSortie(st, run, s) {
+  const score = Math.round(run.score || 0), rec = st.records;
+  const prev = st.stats.bestScore || 0;
+  maxStat('bestScore', score); maxStat('bestKills', s.kills); maxStat('longestRun', s.time);
+  const entry = { score, wave: s.wave, ship: s.ship, level: s.level, kills: s.kills, threat: s.threat, daily: !!run.daily, date: s.date };
+  rec.top.push(entry); rec.top.sort((a, b) => b.score - a.score || a.date - b.date); rec.top.length = Math.min(rec.top.length, TOP_N);
+  const place = rec.top.indexOf(entry) + 1;
+  const sb = (rec.ships[s.ship] ||= { score: 0, wave: 0 }); sb.score = Math.max(sb.score, score); sb.wave = Math.max(sb.wave, s.wave);
+  const highScore = score > prev && score > 0;
+  if (highScore) st.seen.records = false;
+  return { score, place, highScore, prevScore: prev };
 }
 
 /** A saved sortie found at boot (closed or discarded tab) cannot be resumed: bank its salvage and drop it. */
@@ -146,7 +171,7 @@ export function pickCard(idx) {
   const p = G.world?.player;
   switch (c.kind) {
     case 'weapon': run.weapons[c.id] = 1; run.order.push(c.id); maxStat('maxWeapons', run.order.length); break;
-    case 'upgrade': run.weapons[c.id] = Math.min(BAL.maxRank, (run.weapons[c.id] || 1) + 1); maxStat('maxRank', run.weapons[c.id]); break;
+    case 'upgrade': run.weapons[c.id] = Math.min(BAL.maxRank, (run.weapons[c.id] || 1) + 1); maxStat('maxRank', run.weapons[c.id]); maxStat('maxedWeapons', run.order.filter((id) => run.weapons[id] >= BAL.maxRank).length); break;
     case 'ability': if (!run.abilities.includes(c.id)) run.abilities.push(c.id); break;
     case 'mod': { const m = MOD_BY_ID[c.id]; run.cards[c.id] = (run.cards[c.id] || 0) + 1; if (m.heal && p) p.hull = Math.min(1, p.hull + m.heal); break; }
     case 'heal': if (p) p.hull = Math.min(1, p.hull + 0.4); break;
@@ -175,7 +200,7 @@ export function nextRelic() {
 }
 export function pickRelic(idx) {
   const run = G.state.run, id = run?.relicOffer?.[idx]; if (!id) return null;
-  run.relics.push(id); run.relicOffer = null; recalc();
+  run.relics.push(id); run.relicOffer = null; recalc(); maxStat('maxRelics', run.relics.length);
   maxStat('maxDrones', Math.floor(G.sheet.n('drones')));
   bus.emit('relicPicked', id);
   return id;

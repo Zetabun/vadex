@@ -23,7 +23,7 @@ function adopt(state) {
   const recovered = recoverInterruptedRun(state);
   G.state = state;
   if (recovered > 0) setTimeout(() => toast(`Recovered ${recovered} salvage from your last sortie.`, 'good'), 600);
-  setNotation(state.settings.notation); recalc(); checkContracts(); initWorld(); applyVolumes();
+  setNotation(state.settings.notation); recalc(); checkContracts({ silent: true }); initWorld(); applyVolumes();
   if (renderer) { renderer.lastSector = -1; renderer.lookV = -1; renderer.setQuality(); }
 }
 
@@ -52,24 +52,45 @@ bus.on('levelUp', (lvl) => { if (G.mode !== 'sortie' || !G.world) return; if (le
 
 // ------------------------------------------------------------------ input
 function wireInput() {
-  let down = null; const inp = () => G.world.input;
+  const inp = () => G.world.input;
   const at = (e) => { const r = glCanvas.getBoundingClientRect(); return renderer.screenToWorld(e.clientX - r.left, e.clientY - r.top); };
+  const sideOf = (e) => { const r = glCanvas.getBoundingClientRect(); return e.clientX < r.left + r.width / 2 ? -1 : 1; };
   // Two touch schemes at once: hold the left or right half of the screen to fly that way, or drag to steer.
-  // A press starts as a hold; once the finger slides it becomes a relative drag. Short taps still mark targets.
+  // A press is a hold unless the finger sets off quickly (a swipe), which makes it a relative drag. A held finger that
+  // drifts keeps holding, following whichever half it is on. Every finger is tracked, and the newest one steers, so a
+  // second touch (an ability, a tap on an enemy) never cancels the first. Short taps mark targets or open the loadout.
   const holdOn = () => G.state.settings.holdSides !== false;
+  const touches = new Map(); let cur = null;
+  const steer = () => { const i = inp(); i.active = !!cur; i.hold = cur && !cur.drag ? cur.side : 0; };
   glCanvas.addEventListener('pointerdown', (e) => {
     initAudio(); if (G.mode !== 'sortie') return; e.preventDefault(); try { glCanvas.setPointerCapture(e.pointerId); } catch { /* not critical */ }
-    const r = glCanvas.getBoundingClientRect(), p = at(e), side = e.clientX < r.left + r.width / 2 ? -1 : 1;
-    down = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), sx: p.x, px: G.world.player.x, drag: !holdOn() };
-    const i = inp(); i.active = true; i.targetX = G.world.player.x; i.hold = down.drag ? 0 : side;
+    const p = at(e);
+    cur = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), sx: p.x, lx: p.x, px: G.world.player.x, drag: !holdOn(), side: sideOf(e) };
+    touches.set(e.pointerId, cur); inp().targetX = G.world.player.x; steer();
   });
   glCanvas.addEventListener('pointermove', (e) => {
-    if (!down || e.pointerId !== down.id) return; const i = inp(), p = at(e);
-    if (!down.drag && Math.abs(e.clientX - down.x) > 14) { down.drag = true; i.hold = 0; down.sx = p.x; down.px = G.world.player.x; }
-    if (down.drag) i.targetX = down.px + (p.x - down.sx) * 1.35;
+    const d = touches.get(e.pointerId); if (!d) return; const p = at(e); d.lx = p.x;
+    if (!d.drag) {
+      if (performance.now() - d.t < 200 && Math.abs(e.clientX - d.x) > 18) { d.drag = true; d.sx = p.x; d.px = G.world.player.x; }
+      else d.side = sideOf(e);
+    }
+    if (d === cur) { if (d.drag) inp().targetX = d.px + (p.x - d.sx) * 1.35; steer(); }
   });
-  const up = (e) => { if (!down || e.pointerId !== down.id) return; const i = inp(); i.active = false; i.hold = 0; if (performance.now() - down.t < 260 && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 12) { const p = at(e); if (p.y > FIELD.BARRIER_Y + 6) i.tap = p; } down = null; };
-  glCanvas.addEventListener('pointerup', up); glCanvas.addEventListener('pointercancel', up);
+  const up = (e) => {
+    const d = touches.get(e.pointerId); if (!d) return; touches.delete(e.pointerId);
+    if (e.type === 'pointerup' && performance.now() - d.t < 260 && Math.hypot(e.clientX - d.x, e.clientY - d.y) < 12) {
+      if (!ui.tapHud(e.clientX, e.clientY)) { const p = at(e); if (p.y > FIELD.BARRIER_Y + 6) inp().tap = p; }
+    }
+    if (d === cur) {
+      cur = [...touches.values()].pop() || null; // hand steering back to a finger still down
+      if (cur?.drag) { cur.sx = cur.lx; cur.px = G.world.player.x; inp().targetX = G.world.player.x; }
+    }
+    steer();
+  };
+  for (const ev of ['pointerup', 'pointercancel', 'lostpointercapture']) glCanvas.addEventListener(ev, up);
+  // Anything that interrupts the page drops every touch, so the ship never flies off on a finger lifted elsewhere.
+  const drop = () => { touches.clear(); cur = null; if (G.world) steer(); };
+  addEventListener('blur', drop); document.addEventListener('visibilitychange', drop);
   const keys = { l: false, r: false };
   addEventListener('keydown', (e) => {
     if (G.mode !== 'sortie' || ui.blocking() || e.target.closest?.('input,textarea,select')) return;

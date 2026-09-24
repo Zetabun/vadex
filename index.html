@@ -78,7 +78,7 @@ select{background:var(--solid);color:var(--ink);border:1px solid var(--line2);bo
 
 /* ---------- sortie HUD ---------- */
 #hud{position:absolute;left:0;right:0;top:0;padding:calc(var(--st) + 8px) 10px 10px;z-index:10;background:linear-gradient(180deg,rgba(3,5,18,.94) 0%,rgba(3,5,18,.7) 70%,transparent);pointer-events:none}
-#hud>*{pointer-events:auto}
+#hud>*{pointer-events:none}#hud .icon-btn{pointer-events:auto}
 .hud-top{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:10px}
 .wave-block{min-width:0}
 .sector-name{font:700 10.5px var(--cond);letter-spacing:.2em;text-transform:uppercase;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -100,7 +100,7 @@ select{background:var(--solid);color:var(--ink);border:1px solid var(--line2);bo
 .meter.boss{height:9px}.meter.boss>i{background:linear-gradient(90deg,#ff2d6a,#ff8aa8)}
 .bossbar.enraged{animation:enrage .5s infinite alternate}@keyframes enrage{to{border-color:#ff4d7a;box-shadow:0 0 18px rgba(255,77,122,.5)}}
 #dock{position:absolute;left:0;right:0;bottom:0;padding:18px 10px calc(var(--sb) + 10px);z-index:10;background:linear-gradient(0deg,rgba(3,5,18,.95) 0%,rgba(3,5,18,.72) 70%,transparent);pointer-events:none}
-#dock>*{pointer-events:auto}
+#dock>*{pointer-events:none}#dock .abil{pointer-events:auto}
 .loadout{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;min-height:36px;align-items:flex-end}
 .gun,.relic-mini{display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 5px 3px;border-radius:9px;background:rgba(255,255,255,.05);border:1px solid color-mix(in srgb,var(--c,#b69cff) 45%,transparent)}
 .relic-mini{--c:#b69cff;padding:4px}
@@ -227,7 +227,7 @@ select{background:var(--solid);color:var(--ink);border:1px solid var(--line2);bo
 .item-body{padding:0 14px 14px 64px;font:500 13.5px/1.45 var(--body);color:var(--dim)}
 .evos{margin:10px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
 .evos li{display:grid;grid-template-columns:30px auto;column-gap:8px}.evos .r{grid-row:1/3;font:700 12px var(--disp);color:var(--c)}.evos b{color:var(--ink);font-weight:600}.evos li span:last-child{grid-column:2;font-size:12.5px}
-.item.locked{border-left-color:var(--mute);opacity:.72}.item.locked .item-icon{filter:grayscale(1) brightness(.5)}
+.item.locked{border-left-color:var(--mute);opacity:.72}
 .ships{display:flex;flex-direction:column;gap:10px}
 .ship{padding:16px;border-radius:var(--r);background:var(--panel);border:1px solid var(--line);position:relative;overflow:hidden}
 .ship::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:var(--c);box-shadow:0 0 16px var(--c)}
@@ -238,7 +238,8 @@ select{background:var(--solid);color:var(--ink);border:1px solid var(--line2);bo
 .perks{margin:10px 0 14px;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
 .perks li{font:600 12px var(--body);padding:4px 9px;border-radius:999px;background:rgba(255,255,255,.06);border:1px solid var(--line)}.perks li.neg{color:#ffa3b8;border-color:rgba(255,77,122,.3)}
 .ship .btn{width:100%}
-.ship.locked{opacity:.75}.ship.locked .item-icon{filter:grayscale(1) brightness(.6)}
+.ship.locked{opacity:.75}
+.item.locked .art svg,.ship.locked .ship-icon svg,.ship-best.locked .art svg,.medal-frame.tier-none .art svg{--ic-a:#58627e!important;--ic-b:#3a4360!important;filter:none}
 .lock-note{display:flex;gap:8px;align-items:center;padding:12px;border-radius:10px;background:rgba(255,255,255,.04);font:600 13px var(--body);color:var(--dim)}.lock-note .ui-icon{width:18px;height:18px;color:var(--mute)}
 .contract{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:end;padding:12px 14px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}
 .contract.compact{background:rgba(255,255,255,.04);padding:10px 12px}
@@ -367,11 +368,61 @@ select{background:var(--solid);color:var(--ink);border:1px solid var(--line2);bo
 @media (prefers-reduced-motion:reduce){*{animation-duration:.01s!important;animation-iteration-count:1!important;transition-duration:.01s!important}}
 @media (max-width:360px){.brand b{font-size:18px;letter-spacing:.12em}.ship-head h1{font-size:26px}.chip.big{font-size:15px;padding:0 10px}.card{grid-template-columns:50px 1fr;gap:10px;padding:12px}.card-art{width:50px;height:50px}.card-icon{width:36px;height:36px}.card-title{font-size:17px}.nav-btn{font-size:9.5px}.abil{width:54px;height:54px}.bar-row{grid-template-columns:44px 1fr 34px}}
 @media (max-height:640px){.ship-stage{min-height:24vh}.launch-btn{min-height:58px}.card{padding:10px 12px}.card-body{font-size:12.5px}}
+
+/* ---- v2.3: score, loadout sheet, records, achievements ---- */
+.hud-score{display:flex;align-items:baseline;gap:4px;flex:none;font:700 13px var(--disp);font-variant-numeric:tabular-nums;color:var(--ink)}
+.hud-score small{font:700 9px var(--cond);letter-spacing:.18em;color:var(--mute)}
+.hud-score b.hot{color:var(--gold);text-shadow:0 0 10px rgba(255,200,87,.6)}
+.build-open{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center;width:100%;padding:8px;border-radius:14px;border:1px dashed var(--line2)}
+.build-more{display:inline-flex;align-items:center;gap:2px;font:700 11px var(--cond);letter-spacing:.16em;text-transform:uppercase;color:var(--cyan)}.build-more .ui-icon{width:14px;height:14px}
+.loadout-sheet .modal-head h2{color:var(--cyan);text-shadow:0 0 28px rgba(94,230,255,.45)}
+.lo-h{font:700 11px var(--cond);letter-spacing:.22em;text-transform:uppercase;color:var(--dim);margin:4px 2px -4px}
+.lo-list{display:flex;flex-direction:column;gap:6px}
+.lo-row{display:grid;grid-template-columns:36px 1fr;gap:10px;align-items:start;padding:9px 11px;border-radius:12px;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--c)}
+.lo-row.focus{border-color:var(--c);box-shadow:0 0 0 1px var(--c),0 0 18px color-mix(in srgb,var(--c) 35%,transparent)}
+.lo-icon{width:34px;height:34px}
+.lo-title{display:flex;justify-content:space-between;gap:8px;align-items:baseline}.lo-title b{font:700 14px var(--disp);letter-spacing:.03em}.lo-title span{font:700 11px var(--disp);color:var(--c);white-space:nowrap}
+.lo-main p{margin-top:2px;font:500 12.5px/1.4 var(--body);color:var(--dim)}
+.debrief .pbs{display:flex;gap:6px;justify-content:center;flex-wrap:wrap}
+.score-row{display:flex;align-items:baseline;justify-content:center;gap:10px;padding:8px 12px;border-radius:12px;background:rgba(255,200,87,.07);border:1px solid rgba(255,200,87,.22)}
+.score-row small{font:700 10px var(--cond);letter-spacing:.2em;text-transform:uppercase;color:var(--mute)}.score-row b{font:700 22px var(--disp);color:var(--gold);font-variant-numeric:tabular-nums}.score-row span{font:600 12px var(--body);color:var(--dim)}
+.tier-bronze{--m:#d9915a}.tier-silver{--m:#cfe0f2}.tier-gold{--m:#ffc857}.tier-feat{--m:#c77dff}.tier-none{--m:#3a4460}
+.medal-frame{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;background:radial-gradient(circle at 35% 30%,color-mix(in srgb,var(--m) 30%,transparent),rgba(8,12,34,.92) 72%);border:2px solid var(--m);box-shadow:0 0 12px color-mix(in srgb,var(--m) 35%,transparent)}
+.medal-frame.tier-none{box-shadow:none;background:rgba(255,255,255,.03)}
+.medal-ico{width:28px;height:28px}.medal-frame.sm{width:30px;height:30px;border-width:1.5px}.medal-frame.sm .medal-ico{width:19px;height:19px}
+.notice-art.medal-frame{border-radius:50%}
+.notice-reward.xp{color:#d6c6ff;gap:2px;align-items:baseline}.notice-reward.xp small{font:700 10px var(--cond);letter-spacing:.12em}
+.unlocks.medals .unlock{grid-template-columns:30px auto 1fr;background:rgba(255,200,87,.07);border-color:rgba(255,200,87,.25)}
+.aw-top{display:flex;justify-content:space-between;align-items:flex-end;gap:10px;margin-bottom:10px}
+.aw-count{display:block;font:700 34px/1 var(--disp);margin-top:4px}.aw-count small{font:700 16px var(--disp);color:var(--mute)}
+.aw-tally{display:flex;gap:12px}.tally{display:flex;flex-direction:column;align-items:center;gap:2px}.tally i{width:12px;height:12px;border-radius:50%;background:var(--m);box-shadow:0 0 8px var(--m)}.tally b{font:700 15px var(--disp)}.tally small{font:700 8.5px var(--cond);letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+.aw-note{display:block;margin-top:8px;font:500 12px var(--body);color:var(--dim)}
+.ach{display:grid;grid-template-columns:46px 1fr auto;gap:12px;align-items:center;padding:10px 12px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}
+.ach.done{border-color:rgba(255,200,87,.3)}.ach>.ui-icon{width:18px;height:18px;color:var(--green)}
+.ach-title{display:flex;align-items:center;gap:8px}.ach-title b{font:700 14.5px var(--disp);letter-spacing:.03em}
+.tier-pips{display:flex;gap:3px}.tier-pips i{width:8px;height:8px;border-radius:50%;border:1px solid var(--m);background:transparent;opacity:.55}.tier-pips i.on{background:var(--m);opacity:1;box-shadow:0 0 6px var(--m)}
+.ach-desc{font:500 12.5px/1.35 var(--body);color:var(--dim);margin-top:2px}
+.rec-main{display:flex;gap:14px;align-items:center}.rec-ico{width:58px;height:58px}
+.rec-score{display:block;font:700 34px/1.05 var(--disp);color:var(--gold);text-shadow:0 0 22px rgba(255,200,87,.35);font-variant-numeric:tabular-nums}
+.rec-main small{font:500 12.5px var(--body);color:var(--dim)}
+.rec-how{margin-top:10px;font:500 12.5px/1.4 var(--body);color:var(--dim)}
+.stat-grid.bests{margin-top:0}
+.leader{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.lead{display:grid;grid-template-columns:28px 1fr auto;gap:10px;align-items:center;padding:9px 12px;border-radius:12px;background:var(--panel);border:1px solid var(--line)}
+.lead.first{border-color:rgba(255,200,87,.45);background:linear-gradient(100deg,rgba(255,200,87,.1),var(--panel) 60%)}
+.lead-n{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 13px var(--disp);background:rgba(255,255,255,.06);color:var(--dim)}.lead.first .lead-n{background:var(--gold);color:#1a1204}
+.lead-main{min-width:0}.lead-main b{display:block;font:700 16px var(--disp);font-variant-numeric:tabular-nums}.lead-main small{display:block;font:500 12px var(--body);color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lead-tags{display:flex;flex-direction:column;align-items:flex-end;gap:3px}.lead-tags small{font:600 11px var(--body);color:var(--mute)}
+.tag{font:700 10px var(--cond);letter-spacing:.14em;text-transform:uppercase;padding:2px 7px;border-radius:999px}.tag-daily{background:rgba(255,158,199,.15);color:#ff9ec7}.tag-threat{background:rgba(255,95,122,.15);color:#ff9fb6}
+.ship-best{display:grid;grid-template-columns:40px 1fr auto;gap:12px;align-items:center;padding:10px 12px;border-radius:12px;background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--c)}
+.ship-best.locked{opacity:.55;border-left-color:var(--mute)}.ship-best .row-main b{display:block;font:700 15px var(--disp)}.ship-best .row-main small{font:500 12px var(--body);color:var(--dim)}
+.sb-score{font:700 16px var(--disp);color:var(--gold);font-variant-numeric:tabular-nums}
+button.stat-row{width:100%;text-align:left}
 </style>
 </head>
 <body>
 <div id="app"><canvas id="gl" tabindex="0" aria-label="Battlefield. Drag or use A and D to steer; guns fire automatically."></canvas><canvas id="overlay" aria-hidden="true"></canvas><div id="boot"><h1>Last Orbit</h1><p>Calibrating defence grid</p></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script type="importmap">{"imports":{"@last-orbit/audio/audio.js":"./modules/audio/audio.js?v=2.2.0","@last-orbit/combat/abilities.js":"./modules/combat/abilities.js?v=2.2.0","@last-orbit/combat/bosses.js":"./modules/combat/bosses.js?v=2.2.0","@last-orbit/combat/drones.js":"./modules/combat/drones.js?v=2.2.0","@last-orbit/combat/enemies.js":"./modules/combat/enemies.js?v=2.2.0","@last-orbit/combat/pickups.js":"./modules/combat/pickups.js?v=2.2.0","@last-orbit/combat/player.js":"./modules/combat/player.js?v=2.2.0","@last-orbit/combat/sim.js":"./modules/combat/sim.js?v=2.2.0","@last-orbit/combat/waves.js":"./modules/combat/waves.js?v=2.2.0","@last-orbit/combat/weapons.js":"./modules/combat/weapons.js?v=2.2.0","@last-orbit/combat/world.js":"./modules/combat/world.js?v=2.2.0","@last-orbit/core/big.js":"./modules/core/big.js?v=2.2.0","@last-orbit/core/events.js":"./modules/core/events.js?v=2.2.0","@last-orbit/core/format.js":"./modules/core/format.js?v=2.2.0","@last-orbit/core/game.js":"./modules/core/game.js?v=2.2.0","@last-orbit/core/rng.js":"./modules/core/rng.js?v=2.2.0","@last-orbit/core/state.js":"./modules/core/state.js?v=2.2.0","@last-orbit/data/abilities.js":"./modules/data/abilities.js?v=2.2.0","@last-orbit/data/balance.js":"./modules/data/balance.js?v=2.2.0","@last-orbit/data/bosses.js":"./modules/data/bosses.js?v=2.2.0","@last-orbit/data/cards.js":"./modules/data/cards.js?v=2.2.0","@last-orbit/data/career.js":"./modules/data/career.js?v=2.2.0","@last-orbit/data/contracts.js":"./modules/data/contracts.js?v=2.2.0","@last-orbit/data/daily.js":"./modules/data/daily.js?v=2.2.0","@last-orbit/data/drones.js":"./modules/data/drones.js?v=2.2.0","@last-orbit/data/enemies.js":"./modules/data/enemies.js?v=2.2.0","@last-orbit/data/relics.js":"./modules/data/relics.js?v=2.2.0","@last-orbit/data/sectors.js":"./modules/data/sectors.js?v=2.2.0","@last-orbit/data/ships.js":"./modules/data/ships.js?v=2.2.0","@last-orbit/data/threat.js":"./modules/data/threat.js?v=2.2.0","@last-orbit/data/weapons.js":"./modules/data/weapons.js?v=2.2.0","@last-orbit/data/workshop.js":"./modules/data/workshop.js?v=2.2.0","@last-orbit/main.js":"./modules/main.js?v=2.2.0","@last-orbit/progression/meta.js":"./modules/progression/meta.js?v=2.2.0","@last-orbit/progression/run.js":"./modules/progression/run.js?v=2.2.0","@last-orbit/progression/stats.js":"./modules/progression/stats.js?v=2.2.0","@last-orbit/rendering/background.js":"./modules/rendering/background.js?v=2.2.0","@last-orbit/rendering/effects.js":"./modules/rendering/effects.js?v=2.2.0","@last-orbit/rendering/geometry.js":"./modules/rendering/geometry.js?v=2.2.0","@last-orbit/rendering/renderer.js":"./modules/rendering/renderer.js?v=2.2.0","@last-orbit/save/save.js":"./modules/save/save.js?v=2.2.0","@last-orbit/ui/art.js":"./modules/ui/art.js?v=2.2.0","@last-orbit/ui/debug.js":"./modules/ui/debug.js?v=2.2.0","@last-orbit/ui/dom.js":"./modules/ui/dom.js?v=2.2.0","@last-orbit/ui/hangar.js":"./modules/ui/hangar.js?v=2.2.0","@last-orbit/ui/hud.js":"./modules/ui/hud.js?v=2.2.0","@last-orbit/ui/icons.js":"./modules/ui/icons.js?v=2.2.0","@last-orbit/ui/overlays.js":"./modules/ui/overlays.js?v=2.2.0","@last-orbit/ui/ui.js":"./modules/ui/ui.js?v=2.2.0"}}</script><script type="module">import '@last-orbit/main.js';</script>
+<script type="importmap">{"imports":{"@last-orbit/audio/audio.js":"./modules/audio/audio.js?v=2.3.0","@last-orbit/combat/abilities.js":"./modules/combat/abilities.js?v=2.3.0","@last-orbit/combat/bosses.js":"./modules/combat/bosses.js?v=2.3.0","@last-orbit/combat/drones.js":"./modules/combat/drones.js?v=2.3.0","@last-orbit/combat/enemies.js":"./modules/combat/enemies.js?v=2.3.0","@last-orbit/combat/pickups.js":"./modules/combat/pickups.js?v=2.3.0","@last-orbit/combat/player.js":"./modules/combat/player.js?v=2.3.0","@last-orbit/combat/sim.js":"./modules/combat/sim.js?v=2.3.0","@last-orbit/combat/waves.js":"./modules/combat/waves.js?v=2.3.0","@last-orbit/combat/weapons.js":"./modules/combat/weapons.js?v=2.3.0","@last-orbit/combat/world.js":"./modules/combat/world.js?v=2.3.0","@last-orbit/core/big.js":"./modules/core/big.js?v=2.3.0","@last-orbit/core/events.js":"./modules/core/events.js?v=2.3.0","@last-orbit/core/format.js":"./modules/core/format.js?v=2.3.0","@last-orbit/core/game.js":"./modules/core/game.js?v=2.3.0","@last-orbit/core/rng.js":"./modules/core/rng.js?v=2.3.0","@last-orbit/core/state.js":"./modules/core/state.js?v=2.3.0","@last-orbit/data/abilities.js":"./modules/data/abilities.js?v=2.3.0","@last-orbit/data/achievements.js":"./modules/data/achievements.js?v=2.3.0","@last-orbit/data/balance.js":"./modules/data/balance.js?v=2.3.0","@last-orbit/data/bosses.js":"./modules/data/bosses.js?v=2.3.0","@last-orbit/data/cards.js":"./modules/data/cards.js?v=2.3.0","@last-orbit/data/career.js":"./modules/data/career.js?v=2.3.0","@last-orbit/data/contracts.js":"./modules/data/contracts.js?v=2.3.0","@last-orbit/data/daily.js":"./modules/data/daily.js?v=2.3.0","@last-orbit/data/drones.js":"./modules/data/drones.js?v=2.3.0","@last-orbit/data/enemies.js":"./modules/data/enemies.js?v=2.3.0","@last-orbit/data/relics.js":"./modules/data/relics.js?v=2.3.0","@last-orbit/data/score.js":"./modules/data/score.js?v=2.3.0","@last-orbit/data/sectors.js":"./modules/data/sectors.js?v=2.3.0","@last-orbit/data/ships.js":"./modules/data/ships.js?v=2.3.0","@last-orbit/data/threat.js":"./modules/data/threat.js?v=2.3.0","@last-orbit/data/weapons.js":"./modules/data/weapons.js?v=2.3.0","@last-orbit/data/workshop.js":"./modules/data/workshop.js?v=2.3.0","@last-orbit/main.js":"./modules/main.js?v=2.3.0","@last-orbit/progression/meta.js":"./modules/progression/meta.js?v=2.3.0","@last-orbit/progression/run.js":"./modules/progression/run.js?v=2.3.0","@last-orbit/progression/stats.js":"./modules/progression/stats.js?v=2.3.0","@last-orbit/rendering/background.js":"./modules/rendering/background.js?v=2.3.0","@last-orbit/rendering/effects.js":"./modules/rendering/effects.js?v=2.3.0","@last-orbit/rendering/geometry.js":"./modules/rendering/geometry.js?v=2.3.0","@last-orbit/rendering/renderer.js":"./modules/rendering/renderer.js?v=2.3.0","@last-orbit/save/save.js":"./modules/save/save.js?v=2.3.0","@last-orbit/ui/art.js":"./modules/ui/art.js?v=2.3.0","@last-orbit/ui/debug.js":"./modules/ui/debug.js?v=2.3.0","@last-orbit/ui/dom.js":"./modules/ui/dom.js?v=2.3.0","@last-orbit/ui/hangar.js":"./modules/ui/hangar.js?v=2.3.0","@last-orbit/ui/hud.js":"./modules/ui/hud.js?v=2.3.0","@last-orbit/ui/icons.js":"./modules/ui/icons.js?v=2.3.0","@last-orbit/ui/overlays.js":"./modules/ui/overlays.js?v=2.3.0","@last-orbit/ui/ui.js":"./modules/ui/ui.js?v=2.3.0"}}</script><script type="module">import '@last-orbit/main.js';</script>
 </body>
 </html>

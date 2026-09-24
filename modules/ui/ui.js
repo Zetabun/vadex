@@ -69,9 +69,9 @@ export function initUI(app, hooks) {
   /** Structured notice: artwork, kicker, title, detail line and an optional salvage reward. */
   function notice(n) {
     const el = h('div.toast.notice.' + (n.kind || 'info'),
-      n.art ? h('div.notice-art', art(n.art, 'notice-ico')) : null,
+      n.art ? h('div.notice-art' + (n.tier ? '.medal-frame.tier-' + n.tier : ''), art(n.art, 'notice-ico')) : null,
       h('div.notice-main', h('small', n.kicker || ''), h('b', n.title || ''), n.sub ? h('span', n.sub) : null),
-      n.salvage ? h('div.notice-reward', art('cur:salvage', 'cur-ico'), '+' + n.salvage) : null);
+      n.salvage ? h('div.notice-reward', art('cur:salvage', 'cur-ico'), '+' + n.salvage) : n.xp ? h('div.notice-reward.xp', '+' + n.xp, h('small', 'XP')) : null);
     post(el, n.kind, 5200);
   }
   bus.on('notice', notice);
@@ -103,6 +103,8 @@ export function initUI(app, hooks) {
     blocking: () => overlays.blocking(),
     showDebrief: (s) => { clear($.toasts); $.banner.classList.remove('on'); overlays.showDebrief(s); },
     pause: () => uiHooks.pause(),
+    /** A short tap on the battlefield: if it landed on a loadout icon, explain the loadout. */
+    tapHud: (x, y) => { if (overlays.blocking()) return false; const key = hud.loadoutAt(x, y); if (!key) return false; playSfx('tab'); overlays.showLoadout(key, false); return true; },
     refreshHangar: () => { if (G.mode === 'hangar') hangar.render(); },
     closeOverlays: () => overlays.close(),
   };

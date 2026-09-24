@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.3.0 — 2026-09-24
+
+- **Score and Records.** Every sortie now scores points for kills and cleared waves (worth more the deeper you go, +50% for flawless waves, +25% per Threat level). The score shows in the HUD, and passing your high score mid-sortie is celebrated. A new Records tab shows your high score, personal bests, a top-10 leaderboard of your sorties, each ship's best and lifetime totals. The debrief shows your score and its place on the leaderboard.
+- **Achievements.** A new Awards tab with 19 tiered medals (bronze, silver, gold) for lifetime milestones and 8 feats for standout sorties (a flawless boss wave, a perfect sector, wave 20 with a single weapon…). Every medal pays pilot XP; medals appear as pop-ups when earned and are listed in the debrief. Medals already earned by existing saves are granted on first launch.
+- **Loadout panel.** Tap a weapon or relic icon at the bottom of the screen (or Details in the pause menu) to pause and see every weapon, ability, relic, upgrade card and Threat or Daily rule in play, with what each does.
+- **More reliable touch steering.** The bottom HUD no longer swallows touches, so holding a bottom corner steers. Every finger is tracked, so a second touch no longer cancels the first. A held finger that drifts keeps holding instead of switching to drag steering.
+- **Sound after locking the phone.** Audio is rebuilt on the next touch after the app is hidden, fixing silence after the screen went dark.
+- **Workshop keeps its place.** Buying an upgrade no longer scrolls the list back to the top, so rapid taps land on the upgrade you meant.
+- **Fixed** locked weapon icons in the Armory drawing outside their cards in iOS Safari.
+
 ## v2.2.0 — 2026-09-24
 
 - **Missions tab.** A new home for the two return loops below. The tab bar now pages with chevrons (More / Back), and a dot on the chevron shows when something on the other page needs attention.

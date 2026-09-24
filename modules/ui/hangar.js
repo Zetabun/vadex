@@ -1,5 +1,5 @@
 // The Hangar: everything between sorties. Launch, Workshop (permanent upgrades), Armory (weapons & abilities),
-// Ships (with paint jobs) and Career (pilot rank track and contracts). The 3D ship idles in the close-up camera above the panel.
+// Ships (with paint jobs), Career (pilot rank track and contracts), Records (high scores) and Awards (achievements). The 3D ship idles in the close-up camera above the panel.
 import { G } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { fmt, fmtInt, fmtTime } from '@last-orbit/core/format.js';
@@ -12,14 +12,15 @@ import { SECTORS } from '@last-orbit/data/sectors.js';
 import { PAINTS, MAX_RANK, rankNeed, rankReward, rankTitle, paintRank, MAX_MASTERY, masteryNeed, MASTERY_PERKS } from '@last-orbit/data/career.js';
 import { THREATS, MAX_THREAT, THREAT_UNLOCK_SECTOR, threatSalvage, threatPilotXp } from '@last-orbit/data/threat.js';
 import { dailyBonus } from '@last-orbit/data/daily.js';
-import { workshopLevel, workshopNext, buyWorkshop, shipStatus, shipContract, buyShip, selectShip, contractProgress, nextContracts, unlockLabel, pilotProgress, selectPaint, threatMax, setThreat, dailyToday, masteryOf, masteryProgress } from '@last-orbit/progression/meta.js';
+import { ACHIEVEMENTS, FEATS, TIERS, FEAT_XP } from '@last-orbit/data/achievements.js';
+import { workshopLevel, workshopNext, buyWorkshop, shipStatus, shipContract, buyShip, selectShip, contractProgress, nextContracts, unlockLabel, pilotProgress, selectPaint, threatMax, setThreat, dailyToday, masteryOf, masteryProgress, medalProgress, medalTotal, medalDesc } from '@last-orbit/progression/meta.js';
 import { weaponDps, buildWeapon } from '@last-orbit/progression/stats.js';
 import { playSfx } from '@last-orbit/audio/audio.js';
 import { h, clear, setText, setClass } from '@last-orbit/ui/dom.js';
 import { uiIcon } from '@last-orbit/ui/icons.js';
 import { art } from '@last-orbit/ui/art.js';
 
-const TABS = [['launch', 'Launch'], ['missions', 'Missions'], ['workshop', 'Workshop'], ['armory', 'Armory'], ['ships', 'Ships'], ['contracts', 'Career']];
+const TABS = [['launch', 'Launch'], ['missions', 'Missions'], ['workshop', 'Workshop'], ['armory', 'Armory'], ['ships', 'Ships'], ['contracts', 'Career'], ['records', 'Records'], ['awards', 'Awards']];
 const PER_PAGE = 4; // with more tabs than fit, the bar pages with chevrons
 const pageOf = (id) => Math.floor(TABS.findIndex((t) => t[0] === id) / PER_PAGE);
 const roman = (t) => (t ? THREATS[t].roman : '0');
@@ -55,12 +56,16 @@ export function createHangar(hooks) {
     if (!quiet && id !== tab) playSfx('tab');
     tab = id; if (pageOf(id) !== page) { page = pageOf(id); layoutNav(); }
     for (const k in navBtns) { setClass(navBtns[k], 'on', k === id); navBtns[k].setAttribute('aria-selected', String(k === id)); }
-    el.dataset.tab = id; render(); hooks.measure?.();
+    if (id === 'awards') G.state.seen.medals = medalTotal().earned;
+    if (id === 'records') G.state.seen.records = true;
+    const changed = el.dataset.tab !== id; el.dataset.tab = id; render(changed || quiet); badges(); hooks.measure?.();
   }
-  function render() {
-    clear($.body); $.body.scrollTop = 0;
-    const view = { launch: launchView, missions: missionsView, workshop: workshopView, armory: armoryView, ships: shipsView, contracts: contractsView }[tab]();
-    $.body.append(view);
+  /** Rebuild the current tab. Re-renders after a purchase or a choice keep the scroll position, so rapid taps
+   *  on a list (Workshop upgrades) stay on the row under the finger; switching tabs starts at the top. */
+  function render(top = false) {
+    const y = $.body.scrollTop; clear($.body);
+    const view = { launch: launchView, missions: missionsView, workshop: workshopView, armory: armoryView, ships: shipsView, contracts: contractsView, records: recordsView, awards: awardsView }[tab]();
+    $.body.append(view); $.body.scrollTop = top ? 0 : y;
   }
 
   // ------------------------------------------------------------ launch
@@ -73,7 +78,7 @@ export function createHangar(hooks) {
       rankStrip(),
       opsRow(),
       fresh ? h('p.lede', 'Invaders are descending on the last orbit. Fly a sortie, level up mid-fight by picking upgrades, and bring salvage home to build a better ship.')
-        : h('div.stat-row', stat('Best wave', best || '—'), stat('Furthest', 'Sector ' + bestSector), stat('Sorties', fmtInt(s.sorties))),
+        : h('button.stat-row.as-link', { onclick: () => show('records'), 'aria-label': 'Open records' }, stat('High score', s.bestScore ? fmt(s.bestScore) : '—'), stat('Best wave', best ? `${best} · S${bestSector}` : '—'), stat('Sorties', fmtInt(s.sorties))),
       next.length ? h('div.next', h('div.kicker', next.length > 1 ? 'Next contracts' : 'Next contract'), next.map((c) => contractLine(c, true))) : null);
     const go = h('div.launch-dock', h('button.launch-btn', { onclick: () => hooks.launch() }, uiIcon('launch'), h('span', 'Launch sortie'), h('small', ship.name + ' · ' + WEAPONS[ship.weapon].name + ' · ' + ABILITIES[ship.ability].name)));
     return h('div.launch', h('div.ship-stage', { 'aria-hidden': 'true' }), card, history(), go);
@@ -106,7 +111,7 @@ export function createHangar(hooks) {
   }
   function history() {
     const H = G.state.history; if (!H.length) return null;
-    return h('section.panel.history', h('div.kicker', 'Recent sorties'), H.slice(0, 4).map((r) => h('div.hist', h('b', 'Wave ' + r.wave), h('span', `LV ${r.level} · ${SHIP_BY_ID[r.ship]?.name || ''} · ${fmtTime(r.time)}`), h('span.gold', art('cur:salvage', 'cur-ico'), fmtInt(r.salvage)))));
+    return h('section.panel.history', h('div.kicker', 'Recent sorties'), H.slice(0, 4).map((r) => h('div.hist', h('b', 'Wave ' + r.wave), h('span', (r.score ? fmt(r.score) + ' pts · ' : '') + `LV ${r.level} · ${SHIP_BY_ID[r.ship]?.name || ''} · ${fmtTime(r.time)}`), h('span.gold', art('cur:salvage', 'cur-ico'), fmtInt(r.salvage)))));
   }
   function contractLine(c, compact) {
     const pr = contractProgress(c);
@@ -223,17 +228,67 @@ export function createHangar(hooks) {
       h('h3', `Contracts · ${done}/${CONTRACTS.length}`), h('div.rows', CONTRACTS.map((c) => contractLine(c, false))));
   }
 
+  // ------------------------------------------------------------ records: high scores and personal bests
+  function recordsView() {
+    const st = G.state, s = st.stats, rec = st.records, d = st.daily;
+    const hero = h('section.panel.rec-hero',
+      h('div.rec-main', art('ach:trophy', 'rec-ico'), h('div', h('div.kicker', 'High score'), h('b.rec-score', s.bestScore ? fmtInt(s.bestScore) : '—'), h('small', s.bestScore ? 'Beat it on your next sortie' : 'Fly a sortie to set your first score'))),
+      h('div.rec-how', 'Score comes from kills and cleared waves, both worth more the deeper you go. Flawless waves pay half again, and each Threat level adds 25%.'));
+    const bests = h('div.stat-grid.bests',
+      stat('Furthest wave', s.bestWave || '—'), stat('Most kills', s.bestKills ? fmtInt(s.bestKills) : '—'), stat('Highest level', s.maxLevel > 1 ? s.maxLevel : '—'),
+      stat('Most salvage', s.bestSalvage ? fmtInt(s.bestSalvage) : '—'), stat('Longest sortie', s.longestRun ? fmtTime(s.longestRun) : '—'), stat('Top threat', s.threatClear ? roman(s.threatClear) : '—'),
+      stat('Best daily', d.best ? 'Wave ' + d.best : '—'), stat('Best streak', s.bestStreak ? s.bestStreak + ' days' : '—'), stat('Sectors cleared', s.sectorsCleared || 0));
+    const top = rec.top.length ? h('ol.leader', rec.top.map((r, i) => h('li.lead' + (i === 0 ? '.first' : ''),
+      h('span.lead-n', String(i + 1)),
+      h('div.lead-main', h('b', fmtInt(r.score)), h('small', `Wave ${r.wave} · ${SHIP_BY_ID[r.ship]?.name || ''} · LV ${r.level} · ${fmtInt(r.kills)} kills`)),
+      h('div.lead-tags', r.daily ? h('span.tag.tag-daily', 'Daily') : null, r.threat ? h('span.tag.tag-threat', 'Threat ' + roman(r.threat)) : null, h('small', dateLabel(r.date))))))
+      : h('div.lock-note', uiIcon('records'), h('span', 'Your ten best sorties by score will be listed here.'));
+    const ships = h('div.rows', SHIPS.map((sh) => { const b = rec.ships[sh.id], owned = !!st.unlocked.ships[sh.id];
+      return h('div.ship-best' + (owned ? '' : '.locked'), { style: `--c:${hex(sh.trim)}` }, art('ship:' + sh.id, 'row-icon'), h('div.row-main', h('b', sh.name), h('small', b ? `Best wave ${b.wave} · Mastery ${masteryOf(sh.id).level}` : owned ? 'No scored sortie yet' : 'Not owned yet')), h('b.sb-score', b ? fmtInt(b.score) : '—')); }));
+    const life = h('div.stat-grid.bests', stat('Sorties', fmtInt(s.sorties)), stat('Invaders', fmt(s.kills)), stat('Bosses', fmtInt(s.bossKills)),
+      stat('Waves cleared', fmtInt(s.wavesCleared || 0)), stat('Salvage earned', fmt(s.totalSalvage || 0)), stat('Play time', fmtTime(Math.round(st.meta.playTime || 0))));
+    return h('div.screen', h('div.screen-head', h('h2', 'Records'), h('p', 'Your personal bests. Every sortie is a shot at a new one.')),
+      hero, h('h3', 'Personal bests'), bests, h('h3', 'Top sorties'), top, h('h3', 'Ship bests'), ships, h('h3', 'Lifetime'), life);
+  }
+  const dateLabel = (t) => { const d = new Date(t), now = new Date(); return d.toDateString() === now.toDateString() ? 'Today' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); };
+
+  // ------------------------------------------------------------ awards: achievements
+  const medal = (a, tier) => h('span.medal-frame.tier-' + tier, art(a.art, 'medal-ico'));
+  function awardsView() {
+    const tot = medalTotal(), counts = { bronze: 0, silver: 0, gold: 0, feat: 0 };
+    for (const a of ACHIEVEMENTS) { const n = G.state.medals[a.id] || 0; for (let t = 0; t < n; t++) counts[TIERS[t].id]++; }
+    for (const f of FEATS) if (G.state.medals[f.id]) counts.feat++;
+    const summary = h('section.panel.aw-summary',
+      h('div.aw-top', h('div', h('div.kicker', 'Medals earned'), h('b.aw-count', `${tot.earned}`, h('small', ` / ${tot.total}`))),
+        h('div.aw-tally', [['gold', 'Gold'], ['silver', 'Silver'], ['bronze', 'Bronze'], ['feat', 'Feats']].map(([k, n]) => h('div.tally.tier-' + k, h('i'), h('b', String(counts[k])), h('small', n))))),
+      h('div.meter.rank', h('i', { style: `width:${(tot.earned / tot.total * 100).toFixed(1)}%` })),
+      h('small.aw-note', `Every medal pays pilot XP: bronze ${TIERS[0].xp}, silver ${TIERS[1].xp}, gold ${TIERS[2].xp}, feats ${FEAT_XP}.`));
+    const row = (a) => {
+      const pr = medalProgress(a), tiered = !!a.goals, got = pr.tiers;
+      const tier = tiered ? (got ? TIERS[got - 1].id : 'none') : got ? 'feat' : 'none';
+      const pips = tiered ? h('div.tier-pips', TIERS.map((t, i) => h('i.tier-' + t.id + (i < got ? '.on' : '')))) : null;
+      return h('div.ach' + (pr.done ? '.done' : ''), medal(a, tier),
+        h('div.ach-main', h('div.ach-title', h('b', a.name), pips), h('div.ach-desc', pr.done ? (tiered ? 'All tiers complete · ' + medalDesc(a, a.goals.length - 1) : a.desc) : tiered ? `${TIERS[got].name}: ${medalDesc(a, got)}` : a.desc),
+          pr.done ? null : h('div.meter.small', h('i', { style: `width:${(pr.frac * 100).toFixed(1)}%` }))),
+        pr.done ? uiIcon('check') : h('div.c-count', a.roman ? `${roman(pr.cur)}/${roman(pr.goal)}` : `${fmt(pr.cur)}/${fmt(pr.goal)}`));
+    };
+    return h('div.screen', h('div.screen-head', h('h2', 'Achievements'), h('p', 'Medals for milestones, and feats for the sorties worth bragging about.')),
+      summary, h('h3', 'Medals'), h('div.rows', ACHIEVEMENTS.map(row)), h('h3', 'Feats'), h('div.rows', FEATS.map(row)));
+  }
+
   // ------------------------------------------------------------ live updates
   function badges() {
     const st = G.state, canBuy = WORKSHOP.some((u) => { const c = workshopNext(u.id); return c != null && st.salvage >= c; });
     const ship = SHIPS.some((s) => shipStatus(s.id) === 'buyable' && st.salvage >= s.cost);
     const daily = st.stats.sorties > 0 && !dailyToday().done;
+    setClass(navBtns.records, 'badged', !st.seen.records); setClass(navBtns.awards, 'badged', medalTotal().earned > (st.seen.medals || 0));
     setClass(navBtns.workshop, 'badged', canBuy); setClass(navBtns.ships, 'badged', ship); setClass(navBtns.missions, 'badged', daily);
     const hidden = (p) => TABS.some(([id], i) => Math.floor(i / PER_PAGE) === p && navBtns[id].classList.contains('badged'));
     setClass($.next, 'badged', hidden(page + 1)); setClass($.prev, 'badged', page > 0 && hidden(page - 1));
   }
   function update() { setText($.salvage, fmtInt(G.state.salvage)); badges(); }
   bus.on('contract', () => { if (G.mode === 'hangar') render(); });
+  bus.on('medal', () => { if (G.mode === 'hangar' && tab === 'awards') { G.state.seen.medals = medalTotal().earned; render(); } });
   layoutNav();
   return { el, top, nav: $.nav, show, render, update, get tab() { return tab; } };
 }

@@ -11,7 +11,7 @@ import { CONTRACTS } from '@last-orbit/data/contracts.js';
 import { SHIPS } from '@last-orbit/data/ships.js';
 import { WORKSHOP, workshopCost } from '@last-orbit/data/workshop.js';
 import { MODS } from '@last-orbit/data/cards.js';
-import { initWorld, step } from '@last-orbit/combat/sim.js';
+import { initWorld, step, startWave } from '@last-orbit/combat/sim.js';
 import { spawnPickup, collectAll } from '@last-orbit/combat/pickups.js';
 import { hurtPlayer } from '@last-orbit/combat/world.js';
 import { startSortie, endSortie, recoverInterruptedRun, grantXp, rollOffer, pickCard, cardPool, nextOffer, rollRelics, pickRelic, describeCard, choicePending } from '@last-orbit/progression/run.js';
@@ -21,7 +21,11 @@ import { rankMult } from '@last-orbit/progression/stats.js';
 import { rankNeed, rankReward, MAX_RANK, masteryNeed } from '@last-orbit/data/career.js';
 import { threatMods, THREAT_UNLOCK_SECTOR } from '@last-orbit/data/threat.js';
 import { dayKey, prevDayKey, dailyFor, dailyBonus, MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
-import { setWaveBase } from '@last-orbit/combat/world.js';
+
+import { setWaveBase, killEnemy } from '@last-orbit/combat/world.js';
+import { killScore, waveScore, scoreMult, TOP_N } from '@last-orbit/data/score.js';
+import { ACHIEVEMENTS, FEATS, TIERS, FEAT_XP, MEDAL_COUNT } from '@last-orbit/data/achievements.js';
+import { checkAchievements, medalProgress, medalTotal, medalDesc } from '@last-orbit/progression/meta.js';
 
 const fresh = () => { G.state = newState(); G.mode = 'hangar'; recalc(); initWorld(); };
 const launch = (opts) => { const r = startSortie({ seed: 7, ...opts }); initWorld(); return r; };
@@ -204,6 +208,42 @@ run = launch(); G.world.wave.num = 9; assert.equal(endSortie('destroyed').master
 // ---- hold a screen side to steer ----
 fresh(); run = launch(); const p0 = G.world.player.x; G.world.input.hold = -1; for (let i = 0; i < 30; i++) step(TICK);
 assert.ok(G.world.player.x < p0 - 5, 'Holding the left side flies left'); G.world.input.hold = 0; endSortie('abandoned');
+
+// ---- score: kills and cleared waves score, threat multiplies, the first pass of the high score is flagged ----
+assert.ok(killScore({ boss: { def: {} } }, 10) > killScore({ elite: {} }, 10) && killScore({ elite: {} }, 10) > killScore({}, 10));
+assert.ok(killScore({}, 30) > killScore({}, 1), 'Deeper kills score more'); assert.equal(waveScore(4, true), waveScore(4, false) * 1.5); assert.equal(scoreMult(4), 2);
+fresh(); run = launch(); step(TICK); { const e = G.world.enemies.find((x) => x.alive && !x.parent);
+  if (e) { killEnemy(G.world, e, null); assert.ok(run.score >= 10, 'A kill scores points'); } }
+let sc = endSortie('abandoned'); assert.equal(sc.score, G.state.stats.bestScore); assert.equal(sc.place, 1); assert.equal(G.state.records.top.length, 1);
+assert.equal(G.state.records.ships.vanguard.score, sc.score);
+for (let i = 0; i < TOP_N + 3; i++) { run = launch(); run.score = 100 * (i + 1); endSortie('abandoned'); }
+assert.equal(G.state.records.top.length, TOP_N, 'The leaderboard keeps the top ten'); assert.equal(G.state.records.top[0].score, 100 * (TOP_N + 3));
+assert.ok(G.state.records.top.every((r, i, a) => !i || a[i - 1].score >= r.score), 'Sorted by score');
+run = launch(); run.score = 5; sc = endSortie('abandoned'); assert.equal(sc.place, 0); assert.equal(sc.highScore, false);
+run = launch(); G.state.run.threat = 2; run.prevScore = 100; run.score = 0;
+{ const { addScore } = await import('@last-orbit/data/score.js'); assert.equal(addScore(run, 40), false); assert.equal(run.score, 60, 'Threat II scores ×1.5'); assert.equal(addScore(run, 40), true, 'Passing the high score is flagged once'); assert.equal(addScore(run, 40), false); run.score = 1e6; }
+sc = endSortie('abandoned'); assert.equal(sc.highScore, true); assert.equal(G.state.seen.records, false, 'A new high score badges Records');
+
+// ---- achievements: tiers pay pilot XP once each, feats too, during a sortie with the debrief ----
+fresh(); assert.equal(MEDAL_COUNT, ACHIEVEMENTS.length * 3 + FEATS.length);
+for (const a of [...ACHIEVEMENTS, ...FEATS]) { assert.ok(typeof a.get(G.state) === 'number', a.id + ' reads a number'); assert.ok(medalDesc(a, 0).length > 3); }
+for (const a of ACHIEVEMENTS) assert.ok(a.goals[0] < a.goals[1] && a.goals[1] < a.goals[2], a.id + ' goals rise');
+G.state.stats.kills = 600; const mxp0 = G.state.pilot.xp + G.state.pilot.rank * 1e6; let got = checkAchievements({ silent: true });
+assert.deepEqual(got.map((m) => m.id), ['a_kills']); assert.equal(G.state.medals.a_kills, 1); assert.ok(G.state.pilot.xp + G.state.pilot.rank * 1e6 > mxp0, 'Hangar medals pay XP at once');
+assert.equal(checkAchievements({ silent: true }).length, 0, 'A medal is awarded once');
+G.state.stats.kills = 60000; got = checkAchievements({ silent: true }); assert.equal(got.length, 2, 'Silver and gold together'); assert.equal(medalProgress(ACHIEVEMENTS[0]).done, true);
+run = launch(); G.state.stats.flawlessBosses = 1; checkContracts(); assert.equal(run.medalXp, FEAT_XP, 'In-sortie medals wait for the debrief');
+const pBefore = G.state.pilot.rank * 1e6 + G.state.pilot.xp; sc = endSortie('abandoned');
+assert.ok(sc.medals.some((m) => m.id === 'f_cleanboss')); assert.ok(sc.pilot.gained >= FEAT_XP, 'The debrief pays medal XP');
+assert.equal(medalTotal().earned, 4); assert.ok(G.state.pilot.rank * 1e6 + G.state.pilot.xp > pBefore);
+// feats tracked by the sim
+fresh(); run = launch(); run.weapons.cannon = BAL.maxRank; run.order.push('laser'); run.weapons.laser = BAL.maxRank; run.order.push('missile'); run.weapons.missile = 6;
+run.offer = [{ kind: 'upgrade', id: 'missile', rank: 7, rarity: 'evo' }]; pickCard(0); assert.equal(G.state.stats.maxedWeapons, 3); endSortie('abandoned');
+fresh(); run = launch(); G.state.unlocked.weapons.laser = 1; run.wave = 20; startWave(G.world);
+assert.ok(G.state.stats.soloWave >= 20, 'Solo-weapon waves are tracked'); endSortie('abandoned');
+// migration from schema 22 keeps everything and adds records
+{ const old = JSON.parse(JSON.stringify(newState())); old.v = 22; delete old.records; delete old.medals; old.stats.bestWave = 33;
+  const m = parseSave(JSON.stringify(old)); assert.deepEqual(m.records, { top: [], ships: {} }); assert.deepEqual(m.medals, {}); assert.equal(m.stats.bestWave, 33); assert.equal(m.seen.medals, 0); }
 
 // ---- saves round-trip and refuse newer schemas ----
 fresh(); G.state.salvage = 1234; G.state.workshop.w_hull = 3;

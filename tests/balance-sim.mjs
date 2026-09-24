@@ -35,7 +35,7 @@ for (let r = 0; r < runs; r++) {
   }
   off();
   const run = G.state.run;
-  results.push({ wave: run.wave, level: run.level, min: +(run.time / 60).toFixed(1), salvage: Math.round(run.salvage), weapons: run.order.map((id) => id + run.weapons[id]).join(' '), relics: run.relics.length, death, marks: JSON.stringify(marks) });
+  results.push({ wave: run.wave, score: Math.round(run.score || 0), level: run.level, min: +(run.time / 60).toFixed(1), salvage: Math.round(run.salvage), weapons: run.order.map((id) => id + run.weapons[id]).join(' '), relics: run.relics.length, death, marks: JSON.stringify(marks) });
   endSortie();
 }
 console.table(results);

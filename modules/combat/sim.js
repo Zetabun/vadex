@@ -8,7 +8,8 @@ import { rand } from '@last-orbit/core/rng.js';
 import { BAL, FIELD, TICK, clearSalvage } from '@last-orbit/data/balance.js';
 import { sectorOf } from '@last-orbit/data/sectors.js';
 import { ENEMIES, ELITE_MODS } from '@last-orbit/data/enemies.js';
-import { createWorld, fx, sfx, setWaveBase, refreshDefence, spawnEnemy, makeElite, rebuildBuckets } from '@last-orbit/combat/world.js';
+import { waveScore } from '@last-orbit/data/score.js';
+import { createWorld, fx, sfx, score, setWaveBase, refreshDefence, spawnEnemy, makeElite, rebuildBuckets } from '@last-orbit/combat/world.js';
 import { genWave } from '@last-orbit/combat/waves.js';
 import { updateFormation, updateEnemies, updateRockets, updateBullets, updateHazards } from '@last-orbit/combat/enemies.js';
 import { updateWeapons } from '@last-orbit/combat/weapons.js';
@@ -93,9 +94,11 @@ export function startWave(w) {
   ws.num = run.wave; ws.info = info; ws.state = 'fighting'; ws.t = 0; ws.damaged = false; ws.bossDamaged = false; ws.kills = 0; ws.boss = null; ws.pending = []; ws.shotsFired = 0;
   setWaveBase(w, run.wave, sec.idx);
   maxStat('bestWave', run.wave); maxStat('bestSector', sec.idx + 1);
+  if (run.order.length === 1) maxStat('soloWave', run.wave);
   w.enemies = w.enemies.filter((e) => e.alive && e.def.cruiser); w.ebullets.length = 0; w.hazards = w.hazards.filter((h) => h.kind === 'pool');
   const p = w.player; p.lastStand = true;
   const newSector = sec.idx !== prevSector;
+  if (newSector) run.sectorHit = sec.n > 1; // a sector joined part-way (debug jumps) cannot be perfect
   for (const b of w.barriers) b.hp = newSector ? 1 : Math.min(1, Math.max(0, b.hp) + 0.25);
   const f = w.form; f.x = 0; f.dir = rand() < 0.5 ? 1 : -1; f.enter = BAL.formationEnter; f.total = 0; f.alive = 0;
   f.speed = BAL.formSpeed * (1 + sec.n * 0.04 + Math.min(6, sec.idx) * 0.1);
@@ -132,10 +135,13 @@ function clearWave(w) {
   const pay = grantSalvage(clearSalvage(run.wave)), bossWave = sec.n === sec.len;
   if (!bossWave) fx(w, 'text', 0, 52, `WAVE ${run.wave} CLEAR  +${Math.round(pay)} SALVAGE`, '#ffc857', 2);
   grantXp(1 + run.wave * 0.25);
-  if (!ws.damaged) { count('flawless'); if (!bossWave) fx(w, 'text', 0, 45, 'FLAWLESS', '#6dffc8', 1); }
+  if (!ws.damaged) { count('flawless'); if (!bossWave) fx(w, 'text', 0, 45, 'FLAWLESS', '#6dffc8', 1); } else run.sectorHit = true;
+  score(w, waveScore(run.wave, !ws.damaged));
   p.hull = Math.min(1, p.hull + 0.06);
   if (sec.n === sec.len) {
     maxStat('sectorsCleared', sec.idx + 1);
+    if (!ws.damaged) count('flawlessBosses');
+    if (!run.sectorHit) count('perfectSectors');
     if (run.wave === THREAT_GATE_WAVE && run.threat) maxStat('threatClear', run.threat);
     run.pendingRelics++; p.hull = 1; p.shield = 1; ws.timer = 2.6;
     fx(w, 'sectorClear', sec.idx, sec.def.name); sfx(w, 'milestone');

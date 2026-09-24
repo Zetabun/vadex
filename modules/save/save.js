@@ -30,6 +30,8 @@ const MIGRATIONS = {
   20: (s) => s,
   // v2.2: threat levels, daily sorties and ship mastery (defaults filled in by withDefaults); count owned ships.
   21: (s) => { s.stats ||= {}; s.stats.shipsOwned = Object.keys(s.unlocked?.ships || { vanguard: 1 }).length; return s; },
+  // v2.3: scores, records and achievements (defaults filled in by withDefaults; medals already earned are granted at boot).
+  22: (s) => s,
 };
 export function parseSave(text) {
   let raw = text.trim(); if (!raw.startsWith('{')) raw = decodeURIComponent(escape(atob(raw)));
