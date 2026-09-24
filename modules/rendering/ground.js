@@ -116,7 +116,7 @@ export class Ground {
         if (roll < 0.1) return { base: 0x2a3040, blds: [{ x: 0, y: 0, w: 5, d: 5, h: 1.2, c: 0x4a5a78, roof: [{ x: 0, y: 0, s: 1.6, c: 0x5ee6ff }] }] }; // plaza fountain
         return { base: 0x1d2433, blds: cluster(8, 3) };
       case 'residential':
-        if (roll < 0.22) return { base: 0x16301f, trees: this.trees(span, 6) };
+        if (roll < 0.22) return { base: 0x121e17, trees: this.trees(span, 6) };
         return { base: 0x1f2a24, blds: Array.from({ length: 4 + Math.floor(R() * 3) * span }, (_, i) => ({ x: (R() - 0.5) * (w - 6), y: (R() - 0.5) * 14, w: 3 + R() * 1.5, d: 3 + R() * 1.5, h: 1 + R() * 1.4, c: pickOf([0x5a4a44, 0x4d4a5a, 0x5a5448, 0x44505a]), roof: R() < 0.4 ? [{ x: 0, y: 0, s: 0.7, c: 0xffd79a }] : [] })), trees: this.trees(span, 3) };
       case 'industrial':
         if (roll < 0.35) return { base: 0x22262c, tanks: Array.from({ length: 2 + Math.floor(R() * 3) * span }, () => ({ x: (R() - 0.5) * (w - 8), y: (R() - 0.5) * 12, r: 2.2 + R() * 1.6, h: 2 + R() * 3 })) };
@@ -126,7 +126,7 @@ export class Ground {
         return { base: pickOf([0x2a3320, 0x33301f, 0x28331f]), furrows: true, blds: R() < 0.4 ? [{ x: (R() - 0.5) * 8, y: (R() - 0.5) * 8, w: 3.5, d: 3, h: 1.4, c: 0x5a4a44, roof: [] }] : [] };
     }
   }
-  trees(span, n) { return Array.from({ length: n * span + Math.floor(R() * 3) }, () => ({ x: (R() - 0.5) * (LOT - 4 + (span - 1) * PITCH), y: (R() - 0.5) * 16, r: 1.2 + R() * 1.2, h: 2 + R() * 2.5, c: R() < 0.5 ? 0x2f6b3e : 0x3d7a48 })); }
+  trees(span, n) { return Array.from({ length: n * span + Math.floor(R() * 3) }, () => ({ x: (R() - 0.5) * (LOT - 4 + (span - 1) * PITCH), y: (R() - 0.5) * 16, r: 1.2 + R() * 1.2, h: 2 + R() * 2.5, c: R() < 0.5 ? 0x243f2e : 0x2c4a35 })); }
 
   /** Write every row into the instanced meshes (rows keep their city y). Runs only when a row scrolls off. */
   rebuild() {
@@ -142,14 +142,14 @@ export class Ground {
     for (const row of this.rows) {
       const cy = row.y, p = row.plan;
       switch (p.kind) {
-        case 'avenue': slab(0, cy, WIDTH, 16, 0x151a24, 0.05, 0.1); for (let x = -WIDTH / 2; x < WIDTH / 2; x += 9) slab(x, cy, 4, 0.5, 0x8a93a6, 0.12, 0.05); for (const t of p.traffic) { light(t.x, cy + t.lane * 4, 0.9, t.lane > 0 ? 0xfff2c2 : 0xff4d7a); light(t.x + 1.4 * t.lane, cy + t.lane * 4, 0.9, t.lane > 0 ? 0xfff2c2 : 0xff4d7a); } break;
+        case 'avenue': slab(0, cy, WIDTH, 16, 0x151a24, 0.05, 0.1); for (let x = -WIDTH / 2; x < WIDTH / 2; x += 9) slab(x, cy, 4, 0.5, 0x8a93a6, 0.12, 0.05); for (const t of p.traffic) { light(t.x, cy + t.lane * 4, 0.9, t.lane > 0 ? 0xfff2c2 : 0xb3402c); light(t.x + 1.4 * t.lane, cy + t.lane * 4, 0.9, t.lane > 0 ? 0xfff2c2 : 0xb3402c); } break;
         case 'runway': slab(0, cy, WIDTH, 18, 0x2a2f3a, 0.05, 0.1); for (let x = -WIDTH / 2; x < WIDTH / 2; x += 12) slab(x, cy, 6, 0.9, 0xe8ecf5, 0.12, 0.05); for (let x = -WIDTH / 2; x < WIDTH / 2; x += 8) { light(x, cy + 8.2, 0.7, 0xffc857); light(x + 4, cy - 8.2, 0.7, 0x5ee6ff); } break;
-        case 'canal': slab(0, cy, WIDTH, 16, 0x0d2a44, 0.05, 0.1); slab(0, cy + 8.3, WIDTH, 0.8, 0x3a5a7a, 0.12, 0.2); slab(0, cy - 8.3, WIDTH, 0.8, 0x3a5a7a, 0.12, 0.2); for (const b of p.bridges) slab((b - (COLS - 1) / 2) * PITCH, cy, 6, 18, 0x3a4458, 0.6, 0.6); break;
+        case 'canal': slab(0, cy, WIDTH, 16, 0x0a1826, 0.05, 0.1); slab(0, cy + 8.3, WIDTH, 0.8, 0x28394c, 0.12, 0.2); slab(0, cy - 8.3, WIDTH, 0.8, 0x28394c, 0.12, 0.2); for (const b of p.bridges) slab((b - (COLS - 1) / 2) * PITCH, cy, 6, 18, 0x2c3445, 0.6, 0.6); break;
         case 'rail': slab(0, cy, WIDTH, 12, 0x1b1e24, 0.05, 0.1); for (const off of [-2.2, 2.2]) slab(0, cy + off, WIDTH, 0.4, 0x6a7080, 0.15, 0.1); for (let x = -WIDTH / 2; x < WIDTH / 2; x += 2.5) slab(x, cy, 0.5, 6, 0x2e3440, 0.1, 0.1);
           for (const t of p.traffic) for (let k = 0; k < 5; k++) building(t.x + k * 7.5, cy, { w: 7, d: 3.4, h: 1.6, c: k === 0 ? 0xc94f5a : 0x4a5468, roof: k === 0 ? [{ x: 3, y: 0, s: 0.8, c: 0xfff2c2 }] : [] }); break;
-        case 'park': slab(0, cy, WIDTH, 22, 0x16301f); for (const t of p.trees) put('tree', this.tree, t.x * 1.3, cy + t.y, Z + 0.4 + t.h / 2, t.r, t.r, t.h, 0, t.c); slab(0, cy, WIDTH, 1.6, 0x4a4436, 0.42, 0.05); break;
-        case 'beach': slab(0, cy + 5, WIDTH, 12, 0x6b6044); slab(0, cy - 7, WIDTH, 12, 0x0d2a44, 0.05, 0.1); for (let x = -WIDTH / 2; x < WIDTH / 2; x += 11) slab(x + (x % 3), cy - 1.2, 6, 0.5, 0x9fc2e0, 0.12, 0.05); break;
-        case 'ocean': slab(0, cy, WIDTH + 40, PITCH + 0.5, 0x0b2238, 0.05, 0.1); for (let i = 0; i < 6; i++) slab((((i * 37 + cy * 13) % WIDTH) + WIDTH) % WIDTH - WIDTH / 2, cy + ((i * 7) % 20) - 10, 5, 0.4, 0x5a86b0, 0.12, 0.05); break;
+        case 'park': slab(0, cy, WIDTH, 22, 0x111c16); for (const t of p.trees) put('tree', this.tree, t.x * 1.3, cy + t.y, Z + 0.4 + t.h / 2, t.r, t.r, t.h, 0, t.c); slab(0, cy, WIDTH, 1.6, 0x4a4436, 0.42, 0.05); break;
+        case 'beach': slab(0, cy + 5, WIDTH, 12, 0x6b6044); slab(0, cy - 7, WIDTH, 12, 0x0a1826, 0.05, 0.1); for (let x = -WIDTH / 2; x < WIDTH / 2; x += 11) slab(x + (x % 3), cy - 1.2, 6, 0.5, 0x9fc2e0, 0.12, 0.05); break;
+        case 'ocean': slab(0, cy, WIDTH + 40, PITCH + 0.5, 0x091622, 0.05, 0.1); for (let i = 0; i < 6; i++) slab((((i * 37 + cy * 13) % WIDTH) + WIDTH) % WIDTH - WIDTH / 2, cy + ((i * 7) % 20) - 10, 5, 0.4, 0x5a86b0, 0.12, 0.05); break;
         default: // lots
           for (const L of p.lots) {
             const pl = L.plan, w = LOT + (L.span - 1) * PITCH, cx = (L.col + (L.span - 1) / 2 - (COLS - 1) / 2) * PITCH + L.jx, ly = cy + L.jy;
@@ -157,11 +157,11 @@ export class Ground {
             if (pl.pad != null) { const pm = this.pads[pl.pad]; if (n.pads[pl.pad] < CAP.pad) { pm._i = n.pads[pl.pad]++; put('pad', pm, cx, ly, Z + 0.45, LOT - 3, LOT - 3, 1, pl.rot, 0xffffff); } }
             if (pl.marks) for (let k = -1; k <= 1; k += 2) slab(cx + k * (w / 2 - 3), ly, 1, LOT - 4, 0xffc857, 0.42, 0.05);
             if (pl.furrows) for (let k = -8; k <= 8; k += 3) slab(cx, ly + k, w - 3, 0.5, 0x1f2616, 0.42, 0.05);
-            if (pl.stadium) { for (const [ox, oy, sw, sh] of [[0, 8.5, w - 4, 2.5], [0, -8.5, w - 4, 2.5], [w / 2 - 3, 0, 2.5, 17], [-(w / 2 - 3), 0, 2.5, 17]]) building(cx + ox, ly + oy, { w: sw, d: sh, h: 3, c: 0x4a5670, roof: [] }); slab(cx, ly, w - 10, 13, 0x2f7a44, 0.42, 0.05); for (let k = -1; k <= 1; k += 2) light(cx + k * (w / 2 - 3), ly + 8.5, 1.4, 0xfff2c2, 3.8); }
+            if (pl.stadium) { for (const [ox, oy, sw, sh] of [[0, 8.5, w - 4, 2.5], [0, -8.5, w - 4, 2.5], [w / 2 - 3, 0, 2.5, 17], [-(w / 2 - 3), 0, 2.5, 17]]) building(cx + ox, ly + oy, { w: sw, d: sh, h: 3, c: 0x4a5670, roof: [] }); slab(cx, ly, w - 10, 13, 0x24503a, 0.42, 0.05); for (let k = -1; k <= 1; k += 2) light(cx + k * (w / 2 - 3), ly + 8.5, 1.4, 0xfff2c2, 3.8); }
             for (const t of pl.trees || []) put('tree', this.tree, cx + t.x, ly + t.y, Z + 0.4 + t.h / 2, t.r, t.r, t.h, 0, t.c);
             for (const b of pl.blds || []) building(cx + b.x, ly + b.y, b);
             for (const t of pl.tanks || []) { put('shadow', this.shadow, cx + t.x + 1.2, ly + t.y - 1.2, Z + 0.42, t.r * 2.2, t.r * 2.2, 1, 0, 0); put('cyl', this.cyl, cx + t.x, ly + t.y, Z + 0.4 + t.h / 2, t.r, t.r, t.h, 0, 0x8a93a6); }
-            for (const s of pl.stacks || []) { put('cyl', this.cyl, cx + s.x, ly + s.y, Z + 0.4 + 3.5, 0.9, 0.9, 7, 0, 0x5a606c); light(cx + s.x, ly + s.y, 1.1, 0xff4d7a, 7.6); }
+            for (const s of pl.stacks || []) { put('cyl', this.cyl, cx + s.x, ly + s.y, Z + 0.4 + 3.5, 0.9, 0.9, 7, 0, 0x5a606c); light(cx + s.x, ly + s.y, 1.1, 0xb3402c, 7.6); }
           }
       }
     }

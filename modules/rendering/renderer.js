@@ -42,7 +42,7 @@ export class Renderer {
     this.droneMesh = this.inst(droneGeometry(), new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x222222 }), 28);
     this.supportMesh = this.inst(supportCraftGeometry(), new THREE.MeshLambertMaterial({ color: 0xffffff, emissive: 0x17232a }), 2);
     // sprite batches (draw order: under → over)
-    const B = (this.B = { dark: new SpriteBatch(this.tex.soft, 8, false, -1), under: new SpriteBatch(this.tex.soft, 220, true, -2), soft: new SpriteBatch(this.tex.soft, 2600, true, 1), streak: new SpriteBatch(this.tex.streak, 700, true, 1), ring: new SpriteBatch(this.tex.ring, 120, true, 1), ore: new SpriteBatch(this.tex.ore, 96, false, 2), reticle: new SpriteBatch(this.tex.reticle, 8, true, 2) });
+    const B = (this.B = { dark: new SpriteBatch(this.tex.soft, 400, false, -1), under: new SpriteBatch(this.tex.soft, 220, true, -2), soft: new SpriteBatch(this.tex.soft, 2600, true, 1), streak: new SpriteBatch(this.tex.streak, 700, true, 1), ring: new SpriteBatch(this.tex.ring, 120, true, 1), ore: new SpriteBatch(this.tex.ore, 96, false, 2), reticle: new SpriteBatch(this.tex.reticle, 8, true, 2) });
     B.dark.mesh.material.color.set(0x000000); B.under.mesh.renderOrder = 1; for (const k in B) this.scene.add(B[k].mesh);
     this.parts = new Particles(1800); this.trans = new Transients(); this.texts = []; this.engineT = 0;
     this.supportWorld = null; this.salvageDrops = []; this.salvageCraft = null; this.repairCraft = null; this.repairBeamT = 0;
@@ -179,6 +179,7 @@ export class Renderer {
     const gs = w.counter?.stage.ground || 0, fade = gs ? Math.max(0, Math.min(1, (gs + 0.07 - counterProgress(w)) / 0.14)) : 0;
     if (gs && this.groundWorld !== w) { this.groundWorld = w; this.ground.reset(); } // each attempt starts back at the spaceport
     this.ground.update(gs > 0, fade, dt * Math.min(3, speedMul), gs ? w.enemies.filter((e) => e.alive && e.def.ground) : []); for (const s of this.bg.stars) s.visible = fade < 0.6;
+    this.overGround = fade > 0.05; // enemy fire gets a dark backing while the busy city is underneath
     this.bg.update(dt * (w.counter ? 3.2 : 1), speedMul); this.drain(w);
     const fdt = dt * Math.min(3, speedMul); this.parts.update(fdt); this.trans.update(fdt);
     const B = this.B; for (const k in B) B[k].begin();
@@ -266,8 +267,9 @@ export class Renderer {
       else { B.soft.add(s.x, s.y, r * 4.5, r * 4.5, 0, c, 1.1); B.soft.add(s.x, s.y, r * 2, r * 2, 0, WHITE, 1); }
     }
     for (let i = 0; i < w.ebullets.length; i++) { const b = w.ebullets[i]; if (!b.alive) continue; const c = BULLET_COL[b.kind] || RED, r = b.r;
+      if (this.overGround) B.dark.add(b.x, b.y, r * 4.4, r * 4.4, 0, WHITE, 1);
       if (b.kind === 'snipe') { B.streak.add(b.x, b.y, r * 9, r * 2, Math.atan2(b.vy, b.vx), RED, 1.5); B.streak.add(b.x, b.y, r * 5, r, Math.atan2(b.vy, b.vx), WHITE, 1); }
-      else { B.soft.add(b.x, b.y, r * 5, r * 5, 0, c, 1.15); B.soft.add(b.x, b.y, r * 2.1, r * 2.1, 0, WHITE, 1.2); }
+      else { const g = this.overGround ? 1.25 : 1; B.soft.add(b.x, b.y, r * 5 * g, r * 5 * g, 0, c, 1.15 * g); B.soft.add(b.x, b.y, r * 2.1 * g, r * 2.1 * g, 0, WHITE, 1.2); }
     }
   }
 
