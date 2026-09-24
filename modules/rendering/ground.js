@@ -3,7 +3,7 @@
 // coast and open sea, before the surface sinks away into space. The layout is built row by row as rows scroll in
 // (a row can be a street of lots, an avenue, a runway, a canal, a railway, a park strip, a beach or open water), lots
 // can merge into larger developments, and everything sits on the ground with soft shadows. The city is kept dark, a
-// backdrop far below, so ships, enemies and bullets stand out against it.
+// backdrop far below, and a subtle drifting mist and tint between it and the fighting keeps ships and bullets readable.
 // Gun towers are ordinary enemies riding at GROUND_SPEED; this draws a pillar under each so they stand on the city.
 import { GROUND_SPEED } from '@last-orbit/data/counter.js';
 
@@ -25,6 +25,17 @@ function padTexture(kind) {
   g.fillStyle = '#fff'; for (const [x, y] of [[10, 10], [118, 10], [10, 118], [118, 118]]) g.fillRect(x - 3, y - 3, 6, 6);
   return c;
 }
+/** Soft cloud wisps for the mist layer (tiles seamlessly enough at low opacity). */
+function mistTexture() {
+  const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
+  for (let i = 0; i < 22; i++) {
+    const x = R() * 256, y = R() * 256, r = 40 + R() * 80, grad = g.createRadialGradient(x, y, 0, x, y, r);
+    grad.addColorStop(0, `rgba(255,255,255,${0.35 + R() * 0.35})`); grad.addColorStop(0.55, `rgba(255,255,255,${0.12 + R() * 0.12})`); grad.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = grad; for (const dx of [-256, 0, 256]) for (const dy of [-256, 0, 256]) { g.save(); g.translate(dx, dy); g.fillRect(x - r, y - r, r * 2, r * 2); g.restore(); }
+  }
+  return c;
+}
+
 export class Ground {
   constructor(scene) {
     const THREE = window.THREE, box = new THREE.BoxGeometry(1, 1, 1), flat = new THREE.PlaneGeometry(1, 1);
@@ -40,8 +51,13 @@ export class Ground {
     this.cyl = inst(new THREE.CylinderGeometry(1, 1, 1, 12).rotateX(Math.PI / 2), mat(THREE.MeshLambertMaterial, { color: 0xffffff, emissive: 0x05070c }), CAP.cyl);
     this.pillar = inst(new THREE.CylinderGeometry(1, 1.25, 1, 8).rotateX(Math.PI / 2), mat(THREE.MeshLambertMaterial, { color: 0x9aa6bf, emissive: 0x0a0e18 }), CAP.pillar);
     this.pads = [0, 1, 2].map((k) => inst(flat, mat(THREE.MeshLambertMaterial, { map: new THREE.CanvasTexture(padTexture(k)), color: 0x5c6272 }), CAP.pad));
+    // Mist: a gentle dark tint plus slow drifting wisps, between the rooftops and the fighting.
+    this.mistTex = new THREE.CanvasTexture(mistTexture()); this.mistTex.wrapS = this.mistTex.wrapT = THREE.RepeatWrapping; this.mistTex.repeat.set(1.4, 2.6);
+    this.tint = new THREE.Mesh(new THREE.PlaneGeometry(WIDTH + 60, 330), mat(THREE.MeshBasicMaterial, { color: 0x0a1226, depthWrite: false }, 0.3)); this.tint.position.set(0, 75, -1.3); this.tint.renderOrder = 2;
+    this.mist = new THREE.Mesh(new THREE.PlaneGeometry(WIDTH + 60, 330), mat(THREE.MeshBasicMaterial, { map: this.mistTex, color: 0x8ea4c8, depthWrite: false }, 0.3)); this.mist.position.set(0, 75, -0.9); this.mist.renderOrder = 3;
     this.city = new THREE.Group(); this.city.add(this.slab, this.bld, this.shadow, this.roof, this.tree, this.cyl, ...this.pads);
-    this.group = new THREE.Group(); this.group.add(this.street, this.city, this.pillar); this.group.visible = false; scene.add(this.group);
+    this.street.renderOrder = -6; for (const m of this.city.children) m.renderOrder = -5; this.pillar.renderOrder = -4; // city first, then tint and mist
+    this.group = new THREE.Group(); this.group.add(this.street, this.city, this.pillar, this.tint, this.mist); this.group.visible = false; scene.add(this.group);
     this.d = new THREE.Object3D(); this.c = new THREE.Color();
     this.reset();
   }
@@ -161,6 +177,8 @@ export class Ground {
     let rebuilt = false;
     for (const row of this.rows) if (row.y - this.scroll < BOTTOM) { row.y += ROWS * PITCH; row.plan = this.planRow(row.y); rebuilt = true; }
     if (rebuilt) this.rebuild();
+    // The mist drifts a little slower than the ground and a touch sideways, so it reads as a layer of its own.
+    this.mistTex.offset.y += (GROUND_SPEED * 0.7 * dt) / 330 * this.mistTex.repeat.y; this.mistTex.offset.x += dt * 0.004;
     // As the ship climbs, the surface drops away and dims.
     this.group.position.z = -(1 - fade) * 70;
     for (const m of this.mats) m.opacity = m.baseOpacity * fade;
