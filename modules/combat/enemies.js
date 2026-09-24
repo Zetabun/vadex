@@ -72,7 +72,7 @@ export function updateEnemies(w, dt) {
           hurtPlayer(w, 1, e); if (!e.elite) { killEnemy(w, e, null, false, 0); continue; }
         }
       } else if (e.y < FIELD.LAND_Y && e.state !== 'dive' && !def.cruiser) { hurtPlayer(w, 0, e); landed(w, e); continue; }
-      if (def.fire && f.enter <= 0 && e.spawnT <= 0 && !(def.fire.onlyDiving && e.state !== 'dive') && !(w.counter && (e.y > FIELD.H - 2 || e.y < p.y + 6))) {
+      if (def.fire && f.enter <= 0 && e.spawnT <= 0 && !(def.fire.onlyDiving && e.state !== 'dive') && !(w.counter && (e.y > FIELD.H - 2 || (e.y < p.y + 6 && !def.ground)))) {
         e.fireT -= edt * w.sim.fireRate * (w.wave.info?.mod?.fireRate || 1) * (e.buffed ? 1.6 : 1) * (e.elite?.fireRate || 1);
         if (e.fireT <= 0) { e.fireT = def.fire.every * (0.75 + rand() * 0.5); if (!e.cloaked) enemyFire(w, e, def.fire); }
       }

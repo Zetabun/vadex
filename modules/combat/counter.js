@@ -28,6 +28,12 @@ export function buildTimeline(stage, hard) {
     out.push({ t, type: pick(pool, r), pattern, n: n + (k > 0.6 ? 1 : 0), x: (r() - 0.5) * 56, dir: r() < 0.5 ? -1 : 1, ph: r() * 6, elite: r() < 0.08 + 0.12 * k + stage.n * 0.02 });
     t += g0 + (g1 - g0) * k + r() * 0.9;
   }
+  // Liftoff: gun towers ride the city below and skimmers sweep low, until the surface falls away.
+  if (stage.ground) {
+    for (let t = 4; t < stage.len * stage.ground; t += 4.2 + r() * 2.5) out.push({ t, type: 'tower', pattern: 'ground', n: r() < 0.45 ? 3 : 2, x: (r() - 0.5) * 60, dir: 1, ph: 0, elite: false });
+    for (let t = 12; t < stage.len * (stage.ground + 0.1); t += 11 + r() * 5) out.push({ t, type: 'skimmer', pattern: 'skim', n: 3, x: 0, dir: r() < 0.5 ? -1 : 1, ph: r() * 6, elite: false });
+    out.sort((a, b) => a.t - b.t);
+  }
   return out;
 }
 

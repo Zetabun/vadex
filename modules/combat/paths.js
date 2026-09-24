@@ -2,6 +2,7 @@
 // negative for later squad members, so they queue off-screen and fly the same line one after another.
 // movePath returns false once the enemy has left the field for good (it escapes without penalty).
 import { FIELD } from '@last-orbit/data/balance.js';
+import { GROUND_SPEED } from '@last-orbit/data/counter.js';
 
 const TOP = FIELD.H + 12;
 const ease = (k) => k * k * (3 - 2 * k);
@@ -14,6 +15,9 @@ export function movePath(e, dt, player) {
       if (y > 58) { e.x = P.x0 + wob; e.y = y; P.out ??= (P.x0 >= 0 ? 1 : -1); }
       else { e.x += P.out * 30 * dt; e.y -= P.speed * 0.45 * dt; }
       break; }
+    case 'ground': e.x = P.x0; e.y = TOP - GROUND_SPEED * Math.max(0, t); break; // fixed to the scrolling city
+    case 'skim': { // a fast pass low across the field
+      const u = Math.max(0, t); e.x = -P.dir * 64 + P.dir * P.speed * u; e.y = P.y0 + Math.sin(u * 3 + P.ph) * 3; e.rot = P.dir * -0.4; break; }
     case 'sweep': { // in from one side high up, weaving across and slowly down
       const u = Math.max(0, t); e.x = -P.dir * 62 + P.dir * P.speed * u; e.y = P.y0 - u * 5 + Math.sin(u * 2.2 + P.ph) * 7; break; }
     case 'swirl': { // a spiral opening out from high centre
@@ -43,6 +47,8 @@ export function squadPaths(kind, n, x, dir, ph, rand) {
       case 'swirl': out.push({ kind, t: -i * 0.35, x0: x * 0.5, y0: 128, dir, ph: ph + (i / n) * Math.PI * 2 }); break;
       case 'hover': { const k = i - (n - 1) / 2; out.push({ kind, t: -i * 0.5, x0: Math.max(-38, Math.min(38, x + k * 22)), yh: 100 + rand() * 22, stay: 6 + rand() * 3, ph: ph + i }); break; }
       case 'dive': out.push({ kind, t: -i * 0.7, x0: x + (i - (n - 1) / 2) * 10, speed: 34, tx: x }); break;
+      case 'ground': out.push({ kind, t: 0, x0: Math.max(-44, Math.min(44, x + (i - (n - 1) / 2) * 18)) }); break;
+      case 'skim': out.push({ kind, t: -i * 0.3, dir, y0: 34 + rand() * 14, speed: 44, ph: ph + i }); break;
     }
   }
   return out;

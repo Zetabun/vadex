@@ -323,6 +323,9 @@ fresh(); run = launch(); step(TICK); { const p = G.world.player, x0 = p.x; G.wor
   fresh(); assert.equal(unlockCounter({ silent: true }), false, 'Locked before the sector 3 boss');
   G.state.stats.sectorsCleared = 3; assert.equal(unlockCounter({ silent: true }), true); assert.ok(G.state.counter.unlocked);
   // every stage builds a timeline that fills its length with squads of real enemies
+  { const tl = buildTimeline(STAGES[0], false); assert.equal(STAGES[0].name, 'Liftoff'); assert.ok(tl.some((ev) => ev.type === 'tower' && ev.pattern === 'ground'), 'Liftoff has gun towers on the ground');
+    assert.ok(tl.some((ev) => ev.type === 'skimmer'), 'Liftoff has skimmers'); assert.ok(tl.every((ev, i) => !i || tl[i - 1].t <= ev.t), 'The timeline is in order');
+    assert.ok(!buildTimeline(STAGES[3], false).some((ev) => ev.pattern === 'ground'), 'Only Liftoff has ground towers'); }
   for (const sg of STAGES) { const tl = buildTimeline(sg, false); assert.ok(tl.length > 30, 'stage ' + sg.n + ' has squads'); assert.ok(tl.every((ev) => ev.type && ev.pattern && ev.n > 0)); assert.ok(buildTimeline(sg, true).length > tl.length, 'Hard mode is denser'); }
   // every path pattern moves an enemy and eventually lets it leave
   for (const kind of ['column', 'vee', 'sweep', 'swirl', 'hover', 'dive']) { const [path] = squadPaths(kind, 1, 0, 1, 0, Math.random); const e = { x: 0, y: 160, rot: 0, path }; let alive = true, n = 0; while (alive && n++ < 4000) alive = movePath(e, 1 / 60, { x: 0, y: 9 }); assert.ok(!alive, kind + ' leaves the field'); }

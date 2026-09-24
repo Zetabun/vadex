@@ -3,6 +3,7 @@
 ## v2.5.0 — 2026-09-25
 
 - **Counterattack: a new vertical shooter mode.** Unlocked by defeating the sector 3 boss, and found at the top of Missions. Six stages carry the fight back through the six sectors (about 3–5 minutes each). Fly freely in every direction (drag to move, W/A/S/D on a keyboard), dash through fire, and face squads on scripted flight paths, a mid-stage mini-boss and the sector boss.
+  - **Stage 1: Liftoff.** The invaders blockade the home world. Fight your way off the surface over a 3D city that scrolls beneath you, past rooftop gun towers and low-skimming interceptors, until the city falls away and you break through into orbit to face the first boss.
   - **Stars:** each stage awards up to three: clear it, take 5 hits or fewer, and destroy 80% of the assault force. Clearing a stage opens the next and a Hard version of itself.
   - **Recommended power:** each stage shows a recommended power level against yours (Workshop levels, ship mastery and Alien Tech). Power helps but skill can carry you.
   - **Alien Cores and Alien Tech:** new stars pay Alien Cores, spent on Alien Tech in the Workshop (Xeno Alloy, Phase Drive, Star Charts, Core Siphon). It strengthens both modes. Counterattack only pays modest salvage, so the main mode stays the place to farm.

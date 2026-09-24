@@ -161,6 +161,7 @@ export function cardPool(run = G.state.run) {
     const have = run.cards[m.id] || 0; if (have >= m.max) continue;
     if (m.needDrones && sh.n('drones') < 1) continue;
     if (m.needShield && sh.n('shieldRatio') <= 0) continue;
+    if (run.mode === 'counter' && m.id === 'm_barrier') continue; // no bunkers in Counterattack
     out.push({ kind: 'mod', id: m.id, stack: have + 1, weight: RARITY[m.rarity].weight, rarity: m.rarity });
   }
   return out;

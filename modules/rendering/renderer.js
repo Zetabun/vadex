@@ -12,6 +12,8 @@ import { shapeGeometry, playerParts, NOZZLES, BANNER_PIN, unitBox, droneGeometry
 import { SpriteBatch, Particles, Transients, makeTextures, rgb, css, jagged, WHITE } from '@last-orbit/rendering/effects.js';
 import { Background } from '@last-orbit/rendering/background.js';
 import { Banner } from '@last-orbit/rendering/banner.js';
+import { Ground } from '@last-orbit/rendering/ground.js';
+import { counterProgress } from '@last-orbit/combat/counter.js';
 import { playSfx } from '@last-orbit/audio/audio.js';
 
 const CAP = { swarm: 110, scout: 70, weaver: 70, plate: 60, armourPlate: 12, turret: 12, wyrmSeg: 16, rocket: 30 };
@@ -45,7 +47,7 @@ export class Renderer {
     this.parts = new Particles(1800); this.trans = new Transients(); this.texts = []; this.engineT = 0;
     this.supportWorld = null; this.salvageDrops = []; this.salvageCraft = null; this.repairCraft = null; this.repairBeamT = 0;
     this.view = { ...VIEWS.field }; this.viewTarget = VIEWS.field;
-    this.buildPlayer(); this.banner = new Banner(this.scene); this.resize(); this.lastSector = -1;
+    this.buildPlayer(); this.banner = new Banner(this.scene); this.ground = new Ground(this.scene); this.resize(); this.lastSector = -1;
   }
   inst(geo, mat, cap) { const THREE = window.THREE, m = new THREE.InstancedMesh(geo, mat, cap); m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3).fill(1), 3); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.instanceColor.setUsage(THREE.DynamicDrawUsage); m.frustumCulled = false; m.count = 0; this.scene.add(m); return m; }
   meshFor(shape) { return this.meshes[shape] || (this.meshes[shape] = this.inst(shapeGeometry(shape), this.enemyMat, CAP[shape] || (shape.startsWith('boss') || shape.startsWith('mini') ? 3 : 40))); }
@@ -173,6 +175,9 @@ export class Renderer {
     const secIdx = w.base.sectorIdx % 6; if (secIdx !== this.lastSector) { this.bg.setSector(secIdx, this.lastSector < 0); this.lastSector = secIdx; this.rails.material.color.set(this.bg.target.mistCol); }
     // Counterattack flies away from the home planet: no horizon, and the starfield rushes past.
     this.bg.planet.visible = !!this.bg.planetOn && !(w.counter && this.bg.decor === 'none');
+    // Liftoff: the city below until the ship climbs clear of it; stars only once in the dark.
+    const gs = w.counter?.stage.ground || 0, fade = gs ? Math.max(0, Math.min(1, (gs + 0.07 - counterProgress(w)) / 0.14)) : 0;
+    this.ground.update(gs > 0, fade, dt * Math.min(3, speedMul)); for (const s of this.bg.stars) s.visible = fade < 0.6;
     this.bg.update(dt * (w.counter ? 3.2 : 1), speedMul); this.drain(w);
     const fdt = dt * Math.min(3, speedMul); this.parts.update(fdt); this.trans.update(fdt);
     const B = this.B; for (const k in B) B[k].begin();
