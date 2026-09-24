@@ -125,7 +125,7 @@ export function updateBullets(w, dt) {
     if (!dead && p.alive) {
       const dx = b.x - p.x, dy = b.y - p.y, d2 = dx * dx + dy * dy, rr = p.r + b.r;
       if (d2 < rr * rr) { hurtPlayer(w, b.dmg, b); dead = true; }
-      else if (!b.grazed && manual && d2 < BAL.grazeRadius * BAL.grazeRadius && b.y < p.y + 2) { b.grazed = true; count('grazes'); p.energy = Math.min(G.sheet.n('energyCap'), p.energy + BAL.grazeEnergy); p.focus = Math.min(G.sheet.n('focusMax'), p.focus + 0.03); fx(w, 'text', p.x, p.y + 7, 'GRAZE', '#5ee6ff', 0); sfx(w, 'graze', 0.5); }
+      else if (!b.grazed && manual && d2 < BAL.grazeRadius * BAL.grazeRadius && b.y < p.y + 2) { b.grazed = true; count('grazes'); if (p.dashCd > 0) p.dashCd = Math.max(0, p.dashCd - BAL.dashGraze); p.energy = Math.min(G.sheet.n('energyCap'), p.energy + BAL.grazeEnergy); p.focus = Math.min(G.sheet.n('focusMax'), p.focus + 0.03); fx(w, 'text', p.x, p.y + 7, 'GRAZE', '#5ee6ff', 0); sfx(w, 'graze', 0.5); }
     }
     if (dead) { B[i] = B[B.length - 1]; B.pop(); }
   }

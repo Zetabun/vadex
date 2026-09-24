@@ -21,7 +21,12 @@ import { playSfx } from '@last-orbit/audio/audio.js';
 import { h, clear, setText, setClass } from '@last-orbit/ui/dom.js';
 import { uiIcon } from '@last-orbit/ui/icons.js';
 import { art } from '@last-orbit/ui/art.js';
+import { insignia } from '@last-orbit/ui/insignia.js';
 import { dailyShareText, shareText } from '@last-orbit/ui/share.js';
+import { SYNERGIES } from '@last-orbit/data/synergies.js';
+import { BAL } from '@last-orbit/data/balance.js';
+import { MOD_BY_ID } from '@last-orbit/data/cards.js';
+import { warpMax } from '@last-orbit/progression/run.js';
 import { MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
 
 const TABS = [['launch', 'Launch'], ['missions', 'Missions'], ['workshop', 'Workshop'], ['armory', 'Armory'], ['ships', 'Ships'], ['contracts', 'Career'], ['records', 'Records'], ['awards', 'Awards']];
@@ -81,6 +86,7 @@ export function createHangar(hooks) {
       h('div.ship-head', h('div', h('div.kicker', ship.role), h('h1', ship.name)), h('button.link', { onclick: () => show('ships') }, 'Change ship', uiIcon('chevron'))),
       rankStrip(),
       opsRow(),
+      warpRow(),
       fresh ? h('p.lede', 'Invaders are descending on the last orbit. Fly a sortie, level up mid-fight by picking upgrades, and bring salvage home to build a better ship.')
         : h('button.stat-row.as-link', { onclick: () => show('records'), 'aria-label': 'Open records' }, stat('High score', s.bestScore ? fmt(s.bestScore) : '—'), stat('Best wave', best ? `${best} · S${bestSector}` : '—'), stat('Sorties', fmtInt(s.sorties))),
       next.length ? h('div.next', h('div.kicker', next.length > 1 ? 'Next contracts' : 'Next contract'), next.map((c) => contractLine(c, true))) : null);
@@ -97,6 +103,13 @@ export function createHangar(hooks) {
       h('div', h('small', 'Threat'), h('b', st.threat ? `${roman(st.threat)} · +${Math.round((threatSalvage(st.threat) - 1) * 100)}%` : 'Off'))));
     return items.length ? h('div.ops', items) : null;
   }
+  /** Warp start: choose the sector to begin in, once later sectors have been reached. */
+  function warpRow() {
+    const st = G.state, max = warpMax(); if (max < 2) return null;
+    const cur = Math.min(max, st.warp || 1), chips = [];
+    for (let s = 1; s <= max; s++) chips.push(h('button.warp-chip' + (s === cur ? '.on' : ''), { onclick: () => { st.warp = s; playSfx('tab'); render(); } }, h('b', 'S' + s), h('small', SECTORS[s - 1].name.split(' ')[0])));
+    return h('div.warp', h('div.warp-head', h('small', 'Start at'), h('span', cur > 1 ? `+${(cur - 1) * BAL.warpCards} catch-up cards and ${(cur - 1) * BAL.warpRelics} relic${cur > 2 ? 's' : ''}` : 'Sector 1, from the very beginning')), h('div.warp-chips', chips));
+  }
   function rewardBadge(r) {
     const rw = rankReward(r);
     return rw.paint ? h('span.reward.paint', swatch(rw.paint), PAINTS.find((p) => p.id === rw.paint).name + ' paint') : h('span.reward', art('cur:salvage', 'cur-ico'), fmtInt(rw.salvage));
@@ -104,7 +117,7 @@ export function createHangar(hooks) {
   function rankStrip() {
     const p = G.state.pilot, max = p.rank >= MAX_RANK;
     return h('button.rank-strip', { onclick: () => show('contracts') },
-      h('div.rank-badge', h('small', 'Rank'), h('b', String(p.rank))),
+      insignia(p.rank, 'rank-ins'),
       h('div.rank-main', h('div.rank-line', h('b', rankTitle(p.rank)), max ? h('span', 'Max rank') : h('span', 'Next ', rewardBadge(p.rank + 1))),
         h('div.meter.rank', h('i', { style: `width:${(pilotProgress() * 100).toFixed(1)}%` }))));
   }
@@ -160,8 +173,10 @@ export function createHangar(hooks) {
       abilities.append(h('div.item.flat' + (open ? '' : '.locked'), { style: `--c:${d.color}` },
         art('ability:' + id, 'item-icon'), h('div.item-main', h('b', d.name), h('small', open ? d.desc : [ship ? `Always available on the ${ship.name}. ` : '', c ? `Contract “${c.name}”: ${c.desc}` : 'Locked'].join(''))), open ? null : uiIcon('lock')));
     }
+    const syns = h('div.syn-list', SYNERGIES.map((s) => h('div.syn-card', { style: `--s:${s.color}` }, h('div.syn-top', h('b', s.name), h('small', s.cards.map((id) => MOD_BY_ID[id].name).join(' · '))),
+      s.tiers.map((t) => h('div.syn-tier', h('span', t.n + ' cards'), h('p', t.desc))))));
     return h('div.screen', h('div.screen-head', h('h2', 'Armory'), h('p', 'Unlocked weapons and abilities can appear as cards when you level up. Weapons evolve at every rank. The rest are yours to discover.')),
-      h('h3', 'Weapons'), weapons, h('h3', 'Abilities'), abilities);
+      h('h3', 'Weapons'), weapons, h('h3', 'Abilities'), abilities, h('h3', 'Synergies'), h('p.sub-note', 'Every upgrade card belongs to a theme. Hold enough different cards of one theme in a sortie to switch on its bonus.'), syns);
   }
 
   // ------------------------------------------------------------ ships
@@ -266,7 +281,7 @@ export function createHangar(hooks) {
     }
     const need = p.rank >= MAX_RANK ? 0 : rankNeed(p.rank);
     return h('div.screen', h('div.screen-head', h('h2', 'Career'), h('p', 'Every sortie earns pilot XP. Ranks pay salvage and unlock paint jobs.')),
-      h('section.panel.career', h('div.career-top', h('div.rank-badge.big', h('small', 'Rank'), h('b', String(p.rank))), h('div', h('h3', rankTitle(p.rank)), h('p', need ? `${fmtInt(p.xp)} / ${fmtInt(need)} pilot XP` : 'Maximum rank reached'))),
+      h('section.panel.career', h('div.career-top', insignia(p.rank, 'rank-ins big'), h('div', h('h3', rankTitle(p.rank)), h('p', need ? `${fmtInt(p.xp)} / ${fmtInt(need)} pilot XP` : 'Maximum rank reached'))),
         h('div.meter.rank', h('i', { style: `width:${(pilotProgress() * 100).toFixed(1)}%` })), track),
       h('h3', `Contracts · ${done}/${CONTRACTS.length}`), h('div.rows', CONTRACTS.map((c) => contractLine(c, false))));
   }
@@ -284,7 +299,7 @@ export function createHangar(hooks) {
     const top = rec.top.length ? h('ol.leader', rec.top.map((r, i) => h('li.lead' + (i === 0 ? '.first' : ''),
       h('span.lead-n', String(i + 1)),
       h('div.lead-main', h('b', fmtInt(r.score)), h('small', `Wave ${r.wave} · ${SHIP_BY_ID[r.ship]?.name || ''} · LV ${r.level} · ${fmtInt(r.kills)} kills`)),
-      h('div.lead-tags', r.daily ? h('span.tag.tag-daily', 'Daily') : null, r.threat ? h('span.tag.tag-threat', 'Threat ' + roman(r.threat)) : null, h('small', dateLabel(r.date))))))
+      h('div.lead-tags', r.daily ? h('span.tag.tag-daily', 'Daily') : null, r.warp > 1 ? h('span.tag.tag-warp', 'Warp S' + r.warp) : null, r.threat ? h('span.tag.tag-threat', 'Threat ' + roman(r.threat)) : null, h('small', dateLabel(r.date))))))
       : h('div.lock-note', uiIcon('records'), h('span', 'Your ten best sorties by score will be listed here.'));
     const ships = h('div.rows', SHIPS.map((sh) => { const b = rec.ships[sh.id], owned = !!st.unlocked.ships[sh.id];
       return h('div.ship-best' + (owned ? '' : '.locked'), { style: `--c:${hex(sh.trim)}` }, art('ship:' + sh.id, 'row-icon'), h('div.row-main', h('b', sh.name), h('small', b ? `Best wave ${b.wave} · Mastery ${masteryOf(sh.id).level}` : owned ? 'No scored sortie yet' : 'Not owned yet')), h('b.sb-score', b ? fmtInt(b.score) : '—')); }));

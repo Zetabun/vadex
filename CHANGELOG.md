@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.4.0 — 2026-09-25
+
+- **Warp start.** Once you've beaten a sector's boss, start sorties at the next sector (up to sector 6) from the Launch card. Warped runs get catch-up upgrade cards and relics for the sectors skipped. Mastery and pilot XP count only the waves you actually fly, and warped runs are tagged on the leaderboard. The Daily Sortie always starts at wave 1.
+- **Build synergies.** Every upgrade card now belongs to one of eight themes: Precision, Demolition, Barrage, Ironclad, Aegis, Squadron, Tactician and Scavenger. Holding enough different cards of a theme switches on its bonus, and a second, bigger bonus for the larger themes. Level-up cards show the theme and your progress, and flag a pick that completes one. Completing a theme gets a banner. The Loadout panel lists your synergies and the Armory has a full codex.
+- **Dodge dash.** Double-tap a side of the screen (or press Shift or F) to dash that way, untouchable for a moment. Grazing enemy shots cools the dash down faster, and a pulse shows when it's ready.
+- **Auto-pick.** When three or more upgrade picks are waiting (such as a warp pre-flight), one button picks them all sensibly: finishing synergies, evolving weapons, preferring rarer cards.
+- **Boss intel.** Each defeat by a sector boss adds 8% damage against that boss next time (up to +40%), shown when the boss appears and in the debrief. This softens the wave-40 wall without touching skilled play.
+- **Rank insignia.** The pilot rank badge is now an insignia that evolves with your title: steel chevrons, bronze wings, silver shields, gold stars and laurels, and a prismatic Legend badge.
+
 ## v2.3.0 — 2026-09-24
 
 - **Score and Records.** Every sortie now scores points for kills and cleared waves (worth more the deeper you go, +50% for flawless waves, +25% per Threat level). The score shows in the HUD, and passing your high score mid-sortie is celebrated. A new Records tab shows your high score, personal bests, a top-10 leaderboard of your sorties, each ship's best and lifetime totals. The debrief shows your score and its place on the leaderboard.

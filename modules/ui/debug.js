@@ -37,6 +37,7 @@ function runScene(scene, hooks, ui) {
   const [name, arg, arg2] = scene.split(':');
   if (name === 'hull' || name === 'hullfly') { st.unlocked.ships[arg] = 1; st.ship = arg; st.banner = 'none'; recalc(); if (name === 'hull') { hooks.toHangar('launch'); return; } }
   if (name === 'paint') { st.paints[arg] = 1; st.paint = arg; hooks.toHangar('launch'); return; }
+  if (name === 'warp') { st.stats.sectorsCleared = 4; st.warp = +(arg || 3); if (!arg2) { hooks.toHangar('launch'); return; } }
   if (name === 'bannershow' && arg === 'legendary') {
     // Every legendary stat tracker in turn with plausible stats, the kill counter ticking.
     Object.assign(st.stats, { kills: 48213, bossKills: 91, bestWave: 64, bestScore: 612840, totalSalvage: 318400, flawless: 523, sorties: 164 });
@@ -64,6 +65,9 @@ function runScene(scene, hooks, ui) {
   if (name !== 'levelup') { st.run.offer = null; st.run.pendingLevels = 0; ui.closeOverlays(); }
   if (name === 'levelup') { grantXp(40); ui.nextChoice(); }
   else if (name === 'relic') { st.run.pendingRelics = 1; ui.nextChoice(); }
+  else if (name === 'synergy') { const run = st.run; run.offer = null; run.pendingLevels = 0; run.cards = { m_crit: 1, m_critd: 2 }; recalc();
+    run.offer = [{ kind: 'mod', id: 'm_aim', stack: 1, rarity: 'common' }, { kind: 'mod', id: 'm_hull', stack: 1, rarity: 'common' }, { kind: 'mod', id: 'm_drone', stack: 1, rarity: 'rare' }]; ui.closeOverlays(); ui.nextChoice(); }
+  else if (name === 'dash') { const run = st.run; run.offer = null; run.pendingLevels = 0; ui.closeOverlays(); let d = 1; setInterval(() => { const w = G.world; if (!w) return; w.input.dash = d; d = -d; w.player.hull = 1; }, 900); }
   else if (name === 'route') { st.run.offer = null; st.run.pendingLevels = 0; st.run.pendingRoute = true; ui.closeOverlays(); ui.nextChoice(); }
   else if (name === 'fusion') { const run = st.run; run.offer = null; run.pendingLevels = 0; run.order.push('laser'); run.weapons.cannon = 7; run.weapons.laser = 7; st.mastery.vanguard = { level: 5, xp: 0 }; recalc();
     run.offer = [{ kind: 'fusion', id: 'fu_twinsuns', rarity: 'fusion' }, { kind: 'signature', id: run.ship, rarity: 'signature' }, { kind: 'mod', id: 'm_dmg', stack: 1, rarity: 'common' }]; ui.closeOverlays(); ui.nextChoice(); }

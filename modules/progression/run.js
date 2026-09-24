@@ -17,6 +17,7 @@ import { threatPilotXp } from '@last-orbit/data/threat.js';
 import { MUTATOR_BY_ID, prevDayKey, dailyBonus } from '@last-orbit/data/daily.js';
 import { FUSIONS, FUSION_BY_ID } from '@last-orbit/data/fusions.js';
 import { ROUTES, ROUTE_BY_ID } from '@last-orbit/data/routes.js';
+import { SYNERGIES, synergyOf, synergyCount } from '@last-orbit/data/synergies.js';
 
 // ---------------------------------------------------------------- sortie lifecycle
 export function startSortie(opts = {}) {
@@ -28,11 +29,15 @@ export function startSortie(opts = {}) {
   const run = st.run;
   run.threat = daily ? 0 : Math.max(0, Math.min(threatMax(), st.threat || 0));
   if (daily) { run.daily = daily.key; run.mutator = daily.mutator.id; st.daily.done = true; }
+  // Warp start: begin at an unlocked sector with catch-up upgrades and relics for the sectors skipped.
+  const warp = daily ? 1 : Math.max(1, Math.min(warpMax(), opts.warp ?? st.warp ?? 1));
+  if (warp > 1) { run.warp = warp; run.wave = (warp - 1) * BAL.sectorWaves + 1; run.level = 1 + (warp - 1) * BAL.warpCards; }
   const start = MUTATOR_BY_ID[run.mutator]?.start;
   if (start?.weapon) { const pool = WEAPON_ORDER.filter((id) => !run.weapons[id]); const id = pool[Math.floor(rand() * pool.length)]; run.weapons[id] = 1; run.order.push(id); }
   recalc();
   run.rerolls = Math.round(G.sheet.n('rerolls'));
-  run.pendingLevels = Math.round(G.sheet.n('startLevels')) + (start?.cards || 0);
+  run.pendingLevels = Math.round(G.sheet.n('startLevels')) + (start?.cards || 0) + (warp - 1) * BAL.warpCards;
+  run.pendingRelics = (warp - 1) * BAL.warpRelics;
   count('sorties'); checkContracts();
   bus.emit('sortieStart', run);
   return run;
@@ -58,19 +63,21 @@ export function endSortie(reason = 'destroyed') {
     d.wave = reached; d.score = summary.score; d.mutator = run.mutator; d.best = Math.max(d.best || 0, reached); count('dailies'); maxStat('bestStreak', d.streak);
     const bonus = dailyBonus(reached, d.streak); st.salvage += bonus; summary.daily = { bonus, streak: d.streak };
   }
-  summary.mastery = addMastery(run.ship, reached);
+  const flown = Math.max(1, reached - (run.warp ? (run.warp - 1) * BAL.sectorWaves : 0)); summary.warp = run.warp || 1;
+  summary.mastery = addMastery(run.ship, flown);
   // Contracts finished mid-sortie were announced as they happened; the debrief lists them all.
   summary.contracts = (run.contractsDone || []).concat(checkContracts({ silent: true, medals: false }));
   // Medals earned during the sortie, and those its records just earned, pay their pilot XP with the sortie's own.
   // Rank-ups can unlock paint jobs, which can earn further medals: keep paying until nothing new is earned.
   let medals = checkAchievements({ silent: true, pay: false });
   const sum = (list) => list.reduce((n, m) => n + m.xp, 0);
-  summary.pilot = addPilotXp(sortiePilotXp({ xpTotal: run.xpTotal, wave: reached, bosses: summary.bosses }) * threatPilotXp(summary.threat) * (run.daily ? 2 : 1) + (run.medalXp || 0) + sum(medals));
+  summary.pilot = addPilotXp(sortiePilotXp({ xpTotal: run.xpTotal, wave: flown, bosses: summary.bosses }) * threatPilotXp(summary.threat) * (run.daily ? 2 : 1) + (run.medalXp || 0) + sum(medals));
   for (let more; (more = checkAchievements({ silent: true, pay: false })).length;) {
     medals = medals.concat(more); const g = addPilotXp(sum(more));
     summary.pilot.gained += g.gained; summary.pilot.to = g.to; summary.pilot.rewards.push(...g.rewards);
   }
   summary.medals = (run.medalsDone || []).concat(medals);
+  if (run.intelGained) summary.intel = { id: run.intelGained, level: st.intel[run.intelGained] };
   summary.banners = (run.bannersDone || []).concat(Object.keys(st.banners).filter((id) => !bannersBefore[id]));
   st.history.unshift({ score: summary.score, wave: summary.wave, level: summary.level, ship: summary.ship, salvage: banked, time: summary.time, date: summary.date }); st.history.length = Math.min(st.history.length, 12);
   recalc(); bus.emit('sortieEnded', summary);
@@ -82,7 +89,7 @@ function recordSortie(st, run, s) {
   const score = Math.round(run.score || 0), rec = st.records;
   const prev = st.stats.bestScore || 0;
   maxStat('bestScore', score); maxStat('bestKills', s.kills); maxStat('longestRun', s.time);
-  const entry = { score, wave: s.wave, ship: s.ship, level: s.level, kills: s.kills, threat: s.threat, daily: !!run.daily, date: s.date };
+  const entry = { score, wave: s.wave, ship: s.ship, level: s.level, kills: s.kills, threat: s.threat, daily: !!run.daily, warp: run.warp || 1, date: s.date };
   rec.top.push(entry); rec.top.sort((a, b) => b.score - a.score || a.date - b.date); rec.top.length = Math.min(rec.top.length, TOP_N);
   const place = rec.top.indexOf(entry) + 1;
   const sb = (rec.ships[s.ship] ||= { score: 0, wave: 0 }); sb.score = Math.max(sb.score, score); sb.wave = Math.max(sb.wave, s.wave);
@@ -181,7 +188,13 @@ export function pickCard(idx) {
     case 'weapon': run.weapons[c.id] = 1; run.order.push(c.id); maxStat('maxWeapons', run.order.length); break;
     case 'upgrade': run.weapons[c.id] = Math.min(BAL.maxRank, (run.weapons[c.id] || 1) + 1); maxStat('maxRank', run.weapons[c.id]); maxStat('maxedWeapons', run.order.filter((id) => run.weapons[id] >= BAL.maxRank).length); break;
     case 'ability': if (!run.abilities.includes(c.id)) run.abilities.push(c.id); break;
-    case 'mod': { const m = MOD_BY_ID[c.id]; run.cards[c.id] = (run.cards[c.id] || 0) + 1; if (m.heal && p) p.hull = Math.min(1, p.hull + m.heal); break; }
+    case 'mod': {
+      const m = MOD_BY_ID[c.id], s = synergyOf(c.id), before = s ? synergyCount(s, run) : 0;
+      run.cards[c.id] = (run.cards[c.id] || 0) + 1; if (m.heal && p) p.hull = Math.min(1, p.hull + m.heal);
+      const tier = s && s.tiers.find((t) => before < t.n && synergyCount(s, run) >= t.n);
+      if (tier) { count('synergies'); bus.emit('synergy', s, tier); }
+      break;
+    }
     case 'signature': run.signature = true; count('signatures'); break;
     case 'fusion': (run.fusions ||= []).push(c.id); maxStat('fusions', run.fusions.length); break;
     case 'heal': if (p) p.hull = Math.min(1, p.hull + 0.4); break;
@@ -193,6 +206,22 @@ export function pickCard(idx) {
   bus.emit('cardPicked', c);
   nextOffer();
   return c;
+}
+
+/** Highest sector a sortie may warp to: the one after the furthest sector boss defeated (up to sector 6). */
+export function warpMax() { return Math.max(1, Math.min(6, (G.state.stats.sectorsCleared || 0) + 1)); }
+
+/** A sensible card for a pilot who wants to skip choosing: finish synergies, evolve weapons, prefer rarer cards. */
+export function autoPickIndex(run = G.state.run) {
+  const score = (c) => {
+    let v = { signature: 30, fusion: 28, upgrade: 12, weapon: 10, ability: 6, mod: 5, heal: 1, cash: 1 }[c.kind] || 0;
+    v += { evo: 6, epic: 4, rare: 2 }[c.rarity] || 0;
+    const s = c.kind === 'mod' && synergyOf(c.id);
+    if (s && !(run.cards[c.id] > 0)) { const n = synergyCount(s, run) + 1; v += s.tiers.some((t) => t.n === n) ? 9 : 3; }
+    return v;
+  };
+  let best = 0; (run.offer || []).forEach((c, i) => { if (score(c) > score(run.offer[best])) best = i; });
+  return best;
 }
 
 // ---------------------------------------------------------------- relics

@@ -28,6 +28,12 @@ export const BAL = {
   waveGap: 1.1, formationEnter: 0.9, formSpeed: 5.5, formStep: 5, enrage: 70,
   // run
   sectorWaves: 10, maxWeapons: 4, maxAbilities: 2, maxRank: 7, cardChoices: 3,
+  // dodge dash: a burst sideways with a moment of invulnerability; grazing enemy shots cools it down faster
+  dashCd: 2.6, dashTime: 0.16, dashSpeed: 150, dashInvuln: 0.32, dashGraze: 0.35,
+  // warp start: catch-up for each sector skipped
+  warpCards: 5, warpRelics: 1,
+  // boss intel: each defeat by a sector boss adds damage against it next time
+  intelStep: 0.08, intelMax: 5,
 };
 
 // Enemy stats are multiples of these per-wave baselines (see data/enemies.js).

@@ -61,11 +61,13 @@ function wireInput() {
   // drifts keeps holding, following whichever half it is on. Every finger is tracked, and the newest one steers, so a
   // second touch (an ability, a tap on an enemy) never cancels the first. Short taps mark targets or open the loadout.
   const holdOn = () => G.state.settings.holdSides !== false;
-  const touches = new Map(); let cur = null;
+  const touches = new Map(); let cur = null, lastDown = null;
   const steer = () => { const i = inp(); i.active = !!cur; i.hold = cur && !cur.drag ? cur.side : 0; };
   glCanvas.addEventListener('pointerdown', (e) => {
     initAudio(); if (G.mode !== 'sortie') return; e.preventDefault(); try { glCanvas.setPointerCapture(e.pointerId); } catch { /* not critical */ }
-    const p = at(e);
+    const p = at(e), now = performance.now(), side = sideOf(e);
+    // Double-tap a side to dash that way.
+    if (lastDown && now - lastDown.t < 300 && lastDown.side === side && Math.abs(e.clientX - lastDown.x) < 90) { inp().dash = side; lastDown = null; } else lastDown = { t: now, side, x: e.clientX };
     cur = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), sx: p.x, lx: p.x, px: G.world.player.x, drag: !holdOn(), side: sideOf(e) };
     touches.set(e.pointerId, cur); inp().targetX = G.world.player.x; steer();
   });
@@ -96,7 +98,8 @@ function wireInput() {
   addEventListener('keydown', (e) => {
     if (G.mode !== 'sortie' || ui.blocking() || e.target.closest?.('input,textarea,select')) return;
     const i = inp();
-    if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.l = true; else if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.r = true;
+    if (e.code === 'ShiftLeft' || e.code === 'ShiftRight' || e.code === 'KeyF') { i.dash = i.keys || (G.world.player.vx < 0 ? -1 : 1); e.preventDefault(); }
+    else if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.l = true; else if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.r = true;
     else if (/^Digit[1-2]$/.test(e.code) || e.code === 'KeyQ' || e.code === 'KeyE' || e.code === 'Space') { const idx = e.code === 'KeyE' || e.code === 'Digit2' ? 1 : 0; const id = G.state.run.abilities[idx]; if (id) useAbility(G.world, id); e.preventDefault(); }
     i.keys = (keys.r ? 1 : 0) - (keys.l ? 1 : 0); });
   addEventListener('keyup', (e) => { if (!G.world) return; const i = inp(); if (e.code === 'ArrowLeft' || e.code === 'KeyA') keys.l = false; else if (e.code === 'ArrowRight' || e.code === 'KeyD') keys.r = false; i.keys = (keys.r ? 1 : 0) - (keys.l ? 1 : 0); });

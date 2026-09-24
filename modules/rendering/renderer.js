@@ -144,6 +144,8 @@ export class Renderer {
         case 'text': if (e.e > 0 || dmgNum) this.addText(e.a, e.b, e.c, e.d, e.e || 0); break;
         case 'boom': { const c = rgb(e.d ?? 0xffb547); this.trans.add({ k: 'ring', x: e.a, y: e.b, r: e.c, c, t: 0, life: 0.35 }); this.trans.add({ k: 'flash', x: e.a, y: e.b, r: e.c * 1.3, c, a: 0.9, t: 0, life: 0.28 }); P.burst(e.a, e.b, 6 + e.c * 0.8, c, 18 + e.c * 2.2, 2.2, 0.5); break; }
         case 'hit': P.burst(e.a, e.b, 3, rgb(e.c ?? 0xffffff), 26, 1.5, 0.22); break;
+        case 'dash': P.burst(e.a, e.b, 12, CYAN, 40, 1.8, 0.35); this.trans.add({ k: 'ring', x: e.a, y: e.b, r: 9, c: CYAN, t: 0, life: 0.25 }); this.trans.add({ k: 'flash', x: e.a - e.c * 4, y: e.b, r: 10, c: WHITE, a: 0.5, t: 0, life: 0.18 }); break;
+        case 'dashReady': this.trans.add({ k: 'ring', x: e.a, y: e.b, r: 7, c: rgb(0x6dffc8), t: 0, life: 0.3 }); break;
         case 'die': { const c = rgb(e.d ?? 0xffffff), tier = e.e || 0; P.burst(e.a, e.b, 10 + e.c * 2 + tier * 30, c, 30 + e.c * 3 + tier * 25, 2.2 + tier, 0.55 + tier * 0.5); P.burst(e.a, e.b, 4 + tier * 10, WHITE, 16, 1.6, 0.35); this.trans.add({ k: 'flash', x: e.a, y: e.b, r: e.c * (2.2 + tier * 2), c, a: 1, t: 0, life: 0.25 + tier * 0.3 }); if (tier) { this.trans.add({ k: 'ring', x: e.a, y: e.b, r: e.c * (2 + tier * 2), c, t: 0, life: 0.6 }); this.trans.add({ k: 'ring', x: e.a, y: e.b, r: e.c * (4 + tier * 3), c: WHITE, t: 0, life: 0.9 }); } break; }
         case 'ore': { const c = rgb(e.d ?? 0x9aa3ad), n = 4; for (let j = 0; j < n; j++) { const a = Math.random() * Math.PI * 0.9 + Math.PI * 0.05, sp = 14 + Math.random() * 20; this.trans.add({ k: 'ore', x: e.a + (Math.random() - .5) * e.c, y: e.b, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp + 8, rot: Math.random() * 6.28, vr: (Math.random() - .5) * 10, size: 2.4 + Math.random() * 1.8, c, t: 0, life: .65 + Math.random() * .35 }); } P.burst(e.a, e.b, 5, c, 18, 1.4, .35); break; }
         case 'salvageDrop': if (this.salvageDrops.length < 16) this.salvageDrops.push({ x: e.a, y: e.b, amount: e.c, vx: (Math.random() - .5) * 16, vy: 9 + Math.random() * 8, t: 0, rot: Math.random() * 6.28 }); else this.addText(e.a, e.b, e.c, '#b9c4d6', 2); break;
@@ -239,6 +241,7 @@ export class Renderer {
       B.soft.add(n.x, n.y - .7 * k, .85 * k * big, 2.5 * k, -p.tilt * .12, WHITE, .95);
     }
     if (p.fireFlash > 0) B.soft.add(p.x, p.y + 5.5, 5, 5, 0, WHITE, p.fireFlash * 8);
+    if (p.dashT > 0) for (let k = 1; k <= 3; k++) B.soft.add(p.x - p.dashDir * k * 3.2, p.y, 9 - k * 2, 11 - k * 2, 0, CYAN, 0.5 - k * 0.12);
     if (w.base.hasShield && p.shield > 0.02) B.ring.add(p.x, p.y, 15, 15, t, CYAN, 0.25 + p.shield * 0.5);
     if (w.abil.active.aegis > 0) { B.ring.add(p.x, p.y, 19, 19, -t * 2, WHITE, 1); B.soft.add(p.x, p.y, 22, 22, 0, rgb(0x7aa2ff), 0.6); }
     if (p.focus > 0.05) B.ring.add(p.x, p.y, 10 + p.focus * 6, 10 + p.focus * 6, -t * 1.4, AMBER, p.focus * 0.9);

@@ -88,6 +88,7 @@ export function initUI(app, hooks) {
     else if (e.k === 'hurt') { $.vig.classList.add('on'); requestAnimationFrame(() => requestAnimationFrame(() => $.vig.classList.remove('on'))); }
   });
   bus.on('levelUp', () => { playSfx('milestone'); });
+  bus.on('synergy', (s, t) => { if (G.mode !== 'sortie') return; banner('Synergy · ' + s.name, t.desc, null, s.color, 2600); flash(s.color); playSfx('unlock'); });
 
   // ------------------------------------------------------------ input routing
   addEventListener('keydown', (e) => {

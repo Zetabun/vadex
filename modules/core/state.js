@@ -26,6 +26,8 @@ export function newState() {
     banners: { none: 1 },
     banner: 'none',
     threat: 0,
+    warp: 1,        // sector to start sorties in (1 = the beginning)
+    intel: {},      // boss id → times that boss has defeated the pilot (boss intel)
     daily: { day: '', done: false, wave: 0, streak: 0, lastDay: '', best: 0 },
     mastery: {},
     workshop: {},

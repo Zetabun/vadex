@@ -14,6 +14,7 @@ import { threatMods, threatSalvage } from '@last-orbit/data/threat.js';
 import { MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
 import { ROUTE_BY_ID } from '@last-orbit/data/routes.js';
 import { fusionsFor } from '@last-orbit/data/fusions.js';
+import { SYNERGIES, activeTiers } from '@last-orbit/data/synergies.js';
 
 export const STAT_BASE = {
   damage: 1, fireRate: 1, critChance: 0.03, critDmg: 1, projSpeed: 1, multishot: 0, pierce: 0, blast: 1, armorPen: 0, bossDmg: 1, eliteDmg: 1, weakMult: BAL.weakMult,
@@ -74,6 +75,7 @@ export function computeSheet(state, sheet = new Sheet()) {
   for (const id in state.workshop) sheet.fx(DEF.workshop[id]?.fx, state.workshop[id], 'Workshop');
   if (run) {
     for (const id in run.cards) sheet.fx(DEF.mods[id]?.fx, run.cards[id], 'Cards');
+    for (const s of SYNERGIES) for (const t of activeTiers(s, run)) sheet.fx(t.fx, 1, 'Synergy');
     for (const id of run.relics) sheet.fx(DEF.relics[id]?.fx, 1, 'Relics');
     if (run.mutator) sheet.fx(MUTATOR_BY_ID[run.mutator]?.fx, 1, 'Daily');
     if (run.route) sheet.fx(ROUTE_BY_ID[run.route]?.fx, 1, 'Route');

@@ -286,6 +286,37 @@ assert.ok(describeCard({ kind: 'fusion', id: 'fu_twinsuns' }).icon2); endSortie(
   run.pendingRoute = true; nextRoute(); run.routeOffer = ['steady', 'gauntlet', 'blitz']; pickRoute(0); assert.equal(run.route, null, 'Steady Course clears the route');
   for (const r of Object.values(ROUTE_BY_ID)) assert.ok(r.name && r.desc && r.art, r.id); endSortie('abandoned'); }
 
+// ---- v2.4: warp start ----
+{ const { warpMax } = await import('@last-orbit/progression/run.js');
+  fresh(); assert.equal(warpMax(), 1, 'No warp before a sector is cleared'); G.state.warp = 4; run = launch(); assert.equal(run.wave, 1, 'Warp is clamped to what is unlocked'); endSortie('abandoned');
+  fresh(); G.state.stats.sectorsCleared = 3; G.state.warp = 3; run = launch();
+  assert.equal(run.wave, 21); assert.equal(run.warp, 3); assert.ok(run.pendingLevels >= 2 * BAL.warpCards, 'Warp grants catch-up cards'); assert.equal(run.pendingRelics, 2 * BAL.warpRelics);
+  G.world.wave.num = 25; const ws = endSortie('abandoned'); assert.equal(ws.mastery.gained, 5, 'Mastery counts only waves flown'); assert.equal(G.state.records.top[0].warp, 3);
+  G.state.warp = 3; run = startSortie({ daily: true }); assert.equal(run.wave, 1, 'The daily never warps'); endSortie('abandoned'); }
+
+// ---- v2.4: synergies ----
+{ const { SYNERGIES, synergyOf } = await import('@last-orbit/data/synergies.js'); const { autoPickIndex } = await import('@last-orbit/progression/run.js');
+  const seen = new Set(); for (const s of SYNERGIES) for (const id of s.cards) { assert.ok(MODS.some((m) => m.id === id), id + ' is a card'); assert.ok(!seen.has(id), id + ' in one theme only'); seen.add(id); }
+  fresh(); run = launch(); run.offer = null; run.pendingLevels = 0; const cc = G.sheet.n('critDmg'); let fired = null; const offS = bus.on('synergy', (s) => { fired = s.id; });
+  for (const id of ['m_crit', 'm_critd']) { run.offer = [{ kind: 'mod', id, rarity: 'common' }]; pickCard(0); } assert.equal(fired, null);
+  run.offer = [{ kind: 'mod', id: 'm_aim', rarity: 'common' }]; pickCard(0); assert.equal(fired, 'precision', 'Three Precision cards complete the theme'); offS();
+  assert.ok(G.sheet.n('critDmg') > cc + 0.6, 'The synergy bonus applies');
+  run.offer = [{ kind: 'mod', id: 'm_hull', rarity: 'common' }, { kind: 'mod', id: 'm_apen', rarity: 'common' }, { kind: 'heal', rarity: 'common' }]; assert.equal(autoPickIndex(run), 1, 'Auto-pick finishes a synergy tier');
+  endSortie('abandoned'); }
+
+// ---- v2.4: dodge dash ----
+fresh(); run = launch(); step(TICK); { const p = G.world.player, x0 = p.x; G.world.input.dash = 1; for (let i = 0; i < 12; i++) step(TICK);
+  assert.ok(p.x > x0 + 10, 'The dash moves the ship'); assert.ok(p.dashCd > 0);
+  p.dashInv = 0.3; p.invuln = 0; p.shield = 0; const h0 = p.hull; hurtPlayer(G.world, 5); assert.equal(p.hull, h0, 'Dashing dodges damage');
+  const cd = p.dashCd; G.world.input.dash = -1; step(TICK); assert.ok(p.dashCd <= cd, 'No dash while cooling down'); } endSortie('abandoned');
+
+// ---- v2.4: boss intel ----
+{ fresh(); G.state.stats.sectorsCleared = 3; G.state.warp = 4; run = launch(); const { debugSetWave } = await import('@last-orbit/combat/sim.js');
+  debugSetWave(40); for (let i = 0; i < 400 && !G.world.wave.boss; i++) step(TICK); const boss = G.world.wave.boss; assert.ok(boss, 'Wave 40 has a boss');
+  const p = G.world.player; p.invuln = 0; p.shield = 0; p.lastStand = false; run.windUsed = true; hurtPlayer(G.world, 1e9); for (let i = 0; i < 400 && G.state.run; i++) step(TICK);
+  const intel = G.state.intel[boss.boss.id]; assert.equal(intel, 1, 'Dying to a sector boss records intel');
+  const s = endSortie('destroyed'); assert.equal(s.intel.level, 1); }
+
 // ---- saves round-trip and refuse newer schemas ----
 fresh(); G.state.salvage = 1234; G.state.workshop.w_hull = 3;
 const back = parseSave(JSON.stringify(G.state)); assert.equal(back.salvage, 1234); assert.equal(back.workshop.w_hull, 3); assert.equal(back.v, SCHEMA);

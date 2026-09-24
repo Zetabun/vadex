@@ -9,10 +9,13 @@ import { RELIC_BY_ID } from '@last-orbit/data/relics.js';
 import { WEAPONS } from '@last-orbit/data/weapons.js';
 import { SHIP_BY_ID } from '@last-orbit/data/ships.js';
 import { CONTRACT_BY_ID } from '@last-orbit/data/contracts.js';
-import { describeCard, pickCard, reroll, pickRelic, pickRoute } from '@last-orbit/progression/run.js';
+import { describeCard, pickCard, reroll, pickRelic, pickRoute, autoPickIndex } from '@last-orbit/progression/run.js';
+import { SYNERGIES, synergyOf, synergyCount, activeTiers } from '@last-orbit/data/synergies.js';
 import { ROUTE_BY_ID } from '@last-orbit/data/routes.js';
 import { FUSION_BY_ID } from '@last-orbit/data/fusions.js';
 import { sectorOf } from '@last-orbit/data/sectors.js';
+import { BOSSES } from '@last-orbit/data/bosses.js';
+import { BAL } from '@last-orbit/data/balance.js';
 import { unlockLabel, pilotProgress, medalDesc } from '@last-orbit/progression/meta.js';
 import { PAINT_BY_ID, rankTitle } from '@last-orbit/data/career.js';
 import { THREATS } from '@last-orbit/data/threat.js';
@@ -43,16 +46,25 @@ export function createOverlays(layer, hooks) {
       const d = describeCard(c, run), rar = RARITY[c.rarity] || RARITY.common;
       cards.append(h('button.card.' + c.rarity, { style: `--c:${d.color};--r:${rar.color};--d:${i * 70}ms`, onclick: () => choose(i), 'data-autofocus': i === 0 ? '' : null },
         h('div.card-art' + (d.icon2 ? '.duo' : ''), art(d.icon, 'card-icon'), d.icon2 ? art(d.icon2, 'card-icon') : null),
-        h('div.card-main', h('div.card-kicker', h('span', d.kicker), h('span.rar', c.kind === 'upgrade' ? (c.rarity === 'evo' ? 'Final evolution' : 'Upgrade') : c.kind === 'weapon' ? 'Weapon' : c.kind === 'ability' ? 'Ability' : c.kind === 'fusion' ? 'Fusion' : c.kind === 'signature' ? 'Signature' : rar.name)), h('div.card-title', d.title), h('div.card-body', d.body)),
+        h('div.card-main', h('div.card-kicker', h('span', d.kicker), h('span.rar', c.kind === 'upgrade' ? (c.rarity === 'evo' ? 'Final evolution' : 'Upgrade') : c.kind === 'weapon' ? 'Weapon' : c.kind === 'ability' ? 'Ability' : c.kind === 'fusion' ? 'Fusion' : c.kind === 'signature' ? 'Signature' : rar.name)), h('div.card-title', d.title), h('div.card-body', d.body), synChip(c, run)),
         h('span.card-key', String(i + 1))));
     });
     const rr = run.rerolls <= 0 ? null : h('button.btn.ghost.reroll', { onclick: () => { if (open?.busy) return; if (reroll()) { playSfx('tab'); showOffer(); } } }, uiIcon('reroll'), `Reroll (${run.rerolls})`);
-    const shownLevel = run.level - run.pendingLevels + 1;
+    const shownLevel = run.level - run.pendingLevels + 1, preflight = !(run.time > 0);
     const more = run.pendingLevels > 1 ? h('span.more', `+${run.pendingLevels - 1} more`) : null;
+    const auto = run.pendingLevels >= 3 ? h('button.btn.ghost.reroll', { onclick: () => { if (open?.busy) return; open.busy = true; playSfx('buy'); let guard = 60; while (run.offer && guard-- > 0) pickCard(autoPickIndex(run)); close(); hooks.nextChoice(); } }, uiIcon('check'), `Auto-pick ${run.pendingLevels}`) : null;
     const el = h('div.modal.levelup', { role: 'dialog', 'aria-label': 'Level up' },
-      h('div.modal-head', h('div.kicker', 'Level up'), h('h2', shownLevel > 1 ? 'Level ' + shownLevel : 'Pre-flight', more), h('p', shownLevel > 1 ? 'Choose an upgrade for this sortie.' : 'Your veteran crew fits an upgrade before launch.')),
-      cards, rr ? h('div.modal-foot', rr) : null);
+      h('div.modal-head', h('div.kicker', preflight && run.warp ? `Warp to sector ${run.warp}` : 'Level up'), h('h2', preflight ? 'Pre-flight' : 'Level ' + shownLevel, more), h('p', !preflight ? 'Choose an upgrade for this sortie.' : run.warp ? 'Catch-up upgrades for the sectors you are skipping.' : 'Your veteran crew fits an upgrade before launch.')),
+      cards, rr || auto ? h('div.modal-foot', rr, auto) : null);
     mount('offer', el, (e) => { const n = Number(e.key); if (n >= 1 && n <= run.offer.length) { choose(n - 1); return true; } if ((e.key === 'r' || e.key === 'R') && rr) { rr.click(); return true; } return false; });
+  }
+
+  /** Synergy progress on a card: which theme it feeds and whether it completes a tier. */
+  function synChip(c, run) {
+    if (c.kind !== 'mod') return null; const s = synergyOf(c.id); if (!s) return null;
+    const have = synergyCount(s, run), next = run.cards[c.id] > 0 ? have : have + 1, tier = s.tiers.find((t) => t.n > have) || s.tiers[s.tiers.length - 1];
+    const completes = !(run.cards[c.id] > 0) && s.tiers.some((t) => t.n === next);
+    return h('div.syn-chip' + (completes ? '.complete' : ''), { style: `--s:${s.color}` }, h('b', s.name), h('span', completes ? `Completes: ${s.tiers.find((t) => t.n === next).desc}` : `${Math.min(next, tier.n)}/${tier.n}`));
   }
 
   // ------------------------------------------------------------ relics
@@ -126,6 +138,11 @@ export function createOverlays(layer, hooks) {
     const abilities = run.abilities.map((id, i) => row('ability:' + id, ABILITIES[id].color, ABILITIES[id].name, 'Button ' + (i + 1), ABILITIES[id].desc));
     const relics = run.relics.map((id) => row('relic:' + id, '#b69cff', RELIC_BY_ID[id].name, 'Relic', RELIC_BY_ID[id].desc));
     const mods = Object.entries(run.cards).filter(([, n]) => n > 0).map(([id, n]) => { const m = MOD_BY_ID[id]; return row('mod:' + id, RARITY[m.rarity].color, m.name, m.max > 1 ? `×${n}` : 'Unique', m.desc); });
+    const syns = SYNERGIES.map((s) => ({ s, n: synergyCount(s, run), on: activeTiers(s, run) })).filter((x) => x.n > 0).map(({ s, n, on }) => {
+      const next = s.tiers.find((t) => t.n > n);
+      return h('div.lo-row' + (on.length ? '.syn-on' : ''), { style: `--c:${s.color}` }, h('span.syn-dot'), h('div.lo-main', h('div.lo-title', h('b', s.name), h('span', `${n}/${(next || s.tiers[s.tiers.length - 1]).n}`)),
+        h('p', [...on.map((t) => '✓ ' + t.desc), next ? `Next at ${next.n}: ${next.desc}` : ''].filter(Boolean).join(' · '))));
+    });
     const ship = SHIP_BY_ID[run.ship], specials = [];
     if (run.signature && ship.signature) specials.push(row('weapon:' + ship.weapon, '#' + ship.trim.toString(16).padStart(6, '0'), ship.signature.name, 'Signature', `${WEAPONS[ship.weapon].name}: ${ship.signature.desc}.`));
     for (const id of run.fusions || []) { const f = FUSION_BY_ID[id]; specials.push(row('weapon:' + f.a, '#ff8bff', f.name, 'Fusion', `${WEAPONS[f.a].name} + ${WEAPONS[f.b].name}. ${f.desc}`)); }
@@ -136,7 +153,7 @@ export function createOverlays(layer, hooks) {
     for (let t = 1; t <= (run.threat || 0); t++) rules.push(row('relic:r_giant', '#ff5f7a', 'Threat ' + THREATS[t].roman, null, THREATS[t].rule + '.'));
     const el = h('div.modal.loadout-sheet', { role: 'dialog', 'aria-label': 'Loadout' },
       h('div.modal-head', h('div.kicker', `Wave ${run.wave} · Level ${run.level}`), h('h2', 'Loadout'), h('p', 'Everything working for (and against) you this sortie.')),
-      ...section('Weapons', weapons), ...section('Specials', specials), ...section('Abilities', abilities), ...section('Relics', relics), ...section(`Upgrades (${mods.length})`, mods), ...section('Conditions', rules),
+      ...section('Weapons', weapons), ...section('Synergies', syns), ...section('Specials', specials), ...section('Abilities', abilities), ...section('Relics', relics), ...section(`Upgrades (${mods.length})`, mods), ...section('Conditions', rules),
       h('div.modal-actions', fromPause ? h('button.btn.ghost', { onclick: showPause }, uiIcon('back'), 'Back') : null, h('button.btn.primary', { onclick: close, 'data-autofocus': '' }, uiIcon('play'), 'Resume')));
     mount('loadout', el, (e) => { if (e.key === 'Escape') { if (fromPause) showPause(); else close(); return true; } return false; });
     if (focus) setTimeout(() => el.querySelector('.lo-row.focus')?.scrollIntoView({ block: 'center' }), 80);
@@ -172,7 +189,7 @@ export function createOverlays(layer, hooks) {
     const salvageEl = h('b.count', '0');
     const done = s.contracts.map((id) => CONTRACT_BY_ID[id]);
     const el = h('div.modal.debrief', { role: 'dialog', 'aria-label': 'Sortie debrief' },
-      h('div.modal-head', h('div.kicker', `${ship.name} · Sector ${s.sector} · ${s.sectorName}` + (s.threat ? ` · Threat ${THREATS[s.threat].roman}` : '') + (s.mutator ? ` · Daily: ${MUTATOR_BY_ID[s.mutator].name}` : '')), h('h2', win), h('div.pbs', s.highScore ? h('div.pb', 'New high score') : null, s.best && s.wave > 1 ? h('div.pb', 'New best wave') : null)),
+      h('div.modal-head', h('div.kicker', `${ship.name} · Sector ${s.sector} · ${s.sectorName}` + (s.threat ? ` · Threat ${THREATS[s.threat].roman}` : '') + (s.mutator ? ` · Daily: ${MUTATOR_BY_ID[s.mutator].name}` : '') + (s.warp > 1 ? ` · Warp S${s.warp}` : '')), h('h2', win), h('div.pbs', s.highScore ? h('div.pb', 'New high score') : null, s.best && s.wave > 1 ? h('div.pb', 'New best wave') : null)),
       h('div.hero-row', h('div.big-wave', h('small', 'Wave'), h('b', String(s.wave))), h('div.earned', h('small', 'Salvage banked'), h('div', art('cur:salvage', 'cur-ico'), salvageEl))),
       h('div.score-row', h('small', 'Score'), h('b', fmtInt(s.score || 0)), s.place ? h('span', `#${s.place} of your top 10`) : s.prevScore ? h('span', `Best ${fmtInt(s.prevScore)}`) : null),
       h('div.stat-grid', stat('Level', s.level), stat('Kills', fmtInt(s.kills)), stat('Bosses', s.bosses), stat('Time', fmtTime(s.time))),
@@ -181,6 +198,7 @@ export function createOverlays(layer, hooks) {
       s.pilot ? h('div.pilot-xp', h('div.pilot-row', h('span', s.pilot.to > s.pilot.from ? `Rank up! ${rankTitle(s.pilot.to)} · Rank ${s.pilot.to}` : `Pilot rank ${s.pilot.to}`), h('b', '+' + fmtInt(s.pilot.gained) + ' XP')),
         h('div.meter.rank', h('i', { style: `width:${(pilotProgress() * 100).toFixed(1)}%` })),
         s.pilot.rewards.length ? h('div.rank-rewards', s.pilot.rewards.map((r) => h('span.reward' + (r.paint ? '.paint' : ''), r.paint ? `${PAINT_BY_ID[r.paint].name} paint unlocked` : [art('cur:salvage', 'cur-ico'), '+' + fmtInt(r.salvage)]))) : null) : null,
+      s.intel ? h('div.pilot-row.intel-row', h('span', `Boss intel on ${BOSSES[s.intel.id]?.name || 'the boss'}: level ${s.intel.level}`), h('b', `+${Math.round(s.intel.level * BAL.intelStep * 100)}% damage`)) : null,
       s.medals?.length ? h('div.unlocks.medals', h('div.kicker', `Achievements earned (${s.medals.length})`), s.medals.map((m) => { const a = ACHIEVEMENTS.find((x) => x.id === m.id) || FEATS.find((x) => x.id === m.id), tier = a.goals ? TIERS[m.tier].id : 'feat';
         return h('div.unlock', h('span.medal-frame.sm.tier-' + tier, art(a.art, 'medal-ico')), h('b', a.name), h('small', `${a.goals ? TIERS[m.tier].name : 'Feat'} · ${medalDesc(a, m.tier)} · +${m.xp} XP`)); })) : null,
       s.banners?.length ? h('div.unlocks.medals', h('div.kicker', 'Banners unlocked'), s.banners.map((id) => h('div.unlock', art('ach:flag', 'build-icon'), h('b', BANNER_BY_ID[id].name), h('small', 'Fly it from the Ships tab')))) : null,

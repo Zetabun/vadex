@@ -5,6 +5,7 @@ import { BAL, FIELD } from '@last-orbit/data/balance.js';
 import { BOSSES } from '@last-orbit/data/bosses.js';
 import { ENEMIES } from '@last-orbit/data/enemies.js';
 import { fx, sfx, spawnEnemy, spawnBullet } from '@last-orbit/combat/world.js';
+import { G } from '@last-orbit/core/game.js';
 
 export function spawnBoss(w, id) {
   const def = BOSSES[id];
@@ -12,7 +13,8 @@ export function spawnBoss(w, id) {
   e.boss = { id, def, phase: -1, timers: [], t: 0, enter: 2.4, weakT: def.weak ? def.weak.every * 0.6 : 0, parts: [], enraged: false, homeY: def.y, tpFlash: 0 };
   e.weak = def.weak ? { x: 0, r: def.weak.r } : null; e.baseArmour = e.armour;
   w.wave.boss = e; w.wave.bossDamaged = false;
-  fx(w, 'bossIntro', def.name, def.title, def.color); sfx(w, 'bossintro'); fx(w, 'shake', 0.5);
+  const intel = def.mini ? 0 : G.state.intel?.[id] || 0;
+  fx(w, 'bossIntro', def.name, intel ? `${def.title} · Intel ${intel}: +${Math.round(intel * BAL.intelStep * 100)}% damage` : def.title, def.color); sfx(w, 'bossintro'); fx(w, 'shake', 0.5);
   spawnParts(w, e);
   return e;
 }

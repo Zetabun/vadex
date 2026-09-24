@@ -180,6 +180,9 @@ function afterDeath(w) {
     return;
   }
   w.wave.state = 'over'; collectAll(w);
+  // Boss intel: dying to a sector boss makes the pilot a little deadlier against it next time.
+  const bossId = w.wave.boss?.alive && !w.wave.boss.boss.def.mini ? w.wave.boss.boss.id : null;
+  if (bossId) { const st = G.state; st.intel[bossId] = Math.min(BAL.intelMax, (st.intel[bossId] || 0) + 1); run.intelGained = bossId; }
   bus.emit('sortieOver', 'destroyed');
 }
 

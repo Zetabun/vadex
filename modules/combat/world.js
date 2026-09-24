@@ -97,6 +97,7 @@ export function hitEnemy(w, e, src, mult, hx, hy, noCrit) {
   if (e.shielded && !src.shieldPierce) m *= 0.15;
   if (e.weakOpen && e.weak && Math.abs(hx - (e.x + e.weak.x)) < e.weak.r + 1.5) { weak = true; m *= sh.n('weakMult'); count('weakHits'); }
   if (w.passive === 'execute' && e.hp < 0.3) m *= 1.6;
+  { const bossId = e.boss?.id || e.parent?.boss?.id, intel = bossId ? G.state.intel?.[bossId] || 0 : 0; if (intel) m *= 1 + BAL.intelStep * intel; }
   if (e === w.painted) m *= BAL.paintMult;
   else if (e.droneMarkT > 0) m *= 1 + (e.droneMarkPower || 0.08);
   const frac = src.dmg.ratio(e.hpMax) * m;
@@ -174,6 +175,7 @@ export function spawnBullet(w, x, y, vx, vy, dmgMul, kind, r) {
 }
 export function hurtPlayer(w, dmgMul, source) {
   const p = w.player; if (!p.alive || p.invuln > 0 || w.abil.active.aegis > 0) { if (p.alive) fx(w, 'shieldhit', p.x, p.y); return; }
+  if (p.dashInv > 0) { if (!p.dodged) { p.dodged = true; fx(w, 'text', p.x, p.y + 8, 'DODGE', '#6dffc8', 0); count('dodges'); } return; }
   p.sinceHit = 0;
   let dmg = dmgMul; // in units of base enemy damage
   if (w.base.hasShield && p.shield > 0) {

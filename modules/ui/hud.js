@@ -40,7 +40,7 @@ export function createHud(hooks) {
     h('div.dock-row',
       h('div.bars', $.shieldRow, h('div.bar-row', h('span.lbl', 'HULL'), h('div.meter.hull', $.hull), $.hullTxt)),
       $.abil));
-  $.hint = h('div.fly-hint', h('b', 'Hold a side or drag to steer'), h('span', 'Your guns fire automatically. Tap an enemy to focus fire.'));
+  $.hint = h('div.fly-hint', h('b', 'Hold a side or drag to steer'), h('span', 'Double-tap a side to dash through fire. Your guns shoot on their own; tap an enemy to focus it.'));
   const el = h('div.hud-layer', top, dock, $.hint);
 
   let pipSig = '', loadSig = '', abilSig = '', hintT = 0;

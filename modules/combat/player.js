@@ -11,15 +11,24 @@ export function updatePlayer(w, dt) {
   const p = w.player, inp = w.input, sh = G.sheet;
   inp.manualT += dt; p.sinceHit += dt;
   if (p.invuln > 0) p.invuln -= dt; if (p.fireFlash > 0) p.fireFlash -= dt;
+  if (p.dashCd > 0) { p.dashCd -= dt; if (p.dashCd <= 0 && p.alive) fx(w, 'dashReady', p.x, p.y); } if (p.dashInv > 0) p.dashInv -= dt;
   if (w.paintT > 0) { w.paintT -= dt; if (w.paintT <= 0 || !w.painted?.alive) w.painted = null; }
   if (inp.tap) { paint(w, inp.tap.x, inp.tap.y); inp.tap = null; }
   if (!p.alive) return;
   const manual = inp.manualT < BAL.manualWindow;
 
+  // ---- dodge dash: a quick burst sideways, briefly untouchable ----
+  if (inp.dash) { const d = inp.dash; inp.dash = 0; if (!(p.dashCd > 0)) { p.dashDir = d; p.dodged = false; p.dashT = BAL.dashTime; p.dashCd = BAL.dashCd; p.dashInv = BAL.dashInvuln; inp.manualT = 0; fx(w, 'dash', p.x, p.y, d); sfx(w, 'dash', 0.8); count('dashes'); } }
+  if (p.dashT > 0) {
+    p.dashT -= dt; const x0 = p.x; p.x = Math.max(-HALF, Math.min(HALF, p.x + p.dashDir * BAL.dashSpeed * dt));
+    p.vx = (p.x - x0) / Math.max(dt, 1e-4); p.tilt += (p.dashDir - p.tilt) * Math.min(1, 14 * dt); inp.targetX = p.x;
+  }
+
   // ---- steering ----
   const speed = 62 * sh.n('moveSpeed'); let want = p.x;
   const dir = inp.keys || inp.hold || 0;
-  if (inp.active || dir) { want = dir ? p.x + dir * 30 : inp.targetX; inp.manualT = 0; p.autoThinkT = 0; p.autoWantX = p.x; }
+  if (p.dashT > 0) want = p.x;
+  else if (inp.active || dir) { want = dir ? p.x + dir * 30 : inp.targetX; inp.manualT = 0; p.autoThinkT = 0; p.autoWantX = p.x; }
   else if (flag('f.autopilot') && w.wave.state === 'fighting') want = autopilot(w, p, sh.n('autoDodge'), dt);
   else { p.autoThinkT = 0; p.autoWantX = p.x; }
   const dx = Math.max(-HALF, Math.min(HALF, want)) - p.x, stepX = Math.sign(dx) * Math.min(Math.abs(dx), speed * dt);
