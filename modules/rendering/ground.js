@@ -13,6 +13,8 @@ const DISTRICTS = [[0, 'spaceport'], [300, 'downtown'], [650, 'residential'], [9
 const districtAt = (y) => { let d = DISTRICTS[0][1]; for (const [at, name] of DISTRICTS) if (y >= at) d = name; return d; };
 const CAP = { slab: 260, bld: 360, shadow: 380, roof: 520, tree: 520, cyl: 90, pad: 16, pillar: 16 };
 const R = Math.random, pickOf = (list) => list[Math.floor(R() * list.length)];
+// The city is a backdrop: every colour is pulled toward grey and dimmed, so ships, enemies and bullets own the colour.
+const MUTE = 0.5, DIM = 0.78;
 
 function padTexture(kind) {
   const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d');
@@ -48,11 +50,11 @@ export class Ground {
     this.tree = inst(new THREE.ConeGeometry(1, 1, 6).rotateX(Math.PI / 2), mat(THREE.MeshLambertMaterial, { color: 0xffffff, emissive: 0x020805 }), CAP.tree);
     this.cyl = inst(new THREE.CylinderGeometry(1, 1, 1, 12).rotateX(Math.PI / 2), mat(THREE.MeshLambertMaterial, { color: 0xffffff, emissive: 0x05070c }), CAP.cyl);
     this.pillar = inst(new THREE.CylinderGeometry(1, 1.25, 1, 8).rotateX(Math.PI / 2), mat(THREE.MeshLambertMaterial, { color: 0x9aa6bf, emissive: 0x0a0e18 }), CAP.pillar);
-    this.pads = [0, 1, 2].map((k) => inst(flat, mat(THREE.MeshLambertMaterial, { map: new THREE.CanvasTexture(padTexture(k)), color: 0x8a93a6 }), CAP.pad));
+    this.pads = [0, 1, 2].map((k) => inst(flat, mat(THREE.MeshLambertMaterial, { map: new THREE.CanvasTexture(padTexture(k)), color: 0x5f6574 }), CAP.pad));
     // Mist: a gentle dark tint plus slow drifting wisps, between the rooftops and the fighting.
     this.mistTex = new THREE.CanvasTexture(mistTexture()); this.mistTex.wrapS = this.mistTex.wrapT = THREE.RepeatWrapping; this.mistTex.repeat.set(1.4, 2.6);
-    this.tint = new THREE.Mesh(new THREE.PlaneGeometry(WIDTH + 60, 330), mat(THREE.MeshBasicMaterial, { color: 0x0a1226, depthWrite: false }, 0.3)); this.tint.position.set(0, 75, -1.3); this.tint.renderOrder = 2;
-    this.mist = new THREE.Mesh(new THREE.PlaneGeometry(WIDTH + 60, 330), mat(THREE.MeshBasicMaterial, { map: this.mistTex, color: 0x8ea4c8, depthWrite: false }, 0.3)); this.mist.position.set(0, 75, -0.9); this.mist.renderOrder = 3;
+    this.tint = new THREE.Mesh(new THREE.PlaneGeometry(WIDTH + 60, 330), mat(THREE.MeshBasicMaterial, { color: 0x0a1226, depthWrite: false }, 0.36)); this.tint.position.set(0, 75, -1.3); this.tint.renderOrder = 2;
+    this.mist = new THREE.Mesh(new THREE.PlaneGeometry(WIDTH + 60, 330), mat(THREE.MeshBasicMaterial, { map: this.mistTex, color: 0x8ea4c8, depthWrite: false }, 0.46)); this.mist.position.set(0, 75, -0.9); this.mist.renderOrder = 3;
     this.city = new THREE.Group(); this.city.add(this.slab, this.bld, this.shadow, this.roof, this.tree, this.cyl, ...this.pads);
     this.street.renderOrder = -6; for (const m of this.city.children) m.renderOrder = -5; this.pillar.renderOrder = -4;
     this.group = new THREE.Group(); this.group.add(this.street, this.city, this.pillar, this.tint, this.mist); this.group.visible = false; scene.add(this.group);
@@ -128,7 +130,8 @@ export class Ground {
   /** Write every row into the instanced meshes (rows keep their city y). Runs only when a row scrolls off. */
   rebuild() {
     const n = { slab: 0, bld: 0, shadow: 0, roof: 0, tree: 0, cyl: 0, pads: [0, 0, 0] }, d = this.d, c = this.c;
-    const put = (key, mesh, x, y, z, sx, sy, sz, rz, col) => { const i = key === 'pad' ? null : n[key]++; if (i != null && i >= CAP[key]) return; d.position.set(x, y, z); d.scale.set(sx, sy, sz); d.rotation.set(0, 0, rz || 0); d.updateMatrix(); mesh.setMatrixAt(i ?? mesh._i, d.matrix); c.setHex(col); mesh.setColorAt(i ?? mesh._i, c); };
+    const put = (key, mesh, x, y, z, sx, sy, sz, rz, col) => { const i = key === 'pad' ? null : n[key]++; if (i != null && i >= CAP[key]) return; d.position.set(x, y, z); d.scale.set(sx, sy, sz); d.rotation.set(0, 0, rz || 0); d.updateMatrix(); mesh.setMatrixAt(i ?? mesh._i, d.matrix);
+      c.setHex(col); const l = c.r * 0.3 + c.g * 0.59 + c.b * 0.11; c.setRGB((c.r + (l - c.r) * MUTE) * DIM, (c.g + (l - c.g) * MUTE) * DIM, (c.b + (l - c.b) * MUTE) * DIM); mesh.setColorAt(i ?? mesh._i, c); };
     const slab = (x, y, w, h, col, z = 0.2, t = 0.4) => put('slab', this.slab, x, y, Z + z, w, h, t, 0, col);
     const light = (x, y, s, col, z = 0.5) => put('roof', this.roof, x, y, Z + z, s, s, s * 0.5, 0, col);
     const building = (x, y, b) => {
