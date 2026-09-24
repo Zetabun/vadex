@@ -57,6 +57,12 @@ export function nightAmount(date = new Date()) {
   return 0;
 }
 
+/** A new Earth material (also used for the view from the Command Deck). sun: light direction in view space. */
+export function earthMaterial() {
+  const THREE = T();
+  return new THREE.ShaderMaterial({ uniforms: { time: { value: 0 }, dim: { value: 1 }, night: { value: nightAmount() }, sun: { value: new THREE.Vector3(-0.45, 0.62, 0.64).normalize() } }, vertexShader: EARTH_VS, fragmentShader: EARTH_FS });
+}
+
 export class Background {
   constructor(scene, tex, pixelRatio) {
     const THREE = T(); this.scene = scene; this.group = new THREE.Group(); scene.add(this.group); this.t = 0; this.cur = -1; this.nightT = 0;
@@ -74,7 +80,7 @@ export class Background {
     this.blobSeed = Array.from({ length: 40 }, () => [Math.random(), Math.random(), Math.random(), Math.random()]);
     // set pieces
     this.rockMat = new THREE.MeshLambertMaterial({ color: 0x2a5fa8, emissive: 0x061530 });
-    this.earthMat = new THREE.ShaderMaterial({ uniforms: { time: { value: 0 }, dim: { value: 1 }, night: { value: nightAmount() }, sun: { value: new THREE.Vector3(-0.45, 0.62, 0.64).normalize() } }, vertexShader: EARTH_VS, fragmentShader: EARTH_FS });
+    this.earthMat = earthMaterial();
     this.planet = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 40), this.rockMat); this.planet.renderOrder = -7; this.group.add(this.planet);
     this.halo = new SpriteBatch(tex.soft, 4, true, -95); this.halo.mesh.renderOrder = -7.5; this.group.add(this.halo.mesh);
     this.disc = new THREE.Mesh(new THREE.RingGeometry(1.25, 2.6, 48, 1), new THREE.MeshBasicMaterial({ color: 0xffb060, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); this.disc.renderOrder = -6; this.group.add(this.disc);

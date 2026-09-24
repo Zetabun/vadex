@@ -6,7 +6,7 @@ import { bus } from '@last-orbit/core/events.js';
 import { FIELD } from '@last-orbit/data/balance.js';
 import { SECTORS } from '@last-orbit/data/sectors.js';
 import { ELITE_MODS } from '@last-orbit/data/enemies.js';
-import { STAGE_BY_N, HARD } from '@last-orbit/data/counter.js';
+import { STAGE_BY_N, HARD, hardWaves } from '@last-orbit/data/counter.js';
 import { fx, sfx, spawnEnemy, makeElite, setWaveBase, rebuildBuckets } from '@last-orbit/combat/world.js';
 import { updateEnemies, updateRockets, updateBullets, updateHazards } from '@last-orbit/combat/enemies.js';
 import { updateWeapons } from '@last-orbit/combat/weapons.js';
@@ -46,16 +46,21 @@ export function buildTimeline(stage, hard) {
 
 export function initCounter(w) {
   const run = G.state.run, stage = STAGE_BY_N[run.stage], hard = !!run.hard;
-  const wave = stage.wave + (hard ? HARD.waves : 0);
+  const wave = stage.wave + (hard ? hardWaves(stage.n) : 0);
   if (hard) { w.mods.hp *= HARD.hp; w.mods.dmg *= HARD.dmg; }
   w.sim.fireRate *= stage.fire || 1;
   w.counter = { stage, hard, wave, t: -2.5, events: buildTimeline(stage, hard), next: 0, spawned: 0, midDone: false, mini: null, boss: null, won: false };
-  setWaveBase(w, wave, stage.sector);
+  // Resuming from a checkpoint: the second half of the stage, with the mini-boss already beaten.
+  if (run.fromCheckpoint) { const c = w.counter; c.t = stage.len * 0.5 + 1; c.midDone = true; c.next = c.events.findIndex((ev) => ev.t >= c.t); if (c.next < 0) c.next = c.events.length; setWaveBase(w, wave + 2, stage.sector); }
+  if (!run.fromCheckpoint) setWaveBase(w, wave, stage.sector);
   const ws = w.wave; ws.num = stage.sector * 10 + 1; ws.state = 'fighting'; ws.t = 0; ws.info = { kind: 'counter', sector: { idx: stage.sector } }; ws.pending = [];
   w.form.total = 0; w.form.enter = 0;
-  fx(w, 'sector', stage.sector, `Stage ${stage.n}: ${stage.name}`, stage.brief);
+  fx(w, 'sector', stage.sector, `Stage ${stage.n}: ${stage.name}`, run.fromCheckpoint ? 'Resuming from the checkpoint. The mini-boss is down: finish it.' : stage.brief);
   initSetPiece(w);
 }
+
+// Beating a checkpoint stage's mini-boss saves the pilot's level for a resume (filed when the sortie ends).
+bus.on('bossDied', (w, e) => { const run = G.state.run; if (w.counter && e === w.counter.mini && w.counter.stage.checkpoint && run && !run.fromCheckpoint) run.checkpointLevel = run.level; });
 
 /** Progress through the stage, 0..1, for the HUD. */
 export const counterProgress = (w) => { const c = w.counter; if (!c) return 0; return c.boss ? 1 : Math.max(0, Math.min(0.97, c.t / c.stage.len)); };

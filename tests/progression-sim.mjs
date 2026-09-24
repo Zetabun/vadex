@@ -21,6 +21,8 @@ bus.on('stats', () => { G.sheet.totalN['f.autopilot'] = 1; G.sheet.totalN.autoDo
 const pickScore = (c) => c.kind === 'upgrade' ? 10 + (c.rank >= 4 ? 2 : 0) : c.kind === 'weapon' ? 9 : c.kind === 'mod' ? ({ m_dmg: 8, m_rate: 8, m_multi: 9, m_hull: 6, m_shield: 5, m_crit: 5, m_critd: 4 }[c.id] || 3) : 2;
 let over = false; bus.on('sortieOver', () => { over = true; });
 
+// OLD_FOES=1: fly without the v2.8 enemies, to compare against.
+if (process.env.OLD_FOES) { const { SECTORS } = await import('@last-orbit/data/sectors.js'); const NEW = ['burster', 'sower', 'binder', 'coiler', 'warper']; for (const sec of SECTORS) sec.pool = sec.pool.filter(([t]) => !NEW.includes(t)); }
 G.state = newState(); G.state.meta.legacyChecked = true; recalc();
 const rows = [], firsts = {};
 let spent = 0;

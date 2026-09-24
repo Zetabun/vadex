@@ -13,7 +13,7 @@ import { WORKSHOP, workshopCost } from '@last-orbit/data/workshop.js';
 import { MODS } from '@last-orbit/data/cards.js';
 import { initWorld, step, startWave } from '@last-orbit/combat/sim.js';
 import { spawnPickup, collectAll } from '@last-orbit/combat/pickups.js';
-import { hurtPlayer } from '@last-orbit/combat/world.js';
+import { hurtPlayer, hitEnemy } from '@last-orbit/combat/world.js';
 import { startSortie, endSortie, recoverInterruptedRun, grantXp, rollOffer, pickCard, cardPool, nextOffer, rollRelics, pickRelic, describeCard, choicePending } from '@last-orbit/progression/run.js';
 import { addPilotXp, selectPaint, threatMax, setThreat, dailyToday, addMastery, masteryOf, buyWorkshop, workshopNext, shipStatus, shipContract, buyShip, selectShip, checkContracts } from '@last-orbit/progression/meta.js';
 import { parseSave } from '@last-orbit/save/save.js';
@@ -301,6 +301,33 @@ assert.ok(describeCard({ kind: 'fusion', id: 'fu_twinsuns' }).icon2); endSortie(
   run.anomalyOffer = ['lances', 'minefield']; pickAnomaly(0); assert.ok(G.world.anom?.lances, 'Rule anomalies switch on'); assert.equal(anomalyName('hardened', 3), 'Hardened Hulls III'); assert.equal(anomalyName('lances'), 'Void Lances');
   assert.ok(Math.abs(anomalyPay(run) - (1 + 0.2 * 3 + ANOMALY_BY_ID.lances.pay)) < 1e-9);
   endSortie('abandoned'); fresh(); assert.equal(G.world.anom ?? null, null, 'A new sortie starts clean'); }
+
+// ---- v2.8: Counterattack stage 6 checkpoint ----
+{ const { STAGE_BY_N } = await import('@last-orbit/data/counter.js');
+  fresh(); G.state.counter.unlocked = true; G.state.counter.stars = { 5: 1 };
+  run = launch({ counter: 6 }); run.offer = null; run.pendingLevels = 0; assert.ok(!run.fromCheckpoint);
+  run.level = 40; { const c = G.world.counter; c.t = STAGE_BY_N[6].len * 0.5; c.next = c.events.findIndex((ev) => ev.t > c.t); } step(TICK); assert.ok(G.world.counter.mini, 'The mini-boss arrives at the midpoint'); killEnemy(G.world, G.world.counter.mini, null, false, 0); assert.equal(run.checkpointLevel, 40, 'Beating the stage 6 mini-boss saves the level');
+  let r = endSortie('destroyed'); assert.ok(r.counter.checkpoint && G.state.counter.checkpoints['6'] === 40, 'A failed run past the mini-boss files a checkpoint');
+  run = launch({ counter: 6, checkpoint: true }); assert.ok(run.fromCheckpoint && run.level === 40, 'Resume starts at the saved level');
+  assert.ok(G.world.counter.midDone && G.world.counter.t > STAGE_BY_N[6].len * 0.5, 'Resume starts past the midpoint');
+  run.stageCleared = true; run.hits = 0; run.pathKills = 999; run.pathSpawned = 1; r = endSortie('cleared');
+  assert.equal(r.counter.stars, 1, 'A checkpoint run earns the clear star only'); assert.ok(!G.state.counter.checkpoints['6'], 'Clearing the stage uses up the checkpoint');
+  assert.equal(STAGE_BY_N[1].place, 'Earth'); }
+
+// ---- v2.8: new enemies (Binders share hits, Warpers swap places), the station and the Command Deck ----
+{ const { ENEMIES } = await import('@last-orbit/data/enemies.js'); const { spawnEnemy } = await import('@last-orbit/combat/world.js');
+  const { STATION_MODULES } = await import('@last-orbit/data/station.js'); const { refreshMenus, menuState, overhaul } = await import('@last-orbit/progression/meta.js');
+  for (const id of ['burster', 'sower', 'binder', 'coiler', 'warper']) { assert.ok(ENEMIES[id]?.desc, id); assert.ok(SECTORS.some((sec) => sec.pool.some(([t]) => t === id)), id + ' is in a sector pool'); }
+  fresh(); run = launch(); run.offer = null; run.pendingLevels = 0; const w = G.world;
+  const a = spawnEnemy(w, 'binder', -5, 100, { slot: { x: -5, y: 0 } }), b = spawnEnemy(w, 'binder', 5, 100, { slot: { x: 5, y: 0 } }); a.link = b; b.link = a;
+  const src = { ...G.sheet.weapons[run.order[0]], critChance: 0, dmg: a.hpMax.mul(0.4) };
+  hitEnemy(w, a, src, 1, a.x, a.y, true); assert.ok(Math.abs(a.hp - 0.8) < 1e-6 && Math.abs(b.hp - 0.8) < 1e-6, 'A hit on one Binder lands half on each');
+  killEnemy(w, a, null, false, 0); assert.ok(b.overcharged && !b.link, 'The surviving Binder overcharges');
+  const wp = spawnEnemy(w, 'warper', -20, 110, { slot: { x: -20, y: 0 } }), other = spawnEnemy(w, 'grunt', 20, 110, { slot: { x: 20, y: 0 } }); wp.state = other.state = 'form';
+  hitEnemy(w, wp, { ...src, dmg: wp.hpMax.mul(0.6) }, 1, wp.x, wp.y, true); assert.ok(wp.evaded && wp.slot.x !== -20, 'A badly hurt Warper swaps places'); endSortie('abandoned');
+  assert.equal(new Set(STATION_MODULES.map((m) => m.id)).size, WORKSHOP.length, 'Every Workshop upgrade builds one station module');
+  fresh(); G.state.seen.menusInit = true; refreshMenus(); assert.equal(menuState('deck'), 'locked', 'The Command Deck waits for the first Overhaul');
+  for (const u of WORKSHOP) G.state.workshop[u.id] = u.max; overhaul(); assert.equal(menuState('deck'), 'new', 'The first Overhaul opens the Command Deck'); }
 
 // ---- v2.8: callsign ----
 { const { cleanCallsign, setCallsign, CALLSIGN_MAX } = await import('@last-orbit/progression/meta.js');

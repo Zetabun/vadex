@@ -27,19 +27,30 @@ import { SYNERGIES } from '@last-orbit/data/synergies.js';
 import { BAL } from '@last-orbit/data/balance.js';
 import { MOD_BY_ID } from '@last-orbit/data/cards.js';
 import { warpMax } from '@last-orbit/progression/run.js';
-import { STAGES, COUNTER_UNLOCK_SECTOR } from '@last-orbit/data/counter.js';
+import { hardRec, STAGES, COUNTER_UNLOCK_SECTOR } from '@last-orbit/data/counter.js';
 import { ALIEN_TECH } from '@last-orbit/data/alientech.js';
 import { menuState, menuSeen, menuLockText } from '@last-orbit/progression/meta.js';
 import { MENU_BY_ID } from '@last-orbit/data/menus.js';
 import { techLevel, buyTech, powerRating, workshopMaxed, workshopProgress, overhaulReward, blueprintLevel, blueprintNext, buyBlueprint, blueprintLocked, escortSlots, escortTypes, toggleEscort, trailUnlocked, selectTrail } from '@last-orbit/progression/meta.js';
 import { BLUEPRINTS, TRAILS, BP_BASE, OVERHAUL_FX_CAP, OVERHAUL_COST_STEP } from '@last-orbit/data/prestige.js';
+import { STATION_CORE } from '@last-orbit/data/station.js';
+import { stationBlueprint } from '@last-orbit/ui/stationArt.js';
+import { nightAmount } from '@last-orbit/rendering/background.js';
 import { DRONES } from '@last-orbit/data/drones.js';
 import { MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
 
-const TABS = [['launch', 'Launch'], ['missions', 'Missions'], ['workshop', 'Workshop'], ['armory', 'Armory'], ['ships', 'Ships'], ['contracts', 'Career'], ['records', 'Records'], ['awards', 'Awards']];
-const PER_PAGE = 4; // with more tabs than fit, the bar pages with chevrons
-const pageOf = (id) => Math.floor(TABS.findIndex((t) => t[0] === id) / PER_PAGE);
+const TABS = [['launch', 'Launch'], ['missions', 'Missions'], ['workshop', 'Workshop'], ['armory', 'Armory'], ['ships', 'Ships'], ['contracts', 'Career'], ['records', 'Records'], ['awards', 'Awards'], ['deck', 'Deck']];
+// The tab bar holds five buttons. With more tabs than fit it pages: the first page has four tabs and More, the last
+// Back and up to four, any between Back, three and More. Hidden tabs (the Command Deck before the first Overhaul) take no slot.
+const SLOTS = 5;
+function paginate(ids) {
+  if (ids.length <= SLOTS) return [ids];
+  const out = [ids.slice(0, SLOTS - 1)]; let i = SLOTS - 1;
+  while (i < ids.length) { const left = ids.length - i, n = left <= SLOTS - 1 ? left : SLOTS - 2; out.push(ids.slice(i, i + n)); i += n; }
+  return out;
+}
 const roman = (t) => (t ? THREATS[t].roman : '0');
+const ROMAN_N = (n) => [[10, 'X'], [9, 'IX'], [5, 'V'], [4, 'IV'], [1, 'I']].reduce((s, [v, r]) => { while (n >= v) { s += r; n -= v; } return s; }, '');
 const untilMidnight = () => { const n = new Date(), m = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1); const s = Math.max(0, (m - n) / 1000); return `${Math.floor(s / 3600)}h ${String(Math.floor(s / 60) % 60).padStart(2, '0')}m`; };
 const hex = (n) => '#' + n.toString(16).padStart(6, '0');
 const unlockedBy = (kind, id) => CONTRACTS.find((c) => c.unlock?.[kind] === id);
@@ -48,31 +59,39 @@ export function createHangar(hooks) {
   const $ = {}; let tab = 'launch';
   $.salvage = h('span');
   const top = h('header.hg-top',
-    h('div.brand', h('b', 'LAST ORBIT'), h('small', 'Orbital defence')),
+    // Top left: the pilot, by callsign (or rank title) with their rank beneath; the insignia updates as they rank up.
+    $.brand = h('button.brand.pilot-id', { onclick: () => show('contracts'), 'aria-label': 'Pilot career' }, $.brandIns = h('span.brand-ins'), h('span.brand-txt', $.brandName = h('b'), $.brandRank = h('small'))),
     h('div.chip.salvage.big', { title: 'Salvage: spend it in the Workshop and on new ships' }, art('cur:salvage', 'cur-ico'), $.salvage),
     h('button.icon-btn', { 'aria-label': 'Settings', onclick: () => hooks.settings() }, uiIcon('gear')));
   $.body = h('main.hg-body');
   $.nav = h('nav.hg-nav', { role: 'tablist' });
   const navBtns = {}; let page = 0;
   for (const [id, name] of TABS) navBtns[id] = h('button.nav-btn', { role: 'tab', onclick: () => show(id) }, uiIcon(id === 'launch' ? 'launch' : id), h('span', name), h('i.badge'), h('i.nav-lock', uiIcon('lock')), h('b.nav-new', 'NEW'));
-  const pages = Math.ceil(TABS.length / PER_PAGE);
+  let pages = [TABS.map((t) => t[0])], navSig = '';
+  const pageOf = (id) => Math.max(0, pages.findIndex((p) => p.includes(id)));
   $.next = h('button.nav-btn.nav-page', { 'aria-label': 'More menus', onclick: () => turn(1) }, uiIcon('chevron'), h('span', 'More'), h('i.badge'));
   $.prev = h('button.nav-btn.nav-page', { 'aria-label': 'Back to main menus', onclick: () => turn(-1) }, uiIcon('back'), h('span', 'Back'), h('i.badge'));
+  const shownTabs = () => TABS.map((t) => t[0]).filter((id) => !(id === 'deck' && menuState(id) === 'locked'));
   function layoutNav() {
-    clear($.nav); const ids = TABS.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE).map((t) => t[0]);
+    const ids = shownTabs(); navSig = ids.join(); pages = paginate(ids); page = Math.min(page, pages.length - 1);
+    clear($.nav);
     if (page > 0) $.nav.append($.prev);
-    for (const id of ids) $.nav.append(navBtns[id]);
-    if (page < pages - 1) $.nav.append($.next);
-    while ($.nav.children.length < PER_PAGE + 1) $.nav.append(h('span.nav-gap'));
+    for (const id of pages[page]) $.nav.append(navBtns[id]);
+    if (page < pages.length - 1) $.nav.append($.next);
+    while ($.nav.children.length < SLOTS) $.nav.append(h('span.nav-gap'));
   }
-  function turn(d) { page = Math.max(0, Math.min(pages - 1, page + d)); playSfx('tab'); layoutNav(); badges(); }
-  const el = h('div#hangar', top, $.body, $.nav);
+  function turn(d) { page = Math.max(0, Math.min(pages.length - 1, page + d)); playSfx('tab'); layoutNav(); badges(); }
+  // The station in the home-screen sky is a way aboard: it sits over the spot the renderer draws it (rendering/station.js).
+  $.stationHot = h('button.station-hot', { 'aria-label': 'Your station', onclick: () => { if (menuState('deck') === 'locked') { playSfx('tab'); hooks.toast?.('Your orbital station. Every Workshop upgrade builds a module; your first Overhaul opens its Command Deck.', 'info'); } else show('deck'); } }, $.stationTag = h('span.st-tag'));
+  const el = h('div#hangar', top, $.body, $.stationHot, $.nav);
 
   function show(id, quiet) {
     // A menu the pilot has not earned yet stays shut (with a note on when it opens); a newly opened one explains itself once.
     if (menuState(id) === 'locked') { if (!quiet) { playSfx('deny'); hooks.toast?.(menuLockText(id), 'info'); } if (tab !== id) return; id = 'launch'; }
     if (menuState(id) === 'new') { menuSeen(id); setTimeout(() => hooks.menuIntro?.(MENU_BY_ID[id]), 150); }
     if (!quiet && id !== tab) playSfx('tab');
+    if (shownTabs().join() !== navSig) layoutNav();
+    G.deckOpen = id === 'deck'; setClass($.stationHot, 'on', id === 'launch'); setText($.stationTag, menuState('deck') === 'locked' ? 'Your station' : 'Command Deck ›');
     tab = id; if (pageOf(id) !== page) { page = pageOf(id); layoutNav(); }
     for (const k in navBtns) { setClass(navBtns[k], 'on', k === id); navBtns[k].setAttribute('aria-selected', String(k === id)); }
     if (id === 'awards') G.state.seen.medals = medalTotal().earned;
@@ -83,7 +102,7 @@ export function createHangar(hooks) {
    *  on a list (Workshop upgrades) stay on the row under the finger; switching tabs starts at the top. */
   function render(top = false) {
     const y = $.body.scrollTop; clear($.body);
-    const view = { launch: launchView, missions: missionsView, workshop: workshopView, armory: armoryView, ships: shipsView, contracts: contractsView, records: recordsView, awards: awardsView }[tab]();
+    const view = { launch: launchView, missions: missionsView, workshop: workshopView, armory: armoryView, ships: shipsView, contracts: contractsView, records: recordsView, awards: awardsView, deck: deckView }[tab]();
     $.body.append(view); $.body.scrollTop = top ? 0 : y;
   }
 
@@ -185,15 +204,34 @@ export function createHangar(hooks) {
 
   // ------------------------------------------------------------ overhaul (prestige)
   function overhaulPanel() {
-    const pr = G.state.prestige, ready = workshopMaxed(), prog = workshopProgress(), bp = overhaulReward(), next = TRAILS.find((t) => t.at > pr.level);
+    const pr = G.state.prestige, rank = pr.level || 0, ready = workshopMaxed(), prog = workshopProgress(), bp = overhaulReward();
+    // The station blueprint: what the Workshop has built, and (dashed gold) what the next Overhaul adds to the core.
+    const plan = h('div.oh-plan', { html: stationBlueprint(rank, G.state.workshop) },
+      h('div.oh-plan-tag', h('small', 'Your station'), h('b', ready ? 'Complete' : `${Math.round(prog.cur / prog.goal * 100)}% built`)),
+      rank < STATION_CORE.at(-1).at ? h('div.oh-plan-next', h('i'), `Next Overhaul adds: ${STATION_CORE.find((c) => c.at === rank + 1).name}`) : null);
     return h('section.panel.oh-panel' + (ready ? '.ready' : ''),
-      h('div.oh-head', h('div', h('div.kicker', pr.level ? `Overhaul rank ${pr.level}` : 'Overhaul'), h('h3', ready ? 'Ready to overhaul' : 'Strip it down, build it better')), h('div.oh-rank', h('b', String(pr.level)), h('small', 'rank'))),
+      h('div.oh-head', h('div', h('div.kicker', rank ? `Overhaul · Rank ${rank}` : 'Overhaul'), h('h3', ready ? 'Station complete' : 'Build your station')), h('div.oh-rank', h('b', String(rank)), h('small', 'rank'))),
+      plan,
+      ready ? h('div.oh-pay', h('div', h('small', 'Overhaul now for'), h('b', `${bp} Blueprints`)), h('span', bp > BP_BASE ? `${BP_BASE} + ${bp - BP_BASE} for going past wave 60` : 'Reach past wave 60 first for up to +5'))
+        : h('div.oh-meter', h('div.meter.small', h('i', { style: `width:${(prog.cur / prog.goal * 100).toFixed(1)}%` })), h('small', `${prog.cur}/${prog.goal} Workshop levels · every upgrade builds a module`)),
       h('p', ready
-        ? `Reset the Workshop to earn ${bp} Blueprints${bp > BP_BASE ? ` (${BP_BASE} + ${bp - BP_BASE} for going past wave 60)` : ''}. Blueprints buy escort drones and perks that are never lost. Ships, cosmetics, ranks and Counterattack progress all stay.`
-        : 'Max every Workshop upgrade to unlock an Overhaul: reset the Workshop for Blueprints, which buy escort drones and permanent perks. Reach past wave 60 first for extra Blueprints.'),
-      ready ? null : h('div.oh-meter', h('div.meter.small', h('i', { style: `width:${(prog.cur / prog.goal * 100).toFixed(1)}%` })), h('small', `${prog.cur}/${prog.goal} Workshop levels`)),
-      h('div.oh-perks', h('span', `Each rank: +10% salvage, +2% damage${pr.level >= OVERHAUL_FX_CAP ? ' (maxed)' : ''}`), h('span', `Workshop costs +${Math.round(OVERHAUL_COST_STEP * 100)}% per rank`), next ? h('span', `Rank ${next.at}: ${next.name} engine trail`) : null),
+        ? 'The Workshop resets for Blueprints: escort drones and perks that are never lost. Your station keeps its core and grows a new piece. Ships, cosmetics, ranks and Counterattack progress all stay.'
+        : 'Max every Workshop upgrade to complete the station, then Overhaul: the Workshop resets for Blueprints, and the station keeps its core and grows a new piece every rank.'),
+      roadmap(rank),
+      h('div.oh-perks', h('span', `Each rank: +10% salvage, +2% damage${rank >= OVERHAUL_FX_CAP ? ' (maxed)' : ''}`), h('span', `Workshop costs +${Math.round(OVERHAUL_COST_STEP * 100)}% per rank`)),
       ready ? h('button.btn.gold.oh-go', { onclick: () => hooks.confirmOverhaul() }, 'Overhaul') : null);
+  }
+  /** Rank by rank: the station piece, the Command Deck and the engine trails each Overhaul brings. */
+  function roadmap(rank) {
+    const cards = STATION_CORE.filter((c) => c.at >= 1).map((c) => {
+      const trail = TRAILS.find((t) => t.at === c.at), state = c.at <= rank ? 'done' : c.at === rank + 1 ? 'next' : 'later';
+      return h('div.rm-card.' + state, h('div.rm-top', h('small', 'Rank ' + c.at), state === 'done' ? h('i.rm-tick', '✓') : state === 'next' ? h('b.rm-next', 'NEXT') : null),
+        h('b.rm-piece', c.name), c.desc ? h('span.rm-desc', c.desc) : null, trail ? h('span.rm-trail', trailSwatch(trail), trail.name + ' trail') : null);
+    });
+    const el = h('div.oh-road', h('h4.oh-sub', 'Station roadmap'), h('div.rm-list', cards));
+    // Start the strip at the next rank, so what is coming is in view.
+    setTimeout(() => { const n = el.querySelector('.rm-card.next'); if (n) n.parentElement.scrollLeft = Math.max(0, n.offsetLeft - 12); }, 0);
+    return el;
   }
   function blueprintView() {
     const pr = G.state.prestige, types = escortTypes(), slots = escortSlots();
@@ -342,11 +380,12 @@ export function createHangar(hooks) {
     const power = powerRating(), stars = (tbl) => Object.values(tbl).reduce((a, b) => a + b, 0);
     const rows = STAGES.map((sg) => {
       const open = sg.n === 1 || (c.stars[sg.n - 1] || 0) > 0, hardOpen = (c.stars[sg.n] || 0) > 0, hard = counterHard && hardOpen, got = (hard ? c.hard : c.stars)[sg.n] || 0;
-      const rec = sg.rec + (hard ? 12 : 0), ok = power >= rec;
+      const rec = sg.rec + (hard ? hardRec(sg.n) : 0), ok = power >= rec, cp = sg.checkpoint && c.checkpoints?.[sg.n + (hard ? 'h' : '')];
       return h('div.ca-stage' + (open ? '' : '.locked') + (hard ? '.hard' : ''),
         h('div.ca-num', h('small', 'Stage'), h('b', String(sg.n))),
-        h('div.ca-main', h('b', sg.name), h('small', open ? `${SECTORS[sg.sector].name} · best ${fmtInt(c.best[sg.n] || 0)}` : `Clear stage ${sg.n - 1} to unlock`),
+        h('div.ca-main', h('b', sg.name), h('small', open ? `${sg.place} · best ${fmtInt(c.best[sg.n] || 0)}` : `Clear stage ${sg.n - 1} to unlock`),
           h('div.ca-stars', [1, 2, 3].map((i) => h('i' + (i <= got ? '.on' : ''), '★')), open ? h('span.ca-rec' + (ok ? '.ok' : '.low'), `Power ${power}/${rec}`) : null)),
+        open && cp ? h('button.btn.ghost.ca-cp', { onclick: () => launchCounter({ counter: sg.n, hard, checkpoint: true }), title: 'Resume from the checkpoint (clear star only)' }, h('small', 'Checkpoint'), h('b', 'Resume')) : null,
         open ? h('button.btn.' + (hard ? 'danger' : 'primary') + '.ca-go', { onclick: () => launchCounter({ counter: sg.n, hard }) }, uiIcon('launch')) : uiIcon('lock'));
     });
     const anyHard = STAGES.some((sg) => (c.stars[sg.n] || 0) > 0);
@@ -397,6 +436,62 @@ export function createHangar(hooks) {
   }
   const dateLabel = (t) => { const d = new Date(t), now = new Date(); return d.toDateString() === now.toDateString() ? 'Today' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); };
 
+  // ------------------------------------------------------------ command deck: the pilot's room aboard the station
+  function deckView() {
+    // The room itself is 3D (rendering/deck.js, drawn while G.deckOpen); this is the touch layer over it.
+    const p = G.state.pilot, hint = h('div.d3-hint', 'Drag to look around · Tap the floor to walk · Tap anything to inspect');
+    const el = h('div.deck3d', { 'aria-label': 'Command Deck. Drag to look around, tap the floor to walk, tap an exhibit to inspect it.' },
+      h('div.d3-top', h('div.d3-title', h('small', 'Command Deck'), h('b', p.name || rankTitle(p.rank))), h('button.btn.ghost.small.d3-exit', { onclick: () => show('launch') }, uiIcon('back'), 'Exit')), hint);
+    let down = null;
+    el.addEventListener('pointerdown', (e) => { if (e.target.closest('button')) return; down = { id: e.pointerId, x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, t: performance.now(), moved: false }; el.setPointerCapture?.(e.pointerId); });
+    el.addEventListener('pointermove', (e) => {
+      if (!down || e.pointerId !== down.id) return;
+      if (!down.moved && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8) down.moved = true;
+      const dx = e.clientX - down.lx, dy = e.clientY - down.ly; // a jump this big in one event is a glitch, not a drag
+      if (down.moved && Math.abs(dx) + Math.abs(dy) < 120) G.renderer?.deck?.look(dx, dy); down.lx = e.clientX; down.ly = e.clientY;
+    });
+    const up = (e) => {
+      if (!down || e.pointerId !== down.id) return; const tap = !down.moved && performance.now() - down.t < 450; down = null; hint.classList.add('off');
+      if (!tap) return; const r = G.renderer.canvas.getBoundingClientRect(), res = G.renderer.deck?.pick(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+      if (res?.exhibit) exhibit(res.exhibit); else if (res?.walk) playSfx('tab', 0.4);
+    };
+    el.addEventListener('pointerup', up); el.addEventListener('pointercancel', () => { down = null; });
+    return el;
+  }
+  /** Tapping an exhibit on the deck: its details, as a panel. */
+  function exhibit(kind) {
+    if (kind === 'exit') { show('launch'); return; }
+    const st = G.state, s = st.stats, rank = st.prestige?.level || 0; playSfx('tab');
+    const panel = (kicker, title, ...body) => hooks.panel?.({ kicker, title, body });
+    if (kind === 'records') {
+      const deep = Math.max(0, (s.bestWave || 0) - 60), cstars = Object.values(st.counter.stars || {}).reduce((a, b) => a + b, 0), hstars = Object.values(st.counter.hard || {}).reduce((a, b) => a + b, 0);
+      panel('Command Deck', 'Records', h('div.deck-board', [['Furthest wave', s.bestWave || '—'], ['High score', s.bestScore ? fmtInt(s.bestScore) : '—'], ['Deep Void', deep ? `+${deep} waves` : '—'], ['Anomalies carried', s.maxAnomalies || '—'],
+        ['Counterattack', `${cstars}★` + (hstars ? ` · Hard ${hstars}★` : '')], ['Invaders', fmt(s.kills || 0)], ['Sorties', fmtInt(s.sorties || 0)], ['Play time', fmtTime(Math.round(st.meta.playTime || 0))]].map(([k, v]) => h('div.db-row', h('small', k), h('b', String(v))))),
+        h('button.btn.ghost.small.d3-more', { onclick: () => { hooks.closeOverlays?.(); show('records'); } }, 'All records', uiIcon('chevron')));
+    } else if (kind === 'medals') {
+      const earned = [], left = [];
+      for (const a of ACHIEVEMENTS) { const n = st.medals[a.id] || 0; (n ? earned : left).push(n ? h('div.plaque', medal(a, TIERS[n - 1].id), h('small', a.name)) : a); }
+      for (const f of FEATS) (st.medals[f.id] ? earned : left).push(st.medals[f.id] ? h('div.plaque', medal(f, 'feat'), h('small', f.name)) : f);
+      panel('Command Deck', `Medal wall · ${earned.length}/${earned.length + left.length}`, earned.length ? h('div.deck-wall', earned) : h('p.sub-note', 'Medals you earn will hang here.'),
+        h('button.btn.ghost.small.d3-more', { onclick: () => { hooks.closeOverlays?.(); show('awards'); } }, `${left.length} still to earn`, uiIcon('chevron')));
+    } else if (kind === 'banners') {
+      const owned = BANNERS.filter((b) => b.shape && st.banners[b.id]);
+      panel('Command Deck', `Banners · ${owned.length}/${BANNERS.filter((b) => b.shape).length}`, h('div.deck-rack', owned.map((b) => h('div.rack-slot' + (st.banner === b.id ? '.flying' : ''), h('i.rack-rod'), bannerThumb(b, 'rack-thumb'), h('small', b.name)))),
+        h('button.btn.ghost.small.d3-more', { onclick: () => { hooks.closeOverlays?.(); show('ships'); } }, 'Choose which one flies', uiIcon('chevron')));
+    } else if (kind === 'ships') {
+      const paint = PAINTS.find((x) => x.id === st.paint);
+      panel('Command Deck', 'Hangar bay', h('div.deck-bay', SHIPS.map((sh) => {
+        const owned = !!st.unlocked.ships[sh.id], icon = art('ship:' + sh.id, 'bay-ship');
+        if (sh.id === st.ship && paint && paint.id !== 'factory') { const svg = icon.querySelector('svg'); svg.style.setProperty('--ic-a', hex(paint.trim ?? sh.trim)); svg.style.setProperty('--ic-b', hex(paint.hull ?? 0x718996)); }
+        return h('div.bay-stand' + (sh.id === st.ship ? '.active' : '') + (owned ? '' : '.locked'), { style: `--c:${hex(sh.trim)}` }, icon, h('b', owned ? sh.name : '???'), h('small', owned ? `Mastery ${masteryOf(sh.id).level}` : 'Not owned yet'));
+      })));
+    } else if (kind === 'trophies') {
+      panel('Command Deck', 'Overhaul trophies', h('div.deck-trophies', Array.from({ length: Math.max(rank, 1) }, (_, i) => h('div.trophy' + (i < rank ? '' : '.empty'), h('b', ROMAN_N(i + 1)), h('small', STATION_CORE.find((c) => c.at === i + 1)?.name || 'Overhaul')))), roadmap(rank));
+    } else if (kind === 'station') {
+      panel('Command Deck', 'Your station', h('div.oh-plan', { html: stationBlueprint(rank, st.workshop) }), roadmap(rank));
+    }
+  }
+
   // ------------------------------------------------------------ awards: achievements
   const medal = (a, tier) => h('span.medal-frame.tier-' + tier, art(a.art, 'medal-ico'));
   function awardsView() {
@@ -429,10 +524,21 @@ export function createHangar(hooks) {
     setClass(navBtns.records, 'badged', !st.seen.records); setClass(navBtns.awards, 'badged', medalTotal().earned > (st.seen.medals || 0));
     setClass(navBtns.workshop, 'badged', canBuy); setClass(navBtns.ships, 'badged', ship); setClass(navBtns.missions, 'badged', daily);
     for (const [id] of TABS) { const m = menuState(id); setClass(navBtns[id], 'locked', m === 'locked'); setClass(navBtns[id], 'fresh', m === 'new'); if (m === 'locked') setClass(navBtns[id], 'badged', false); }
-    const hidden = (p) => TABS.some(([id], i) => Math.floor(i / PER_PAGE) === p && (navBtns[id].classList.contains('badged') || navBtns[id].classList.contains('fresh')));
+    if (shownTabs().join() !== navSig) layoutNav(); // a tab appeared (the Command Deck)
+    const hidden = (p) => (pages[p] || []).some((id) => navBtns[id].classList.contains('badged') || navBtns[id].classList.contains('fresh'));
     setClass($.next, 'badged', hidden(page + 1)); setClass($.prev, 'badged', page > 0 && hidden(page - 1));
   }
-  function update() { setText($.salvage, fmtInt(G.state.salvage)); badges(); }
+  function update() { setText($.salvage, fmtInt(G.state.salvage)); badges(); pilotId(); stationDone(); }
+  // W/A/S/D or the arrows walk the Command Deck.
+  const DECK_KEYS = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', ArrowLeft: 'l', KeyD: 'r', ArrowRight: 'r' };
+  for (const [type, on] of [['keydown', true], ['keyup', false]]) addEventListener(type, (e) => { const k = DECK_KEYS[e.code], d = G.renderer?.deck; if (!k || !d || !G.deckOpen || G.mode !== 'hangar' || (on && hooks.blocking?.())) return; d.keys[k] = on; e.preventDefault(); });
+  /** Finishing the station (every Workshop upgrade maxed) gets its moment, once per Overhaul cycle. */
+  function stationDone() { const st = G.state, lv = st.prestige?.level || 0; if (st.seen.stationDone === lv || !workshopMaxed() || hooks.blocking?.()) return; st.seen.stationDone = lv; hooks.stationComplete?.(); }
+  function pilotId() {
+    const p = G.state.pilot, sig = p.rank + '|' + (p.name || ''); if ($.brand._sig === sig) return; $.brand._sig = sig;
+    setText($.brandName, p.name || rankTitle(p.rank)); setText($.brandRank, p.name ? `${rankTitle(p.rank)} · Rank ${p.rank}` : `Rank ${p.rank}`);
+    clear($.brandIns).append(insignia(p.rank, 'rank-ins'));
+  }
   bus.on('contract', () => { if (G.mode === 'hangar') render(); });
   bus.on('medal', () => { if (G.mode === 'hangar' && tab === 'awards') { G.state.seen.medals = medalTotal().earned; render(); } });
   layoutNav();

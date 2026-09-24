@@ -24,11 +24,18 @@ export const STAGES = SECTORS.slice(0, 6).map((sec, i) => ({
   fire: [1, 1, 1, 1, 1, 0.8][i], // enemy fire-rate multiplier: sector 6's artillery, rockets and beams all aim at the ship
   ground: i === 0 ? 0.55 : 0, // Liftoff: the stage starts over the city; the surface falls away by this share of the stage
   set: ['city', 'wrecks', 'nebula', 'hull', 'hive', 'horizon'][i], // each stage's set piece (see combat/setpieces.js)
+  place: i === 0 ? 'Earth' : sec.name, // where the stage is flown (Liftoff climbs away from the home world)
+  // The final stage is long: getting past its mini-boss saves a checkpoint to resume from (clear star only).
+  checkpoint: i === 5,
 }));
 export const STAGE_BY_N = Object.fromEntries(STAGES.map((s) => [s.n, s]));
 /** How fast the city scrolls beneath the ship on Liftoff (field units a second); ground towers ride along with it. */
 export const GROUND_SPEED = 13;
-export const HARD = { waves: 8, hp: 1.3, dmg: 1.25, gap: 0.8 };
+// Hard mode, per stage: extra enemy waves (each ~13% more health) and the power it recommends over normal. Tuned with
+// counter-campaign-sim (hard 1): Iron Curtain's hull guns made stage 4 the wall while 5 and 6 fell at the first try, so
+// stage 4 gets less and the last two more: Hard 6 is the finale.
+export const HARD = { waves: [8, 8, 9, 3, 11, 12], rec: [12, 12, 14, 8, 18, 22], hp: 1.3, dmg: 1.25, gap: 0.8 };
+export const hardWaves = (n) => HARD.waves[n - 1] ?? 8, hardRec = (n) => HARD.rec[n - 1] ?? 12;
 /** Highest y the ship may fly to (the field's lower half, so there is always room to react). */
 export const COUNTER_TOP = 72;
 /** Pressing the attack: damage bonus at the top of the ship's airspace (scales up from nothing at the bottom). */

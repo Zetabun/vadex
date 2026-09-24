@@ -103,7 +103,10 @@ export function hitEnemy(w, e, src, mult, hx, hy, noCrit) {
   { const bossId = e.boss?.id || e.parent?.boss?.id, intel = bossId ? G.state.intel?.[bossId] || 0 : 0; if (intel) m *= 1 + BAL.intelStep * intel; }
   if (e === w.painted) m *= BAL.paintMult;
   else if (e.droneMarkT > 0) m *= 1 + (e.droneMarkPower || 0.08);
-  const frac = src.dmg.ratio(e.hpMax) * m;
+  let frac = src.dmg.ratio(e.hpMax) * m;
+  // Binders share every hit with their partner: half lands on each (in the partner's own health terms).
+  const mate = e.link?.alive ? e.link : null;
+  if (mate) { frac /= 2; mate.hp -= frac * e.hpMax.ratio(mate.hpMax); mate.flash = 0.08; if (mate.hp <= 0) { mate.hp = 0; killEnemy(w, mate, src, false, 0); } }
   const dealt = Math.max(0, Math.min(e.hp, frac));
   e.hp -= frac; e.flash = 0.08;
   // Heal from health actually removed, never overkill. A refillable budget caps dense AoE.
@@ -118,9 +121,18 @@ export function hitEnemy(w, e, src, mult, hx, hy, noCrit) {
   if (e.hp <= 0) {
     const over = -e.hp; e.hp = 0;
     killEnemy(w, e, src, crit, over);
-  } else if (e.parent && e.part?.parentDamage) { e.parent.hp -= frac * e.part.parentDamage * e.hpMax.ratio(e.parent.hpMax); }
+  } else if (e.def.evade && !e.evaded && e.hp < 0.5 && e.slot) warp(w, e);
+  else if (e.parent && e.part?.parentDamage) { e.parent.hp -= frac * e.part.parentDamage * e.hpMax.ratio(e.parent.hpMax); }
   return frac;
 }
+/** A badly hurt Warper swaps formation slots with another invader, once. */
+function warp(w, e) {
+  const others = w.enemies.filter((o) => o !== e && o.alive && o.slot && o.state === 'form' && !o.boss); e.evaded = true; if (!others.length) return;
+  const o = others[Math.floor(rand() * others.length)], s = e.slot, x = e.x, y = e.y;
+  fx(w, 'boom', e.x, e.y, e.r * 1.2, e.color); e.slot = o.slot; o.slot = s; e.x = o.x; e.y = o.y; o.x = x; o.y = y; fx(w, 'boom', e.x, e.y, e.r * 1.2, e.color); sfx(w, 'teleport', 0.6);
+  if (w.painted === e) w.painted = null;
+}
+
 /** Radial damage. falloff keeps the centre hit strongest. */
 export function blast(w, x, y, radius, src, mult, exclude) {
   fx(w, 'boom', x, y, radius, src.color || 0xffaa55); sfx(w, 'boom', Math.min(1, radius / 14));
@@ -163,6 +175,7 @@ export function killEnemy(w, e, src, crit, over) {
   if (src && src.dmg && (kx || (chance && rand() < chance))) blast(w, e.x, e.y, (kx || 10) * sh.n('blast'), src, 0.5, e);
   if (e.elite?.deathBurst) for (let i = 0; i < e.elite.deathBurst; i++) { const a = (i / e.elite.deathBurst) * Math.PI * 2; spawnBullet(w, e.x, e.y, Math.cos(a) * 32, Math.sin(a) * 32, 1, 'bolt'); }
   if (e.def.split) for (let i = 0; i < e.def.split.n; i++) { const c = spawnEnemy(w, e.def.split.type, e.x + (i ? 4 : -4), e.y, { state: 'free', vx: (i ? 1 : -1) * 8, vy: -3 }); if (c) c.spawnT = 0.3; }
+  if (e.link?.alive) { const m = e.link; m.link = null; m.overcharged = true; fx(w, 'text', m.x, m.y + m.r + 2, 'OVERCHARGED', '#7df9ff', 1); } // the survivor fires much faster
   if (e.parent) bus.emit('partDied', w, e);
   if (e.boss) {
     count('bossKills'); if (!e.boss.def.mini) count('sectorBosses');

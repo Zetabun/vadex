@@ -75,7 +75,7 @@ export function updateEnemies(w, dt) {
         }
       } else if (e.y < FIELD.LAND_Y && e.state !== 'dive' && !def.cruiser) { hurtPlayer(w, 0, e); landed(w, e); continue; }
       if (def.fire && f.enter <= 0 && e.spawnT <= 0 && !(def.fire.onlyDiving && e.state !== 'dive') && !(w.counter && (e.y > FIELD.H - 2 || (e.y < p.y + 6 && !def.ground && def.fire.kind !== 'side')))) {
-        e.fireT -= edt * w.sim.fireRate * (w.wave.fire || 1) * (w.wave.info?.mod?.fireRate || 1) * (e.buffed ? 1.6 : 1) * (e.elite?.fireRate || 1);
+        e.fireT -= edt * w.sim.fireRate * (w.wave.fire || 1) * (w.wave.info?.mod?.fireRate || 1) * (e.buffed ? 1.6 : 1) * (e.elite?.fireRate || 1) * (e.overcharged ? 2 : 1);
         // aligned: hold fire until level with the ship (broadside gunships)
         if (e.fireT <= 0 && (!def.fire.aligned || Math.abs(e.y - p.y) < 3)) { e.fireT = def.fire.every * (0.75 + rand() * 0.5); if (!e.cloaked) enemyFire(w, e, def.fire); }
       }

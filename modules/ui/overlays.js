@@ -11,6 +11,8 @@ import { SHIP_BY_ID } from '@last-orbit/data/ships.js';
 import { CONTRACT_BY_ID } from '@last-orbit/data/contracts.js';
 import { describeCard, pickCard, reroll, pickRelic, pickRoute, pickAnomaly, autoPickIndex } from '@last-orbit/progression/run.js';
 import { ANOMALY_BY_ID, anomalyCounts, anomalyPay, anomalyName } from '@last-orbit/data/anomalies.js';
+import { STATION_CORE } from '@last-orbit/data/station.js';
+import { stationBlueprint } from '@last-orbit/ui/stationArt.js';
 import { SYNERGIES, synergyOf, synergyCount, activeTiers } from '@last-orbit/data/synergies.js';
 import { ROUTE_BY_ID } from '@last-orbit/data/routes.js';
 import { FUSION_BY_ID } from '@last-orbit/data/fusions.js';
@@ -213,6 +215,26 @@ export function createOverlays(layer, hooks) {
     mount('counter-intro', el, (e) => { if (e.key === 'Escape') { close(); return true; } return false; });
   }
 
+  // ------------------------------------------------------------ a simple information panel (the Command Deck's exhibits)
+  function showPanel({ kicker, title, body = [] }) {
+    const el = h('div.modal.info-panel', { role: 'dialog', 'aria-label': title }, h('div.modal-head', kicker ? h('div.kicker', kicker) : null, h('h2', title)), ...body,
+      h('div.modal-actions', h('button.btn.primary', { onclick: close, 'data-autofocus': '' }, 'Close')));
+    mount('panel', el, (e) => { if (e.key === 'Escape') { close(); return true; } return false; });
+  }
+
+  // ------------------------------------------------------------ the station is complete (every Workshop upgrade maxed)
+  function showStationComplete() {
+    if (open) return;
+    const rank = G.state.prestige?.level || 0, next = STATION_CORE.find((c) => c.at === rank + 1);
+    const el = h('div.modal.confirm.station-done', { role: 'dialog', 'aria-label': 'Station complete' },
+      h('div.modal-head', h('div.kicker', 'Every module built'), h('h2', 'Station complete'),
+        h('p', `Your Workshop is maxed. Overhaul to strip it back for Blueprints: the station keeps its core${next ? ` and grows its ${next.name}` : ''}.`)),
+      h('div.oh-plan.sd-plan', { html: stationBlueprint(rank, G.state.workshop) }),
+      h('div.modal-actions', h('button.btn.gold', { onclick: () => { close(); hooks.toHangar?.('workshop'); }, 'data-autofocus': '' }, 'Go to Overhaul'), h('button.btn.ghost', { onclick: close }, 'Later')));
+    mount('station-done', el, (e) => { if (e.key === 'Escape') { close(); return true; } return false; });
+    playSfx('milestone');
+  }
+
   // ------------------------------------------------------------ callsign
   /** Ask for the pilot's callsign. first: the first launch (or the first time since this arrived); fromSettings: return there. */
   function showCallsign({ first = false, fromSettings = false } = {}) {
@@ -288,7 +310,8 @@ export function createOverlays(layer, hooks) {
       h('div.modal-head' + (ca?.cleared ? '.won' : ''), h('div.kicker', ca ? `${ship.name} · Counterattack · Stage ${ca.stage}${ca.hard ? ' · Hard' : ''}` : `${ship.name} · Sector ${s.sector} · ${s.sectorName}` + (s.threat ? ` · Threat ${THREATS[s.threat].roman}` : '') + (s.mutator ? ` · Daily: ${MUTATOR_BY_ID[s.mutator].name}` : '') + (s.warp > 1 ? ` · Warp S${s.warp}` : '')), h('h2', win), h('div.pbs', s.highScore ? h('div.pb', 'New high score') : null, s.best && s.wave > 1 ? h('div.pb', 'New best wave') : null)),
       ca ? h('div.stars-row', [1, 2, 3].map((i) => h('span.star-big' + (i <= ca.stars ? '.on' : '') + (i > ca.stars - ca.gained && i <= ca.stars ? '.new' : ''), { style: `--d:${i * 180}ms` }, '★')),
         h('div.star-notes', h('small', (ca.cleared ? '✓' : '·') + ' Clear the stage'), h('small', (ca.hits <= 5 && ca.cleared ? '✓' : '·') + ` Take 5 hits or fewer (${ca.hits})`), h('small', (ca.killed >= 0.8 && ca.cleared ? '✓' : '·') + ` Destroy 80% of the assault (${Math.round(ca.killed * 100)}%)`)),
-        ca.cores ? h('div.pilot-row.cores-row', h('span', 'Alien Cores'), h('b', '+' + ca.cores)) : null, ca.bounty ? h('div.pilot-row', h('span', 'First-clear bounty'), h('b', '+' + fmtInt(ca.bounty) + ' salvage')) : null) : null,
+        ca.cores ? h('div.pilot-row.cores-row', h('span', 'Alien Cores'), h('b', '+' + ca.cores)) : null, ca.bounty ? h('div.pilot-row', h('span', 'First-clear bounty'), h('b', '+' + fmtInt(ca.bounty) + ' salvage')) : null,
+        ca.checkpoint ? h('div.pilot-row', h('span', 'Checkpoint saved'), h('b', 'Past the mini-boss')) : null, ca.resumed ? h('small.cp-note', 'Checkpoint run: the clear star only. Fly the whole stage for the other two.') : null) : null,
       h('div.hero-row', ca ? h('div.big-wave', h('small', 'Stage'), h('b', String(ca.stage))) : h('div.big-wave', h('small', 'Wave'), h('b', String(s.wave))), h('div.earned', h('small', 'Salvage banked'), h('div', art('cur:salvage', 'cur-ico'), salvageEl))),
       h('div.score-row', h('small', 'Score'), h('b', fmtInt(s.score || 0)), s.place ? h('span', `#${s.place} of your top 10`) : s.prevScore ? h('span', `Best ${fmtInt(s.prevScore)}`) : null),
       h('div.stat-grid', stat('Level', s.level), stat('Kills', fmtInt(s.kills)), stat('Bosses', s.bosses), stat('Time', fmtTime(s.time))),
@@ -306,6 +329,7 @@ export function createOverlays(layer, hooks) {
       h('div.build', s.weapons.map(([id, r]) => h('div.build-item', { style: `--c:#${WEAPONS[id].color.toString(16).padStart(6, '0')}` }, art('weapon:' + id, 'build-icon'), h('span', WEAPONS[id].name), h('b', 'R' + r))), s.relics.map((id) => h('div.build-item.relic', art('relic:' + id, 'build-icon'), h('span', RELIC_BY_ID[id].name)))),
       s.daily ? h('button.btn.gold.share-btn.wide', { onclick: async () => { const r = await shareText(dailyShareText({ key: G.state.daily.lastDay, mutator: MUTATOR_BY_ID[s.mutator]?.name, wave: s.wave, score: s.score, streak: s.daily.streak })); if (r === 'copied') hooks.toast?.('Result copied. Paste it to a friend!'); else if (r === 'failed') hooks.toast?.('Could not share from this browser.'); } }, uiIcon('share'), 'Share daily result') : null,
       ca ? h('div.modal-actions', h('button.btn.primary', { onclick: () => { close(); hooks.relaunch(false); }, 'data-autofocus': '' }, uiIcon('reroll'), 'Retry stage'),
+          ca.checkpoint ? h('button.btn.gold', { onclick: () => { close(); hooks.relaunch(false, { checkpoint: true }); } }, uiIcon('launch'), 'From checkpoint') : null,
           ca.cleared && ca.stage < 6 && !ca.hard ? h('button.btn.gold', { onclick: () => { close(); hooks.relaunch(true); } }, uiIcon('launch'), 'Next stage') : null,
           h('button.btn.ghost.wide', { onclick: () => { close(); hooks.toHangar('missions'); } }, uiIcon('missions'), 'Missions')) :
       h('div.modal-actions', h('button.btn.primary', { onclick: () => { close(); hooks.launch(); }, 'data-autofocus': '' }, uiIcon('launch'), s.daily ? 'Launch a sortie' : 'Launch again'),
@@ -328,7 +352,7 @@ export function createOverlays(layer, hooks) {
   };
 
   return {
-    showOffer, showRelics, showRoutes, showAnomalies, showPause, showSettings, showDebrief, showLoadout, showCounterIntro, showOverhaul, showMenuIntro, showCallsign, close,
+    showOffer, showRelics, showRoutes, showAnomalies, showPause, showSettings, showDebrief, showLoadout, showCounterIntro, showOverhaul, showMenuIntro, showCallsign, showStationComplete, showPanel, close,
     get kind() { return open?.kind || null; },
     /** Combat freezes while any overlay is up. */
     blocking: () => !!open,

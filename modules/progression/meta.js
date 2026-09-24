@@ -201,7 +201,7 @@ export function overhaul() {
   const bp = overhaulReward(), head = blueprintLevel('bp_head');
   pr.level++; pr.bp += bp; pr.bpEarned = (pr.bpEarned || 0) + bp; pr.cycleBest = 0; st.stats.overhauls = pr.level;
   for (const u of WORKSHOP) st.workshop[u.id] = HEAD_START_SKIP.includes(u.id) ? 0 : Math.min(u.max, head);
-  recalc(); unlockBanners(); checkAchievements(); bus.emit('overhaul', pr.level); return bp;
+  recalc(); unlockBanners(); checkAchievements(); refreshMenus(); bus.emit('overhaul', pr.level); return bp;
 }
 export function blueprintNext(id) { const b = BLUEPRINT_BY_ID[id], l = blueprintLevel(id); return !b || l >= b.max ? null : b.cost[l]; }
 /** Escort types need an Escort Bay to fly from first. */
@@ -231,15 +231,15 @@ export function selectTrail(id) { if (!trailUnlocked(id)) return false; G.state.
  *  this arrived keep everything open, quietly. Returns the ids newly opened. */
 export function refreshMenus() {
   const seen = G.state.seen, st = G.state.stats; seen.menus ||= {};
-  if (!seen.menusInit) { seen.menusInit = true; if ((st.sorties || 0) >= ESTABLISHED) { for (const m of MENUS) seen.menus[m.id] = true; return []; } }
+  if (!seen.menusInit) { seen.menusInit = true; if ((st.sorties || 0) >= ESTABLISHED) { for (const m of MENUS) if (!m.overhaul) seen.menus[m.id] = true; } }
   const opened = [];
-  for (const m of MENUS) if (!seen.menus[m.id] && ((st.sorties || 0) >= m.sorties || (m.counter && G.state.counter.unlocked))) { seen.menus[m.id] = 'new'; opened.push(m.id); }
+  for (const m of MENUS) if (!seen.menus[m.id] && (m.overhaul ? (G.state.prestige?.level || 0) >= m.overhaul : (st.sorties || 0) >= m.sorties || (m.counter && G.state.counter.unlocked))) { seen.menus[m.id] = 'new'; opened.push(m.id); }
   return opened;
 }
 /** 'open' | 'new' | 'locked' for a hangar tab (Launch, and anything not gated, is always open). */
 export function menuState(id) { if (!MENU_BY_ID[id]) return 'open'; const v = G.state.seen.menus?.[id]; return v === true ? 'open' : v === 'new' ? 'new' : 'locked'; }
 export function menuSeen(id) { if (G.state.seen.menus?.[id] === 'new') G.state.seen.menus[id] = true; }
-export function menuLockText(id) { const m = MENU_BY_ID[id], left = Math.max(1, m.sorties - (G.state.stats.sorties || 0)); return `${m.title} opens after ${left} more sortie${left > 1 ? 's' : ''}`; }
+export function menuLockText(id) { const m = MENU_BY_ID[id]; if (m.overhaul) return `${m.title} opens with your first Overhaul (Workshop tab)`; const left = Math.max(1, m.sorties - (G.state.stats.sorties || 0)); return `${m.title} opens after ${left} more sortie${left > 1 ? 's' : ''}`; }
 
 // ---------------------------------------------------------------- callsign
 export const CALLSIGN_MAX = 16;

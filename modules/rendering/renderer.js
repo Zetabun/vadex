@@ -11,6 +11,8 @@ import { PAINT_BY_ID } from '@last-orbit/data/career.js';
 import { shapeGeometry, playerParts, NOZZLES, BANNER_PIN, unitBox, droneGeometry, supportCraftGeometry } from '@last-orbit/rendering/geometry.js';
 import { SpriteBatch, Particles, Transients, makeTextures, rgb, css, jagged, WHITE } from '@last-orbit/rendering/effects.js';
 import { Background } from '@last-orbit/rendering/background.js';
+import { Station } from '@last-orbit/rendering/station.js';
+import { DeckRoom } from '@last-orbit/rendering/deck.js';
 import { Banner } from '@last-orbit/rendering/banner.js';
 import { Ground } from '@last-orbit/rendering/ground.js';
 import { counterProgress } from '@last-orbit/combat/counter.js';
@@ -24,7 +26,7 @@ const TEXT_FONTS = { 11: '700 11px "Chakra Petch",sans-serif', 14: '700 14px "Ch
 const RED = rgb(0xff4d7a), AMBER = rgb(0xffb547), CYAN = rgb(0x5ee6ff), GOLD = rgb(0xffd700), VIOLET = rgb(0xc77dff);
 const SCRAP = rgb(0xc9d5df), REPAIR = rgb(0x80ffd2), XPC = rgb(0x6dffc8);
 // Camera framings: the whole battlefield, or a close-up of the ship for the Hangar.
-const VIEWS = { field: { x0: -53, x1: 53, y0: 1, y1: 152, cy: 76 }, hangar: { x0: -17, x1: 17, y0: 0, y1: 24, cy: 11 } };
+const VIEWS = { field: { x0: -53, x1: 53, y0: 1, y1: 152, cy: 76 }, hangar: { x0: -19, x1: 19, y0: -1, y1: 29, cy: 12 } }; // hangar: room above the ship for the station
 const BULLET_COL = { bolt: rgb(0xff5d8f), heavy: rgb(0xff9f43), orb: rgb(0xd17bff), snipe: rgb(0xffffff) };
 
 export class Renderer {
@@ -35,6 +37,7 @@ export class Renderer {
     this.scene.add(new THREE.HemisphereLight(0xbfd8ff, 0x1a1030, 0.85)); const sun = new THREE.DirectionalLight(0xffffff, 0.9); sun.position.set(-40, 60, 120); this.scene.add(sun);
     this.tex = makeTextures(); this.pr = 1; this.insets = { top: 60, bottom: 140 }; this.cur = { top: 60, bottom: 140 }; this.shake = 0; this.frameMs = 16; this.lowT = 0; this.highT = 0; this.autoLow = false; this.qualityMode = null; this.fitCache = null; this.fitDirty = true;
     this.bg = new Background(this.scene, this.tex, 1);
+    this.station = new Station(this.scene); // the pilot's orbital station, in the hangar sky
     // field furniture
     const rail = new THREE.BufferGeometry(); rail.setAttribute('position', new THREE.Float32BufferAttribute([-52, -10, 0, -52, 170, 0, 52, -10, 0, 52, 170, 0, -52, FIELD.LAND_Y, 0, 52, FIELD.LAND_Y, 0], 3));
     this.rails = new THREE.LineSegments(rail, new THREE.LineBasicMaterial({ color: 0x5ee6ff, transparent: true, opacity: 0.14 })); this.scene.add(this.rails);
@@ -173,6 +176,12 @@ export class Renderer {
   // ------------------------------------------------------------------ frame
   render(dt, w, speedMul = 1) {
     const st = G.state, t0 = performance.now(); if (!w) return;
+    // The Command Deck replaces the hangar view while it is open (built the first time it is visited).
+    if (G.mode === 'hangar' && G.deckOpen) {
+      const d = (this.deck ||= new DeckRoom()), size = this.w + 'x' + this.h; if (d.size !== size) { d.size = size; d.resize(this.w, this.h); }
+      d.sync(st); d.render(this.gl, Math.min(dt, 0.05)); this.ctx2d.clearRect(0, 0, this.overlay.width, this.overlay.height); return;
+    }
+    this.gl.setClearColor(0x050a24, 1);
     this.lerpIn(w, renderAlpha());
     if (this.supportWorld !== w) { this.supportWorld = w; this.salvageDrops.length = 0; this.salvageCraft = null; this.repairCraft = null; this.repairBeamT = 0; }
     this.fitCamera(dt); if (this.shake > 0) this.shake = Math.max(0, this.shake - dt * 2.2);
@@ -193,6 +202,7 @@ export class Renderer {
     this.drawEnemies(w); this.drawPlayer(w, fdt); this.drawShots(w); this.drawHazards(w); this.drawBarriers(w); this.drawDrones(w); this.drawPickups(w); this.drawSupportCraft(w, fdt);
     this.trans.draw(B); this.parts.draw(B.soft);
     for (const k in B) B[k].end();
+    this.station.sync(G.state); this.station.update(dt, this.camera, G.mode === 'hangar' && !!this.bg.planet.visible, this.bg.earthMat.uniforms.night.value, this.w, this.h);
     this.gl.render(this.scene, this.camera);
     this.drawOverlay(w, dt);
     this.lerpOut();
@@ -226,6 +236,9 @@ export class Renderer {
       if (e.burnT > 0) B.soft.add(e.x + Math.sin(t * 20 + e.id) * e.r * 0.4, e.y + e.r * 0.3, e.r * 1.6, e.r * 2.2, 0, AMBER, 0.6);
       if (e.def.aura && !e.cloaked) { const ar = e.def.aura.radius * 2; B.ring.add(e.x, e.y, ar * 1.15, ar * 1.15, -t * 0.3, c, 0.1); }
       if (e.weak) { const wx = e.x + e.weak.x, wy = e.y - e.r * 0.55; if (e.weakOpen) { const s = e.weak.r * 2.6 * (1 + 0.15 * Math.sin(t * 12)); B.soft.add(wx, wy, s * 1.6, s * 1.6, 0, AMBER, 1.2); B.reticle.add(wx, wy, s * 1.5, s * 1.5, t * 2, WHITE, 1); } else B.soft.add(wx, wy, e.weak.r * 1.4, e.weak.r * 1.4, 0, RED, 0.35); }
+      // Binders: a crackling tether to the partner; an overcharged survivor glows hot.
+      if (e.link?.alive && e.id < e.link.id) { const l = e.link, k = 0.55 + 0.45 * Math.sin(t * 9 + e.id); B.streak.line(e.x, e.y, l.x, l.y, 0.9, rgb(0x7df9ff), 0.35 + 0.35 * k); B.streak.line(e.x, e.y + Math.sin(t * 23) * 0.6, l.x, l.y - Math.sin(t * 19) * 0.6, 0.35, WHITE, 0.4 * k); }
+      if (e.overcharged) B.soft.add(e.x, e.y, e.r * 3.2, e.r * 3.2, 0, rgb(0x7df9ff), 0.35 + 0.2 * Math.sin(t * 14));
       // Wind-up: before each attack the boss glows in the attack's colour and a ring closes in on it.
       if (e.boss?.charge > 0) { const k = e.boss.charge, cc = rgb(e.boss.chargeCol || 0xffffff); B.soft.add(e.x, e.y, e.r * (2.4 + k * 2), e.r * (2.4 + k * 2), 0, cc, 0.25 + 0.55 * k); B.ring.add(e.x, e.y, e.r * (4.2 - 2.4 * k), e.r * (4.2 - 2.4 * k), t * 3, cc, 0.3 + 0.6 * k); }
       // Lungers flash a warning line across the tunnel at the height they are about to cross.
@@ -291,7 +304,7 @@ export class Renderer {
     if (p.fireFlash > 0) B.soft.add(p.x, p.y + 5.5, 5, 5, 0, WHITE, p.fireFlash * 8);
     if (p.dashT > 0) for (let k = 1; k <= 3; k++) B.soft.add(p.x - p.dashDir * k * 3.2, p.y, 9 - k * 2, 11 - k * 2, 0, CYAN, 0.5 - k * 0.12);
     // Shield: a bubble round the ship, brighter the fuller it is, flaring when it takes a hit and bursting when it fails.
-    const sh = w.base.hasShield ? p.shield : 0, sk = this.drawScale / 3.1;
+    const sh = w.base.hasShield && G.mode === 'sortie' ? p.shield : 0, /* battle only: the hangar shows the ship clean */ sk = this.drawScale / 3.1;
     if (sh > 0.02) { const r = 13 * sk + 1.5, fl = p.shieldFlash > 0 ? p.shieldFlash * 4 : 0; B.soft.add(p.x, p.y, r * 1.9, r * 1.9, 0, CYAN, 0.09 + 0.12 * sh + fl * 0.3); B.ring.add(p.x, p.y, r * 1.6, r * 1.6, t * 0.8, CYAN, 0.35 + 0.45 * sh + fl); B.ring.add(p.x, p.y, r * 1.48, r * 1.48, -t * 1.3, WHITE, 0.12 + 0.2 * sh * (0.7 + 0.3 * Math.sin(t * 3))); }
     if (this.lastShield > 0.05 && sh <= 0.02 && w.base.hasShield) { this.parts.burst(p.x, p.y, 26, CYAN, 40, 1.6, 0.5); this.trans.add({ k: 'ring', x: p.x, y: p.y, r: 16 * sk, c: CYAN, t: 0, life: 0.4 }); }
     this.lastShield = sh; if (p.shieldFlash > 0) p.shieldFlash -= dt;

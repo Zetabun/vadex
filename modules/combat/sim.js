@@ -136,6 +136,9 @@ export function startWave(w) {
     const rows = info.rows, nR = rows.length; f.y = 132; let cols = 0;
     const placed = [];
     for (let r = 0; r < nR; r++) { const row = rows[r]; cols = Math.max(cols, row.length); for (let c = 0; c < row.length; c++) { seen[row[c]] = 1; const sx = (c - (row.length - 1) / 2) * info.spacing, sy = r * 8; const e = spawnEnemy(w, row[c], sx, f.y - sy + 60, { slot: { x: sx, y: sy } }); if (e) placed.push(e); } }
+    // Binders: neighbours in the same row are linked in pairs.
+    const binders = placed.filter((e) => e.def.link).sort((a, b) => a.slot.y - b.slot.y || a.slot.x - b.slot.x);
+    for (let i = 0; i + 1 < binders.length; i++) { const a = binders[i], b = binders[i + 1]; if (a.slot.y === b.slot.y && !a.link) { a.link = b; b.link = a; i++; } }
     f.total = placed.length; f.alive = placed.length; f.minOff = -((cols - 1) / 2) * info.spacing - 4; f.maxOff = -f.minOff;
     const rng = info.rng || rand;
     const elites = info.elites + (w.mods.elites || 0);

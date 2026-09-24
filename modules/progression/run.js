@@ -39,12 +39,15 @@ export function startSortie(opts = {}) {
   // Counterattack: a stage of the vertical shooter. It gets the same catch-up as a warp to its sector.
   if (counter) st.stats.counterRuns = (st.stats.counterRuns || 0) + 1;
   if (counter) { run.mode = 'counter'; run.stage = counter.n; run.hard = !!opts.hard; run.threat = 0; run.wave = counter.wave; run.level = 1 + (counter.n - 1) * BAL.warpCards; run.catchUp = counter.n; }
+  // A checkpoint resume starts at the level the pilot had reached, with those cards to pick again.
+  const cpLevel = counter && opts.checkpoint ? st.counter.checkpoints?.[counter.n + (opts.hard ? 'h' : '')] : 0, cpExtra = cpLevel ? Math.max(0, cpLevel - run.level) : 0;
+  if (cpLevel) { run.fromCheckpoint = true; run.level += cpExtra; }
   const start = MUTATOR_BY_ID[run.mutator]?.start;
   if (start?.weapon) { const pool = WEAPON_ORDER.filter((id) => !run.weapons[id]); const id = pool[Math.floor(rand() * pool.length)]; run.weapons[id] = 1; run.order.push(id); }
   recalc();
   run.rerolls = Math.round(G.sheet.n('rerolls'));
   const skipped = counter ? counter.n - 1 : warp - 1, perSector = BAL.warpCards + Math.round(G.sheet.n('warpCards'));
-  run.pendingLevels = Math.round(G.sheet.n('startLevels')) + (start?.cards || 0) + skipped * perSector;
+  run.pendingLevels = Math.round(G.sheet.n('startLevels')) + (start?.cards || 0) + skipped * perSector + (cpExtra || 0);
   run.pendingRelics = skipped * BAL.warpRelics;
   count('sorties'); checkContracts();
   bus.emit('sortieStart', run);
@@ -114,14 +117,17 @@ function recordSortie(st, run, s) {
 function recordCounter(st, run, s, reason) {
   const c = st.counter, key = run.hard ? 'hard' : 'stars', n = run.stage, cleared = reason === 'cleared' && !!run.stageCleared;
   const hits = run.hits || 0, killed = Math.min(1, (run.pathKills || 0) / Math.max(1, run.pathSpawned || 1));
-  const earned = cleared ? 1 + (hits <= STAR_HITS ? 1 : 0) + (killed >= STAR_KILLS ? 1 : 0) : 0;
+  // A checkpoint resume flies half the stage, so it can only earn the clear star.
+  const earned = cleared ? (run.fromCheckpoint ? 1 : 1 + (hits <= STAR_HITS ? 1 : 0) + (killed >= STAR_KILLS ? 1 : 0)) : 0;
+  const cpKey = n + (run.hard ? 'h' : ''); c.checkpoints ||= {};
+  if (cleared) delete c.checkpoints[cpKey]; else if (run.checkpointLevel) c.checkpoints[cpKey] = Math.max(c.checkpoints[cpKey] || 0, run.checkpointLevel);
   const prev = c[key][n] || 0, gained = Math.max(0, earned - prev), first = cleared && !prev;
   if (earned > prev) c[key][n] = earned;
   const cores = gained * CORES_PER_STAR; c.cores += cores; st.stats.counterStars = (st.stats.counterStars || 0) + gained;
   const bounty = first ? clearBounty(n, run.hard) : 0; st.salvage += bounty;
   if (cleared) { maxStat('counterBest', n); if (run.hard) maxStat('counterHard', n); if (n === 6) st.paints.xeno ||= Date.now(); }
   const score = Math.round(run.score || 0), best = c.best[n] || 0; if (score > best) c.best[n] = score;
-  return { score, counter: { stage: n, hard: !!run.hard, cleared, stars: earned, gained, cores, bounty, hits, killed, newBest: score > best && score > 0 } };
+  return { score, counter: { stage: n, hard: !!run.hard, cleared, checkpoint: !cleared && !!c.checkpoints[cpKey], resumed: !!run.fromCheckpoint, stars: earned, gained, cores, bounty, hits, killed, newBest: score > best && score > 0 } };
 }
 
 /** A saved sortie found at boot (closed or discarded tab) cannot be resumed: bank its salvage and drop it. */

@@ -11,5 +11,7 @@ export const MENUS = [
   { id: 'records', sorties: 3, icon: 'records', title: 'Records', text: 'Your best scores, waves and sorties. Every run is a shot at a new personal best.' },
   { id: 'missions', sorties: 3, counter: true, icon: 'missions', title: 'Missions', text: 'A fresh Daily Sortie every day, Threat levels for bigger rewards, and later on, Counterattack.' },
   { id: 'awards', sorties: 4, icon: 'awards', title: 'Awards', text: 'Medals for milestones. Each pays pilot XP, and collecting them unlocks banners for your ship.' },
+  // overhaul: opens at this Overhaul rank instead of after a number of sorties.
+  { id: 'deck', overhaul: 1, icon: 'deck', title: 'Command Deck', text: 'Your own room aboard the station. Your medals line the wall, your banners hang from the rafters, and your records and ships are on display. It grows with every Overhaul.' },
 ];
 export const MENU_BY_ID = Object.fromEntries(MENUS.map((m) => [m.id, m]));
