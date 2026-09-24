@@ -3,7 +3,7 @@
 // coast and open sea, before the surface sinks away into space. The layout is built row by row as rows scroll in
 // (a row can be a street of lots, an avenue, a runway, a canal, a railway, a park strip, a beach or open water), lots
 // can merge into larger developments, and everything sits on the ground with soft shadows. The city is kept dark, a
-// backdrop far below, and a subtle drifting mist and tint between it and the fighting keeps ships and bullets readable.
+// backdrop far below, and drifting low cloud and a tint between it and the fighting keeps ships and bullets readable.
 // Gun towers are ordinary enemies riding at GROUND_SPEED; this draws a pillar under each so they stand on the city.
 import { GROUND_SPEED } from '@last-orbit/data/counter.js';
 
@@ -25,15 +25,25 @@ function padTexture(kind) {
   g.fillStyle = '#fff'; for (const [x, y] of [[10, 10], [118, 10], [10, 118], [118, 118]]) g.fillRect(x - 3, y - 3, 6, 6);
   return c;
 }
-/** Soft cloud wisps for the mist layer (tiles seamlessly enough at low opacity). */
-function mistTexture() {
-  const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
-  for (let i = 0; i < 22; i++) {
-    const x = R() * 256, y = R() * 256, r = 40 + R() * 80, grad = g.createRadialGradient(x, y, 0, x, y, r);
-    grad.addColorStop(0, `rgba(255,255,255,${0.35 + R() * 0.35})`); grad.addColorStop(0.55, `rgba(255,255,255,${0.12 + R() * 0.12})`); grad.addColorStop(1, 'rgba(255,255,255,0)');
-    g.fillStyle = grad; for (const dx of [-256, 0, 256]) for (const dy of [-256, 0, 256]) { g.save(); g.translate(dx, dy); g.fillRect(x - r, y - r, r * 2, r * 2); g.restore(); }
+/**
+ * Low cloud for Liftoff: tiling fractal noise cut into banks with clear gaps between them.
+ * lo/hi set where cloud starts and where it is fully dense, so a higher lo gives sparser, puffier cloud.
+ */
+function cloudTexture(lo, hi) {
+  const S = 256, c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d'), img = g.createImageData(S, S), d = img.data;
+  const octaves = [[3, 0.5], [6, 0.26], [12, 0.13], [24, 0.07], [48, 0.04]].map(([n, amp]) => ({ n, amp, v: Float32Array.from({ length: n * n }, R) }));
+  const ease = (t) => t * t * (3 - 2 * t);
+  for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) {
+    let v = 0;
+    for (const o of octaves) { // bilinear value noise that wraps at the texture edge, so the cloud tiles
+      const fx = (x / S) * o.n, fy = (y / S) * o.n, ix = Math.floor(fx), iy = Math.floor(fy), tx = ease(fx - ix), ty = ease(fy - iy), x1 = (ix + 1) % o.n, y1 = (iy + 1) % o.n;
+      const a = o.v[iy * o.n + ix], b = o.v[iy * o.n + x1], c2 = o.v[y1 * o.n + ix], e = o.v[y1 * o.n + x1];
+      v += o.amp * (a + (b - a) * tx + (c2 - a + (a - b - c2 + e) * tx) * ty);
+    }
+    const k = Math.max(0, Math.min(1, (v - lo) / (hi - lo))), dens = k * k * (3 - 2 * k), i = (y * S + x) * 4, shade = 150 + 105 * dens; // denser cores catch more light
+    d[i] = d[i + 1] = d[i + 2] = shade; d[i + 3] = 255 * dens;
   }
-  return c;
+  g.putImageData(img, 0, 0); return c;
 }
 
 export class Ground {
@@ -51,13 +61,16 @@ export class Ground {
     this.cyl = inst(new THREE.CylinderGeometry(1, 1, 1, 12).rotateX(Math.PI / 2), mat(THREE.MeshLambertMaterial, { color: 0xffffff, emissive: 0x05070c }), CAP.cyl);
     this.pillar = inst(new THREE.CylinderGeometry(1, 1.25, 1, 8).rotateX(Math.PI / 2), mat(THREE.MeshLambertMaterial, { color: 0x9aa6bf, emissive: 0x0a0e18 }), CAP.pillar);
     this.pads = [0, 1, 2].map((k) => inst(flat, mat(THREE.MeshLambertMaterial, { map: new THREE.CanvasTexture(padTexture(k)), color: 0x5c6272 }), CAP.pad));
-    // Mist: a gentle dark tint plus slow drifting wisps, between the rooftops and the fighting.
-    this.mistTex = new THREE.CanvasTexture(mistTexture()); this.mistTex.wrapS = this.mistTex.wrapT = THREE.RepeatWrapping; this.mistTex.repeat.set(1.4, 2.6);
+    // Low cloud: a gentle dark tint, then two drifting cloud layers between the rooftops and the fighting.
+    // The broad banks sit lower and the scattered puffs higher, so they slide past at different speeds.
+    const cloudTex = (lo, hi, rx, ry) => { const t = new THREE.CanvasTexture(cloudTexture(lo, hi)); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); return t; };
+    this.mistTex = cloudTex(0.44, 0.72, 1, 1.5); this.puffTex = cloudTex(0.54, 0.74, 1.6, 2.4);
     this.tint = new THREE.Mesh(new THREE.PlaneGeometry(WIDTH + 60, 330), mat(THREE.MeshBasicMaterial, { color: 0x0a1226, depthWrite: false }, 0.3)); this.tint.position.set(0, 75, -1.3); this.tint.renderOrder = 2;
-    this.mist = new THREE.Mesh(new THREE.PlaneGeometry(WIDTH + 60, 330), mat(THREE.MeshBasicMaterial, { map: this.mistTex, color: 0x8ea4c8, depthWrite: false }, 0.3)); this.mist.position.set(0, 75, -0.9); this.mist.renderOrder = 3;
+    this.mist = new THREE.Mesh(new THREE.PlaneGeometry(WIDTH + 60, 330), mat(THREE.MeshBasicMaterial, { map: this.mistTex, color: 0x62789c, depthWrite: false }, 0.5)); this.mist.position.set(0, 75, -0.9); this.mist.renderOrder = 3;
+    this.puffs = new THREE.Mesh(new THREE.PlaneGeometry(WIDTH + 60, 330), mat(THREE.MeshBasicMaterial, { map: this.puffTex, color: 0x7a8eb0, depthWrite: false }, 0.42)); this.puffs.position.set(0, 75, -0.6); this.puffs.renderOrder = 4;
     this.city = new THREE.Group(); this.city.add(this.slab, this.bld, this.shadow, this.roof, this.tree, this.cyl, ...this.pads);
     this.street.renderOrder = -6; for (const m of this.city.children) m.renderOrder = -5; this.pillar.renderOrder = -4; // city first, then tint and mist
-    this.group = new THREE.Group(); this.group.add(this.street, this.city, this.pillar, this.tint, this.mist); this.group.visible = false; scene.add(this.group);
+    this.group = new THREE.Group(); this.group.add(this.street, this.city, this.pillar, this.tint, this.mist, this.puffs); this.group.visible = false; scene.add(this.group);
     this.d = new THREE.Object3D(); this.c = new THREE.Color();
     this.reset();
   }
@@ -177,8 +190,9 @@ export class Ground {
     let rebuilt = false;
     for (const row of this.rows) if (row.y - this.scroll < BOTTOM) { row.y += ROWS * PITCH; row.plan = this.planRow(row.y); rebuilt = true; }
     if (rebuilt) this.rebuild();
-    // The mist drifts a little slower than the ground and a touch sideways, so it reads as a layer of its own.
-    this.mistTex.offset.y += (GROUND_SPEED * 0.7 * dt) / 330 * this.mistTex.repeat.y; this.mistTex.offset.x += dt * 0.004;
+    // Cloud sits nearer the camera than the city, so it slides past faster, the higher puffs fastest, with a slight crosswind.
+    this.mistTex.offset.y += (GROUND_SPEED * 1.15 * dt) / 330 * this.mistTex.repeat.y; this.mistTex.offset.x += dt * 0.004;
+    this.puffTex.offset.y += (GROUND_SPEED * 1.45 * dt) / 330 * this.puffTex.repeat.y; this.puffTex.offset.x -= dt * 0.006;
     // As the ship climbs, the surface drops away and dims.
     this.group.position.z = -(1 - fade) * 70;
     for (const m of this.mats) m.opacity = m.baseOpacity * fade;
