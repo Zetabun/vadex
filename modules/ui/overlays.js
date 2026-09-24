@@ -7,10 +7,12 @@ import { WEAPONS } from '@last-orbit/data/weapons.js';
 import { SHIP_BY_ID } from '@last-orbit/data/ships.js';
 import { CONTRACT_BY_ID } from '@last-orbit/data/contracts.js';
 import { describeCard, pickCard, reroll, pickRelic } from '@last-orbit/progression/run.js';
-import { unlockLabel } from '@last-orbit/progression/meta.js';
+import { unlockLabel, pilotProgress } from '@last-orbit/progression/meta.js';
+import { PAINT_BY_ID, rankTitle } from '@last-orbit/data/career.js';
 import { applyVolumes, playSfx } from '@last-orbit/audio/audio.js';
 import { h, clear, toggle, slider, select } from '@last-orbit/ui/dom.js';
-import { uiIcon, iconKey } from '@last-orbit/ui/icons.js';
+import { uiIcon } from '@last-orbit/ui/icons.js';
+import { art } from '@last-orbit/ui/art.js';
 
 export function createOverlays(layer, hooks) {
   let open = null; // { kind, el, keys }
@@ -31,7 +33,7 @@ export function createOverlays(layer, hooks) {
     run.offer.forEach((c, i) => {
       const d = describeCard(c, run), rar = RARITY[c.rarity] || RARITY.common;
       cards.append(h('button.card.' + c.rarity, { style: `--c:${d.color};--r:${rar.color};--d:${i * 70}ms`, onclick: () => choose(i), 'data-autofocus': i === 0 ? '' : null },
-        h('div.card-art', iconKey(d.icon, 'card-icon')),
+        h('div.card-art', art(d.icon, 'card-icon')),
         h('div.card-main', h('div.card-kicker', h('span', d.kicker), h('span.rar', c.kind === 'upgrade' ? (c.rarity === 'evo' ? 'Final evolution' : 'Upgrade') : c.kind === 'weapon' ? 'Weapon' : c.kind === 'ability' ? 'Ability' : rar.name)), h('div.card-title', d.title), h('div.card-body', d.body)),
         h('span.card-key', String(i + 1))));
     });
@@ -53,7 +55,7 @@ export function createOverlays(layer, hooks) {
     run.relicOffer.forEach((id, i) => {
       const r = RELIC_BY_ID[id];
       cards.append(h('button.card.relic', { style: `--c:#d6b4ff;--r:#b69cff;--d:${i * 90}ms`, onclick: () => choose(i), 'data-autofocus': i === 0 ? '' : null },
-        h('div.card-art', iconKey(r.icon, 'card-icon')), h('div.card-main', h('div.card-kicker', h('span', 'Relic'), h('span.rar', 'Permanent this sortie')), h('div.card-title', r.name), h('div.card-body', r.desc)), h('span.card-key', String(i + 1))));
+        h('div.card-art', art('relic:' + id, 'card-icon')), h('div.card-main', h('div.card-kicker', h('span', 'Relic'), h('span.rar', 'Permanent this sortie')), h('div.card-title', r.name), h('div.card-body', r.desc)), h('span.card-key', String(i + 1))));
     });
     const el = h('div.modal.relic-pick', { role: 'dialog', 'aria-label': 'Choose a relic' },
       h('div.modal-head', h('div.kicker', 'Sector cleared'), h('h2', 'Choose a relic'), h('p', 'Hull and shields restored. Relics are powerful and last until the sortie ends.')), cards);
@@ -85,8 +87,8 @@ export function createOverlays(layer, hooks) {
     mount('pause', el, (e) => { if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') { close(); return true; } return false; });
   }
   function buildSummary(run) {
-    return h('div.build', run.order.map((id) => h('div.build-item', { style: `--c:#${WEAPONS[id].color.toString(16).padStart(6, '0')}` }, iconKey('weapon:' + id, 'build-icon'), h('span', `${WEAPONS[id].name}`), h('b', 'R' + run.weapons[id]))),
-      run.relics.map((id) => h('div.build-item.relic', iconKey(RELIC_BY_ID[id].icon, 'build-icon'), h('span', RELIC_BY_ID[id].name))));
+    return h('div.build', run.order.map((id) => h('div.build-item', { style: `--c:#${WEAPONS[id].color.toString(16).padStart(6, '0')}` }, art('weapon:' + id, 'build-icon'), h('span', `${WEAPONS[id].name}`), h('b', 'R' + run.weapons[id]))),
+      run.relics.map((id) => h('div.build-item.relic', art('relic:' + id, 'build-icon'), h('span', RELIC_BY_ID[id].name))));
   }
   function confirmAbandon() {
     const el = h('div.modal.confirm', { role: 'alertdialog', 'aria-label': 'Abandon sortie?' },
@@ -115,10 +117,13 @@ export function createOverlays(layer, hooks) {
     const done = s.contracts.map((id) => CONTRACT_BY_ID[id]);
     const el = h('div.modal.debrief', { role: 'dialog', 'aria-label': 'Sortie debrief' },
       h('div.modal-head', h('div.kicker', `${ship.name} · Sector ${s.sector} · ${s.sectorName}`), h('h2', win), s.best && s.wave > 1 ? h('div.pb', 'New best wave') : null),
-      h('div.hero-row', h('div.big-wave', h('small', 'Wave'), h('b', String(s.wave))), h('div.earned', h('small', 'Salvage banked'), h('div', h('span.cur', '¢'), salvageEl))),
+      h('div.hero-row', h('div.big-wave', h('small', 'Wave'), h('b', String(s.wave))), h('div.earned', h('small', 'Salvage banked'), h('div', art('cur:salvage', 'cur-ico'), salvageEl))),
       h('div.stat-grid', stat('Level', s.level), stat('Kills', fmtInt(s.kills)), stat('Bosses', s.bosses), stat('Time', fmtTime(s.time))),
-      done.length ? h('div.unlocks', h('div.kicker', `Contracts complete (${done.length})`), done.map((c) => h('div.unlock', uiIcon('check'), h('b', c.name), h('small', `+${c.salvage} ¢` + (c.unlock ? ' · ' + unlockLabel(c.unlock) : ''))))) : null,
-      h('div.build', s.weapons.map(([id, r]) => h('div.build-item', { style: `--c:#${WEAPONS[id].color.toString(16).padStart(6, '0')}` }, iconKey('weapon:' + id, 'build-icon'), h('span', WEAPONS[id].name), h('b', 'R' + r))), s.relics.map((id) => h('div.build-item.relic', iconKey(RELIC_BY_ID[id].icon, 'build-icon'), h('span', RELIC_BY_ID[id].name)))),
+      s.pilot ? h('div.pilot-xp', h('div.pilot-row', h('span', s.pilot.to > s.pilot.from ? `Rank up! ${rankTitle(s.pilot.to)} · Rank ${s.pilot.to}` : `Pilot rank ${s.pilot.to}`), h('b', '+' + fmtInt(s.pilot.gained) + ' XP')),
+        h('div.meter.rank', h('i', { style: `width:${(pilotProgress() * 100).toFixed(1)}%` })),
+        s.pilot.rewards.length ? h('div.rank-rewards', s.pilot.rewards.map((r) => h('span.reward' + (r.paint ? '.paint' : ''), r.paint ? `${PAINT_BY_ID[r.paint].name} paint unlocked` : [art('cur:salvage', 'cur-ico'), '+' + fmtInt(r.salvage)]))) : null) : null,
+      done.length ? h('div.unlocks', h('div.kicker', `Contracts complete (${done.length})`), done.map((c) => h('div.unlock', uiIcon('check'), h('b', c.name), h('small', `+${c.salvage} salvage` + (c.unlock ? ' · ' + unlockLabel(c.unlock) : ''))))) : null,
+      h('div.build', s.weapons.map(([id, r]) => h('div.build-item', { style: `--c:#${WEAPONS[id].color.toString(16).padStart(6, '0')}` }, art('weapon:' + id, 'build-icon'), h('span', WEAPONS[id].name), h('b', 'R' + r))), s.relics.map((id) => h('div.build-item.relic', art('relic:' + id, 'build-icon'), h('span', RELIC_BY_ID[id].name)))),
       h('div.modal-actions', h('button.btn.primary', { onclick: () => { close(); hooks.launch(); }, 'data-autofocus': '' }, uiIcon('launch'), 'Launch again'),
         h('button.btn.gold', { onclick: () => { close(); hooks.toHangar('workshop'); } }, uiIcon('workshop'), 'Workshop'),
         h('button.btn.ghost.wide', { onclick: () => { close(); hooks.toHangar('launch'); } }, uiIcon('home'), 'Back to hangar')));

@@ -1,14 +1,14 @@
 // Single source of truth for what gets saved. Two layers:
 //   meta (salvage, workshop, unlocks, contracts, lifetime stats) persists forever;
 //   run (the current sortie) exists only while a sortie is in progress and is discarded when it ends.
-export const SCHEMA = 20;
+export const SCHEMA = 21;
 
 export function newRun(ship, opts = {}) {
   return {
     seed: opts.seed ?? ((Math.random() * 2 ** 31) | 0), ship: ship.id, wave: 1, level: 1, xp: 0, salvage: 0, time: 0,
     weapons: { [ship.weapon]: 1 }, order: [ship.weapon], abilities: [ship.ability], cards: {}, relics: [],
     rerolls: 0, revivesUsed: 0, pendingLevels: 0, pendingRelics: 0, offer: null, relicOffer: null,
-    stats: { kills: 0, bossKills: 0, flawless: 0, cards: 0 },
+    stats: { kills: 0, bossKills: 0, flawless: 0, cards: 0 }, xpTotal: 0,
   };
 }
 
@@ -20,6 +20,9 @@ export function newState() {
     settings: { master: 0.7, music: 0.5, sfx: 0.8, shake: true, dmgNumbers: true, scanlines: false, quality: 'auto', notation: 'suffix', speed: 1 },
     salvage: 0,
     ship: 'vanguard',
+    pilot: { rank: 1, xp: 0 },
+    paints: { factory: 1 },
+    paint: 'factory',
     workshop: {},
     unlocked: { weapons: { cannon: 1 }, abilities: { overdrive: 1 }, ships: { vanguard: 1 } },
     contracts: {},

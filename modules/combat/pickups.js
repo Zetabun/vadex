@@ -23,7 +23,7 @@ export function spawnPickup(w, kind, x, y, v, big = 0) {
 function collect(w, p) {
   const pl = w.player;
   if (p.kind === 'xp') { grantXp(p.v); w.fx.push({ k: 'pickup', a: pl.x, b: pl.y, c: 0x6dffc8 }); }
-  else if (p.kind === 'salvage') { const got = grantSalvage(p.v); w.fx.push({ k: 'text', a: pl.x, b: pl.y + 6, c: '+' + Math.max(1, Math.round(got)) + ' ¢', d: COLOR.salvage, e: 1 }); w.fx.push({ k: 'sfx', a: 'loot', b: 0.35 }); }
+  else if (p.kind === 'salvage') { const got = grantSalvage(p.v); w.fx.push({ k: 'text', a: pl.x, b: pl.y + 6, c: '+' + Math.max(1, Math.round(got)), d: COLOR.salvage, e: 1 }); w.fx.push({ k: 'sfx', a: 'loot', b: 0.35 }); }
   else if (p.kind === 'repair') { pl.hull = Math.min(1, pl.hull + p.v); w.fx.push({ k: 'text', a: pl.x, b: pl.y + 6, c: 'REPAIR', d: COLOR.repair, e: 1 }); w.fx.push({ k: 'naniteRepair', a: pl.x, b: pl.y }); }
 }
 

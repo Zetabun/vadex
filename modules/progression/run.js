@@ -10,7 +10,8 @@ import { ABILITIES, ABILITY_ORDER } from '@last-orbit/data/abilities.js';
 import { MODS, MOD_BY_ID, RARITY } from '@last-orbit/data/cards.js';
 import { RELICS, RELIC_BY_ID } from '@last-orbit/data/relics.js';
 import { SHIP_BY_ID } from '@last-orbit/data/ships.js';
-import { checkContracts } from '@last-orbit/progression/meta.js';
+import { checkContracts, addPilotXp } from '@last-orbit/progression/meta.js';
+import { sortiePilotXp } from '@last-orbit/data/career.js';
 
 // ---------------------------------------------------------------- sortie lifecycle
 export function startSortie(opts = {}) {
@@ -39,6 +40,7 @@ export function endSortie(reason = 'destroyed') {
   st.run = null; G.mode = 'hangar';
   // Contracts finished mid-sortie were announced as they happened; the debrief lists them all.
   summary.contracts = (run.contractsDone || []).concat(checkContracts({ silent: true }));
+  summary.pilot = addPilotXp(sortiePilotXp({ xpTotal: run.xpTotal, wave: reached, bosses: summary.bosses }));
   st.history.unshift({ wave: summary.wave, level: summary.level, ship: summary.ship, salvage: banked, time: summary.time, date: summary.date }); st.history.length = Math.min(st.history.length, 12);
   recalc(); bus.emit('sortieEnded', summary);
   return summary;
@@ -55,7 +57,7 @@ export function recoverInterruptedRun(state) {
 // ---------------------------------------------------------------- experience
 export function grantXp(amount) {
   const run = G.state.run; if (!run || !(amount > 0)) return;
-  run.xp += amount * G.sheet.n('xpGain');
+  const got = amount * G.sheet.n('xpGain'); run.xp += got; run.xpTotal = (run.xpTotal || 0) + got;
   let need = xpToNext(run.level), gained = 0;
   while (run.xp >= need) { run.xp -= need; run.level++; run.pendingLevels++; gained++; need = xpToNext(run.level); }
   if (gained) { maxStat('maxLevel', run.level); bus.emit('levelUp', run.level); }
@@ -159,7 +161,7 @@ export function pickRelic(idx) {
   const run = G.state.run, id = run?.relicOffer?.[idx]; if (!id) return null;
   run.relics.push(id); run.relicOffer = null; recalc();
   maxStat('maxDrones', Math.floor(G.sheet.n('drones')));
-  toast('Relic installed: ' + RELIC_BY_ID[id].name, 'good'); bus.emit('relicPicked', id);
+  bus.emit('relicPicked', id);
   return id;
 }
 
@@ -172,9 +174,9 @@ export function describeCard(c, run = G.state.run) {
     case 'weapon': { const d = WEAPONS[c.id]; return { title: d.name, kicker: 'New weapon', icon: 'weapon:' + c.id, body: d.desc, color: '#' + d.color.toString(16).padStart(6, '0') }; }
     case 'upgrade': { const d = WEAPONS[c.id], evo = d.evo[c.rank - 2]; return { title: d.name, kicker: `Rank ${c.rank - 1} → ${c.rank}`, icon: 'weapon:' + c.id, body: `${evo.name}: ${evo.desc}. +30% damage.`, color: '#' + d.color.toString(16).padStart(6, '0'), evo: evo.name }; }
     case 'ability': { const d = ABILITIES[c.id]; return { title: d.name, kicker: 'New ability', icon: 'ability:' + c.id, body: d.desc, color: d.color }; }
-    case 'mod': { const m = MOD_BY_ID[c.id], have = run?.cards[c.id] || 0; return { title: m.name, kicker: m.max > 1 ? `${have ? 'Level ' + (have + 1) : 'New'} · max ${m.max}` : 'Unique', icon: m.icon, body: m.desc, color: RARITY[m.rarity].color }; }
-    case 'heal': return { title: 'Field Repairs', kicker: 'Supply', icon: 'misc:repair', body: 'Repair 40% hull.', color: '#6dff8e' };
-    case 'cash': return { title: 'Salvage Cache', kicker: 'Supply', icon: 'currency:scrap', body: `+${10 + (run?.wave || 1) * 2} salvage.`, color: '#ffc857' };
+    case 'mod': { const m = MOD_BY_ID[c.id], have = run?.cards[c.id] || 0; return { title: m.name, kicker: m.max > 1 ? `${have ? 'Level ' + (have + 1) : 'New'} · max ${m.max}` : 'Unique', icon: 'mod:' + c.id, body: m.desc, color: RARITY[m.rarity].color }; }
+    case 'heal': return { title: 'Field Repairs', kicker: 'Supply', icon: 'supply:heal', body: 'Repair 40% hull.', color: '#6dff8e' };
+    case 'cash': return { title: 'Salvage Cache', kicker: 'Supply', icon: 'supply:cash', body: `+${10 + (run?.wave || 1) * 2} salvage.`, color: '#ffc857' };
   }
-  return { title: '?', kicker: '', icon: 'misc:damage', body: '', color: '#fff' };
+  return { title: '?', kicker: '', icon: 'cur:salvage', body: '', color: '#fff' };
 }

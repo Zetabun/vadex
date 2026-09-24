@@ -7,6 +7,7 @@ import { h, clear } from '@last-orbit/ui/dom.js';
 import { createHud } from '@last-orbit/ui/hud.js';
 import { createHangar } from '@last-orbit/ui/hangar.js';
 import { createOverlays } from '@last-orbit/ui/overlays.js';
+import { art } from '@last-orbit/ui/art.js';
 
 export function initUI(app, hooks) {
   const $ = {};
@@ -59,11 +60,21 @@ export function initUI(app, hooks) {
     const box = clear($.banner); if (kicker) box.append(h('div.k', kicker)); if (title) box.append(h('h2', { style: 'color:' + color }, title)); if (sub) box.append(h('p', sub));
     $.banner.classList.remove('on'); void $.banner.offsetWidth; $.banner.classList.add('on'); clearTimeout(bannerT); bannerT = setTimeout(() => $.banner.classList.remove('on'), ms);
   }
-  function toast(text, kind) {
-    const el = h('div.toast.' + kind, text); $.toasts.append(el); while ($.toasts.children.length > 3) $.toasts.firstChild.remove();
-    setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 320); }, kind === 'unlock' ? 5200 : 3200);
+  function post(el, kind, ms) {
+    $.toasts.append(el); while ($.toasts.children.length > 2) $.toasts.firstChild.remove();
+    setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 320); }, ms);
     if (kind === 'unlock') playSfx('unlock');
   }
+  function toast(text, kind) { post(h('div.toast.' + kind, h('span.toast-text', text)), kind, kind === 'unlock' ? 5200 : 3200); }
+  /** Structured notice: artwork, kicker, title, detail line and an optional salvage reward. */
+  function notice(n) {
+    const el = h('div.toast.notice.' + (n.kind || 'info'),
+      n.art ? h('div.notice-art', art(n.art, 'notice-ico')) : null,
+      h('div.notice-main', h('small', n.kicker || ''), h('b', n.title || ''), n.sub ? h('span', n.sub) : null),
+      n.salvage ? h('div.notice-reward', art('cur:salvage', 'cur-ico'), '+' + n.salvage) : null);
+    post(el, n.kind, 5200);
+  }
+  bus.on('notice', notice);
   function flash(color = '#fff') { $.flash.style.background = color; $.flash.style.transition = 'none'; $.flash.style.opacity = '0.35'; requestAnimationFrame(() => { $.flash.style.transition = 'opacity .5s ease-out'; $.flash.style.opacity = '0'; }); }
   bus.on('toast', toast);
   bus.on('fx', (e) => {

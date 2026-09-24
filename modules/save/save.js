@@ -25,7 +25,10 @@ async function get(key) {
 async function del(key) { try { localStorage.removeItem(LS + key); } catch { /* ignore */ } const d = await openDb(); if (d) await new Promise((res) => { const tx = d.transaction(STORE, 'readwrite'); tx.objectStore(STORE).delete(key); tx.oncomplete = res; tx.onerror = res; }); }
 
 // Schema migrations: each entry upgrades v → v+1. Never remove entries. v2 saves start at schema 20.
-const MIGRATIONS = {};
+const MIGRATIONS = {
+  // v2.1: pilot career and paint jobs (defaults are filled in by withDefaults).
+  20: (s) => s,
+};
 export function parseSave(text) {
   let raw = text.trim(); if (!raw.startsWith('{')) raw = decodeURIComponent(escape(atob(raw)));
   let s = JSON.parse(raw); if (!s || typeof s !== 'object' || !s.unlocked || !s.stats) throw new Error('Not a Last Orbit v2 save');

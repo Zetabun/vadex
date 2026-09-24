@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.1.0 — 2026-09-24
+
+- **New artwork.** Every weapon, ability, card, relic, Workshop upgrade and ship has its own hand-drawn vector icon in one consistent style (`modules/ui/art.js`), replacing the reused pixel sprites. Salvage has a proper icon instead of the ¢ text symbol. The page is about 430 KB lighter.
+- **Home-screen app.** Added an app icon, favicons and a web app manifest, so "Add to Home Screen" on iOS and Android shows the Last Orbit icon and launches full-screen.
+- **Pilot career.** Every sortie earns pilot XP. 40 ranks with titles from Cadet to Legend pay salvage or unlock one of ten cosmetic paint jobs for your ship. The Contracts tab is now Career, with the rank track; paint jobs are chosen in Ships; the debrief shows XP earned and rank-ups.
+- **Notifications.** Contract alerts are now full-width cards with the unlocked item's artwork and reward. Fixed Safari squeezing them into a narrow column, and they no longer cover level-up and relic screens.
+- Screenshot and icon tools: `tools/shoot.mjs` captures phone-sized screens through headless Chrome; `tools/render-icons.mjs` renders the app icon sizes; `tools/icons.html` previews the artwork set.
+
 ## v2.0.0 — 2026-09-24
 
 A ground-up redesign of progression and interface. The combat engine, enemies, bosses, weapons and artwork carry over.

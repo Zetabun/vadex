@@ -113,7 +113,7 @@ async function boot() {
   });
   // The run stays in the save; if the page never comes back, the next boot banks its salvage (see adopt).
   addEventListener('pagehide', () => save('pagehide'));
-  if (/[?&]debug=1/.test(location.search)) import('@last-orbit/ui/debug.js').then((m) => m.initDebug(app)).catch((e) => console.warn(e));
+  if (/[?&]debug=1/.test(location.search)) import('@last-orbit/ui/debug.js').then((m) => m.initDebug(app, { hooks, ui })).catch((e) => console.warn(e));
   document.getElementById('boot').classList.add('off'); setTimeout(() => document.getElementById('boot')?.remove(), 800);
   last = performance.now(); running = true; requestAnimationFrame(frame);
 }

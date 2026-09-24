@@ -3,6 +3,8 @@
   "type": "module",
   "scripts": {
     "test": "python tools/run_release_gates.py",
-    "balance": "node --experimental-loader ./tests/loader.mjs ./tests/balance-sim.mjs"
+    "balance": "node --experimental-loader ./tests/loader.mjs ./tests/balance-sim.mjs",
+    "shots": "node tools/shoot.mjs ../shots",
+    "icons": "node tools/render-icons.mjs"
   }
 }

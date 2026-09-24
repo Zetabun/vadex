@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Last Orbit icon sheet</title>
+<style>
+body{margin:0;padding:16px;background:#040716;color:#e8eeff;font:500 11px system-ui,sans-serif}
+h2{font:700 13px system-ui;letter-spacing:.2em;text-transform:uppercase;color:#98a4cf;margin:18px 0 8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
+.cell{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 4px;border-radius:12px;background:rgba(18,26,66,.86);border:1px solid rgba(140,170,255,.16);text-align:center}
+.cell .art{width:56px;height:56px}
+.small .cell .art{width:26px;height:26px}
+/* keep in sync with index.html */
+.art{display:inline-flex;flex:none}.art svg{width:100%;height:100%;overflow:visible;filter:drop-shadow(0 0 2.5px color-mix(in srgb,var(--ic-a) 55%,transparent))}
+.art .a{fill:var(--ic-a)}.art .b{fill:var(--ic-b)}.art .c{fill:#0b1330}.art .w{fill:#fff}.art .f{fill:#ffcf5e}.art .r{fill:#ff4d7a}
+.art .a,.art .b,.art .c,.art .w,.art .f,.art .r{stroke:#040816;stroke-width:2.5;stroke-linejoin:round;paint-order:stroke}
+.art .s,.art .t,.art .k{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:4}
+.art .s{stroke:var(--ic-a)}.art .t{stroke:var(--ic-b)}.art .k{stroke:#fff;stroke-width:2.5}.art .g{opacity:.3}
+</style>
+</head>
+<body>
+<div id="out"></div>
+<script type="module">
+import { ART, art } from '../modules/ui/art.js';
+const out = document.getElementById('out'), groups = {};
+for (const key of Object.keys(ART)) (groups[key.split(':')[0]] ||= []).push(key);
+for (const size of ['', 'small']) for (const [g, keys] of Object.entries(groups)) {
+  const h = document.createElement('h2'); h.textContent = g + (size ? ' (small)' : ''); out.append(h);
+  const grid = document.createElement('div'); grid.className = 'grid'; const wrap = document.createElement('div'); wrap.className = size; wrap.append(grid); out.append(wrap);
+  for (const k of keys) { const c = document.createElement('div'); c.className = 'cell'; c.append(art(k)); c.append(k.split(':')[1]); grid.append(c); }
+}
+</script>
+</body>
+</html>

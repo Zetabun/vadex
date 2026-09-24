@@ -10,7 +10,8 @@ import { BAL } from '@last-orbit/data/balance.js';
 import { useAbility, abilityCooldown, abilityMaxCharges } from '@last-orbit/combat/abilities.js';
 import { xpProgress } from '@last-orbit/progression/run.js';
 import { h, clear, setText, setClass, setWidth } from '@last-orbit/ui/dom.js';
-import { uiIcon, iconKey } from '@last-orbit/ui/icons.js';
+import { uiIcon } from '@last-orbit/ui/icons.js';
+import { art } from '@last-orbit/ui/art.js';
 
 export function createHud(hooks) {
   const $ = {};
@@ -18,11 +19,11 @@ export function createHud(hooks) {
   $.sector = h('div.sector-name'); $.waveN = h('b'); $.pips = h('div.pips', { 'aria-hidden': 'true' });
   $.salvage = h('span');
   $.level = h('b'); $.xp = h('i');
-  $.bossName = h('span'); $.bossHp = h('i'); $.boss = h('div.bossbar', { hidden: true }, h('div.boss-label', uiIcon('armory'), $.bossName), h('div.meter.boss', $.bossHp));
+  $.bossName = h('span'); $.bossHp = h('i'); $.boss = h('div.bossbar', { hidden: true }, h('div.boss-label', art('relic:r_giant', 'boss-ico'), $.bossName), h('div.meter.boss', $.bossHp));
   const top = h('div#hud',
     h('div.hud-top', $.pause,
       h('div.wave-block', $.sector, h('div.wave-line', h('small', 'WAVE'), $.waveN, $.pips)),
-      h('div.chip.salvage', { title: 'Salvage collected this sortie' }, h('span.cur', '¢'), $.salvage)),
+      h('div.chip.salvage', { title: 'Salvage collected this sortie' }, art('cur:salvage', 'cur-ico'), $.salvage)),
     h('div.xp-row', h('div.lv', h('small', 'LV'), $.level), h('div.meter.xp', $.xp)),
     $.boss);
 
@@ -48,15 +49,15 @@ export function createHud(hooks) {
     const sig = run.order.map((id) => id + run.weapons[id]).join() + '|' + run.relics.join(); if (sig === loadSig) return; loadSig = sig; clear($.loadout);
     for (const id of run.order) {
       const r = run.weapons[id], pips = h('span.rank', { 'aria-hidden': 'true' }); for (let i = 1; i <= BAL.maxRank; i++) pips.append(h('i' + (i <= r ? '.on' : '')));
-      $.loadout.append(h('div.gun', { title: `${WEAPONS[id].name} rank ${r}`, style: `--c:#${WEAPONS[id].color.toString(16).padStart(6, '0')}` }, iconKey('weapon:' + id, 'gun-icon'), pips));
+      $.loadout.append(h('div.gun', { title: `${WEAPONS[id].name} rank ${r}`, style: `--c:#${WEAPONS[id].color.toString(16).padStart(6, '0')}` }, art('weapon:' + id, 'gun-icon'), pips));
     }
-    for (const id of run.relics) $.loadout.append(h('div.relic-mini', { title: RELIC_BY_ID[id].name }, iconKey(RELIC_BY_ID[id].icon, 'gun-icon')));
+    for (const id of run.relics) $.loadout.append(h('div.relic-mini', { title: RELIC_BY_ID[id].name }, art('relic:' + id, 'gun-icon')));
   }
   function buildAbilities(run) {
     const sig = run.abilities.join(); if (sig === abilSig) return; abilSig = sig; clear($.abil);
     run.abilities.forEach((id, i) => {
       const d = ABILITIES[id], ring = h('i.cd'), charges = h('span.charges');
-      const b = h('button.abil', { 'aria-label': d.name, style: `--c:${d.color}`, onclick: (e) => { e.currentTarget.blur(); if (G.world) useAbility(G.world, id); } }, iconKey('ability:' + id, 'abil-icon'), ring, charges, h('span.key', String(i + 1)));
+      const b = h('button.abil', { 'aria-label': d.name, style: `--c:${d.color}`, onclick: (e) => { e.currentTarget.blur(); if (G.world) useAbility(G.world, id); } }, art('ability:' + id, 'abil-icon'), ring, charges, h('span.key', String(i + 1)));
       abilBtns[id] = { b, ring, charges }; $.abil.append(b);
     });
   }

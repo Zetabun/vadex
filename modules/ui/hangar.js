@@ -1,5 +1,5 @@
 // The Hangar: everything between sorties. Launch, Workshop (permanent upgrades), Armory (weapons & abilities),
-// Ships and Contracts. The 3D ship idles in the close-up camera above the panel.
+// Ships (with paint jobs) and Career (pilot rank track and contracts). The 3D ship idles in the close-up camera above the panel.
 import { G } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { fmt, fmtInt, fmtTime } from '@last-orbit/core/format.js';
@@ -9,13 +9,15 @@ import { CONTRACTS } from '@last-orbit/data/contracts.js';
 import { WEAPONS, WEAPON_ORDER } from '@last-orbit/data/weapons.js';
 import { ABILITIES, ABILITY_ORDER } from '@last-orbit/data/abilities.js';
 import { SECTORS } from '@last-orbit/data/sectors.js';
-import { workshopLevel, workshopNext, buyWorkshop, shipStatus, shipContract, buyShip, selectShip, contractProgress, nextContracts, unlockLabel } from '@last-orbit/progression/meta.js';
+import { PAINTS, MAX_RANK, rankNeed, rankReward, rankTitle, paintRank } from '@last-orbit/data/career.js';
+import { workshopLevel, workshopNext, buyWorkshop, shipStatus, shipContract, buyShip, selectShip, contractProgress, nextContracts, unlockLabel, pilotProgress, selectPaint } from '@last-orbit/progression/meta.js';
 import { weaponDps, buildWeapon } from '@last-orbit/progression/stats.js';
 import { playSfx } from '@last-orbit/audio/audio.js';
 import { h, clear, setText, setClass } from '@last-orbit/ui/dom.js';
-import { uiIcon, iconKey } from '@last-orbit/ui/icons.js';
+import { uiIcon } from '@last-orbit/ui/icons.js';
+import { art } from '@last-orbit/ui/art.js';
 
-const TABS = [['launch', 'Launch'], ['workshop', 'Workshop'], ['armory', 'Armory'], ['ships', 'Ships'], ['contracts', 'Contracts']];
+const TABS = [['launch', 'Launch'], ['workshop', 'Workshop'], ['armory', 'Armory'], ['ships', 'Ships'], ['contracts', 'Career']];
 const hex = (n) => '#' + n.toString(16).padStart(6, '0');
 const unlockedBy = (kind, id) => CONTRACTS.find((c) => c.unlock?.[kind] === id);
 
@@ -24,7 +26,7 @@ export function createHangar(hooks) {
   $.salvage = h('span');
   const top = h('header.hg-top',
     h('div.brand', h('b', 'LAST ORBIT'), h('small', 'Orbital defence')),
-    h('div.chip.salvage.big', { title: 'Salvage: spend it in the Workshop and on new ships' }, h('span.cur', '¢'), $.salvage),
+    h('div.chip.salvage.big', { title: 'Salvage: spend it in the Workshop and on new ships' }, art('cur:salvage', 'cur-ico'), $.salvage),
     h('button.icon-btn', { 'aria-label': 'Settings', onclick: () => hooks.settings() }, uiIcon('gear')));
   $.body = h('main.hg-body');
   $.nav = h('nav.hg-nav', { role: 'tablist' });
@@ -50,6 +52,7 @@ export function createHangar(hooks) {
     const fresh = !s.sorties;
     const card = h('section.launch-card',
       h('div.ship-head', h('div', h('div.kicker', ship.role), h('h1', ship.name)), h('button.link', { onclick: () => show('ships') }, 'Change ship', uiIcon('chevron'))),
+      rankStrip(),
       fresh ? h('p.lede', 'Invaders are descending on the last orbit. Fly a sortie, level up mid-fight by picking upgrades, and bring salvage home to build a better ship.')
         : h('div.stat-row', stat('Best wave', best || '—'), stat('Furthest', 'Sector ' + bestSector), stat('Sorties', fmtInt(s.sorties))),
       next.length ? h('div.next', h('div.kicker', next.length > 1 ? 'Next contracts' : 'Next contract'), next.map((c) => contractLine(c, true))) : null);
@@ -57,14 +60,30 @@ export function createHangar(hooks) {
     return h('div.launch', h('div.ship-stage', { 'aria-hidden': 'true' }), card, history(), go);
   }
   const stat = (k, v) => h('div.stat', h('small', k), h('b', String(v)));
+  function rewardBadge(r) {
+    const rw = rankReward(r);
+    return rw.paint ? h('span.reward.paint', swatch(rw.paint), PAINTS.find((p) => p.id === rw.paint).name + ' paint') : h('span.reward', art('cur:salvage', 'cur-ico'), fmtInt(rw.salvage));
+  }
+  function rankStrip() {
+    const p = G.state.pilot, max = p.rank >= MAX_RANK;
+    return h('button.rank-strip', { onclick: () => show('contracts') },
+      h('div.rank-badge', h('small', 'Rank'), h('b', String(p.rank))),
+      h('div.rank-main', h('div.rank-line', h('b', rankTitle(p.rank)), max ? h('span', 'Max rank') : h('span', 'Next ', rewardBadge(p.rank + 1))),
+        h('div.meter.rank', h('i', { style: `width:${(pilotProgress() * 100).toFixed(1)}%` }))));
+  }
+  function swatch(id) {
+    const pt = PAINTS.find((x) => x.id === id), ship = SHIP_BY_ID[G.state.ship];
+    const trim = hex(pt.trim ?? ship.trim), hull = hex(pt.hull ?? 0x718996);
+    return h('i.swatch', { style: `background:linear-gradient(135deg,${hull} 0 50%,${trim} 50% 100%)` });
+  }
   function history() {
     const H = G.state.history; if (!H.length) return null;
-    return h('section.panel.history', h('div.kicker', 'Recent sorties'), H.slice(0, 4).map((r) => h('div.hist', h('b', 'Wave ' + r.wave), h('span', `LV ${r.level} · ${SHIP_BY_ID[r.ship]?.name || ''} · ${fmtTime(r.time)}`), h('span.gold', '+' + fmtInt(r.salvage) + ' ¢'))));
+    return h('section.panel.history', h('div.kicker', 'Recent sorties'), H.slice(0, 4).map((r) => h('div.hist', h('b', 'Wave ' + r.wave), h('span', `LV ${r.level} · ${SHIP_BY_ID[r.ship]?.name || ''} · ${fmtTime(r.time)}`), h('span.gold', art('cur:salvage', 'cur-ico'), fmtInt(r.salvage)))));
   }
   function contractLine(c, compact) {
     const pr = contractProgress(c);
     return h('div.contract' + (pr.done ? '.done' : '') + (compact ? '.compact' : ''),
-      h('div.c-main', h('div.c-title', pr.done ? uiIcon('check') : null, h('b', c.name), h('span.gold', '+' + fmtInt(c.salvage) + ' ¢')), h('div.c-desc', c.desc),
+      h('div.c-main', h('div.c-title', pr.done ? uiIcon('check') : null, h('b', c.name), h('span.gold', art('cur:salvage', 'cur-ico'), fmtInt(c.salvage))), h('div.c-desc', c.desc),
         c.unlock ? h('div.c-unlock', 'Unlocks ' + unlockLabel(c.unlock)) : null,
         pr.done ? null : h('div.meter.small', h('i', { style: `width:${(pr.frac * 100).toFixed(1)}%` }))),
       pr.done ? null : h('div.c-count', `${fmtInt(pr.cur)}/${fmtInt(pr.goal)}`));
@@ -77,8 +96,8 @@ export function createHangar(hooks) {
       const lvl = workshopLevel(u.id), cost = workshopNext(u.id), pips = h('div.lvl-pips');
       for (let i = 0; i < u.max; i++) pips.append(h('i' + (i < lvl ? '.on' : '')));
       const btn = h('button.buy', { disabled: cost == null || G.state.salvage < cost, onclick: () => { if (buyWorkshop(u.id)) { playSfx('buy'); render(); hooks.flash?.('#ffc857'); } else playSfx('deny'); } },
-        cost == null ? 'MAX' : [h('span.cur', '¢'), fmt(cost)]);
-      list.append(h('div.row' + (cost == null ? '.maxed' : ''), iconKey(u.icon, 'row-icon'), h('div.row-main', h('div.row-title', h('b', u.name), h('span.lv', `${lvl}/${u.max}`)), h('div.row-desc', u.per + ' per level'), pips), btn));
+        cost == null ? 'MAX' : [art('cur:salvage', 'cur-ico'), fmt(cost)]);
+      list.append(h('div.row' + (cost == null ? '.maxed' : ''), art('ws:' + u.id, 'row-icon'), h('div.row-main', h('div.row-title', h('b', u.name), h('span.lv', `${lvl}/${u.max}`)), h('div.row-desc', u.per + ' per level'), pips), btn));
     }
     return h('div.screen', h('div.screen-head', h('h2', 'Workshop'), h('p', 'Permanent upgrades. They apply to every ship on every sortie.')), list);
   }
@@ -90,13 +109,13 @@ export function createHangar(hooks) {
       const d = WEAPONS[id], open = !!st.unlocked.weapons[id], c = unlockedBy('weapon', id);
       const dps = open ? weaponDps(buildWeapon(id, 1, G.sheet)) : null;
       weapons.append(h('details.item' + (open ? '' : '.locked'), { style: `--c:${hex(d.color)}` },
-        h('summary', iconKey('weapon:' + id, 'item-icon'), h('div.item-main', h('b', d.name), h('small', open ? d.arch + ' · ' + fmt(dps) + ' DPS at rank 1' : c ? 'Contract: ' + c.name : 'Locked')), open ? uiIcon('chevron') : uiIcon('lock')),
+        h('summary', art('weapon:' + id, 'item-icon'), h('div.item-main', h('b', d.name), h('small', open ? d.arch + ' · ' + fmt(dps) + ' DPS at rank 1' : c ? 'Contract: ' + c.name : 'Locked')), open ? uiIcon('chevron') : uiIcon('lock')),
         h('div.item-body', h('p', d.desc), open ? h('ol.evos', d.evo.map((e, i) => h('li', h('span.r', 'R' + (i + 2)), h('b', e.name), h('span', e.desc)))) : c ? h('p.muted', `${c.desc}. ${contractProgress(c).cur}/${c.goal}`) : null)));
     }
     for (const id of ABILITY_ORDER) {
       const d = ABILITIES[id], open = !!st.unlocked.abilities[id], c = unlockedBy('ability', id), ship = SHIPS.find((s) => s.ability === id);
       abilities.append(h('div.item.flat' + (open ? '' : '.locked'), { style: `--c:${d.color}` },
-        iconKey('ability:' + id, 'item-icon'), h('div.item-main', h('b', d.name), h('small', open ? d.desc : [ship ? `Always available on the ${ship.name}. ` : '', c ? `Contract “${c.name}”: ${c.desc}` : 'Locked'].join(''))), open ? null : uiIcon('lock')));
+        art('ability:' + id, 'item-icon'), h('div.item-main', h('b', d.name), h('small', open ? d.desc : [ship ? `Always available on the ${ship.name}. ` : '', c ? `Contract “${c.name}”: ${c.desc}` : 'Locked'].join(''))), open ? null : uiIcon('lock')));
     }
     return h('div.screen', h('div.screen-head', h('h2', 'Armory'), h('p', 'Unlocked weapons and abilities can appear as cards when you level up. Weapons evolve at every rank.')),
       h('h3', 'Weapons'), weapons, h('h3', 'Abilities'), abilities);
@@ -109,22 +128,36 @@ export function createHangar(hooks) {
       const status = shipStatus(s.id), sel = st.ship === s.id, c = shipContract(s.id);
       let action;
       if (status === 'owned') action = h('button.btn' + (sel ? '.ghost' : '.primary'), { disabled: sel, onclick: () => { selectShip(s.id); playSfx('tab'); render(); } }, sel ? 'Selected' : 'Select');
-      else if (status === 'buyable') action = h('button.btn.gold', { disabled: st.salvage < s.cost, onclick: () => { if (buyShip(s.id)) { playSfx('unlock'); hooks.flash?.(hex(s.trim)); render(); } else playSfx('deny'); } }, h('span.cur', '¢'), fmt(s.cost));
+      else if (status === 'buyable') action = h('button.btn.gold', { disabled: st.salvage < s.cost, onclick: () => { if (buyShip(s.id)) { playSfx('unlock'); hooks.flash?.(hex(s.trim)); render(); } else playSfx('deny'); } }, art('cur:salvage', 'cur-ico'), fmt(s.cost));
       else action = h('div.lock-note', uiIcon('lock'), h('span', c ? `Contract “${c.name}”: ${c.desc} (${contractProgress(c).cur}/${c.goal})` : 'Locked'));
       list.append(h('article.ship' + (sel ? '.sel' : '') + (status === 'locked' ? '.locked' : ''), { style: `--c:${hex(s.trim)}` },
-        h('div.ship-top', h('div', h('div.kicker', s.role), h('h3', s.name)), iconKey('weapon:' + s.weapon, 'item-icon')),
+        h('div.ship-top', h('div', h('div.kicker', s.role), h('h3', s.name)), art('ship:' + s.id, 'ship-icon')),
         h('p', s.desc),
         h('ul.perks', s.perks.map((p, i) => h('li' + (p.startsWith('−') ? '.neg' : ''), p)), h('li', 'Ability: ' + ABILITIES[s.ability].name)),
         action));
     }
-    return h('div.screen', h('div.screen-head', h('h2', 'Ships'), h('p', 'Each hull starts with its own gun and signature ability. Workshop upgrades apply to all of them.')), list);
+    const paints = h('div.paints', PAINTS.map((pt) => {
+      const owned = !!st.paints[pt.id], on = st.paint === pt.id;
+      return h('button.paint' + (on ? '.on' : '') + (owned ? '' : '.locked'), { disabled: !owned, title: owned ? pt.name : `${pt.name}: unlocked at pilot rank ${paintRank(pt.id)}`, onclick: () => { if (selectPaint(pt.id)) { playSfx('tab'); render(); } } }, swatch(pt.id), h('span', owned ? pt.name : 'Rank ' + paintRank(pt.id)));
+    }));
+    return h('div.screen', h('div.screen-head', h('h2', 'Ships'), h('p', 'Each hull starts with its own gun and signature ability. Workshop upgrades apply to all of them.')),
+      h('h3', 'Paint job'), paints, h('h3', 'Hulls'), list);
   }
 
   // ------------------------------------------------------------ contracts
   function contractsView() {
-    const done = CONTRACTS.filter((c) => G.state.contracts[c.id]).length;
-    return h('div.screen', h('div.screen-head', h('h2', 'Contracts'), h('p', `${done}/${CONTRACTS.length} complete. Contracts pay salvage and unlock new weapons, abilities and ships.`)),
-      h('div.rows', CONTRACTS.map((c) => contractLine(c, false))));
+    const done = CONTRACTS.filter((c) => G.state.contracts[c.id]).length, p = G.state.pilot;
+    const track = h('div.track');
+    for (let r = Math.max(2, p.rank - 1); r <= Math.min(MAX_RANK, p.rank + 6); r++) {
+      const got = r <= p.rank, rw = rankReward(r);
+      track.append(h('div.track-step' + (got ? '.got' : '') + (r === p.rank + 1 ? '.next' : '') + (rw.paint ? '.is-paint' : ''),
+        h('small', 'Rank ' + r), rw.paint ? swatch(rw.paint) : art('cur:salvage', 'track-ico'), h('b', rw.paint ? PAINTS.find((x) => x.id === rw.paint).name : fmtInt(rw.salvage)), got ? uiIcon('check') : null));
+    }
+    const need = p.rank >= MAX_RANK ? 0 : rankNeed(p.rank);
+    return h('div.screen', h('div.screen-head', h('h2', 'Career'), h('p', 'Every sortie earns pilot XP. Ranks pay salvage and unlock paint jobs.')),
+      h('section.panel.career', h('div.career-top', h('div.rank-badge.big', h('small', 'Rank'), h('b', String(p.rank))), h('div', h('h3', rankTitle(p.rank)), h('p', need ? `${fmtInt(p.xp)} / ${fmtInt(need)} pilot XP` : 'Maximum rank reached'))),
+        h('div.meter.rank', h('i', { style: `width:${(pilotProgress() * 100).toFixed(1)}%` })), track),
+      h('h3', `Contracts · ${done}/${CONTRACTS.length}`), h('div.rows', CONTRACTS.map((c) => contractLine(c, false))));
   }
 
   // ------------------------------------------------------------ live updates

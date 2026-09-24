@@ -15,9 +15,10 @@ import { initWorld, step } from '@last-orbit/combat/sim.js';
 import { spawnPickup, collectAll } from '@last-orbit/combat/pickups.js';
 import { hurtPlayer } from '@last-orbit/combat/world.js';
 import { startSortie, endSortie, recoverInterruptedRun, grantXp, rollOffer, pickCard, cardPool, nextOffer, rollRelics, pickRelic, describeCard, choicePending } from '@last-orbit/progression/run.js';
-import { buyWorkshop, workshopNext, shipStatus, shipContract, buyShip, selectShip, checkContracts } from '@last-orbit/progression/meta.js';
+import { addPilotXp, selectPaint, buyWorkshop, workshopNext, shipStatus, shipContract, buyShip, selectShip, checkContracts } from '@last-orbit/progression/meta.js';
 import { parseSave } from '@last-orbit/save/save.js';
 import { rankMult } from '@last-orbit/progression/stats.js';
+import { rankNeed, rankReward, MAX_RANK } from '@last-orbit/data/career.js';
 
 const fresh = () => { G.state = newState(); G.mode = 'hangar'; recalc(); initWorld(); };
 const launch = (opts) => { const r = startSortie({ seed: 7, ...opts }); initWorld(); return r; };
@@ -147,6 +148,18 @@ run = launch(); G.world.wave.num = 8; const s8 = endSortie('destroyed'); assert.
 fresh(); G.state.salvage = 100; run = launch(); run.salvage = 80.6;
 const loaded = parseSave(JSON.stringify(G.state)); assert.ok(loaded.run);
 assert.equal(recoverInterruptedRun(loaded), 80); assert.equal(loaded.run, null); assert.equal(loaded.salvage, G.state.salvage + 80);
+
+// ---- pilot career: sorties earn XP, ranks pay salvage or unlock paint jobs ----
+fresh(); G.state.salvage = 0;
+assert.equal(selectPaint('ember'), false, 'Locked paints cannot be selected');
+const pr = addPilotXp(rankNeed(1) + rankNeed(2) + 5);
+assert.equal(pr.from, 1); assert.equal(pr.to, 3); assert.equal(G.state.pilot.xp, 5);
+assert.equal(rankReward(2).paint, 'ember'); assert.ok(G.state.paints.ember); assert.equal(G.state.salvage, rankReward(3).salvage);
+assert.ok(selectPaint('ember')); assert.equal(G.state.paint, 'ember');
+run = launch(); grantXp(200); const sp = endSortie('destroyed'); assert.ok(sp.pilot.gained > 0, 'A sortie earns pilot XP');
+G.state.pilot = { rank: MAX_RANK - 1, xp: 0 }; addPilotXp(1e9); assert.equal(G.state.pilot.rank, MAX_RANK); assert.equal(G.state.pilot.xp, 0);
+const v20 = JSON.parse(JSON.stringify(G.state)); v20.v = 20; delete v20.pilot; delete v20.paints; delete v20.paint;
+const up = parseSave(JSON.stringify(v20)); assert.equal(up.pilot.rank, 1); assert.equal(up.paint, 'factory');
 
 // ---- saves round-trip and refuse newer schemas ----
 fresh(); G.state.salvage = 1234; G.state.workshop.w_hull = 3;

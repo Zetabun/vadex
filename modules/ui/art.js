@@ -1,0 +1,153 @@
+// Game artwork: one hand-drawn vector glyph per weapon, ability, card, relic, Workshop upgrade, ship and currency.
+// Every glyph lives on a 64×64 grid and uses a few shared paint classes so the whole set reads as one family:
+//   a = primary fill, b = secondary fill, c = dark detail, w = white highlight, f = flame, r = hot red
+//   s / t = primary / secondary stroke, k = white stroke, g = faded (glow layer)
+// Fills carry a dark outline (see .art CSS in index.html), which keeps them legible on any background.
+// Dependency-free so tools/icons.html can preview the whole set.
+
+const P = {
+  // ------------------------------------------------------------------ weapons
+  cannon: `<path class="b" d="M8 60v-7a24 16 0 0 1 48 0v7z"/><rect class="a" x="22" y="18" width="20" height="32" rx="3"/><rect class="c" x="22" y="26" width="20" height="4"/><rect class="c" x="22" y="38" width="20" height="4"/><rect class="b" x="18" y="12" width="28" height="9" rx="3"/><circle class="w" cx="32" cy="6" r="5"/><path class="w" d="M26 50h12" style="fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round;opacity:.6"/>`,
+  laser: `<path class="s g" d="M32 4v32" style="stroke-width:10"/><path class="k" d="M32 3v34"/><path class="b" d="M12 46l10-6v14zM52 46l-10-6v14z"/><path class="a" d="M32 28l13 14-13 17-13-17z"/><path class="w" d="M32 33l6 9-6 8-6-8z" opacity=".75"/>`,
+  missile: `<path class="b" d="M23 34l-9 13v7l9-4zM41 34l9 13v7l-9-4z"/><path class="a" d="M32 3c8 7 10 15 10 25v20H22V28c0-10 2-18 10-25z"/><circle class="w" cx="32" cy="21" r="4"/><rect class="c" x="22" y="36" width="20" height="4"/><path class="f" d="M26 49h12l-6 13z"/>`,
+  tesla: `<rect class="b" x="17" y="48" width="30" height="10" rx="3"/><rect class="a" x="23" y="26" width="18" height="23" rx="2"/><path class="k" d="M23 32h18M23 38h18M23 44h18"/><circle class="a" cx="32" cy="18" r="10"/><circle class="w" cx="28" cy="14" r="3" opacity=".8"/><path class="f" d="M50 2l-9 13h6l-6 12 13-16h-6l6-9z"/>`,
+  rail: `<rect class="b" x="9" y="50" width="46" height="9" rx="3"/><rect class="a" x="13" y="8" width="10" height="44" rx="3"/><rect class="a" x="41" y="8" width="10" height="44" rx="3"/><rect class="c" x="16.5" y="13" width="3" height="34" rx="1.5"/><rect class="c" x="44.5" y="13" width="3" height="34" rx="1.5"/><path class="s g" d="M32 30v20" style="stroke-width:8"/><path class="w" d="M27 6h10v20l-5 7-5-7z"/>`,
+  plasma: `<path class="b" d="M24 44c0 7 8 9 8 16 0-7 8-9 8-16z"/><circle class="a" cx="32" cy="28" r="16"/><circle class="w" cx="26" cy="22" r="5" opacity=".75"/><path class="t" d="M9 36c12 12 34 10 46-8"/><circle class="w" cx="55" cy="27" r="3"/>`,
+  mine: `<path class="t" d="M32 5v12M32 47v12M5 32h12M47 32h12M13 13l8 8M43 43l8 8M13 51l8-8M43 21l8-8" style="stroke-width:6"/><circle class="a" cx="32" cy="32" r="15"/><circle class="c" cx="32" cy="32" r="6"/><circle class="r" cx="32" cy="32" r="3.5"/>`,
+  prism: `<path class="k" d="M3 44l18-8"/><path d="M42 30l19-10" stroke="#ff5f8a" stroke-width="4" stroke-linecap="round"/><path d="M44 35h18" stroke="#6dffc8" stroke-width="4" stroke-linecap="round"/><path d="M42 40l19 10" stroke="#6fa8ff" stroke-width="4" stroke-linecap="round"/><path class="a" d="M32 7l21 43H11z"/><path class="w" d="M32 17l5 10H27z" opacity=".7"/>`,
+
+  // ------------------------------------------------------------------ abilities
+  overdrive: `<path class="a" d="M32 4l22 20-8 7-14-12-14 12-8-7z"/><path class="b" d="M32 26l22 20-8 7-14-12-14 12-8-7z"/><path class="w" d="M32 10l3 3-3 3-3-3z"/>`,
+  emp: `<path class="t" d="M14 20a22 22 0 0 1 12-9M50 20a22 22 0 0 0-12-9M14 44a22 22 0 0 0 12 9M50 44a22 22 0 0 1-12 9"/><path class="s" d="M6 32a26 26 0 0 1 2-10M58 32a26 26 0 0 0-2-10M6 32a26 26 0 0 0 2 10M58 32a26 26 0 0 1-2 10" style="stroke-width:3"/><circle class="a" cx="32" cy="32" r="12"/><path class="w" d="M34 22l-7 11h5l-3 9 8-12h-5z"/>`,
+  barrage: `<path class="b" d="M14 16c4 4 5 8 5 13v15h-10V29c0-5 1-9 5-13zM50 16c4 4 5 8 5 13v15H45V29c0-5 1-9 5-13z"/><path class="f" d="M11 45h6l-3 8zM47 45h6l-3 8z"/><path class="a" d="M32 3c6 6 7 11 7 18v22H25V21c0-7 1-12 7-18z"/><circle class="w" cx="32" cy="17" r="3"/><rect class="c" x="25" y="33" width="14" height="4"/><path class="f" d="M27 44h10l-5 14z"/>`,
+  aegis: `<path class="a" d="M32 4l24 14v28L32 60 8 46V18z"/><path class="c" d="M32 14l15 9v18l-15 9-15-9V23z"/><path class="b" d="M32 19l11 6v14l-11 6-11-6V25z"/><path class="k" d="M14 21l18-10" opacity=".8"/>`,
+  strike: `<path class="s g" d="M32 2v40" style="stroke-width:12"/><path class="k" d="M32 2v38"/><circle class="t" cx="32" cy="46" r="11"/><path class="t" d="M32 31v6M32 55v6M17 46h6M41 46h6"/><path class="w" d="M32 39l3 5 5 2-5 2-3 5-3-5-5-2 5-2z"/>`,
+  slow: `<path class="b" d="M14 4h36v7H14zM14 53h36v7H14z"/><path class="a" d="M18 11h28c0 12-10 16-10 21s10 9 10 21H18c0-12 10-16 10-21s-10-9-10-21z"/><path class="w" d="M24 17h16c-2 6-8 8-8 12-1-4-6-6-8-12zM32 40c3 3 8 5 9 10H23c1-5 6-7 9-10z" opacity=".85"/>`,
+  swarm: `<path class="a" d="M32 4l9 16-9-4-9 4z"/><path class="b" d="M14 30l9 16-9-4-9 4zM50 30l9 16-9-4-9 4z"/><path class="a" d="M32 40l9 16-9-4-9 4z"/><circle class="w" cx="32" cy="12" r="2"/><circle class="w" cx="32" cy="48" r="2"/>`,
+  hole: `<ellipse class="s" cx="32" cy="32" rx="28" ry="10" transform="rotate(-18 32 32)"/><path class="t" d="M32 12a20 20 0 0 1 20 20M32 52a20 20 0 0 1-20-20"/><circle class="c" cx="32" cy="32" r="12" style="stroke:var(--ic-a);stroke-width:3"/><ellipse class="k" cx="32" cy="32" rx="28" ry="10" transform="rotate(-18 32 32)" stroke-dasharray="8 70" opacity=".9"/>`,
+  charge: `<circle class="s" cx="32" cy="32" r="25" style="stroke-width:3" opacity=".6"/><path class="a" d="M32 3l7 22 22 7-22 7-7 22-7-22-22-7 22-7z"/><path class="w" d="M32 18l3 11 11 3-11 3-3 11-3-11-11-3 11-3z"/>`,
+
+  // ------------------------------------------------------------------ offence cards
+  bullet: `<path class="a" d="M22 58V30c0-12 4-20 10-26 6 6 10 14 10 26v28z"/><rect class="b" x="22" y="44" width="20" height="14" rx="2"/><path class="w" d="M27 30c0-8 2-13 5-17" style="fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round"/>`,
+  hotloads: `<path class="f" d="M10 38c0-14 12-16 10-32 10 8 12 18 10 26 5-3 8-8 8-14 8 8 12 16 12 22 0 14-10 22-20 22S10 52 10 38z"/><path class="a" d="M24 62V40c0-8 4-14 8-18 4 4 8 10 8 18v22z"/><rect class="c" x="24" y="50" width="16" height="12"/>`,
+  autoloader: `<g><path class="a" d="M8 58V34c0-9 3-15 7-19 4 4 7 10 7 19v24z"/><rect class="b" x="8" y="48" width="14" height="10"/></g><g><path class="a" d="M25 58V28c0-10 3-17 7-21 4 4 7 11 7 21v30z"/><rect class="b" x="25" y="48" width="14" height="10"/></g><g><path class="a" d="M42 58V34c0-9 3-15 7-19 4 4 7 10 7 19v24z"/><rect class="b" x="42" y="48" width="14" height="10"/></g><path class="k" d="M4 8h10M8 4v8" opacity=".8"/>`,
+  crosshair: `<circle class="s" cx="32" cy="32" r="20" style="stroke-width:5"/><path class="t" d="M32 4v14M32 46v14M4 32h14M46 32h14" style="stroke-width:5"/><circle class="a" cx="32" cy="32" r="6"/><circle class="w" cx="32" cy="32" r="2.5"/>`,
+  hollowpoint: `<path class="a" d="M20 60V32c0-8 2-13 5-16h14c3 3 5 8 5 16v28z"/><rect class="b" x="20" y="46" width="24" height="14" rx="2"/><path class="f" d="M32 2l4 8 8-3-4 8 8 4-9 2 1 5-8-4-8 4 1-5-9-2 8-4-4-8 8 3z"/>`,
+  needle: `<circle class="t" cx="22" cy="40" r="10" style="stroke-width:5"/><circle class="t" cx="42" cy="22" r="10" style="stroke-width:5"/><path class="k" d="M6 58L54 10" style="stroke-width:4"/><path class="a" d="M58 6l-4 14-10-10z"/>`,
+  multishot: `<path class="k" d="M32 58V20M32 58L12 24M32 58l20-34" style="stroke-width:3.5"/><path class="a" d="M32 4l7 12H25zM8 12l10 9-12 4zM56 12l-10 9 12 4z"/><circle class="b" cx="32" cy="56" r="6"/>`,
+  drill: `<rect class="b" x="6" y="8" width="16" height="48" rx="2"/><path class="c" d="M14 20l6 8-4 6 6 8" style="fill:none;stroke:#040816;stroke-width:3"/><path class="a" d="M22 32l18-12h18v24H40z"/><path class="k" d="M44 26l8 12M50 24l6 10" opacity=".8"/>`,
+  giant: `<path class="b" d="M6 56l5-30 12 11 9-19 9 19 12-11 5 30z"/><rect class="a" x="6" y="50" width="52" height="10" rx="2"/><circle class="w" cx="32" cy="18" r="3"/><circle class="k" cx="32" cy="40" r="9" style="stroke-width:3.5"/><path class="k" d="M32 27v5M32 48v5M19 40h5M40 40h5" style="stroke-width:3.5"/>`,
+  blast: `<path class="a" d="M32 4l6 14 14-6-6 14 14 6-14 6 6 14-14-6-6 14-6-14-14 6 6-14-14-6 14-6-6-14 14 6z"/><circle class="f" cx="32" cy="32" r="9"/><circle class="w" cx="32" cy="32" r="4"/>`,
+  fragcrit: `<circle class="s" cx="32" cy="32" r="16" style="stroke-width:4"/><path class="t" d="M32 12v8M32 44v8M12 32h8M44 32h8" style="stroke-width:4"/><path class="f" d="M32 24l3 5 6 1-4 4 1 6-6-3-6 3 1-6-4-4 6-1z"/><path class="a" d="M8 8l6 3-2 3zM56 8l-3 6-3-2zM8 56l3-6 3 2zM56 56l-6-3 2-3z"/>`,
+  chain: `<path class="k" d="M16 46L32 22l16 22" style="stroke-dasharray:4 5"/><path class="a" d="M16 36l3 6 6 1-4 5 1 6-6-3-6 3 1-6-4-5 6-1z"/><path class="a" d="M48 36l3 6 6 1-4 5 1 6-6-3-6 3 1-6-4-5 6-1z"/><path class="f" d="M32 6l4 8 8 1-6 6 2 8-8-4-8 4 2-8-6-6 8-1z"/>`,
+  ricochet: `<rect class="b" x="4" y="50" width="56" height="8" rx="2"/><path class="k" d="M8 8l22 40 18-30" style="stroke-width:4"/><path class="a" d="M54 8l-2 16-12-6z"/><circle class="w" cx="30" cy="47" r="3"/>`,
+  doubletap: `<g transform="translate(-9 4)"><path class="a" d="M24 56V30c0-9 3-15 8-20 5 5 8 11 8 20v26z"/><rect class="b" x="24" y="44" width="16" height="12" rx="2"/></g><g transform="translate(9 -4)"><path class="a" d="M24 56V30c0-9 3-15 8-20 5 5 8 11 8 20v26z"/><rect class="b" x="24" y="44" width="16" height="12" rx="2"/></g>`,
+  gyro: `<ellipse class="t" cx="32" cy="32" rx="26" ry="10" style="stroke-width:3.5"/><ellipse class="t" cx="32" cy="32" rx="10" ry="26" style="stroke-width:3.5"/><circle class="s" cx="32" cy="32" r="22" style="stroke-width:3"/><circle class="a" cx="32" cy="32" r="7"/><circle class="w" cx="32" cy="32" r="2.5"/>`,
+
+  // ------------------------------------------------------------------ defence cards
+  plating: `<path class="a" d="M32 4l24 8v18c0 14-10 24-24 30C18 54 8 44 8 30V12z"/><path class="b" d="M32 12l16 5v13c0 10-7 17-16 21-9-4-16-11-16-21V17z"/><circle class="w" cx="22" cy="20" r="2"/><circle class="w" cx="42" cy="20" r="2"/><circle class="w" cx="32" cy="44" r="2"/>`,
+  deflector: `<path class="s" d="M6 44a26 26 0 0 1 52 0" style="stroke-width:5"/><path class="t g" d="M12 44a20 20 0 0 1 40 0" style="stroke-width:8"/><path class="a" d="M32 30l7 16-7-3-7 3z"/><rect class="b" x="6" y="50" width="52" height="6" rx="3"/>`,
+  nanites: `<path class="a" d="M24 8h16v16h16v16H40v16H24V40H8V24h16z"/><path class="w" d="M28 14h8v14h14v8H36v14h-8V36H14v-8h14z" opacity=".55"/><circle class="b" cx="54" cy="10" r="4"/><circle class="b" cx="10" cy="54" r="3"/><circle class="b" cx="56" cy="54" r="2.5"/>`,
+  siphon: `<path class="r" d="M32 6c10 14 16 22 16 32a16 16 0 0 1-32 0c0-10 6-18 16-32z"/><path class="w" d="M24 38c0 5 3 9 7 10" style="fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round"/><path class="a" d="M40 44l14-14 4 4-14 14z"/>`,
+  ablative: `<path class="b" d="M8 44l24-12 24 12v10L32 42 8 54z"/><path class="a" d="M8 30l24-12 24 12v10L32 28 8 40z"/><path class="b" d="M8 16L32 4l24 12v10L32 14 8 26z"/>`,
+  battery: `<rect class="b" x="24" y="4" width="16" height="6" rx="2"/><rect class="a" x="14" y="9" width="36" height="50" rx="5"/><path class="w" d="M35 16l-12 20h8l-4 16 14-22h-8z"/>`,
+  bunker: `<path class="a" d="M6 22h25v11H6zM33 22h25v11H33zM6 35h12v11H6zM20 35h24v11H20zM46 35h12v11H46zM6 48h25v10H6zM33 48h25v10H33z"/><path class="b" d="M12 20c0-8 9-14 20-14s20 6 20 14z"/>`,
+  laststand: `<path class="r" d="M32 56C14 44 6 34 6 22 6 13 13 7 21 7c5 0 9 3 11 7 2-4 6-7 11-7 8 0 15 6 15 15 0 12-8 22-26 34z"/><path class="c" d="M34 12l-6 14 8 4-6 14" style="fill:none;stroke:#040816;stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round"/>`,
+
+  // ------------------------------------------------------------------ utility cards
+  thrusters: `<rect class="a" x="10" y="6" width="18" height="24" rx="4"/><rect class="a" x="36" y="6" width="18" height="24" rx="4"/><path class="b" d="M12 30h14l-3 6h-8zM38 30h14l-3 6h-8z"/><path class="f" d="M15 36h8l-4 22zM41 36h8l-4 22z"/>`,
+  magnet: `<path class="a" d="M12 34V8h13v26a7 7 0 0 0 14 0V8h13v26a20 20 0 0 1-40 0z"/><path class="w" d="M12 8h13v8H12zM39 8h13v8H39z"/><path class="t" d="M20 58l4-4M32 60v-6M44 58l-4-4" style="stroke-width:3"/>`,
+  crystal: `<path class="a" d="M32 3l20 17-20 41L12 20z"/><path class="b" d="M12 20h40L32 61z"/><path class="w" d="M32 3l6 17H26z" opacity=".8"/>`,
+  crate: `<path class="a" d="M32 4l26 13v30L32 60 6 47V17z"/><path class="b" d="M32 30l26-13v30L32 60z"/><path class="c" d="M6 17l26 13v30" style="fill:none;stroke:#040816;stroke-width:3"/><path class="w" d="M19 11l26 13" style="fill:none;stroke:#fff;stroke-width:3;opacity:.6"/>`,
+  drone: `<path class="a" d="M32 8l18 30-18-8-18 8z"/><path class="b" d="M10 44h44v6H10z"/><circle class="w" cx="32" cy="24" r="3"/><path class="k" d="M6 44h10M48 44h10" style="stroke-width:3"/><path class="f" d="M28 52h8l-4 8z"/>`,
+  uplink: `<path class="a" d="M10 22a22 22 0 0 0 32 20z"/><path class="b" d="M26 36l-6 20h20l-6-14"/><path class="t" d="M40 10a14 14 0 0 1 14 14M40 2a22 22 0 0 1 22 22" style="stroke-width:3.5"/><circle class="w" cx="34" cy="24" r="4"/>`,
+  cycle: `<path class="s" d="M50 22A20 20 0 0 0 14 24M14 42a20 20 0 0 0 36-2" style="stroke-width:5"/><path class="a" d="M54 10v16H38zM10 54V38h16z"/><circle class="b" cx="32" cy="32" r="7"/>`,
+  capacitor: `<rect class="a" x="8" y="14" width="14" height="44" rx="4"/><rect class="a" x="25" y="8" width="14" height="50" rx="4"/><rect class="a" x="42" y="14" width="14" height="44" rx="4"/><path class="w" d="M34 16l-6 12h5l-3 12 8-14h-5z"/>`,
+
+  // ------------------------------------------------------------------ relics
+  atom: `<ellipse class="s" cx="32" cy="32" rx="27" ry="10" style="stroke-width:3.5"/><ellipse class="s" cx="32" cy="32" rx="27" ry="10" transform="rotate(60 32 32)" style="stroke-width:3.5"/><ellipse class="t" cx="32" cy="32" rx="27" ry="10" transform="rotate(-60 32 32)" style="stroke-width:3.5"/><circle class="a" cx="32" cy="32" r="7"/><circle class="w" cx="30" cy="30" r="2.5"/>`,
+  reactor: `<circle class="a" cx="32" cy="32" r="22"/><circle class="f" cx="32" cy="32" r="11"/><path class="c" d="M32 10l-4 12 8 6-6 10 4 16M10 30l12 2M52 24l-10 6" style="fill:none;stroke:#040816;stroke-width:3;stroke-linecap:round;stroke-linejoin:round"/><circle class="w" cx="24" cy="22" r="3" opacity=".8"/>`,
+  honeycomb: `<path class="a" d="M32 6l10 6v12l-10 6-10-6V12zM20 26l10 6v12l-10 6-10-6V32zM44 26l10 6v12l-10 6-10-6V32z"/><path class="b" d="M32 36l10 6v12l-10 6-10-6V42z"/><path class="w" d="M28 13l4-2 4 2" style="fill:none;stroke:#fff;stroke-width:2.5"/>`,
+  phoenix: `<path class="f" d="M32 60c-6-8-4-14 0-20 4 6 6 12 0 20z"/><path class="a" d="M32 42C20 40 8 30 4 12c10 8 18 10 24 10-2-6 0-12 4-18 4 6 6 12 4 18 6 0 14-2 24-10-4 18-16 28-28 30z"/><circle class="w" cx="32" cy="18" r="2.5"/>`,
+  coins: `<ellipse class="b" cx="32" cy="50" rx="20" ry="7"/><rect class="b" x="12" y="42" width="40" height="8"/><ellipse class="a" cx="32" cy="42" rx="20" ry="7"/><rect class="a" x="12" y="30" width="40" height="12"/><ellipse class="a" cx="32" cy="30" rx="20" ry="7"/><ellipse class="w" cx="32" cy="30" rx="10" ry="3" opacity=".55"/><path class="f" d="M50 6l2 6 6 2-6 2-2 6-2-6-6-2 6-2z"/>`,
+  beacon: `<path class="a" d="M32 16l14 8v16l-14 8-14-8V24z"/><circle class="w" cx="32" cy="32" r="5"/><path class="b" d="M10 6l6 10-6-3-6 3zM54 6l6 10-6-3-6 3zM32 50l6 10-6-3-6 3z"/><path class="t" d="M18 22l-4-4M46 22l4-4M32 48v4" style="stroke-width:3"/>`,
+  triplebarrel: `<rect class="b" x="8" y="40" width="48" height="18" rx="5"/><rect class="a" x="12" y="12" width="10" height="32" rx="2"/><rect class="a" x="27" y="4" width="10" height="40" rx="2"/><rect class="a" x="42" y="12" width="10" height="32" rx="2"/><path class="w" d="M14 8h6M29 1h6M44 8h6" style="stroke:#fff;stroke-width:3;stroke-linecap:round"/>`,
+  spiralround: `<path class="a" d="M20 60V32c0-10 5-19 12-26 7 7 12 16 12 26v28z"/><path class="c" d="M32 22a5 5 0 1 1-5 5 9 9 0 1 1 9 9 13 13 0 1 1-13-13" style="fill:none;stroke:#040816;stroke-width:3;stroke-linecap:round"/><rect class="b" x="20" y="50" width="24" height="10" rx="2"/>`,
+  eye: `<path class="a" d="M4 32C12 18 22 12 32 12s20 6 28 20c-8 14-18 20-28 20S12 46 4 32z"/><circle class="b" cx="32" cy="32" r="12"/><circle class="c" cx="32" cy="32" r="5"/><circle class="w" cx="28" cy="28" r="3"/>`,
+  dagger: `<circle class="t" cx="32" cy="32" r="24" style="stroke-width:3.5"/><path class="t" d="M32 2v8M32 54v8M2 32h8M54 32h8" style="stroke-width:3.5"/><path class="w" d="M44 10l6 6-24 24-6-6z"/><path class="a" d="M16 34l14 14-4 4-4-4-6 6-4-4 6-6-4-4z"/>`,
+  lens: `<circle class="b" cx="28" cy="28" r="22"/><circle class="a" cx="28" cy="28" r="16"/><path class="k" d="M28 17v11l8 6" style="stroke-width:3.5"/><path class="b" d="M44 44l14 14-6 6-14-14z"/><path class="w" d="M16 22a13 13 0 0 1 8-8" style="fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round;opacity:.7"/>`,
+  fortress: `<path class="a" d="M6 58V18h10v8h8V14h16v12h8v-8h10v40z"/><path class="c" d="M26 58V44a6 6 0 0 1 12 0v14z"/><path class="b" d="M6 18h10v6H6zM24 14h16v6H24zM48 18h10v6H48z"/>`,
+  fangs: `<path class="a" d="M6 10h52c0 8-6 14-14 16H20C12 24 6 18 6 10z"/><path class="w" d="M16 24l5 18 5-18zM38 24l5 18 5-18z"/><path class="r" d="M43 44c3 5 5 8 5 11a5 5 0 0 1-10 0c0-3 2-6 5-11z"/>`,
+  blackbox: `<path class="a" d="M8 22l24-12 24 12v24L32 58 8 46z"/><path class="b" d="M32 34l24-12v24L32 58z"/><path class="c" d="M8 22l24 12v24" style="fill:none;stroke:#040816;stroke-width:3"/><circle class="f" cx="20" cy="38" r="3.5"/><path class="t" d="M44 8a10 10 0 0 1 10 10M44 2a16 16 0 0 1 16 16" style="stroke-width:3"/>`,
+  skull: `<path class="w" d="M32 6c14 0 22 9 22 21 0 7-3 12-8 15v10H18V42c-5-3-8-8-8-15C10 15 18 6 32 6z"/><circle class="c" cx="23" cy="28" r="6"/><circle class="c" cx="41" cy="28" r="6"/><path class="c" d="M29 38l3-6 3 6z"/><path class="c" d="M24 48v6M32 48v6M40 48v6" style="fill:none;stroke:#040816;stroke-width:3"/><circle class="t" cx="41" cy="28" r="11" style="stroke-width:3"/>`,
+
+  // ------------------------------------------------------------------ workshop extras
+  dice: `<rect class="a" x="6" y="18" width="30" height="30" rx="6" transform="rotate(-12 21 33)"/><rect class="b" x="28" y="14" width="30" height="30" rx="6" transform="rotate(14 43 29)"/><circle class="w" cx="16" cy="28" r="3"/><circle class="w" cx="26" cy="38" r="3"/><circle class="c" cx="43" cy="29" r="3.2"/><circle class="c" cx="36" cy="22" r="3"/><circle class="c" cx="50" cy="36" r="3"/>`,
+  medal: `<path class="b" d="M18 4h10l6 18-8 4zM46 4H36l-6 18 8 4z"/><circle class="a" cx="32" cy="40" r="18"/><path class="w" d="M22 42l10-7 10 7v5l-10-7-10 7zM22 34l10-7 10 7v5l-10-7-10 7z"/>`,
+  cards: `<rect class="b" x="6" y="14" width="22" height="34" rx="4" transform="rotate(-18 17 31)"/><rect class="b" x="36" y="14" width="22" height="34" rx="4" transform="rotate(18 47 31)"/><rect class="a" x="21" y="8" width="22" height="36" rx="4"/><path class="w" d="M32 16l3 6 6 1-4 4 1 6-6-3-6 3 1-6-4-4 6-1z"/><rect class="c" x="16" y="52" width="32" height="6" rx="3"/>`,
+  siren: `<path class="b" d="M10 58h44v-8H10z"/><path class="a" d="M16 50V32a16 16 0 0 1 32 0v18z"/><path class="w" d="M24 32a8 8 0 0 1 8-8" style="fill:none;stroke:#fff;stroke-width:3.5;stroke-linecap:round"/><path class="t" d="M6 22l6 3M58 22l-6 3M32 2v8M14 8l5 5M50 8l-5 5" style="stroke-width:3.5"/>`,
+
+  // ------------------------------------------------------------------ ships (top-down, nose up)
+  vanguard: `<path class="b" d="M32 22l26 22-4 8-22-10-22 10-4-8z"/><path class="a" d="M32 3c5 8 8 18 8 30v17l-8 9-8-9V33c0-12 3-22 8-30z"/><path class="c" d="M32 16c2 3 3 7 3 11h-6c0-4 1-8 3-11z" style="fill:#7fe9ff"/><path class="f" d="M28 56h8l-4 7z"/>`,
+  striker: `<path class="b" d="M32 30l24 10-2 6-22-2-22 2-2-6z"/><path class="b" d="M26 20l-14-12 2-2 16 10zM38 20l14-12-2-2-16 10z"/><path class="a" d="M32 1c3 10 5 22 5 34v17l-5 9-5-9V35c0-12 2-24 5-34z"/><path class="c" d="M32 14l2 12h-4z" style="fill:#ffb8ff"/><path class="f" d="M29 58h6l-3 6z"/>`,
+  bulwark: `<rect class="b" x="4" y="22" width="14" height="30" rx="4"/><rect class="b" x="46" y="22" width="14" height="30" rx="4"/><path class="a" d="M32 4c10 4 16 14 16 26v20l-6 8H22l-6-8V30c0-12 6-22 16-26z"/><rect class="c" x="26" y="16" width="12" height="10" rx="3" style="fill:#ffd79a"/><path class="f" d="M24 58h6l-3 6zM34 58h6l-3 6z"/>`,
+  tempest: `<path class="b" d="M32 10L60 50l-8 4-20-12-20 12-8-4z"/><path class="a" d="M32 4l10 24-4 22h-12l-4-22z"/><path class="t" d="M14 40V26M50 40V26" style="stroke-width:4"/><circle class="w" cx="14" cy="23" r="3.5"/><circle class="w" cx="50" cy="23" r="3.5"/><path class="f" d="M28 50h8l-4 10z"/>`,
+  revenant: `<path class="b" d="M32 28L52 58l-20-10-20 10z"/><rect class="a" x="23" y="2" width="6" height="44" rx="2"/><rect class="a" x="35" y="2" width="6" height="44" rx="2"/><path class="a" d="M22 30h20v20l-10 6-10-6z"/><path class="w" d="M31 4h2v30h-2z"/><path class="f" d="M28 56h8l-4 7z"/>`,
+
+  // ------------------------------------------------------------------ currencies
+  salvage: `<path class="a" d="M32 4l24 14v28L32 60 8 46V18z"/><path class="b" d="M32 14l15 9v18l-15 9-15-9V23z"/><circle class="c" cx="32" cy="32" r="8"/><path class="w" d="M14 19l18-10" style="fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round;opacity:.75"/>`,
+  xp: `<path class="a" d="M32 3l20 17-20 41L12 20z"/><path class="b" d="M12 20h40L32 61z"/><path class="w" d="M32 3l6 17H26z" opacity=".8"/>`,
+};
+
+// Key → [glyph, primary colour, secondary colour]
+const C = (glyph, a, b) => [glyph, a, b];
+const OFF = '#ff9b4a', OFF2 = '#ffd166', DEF = '#5ec8ff', DEF2 = '#a9e8ff', UTL = '#6dffc8', UTL2 = '#c3ffe8', RELIC = '#c7a2ff', RELIC2 = '#ffe08f';
+export const ART = {
+  'weapon:cannon': C('cannon', '#ffc857', '#8e9bb8'), 'weapon:laser': C('laser', '#5ee6ff', '#8e9bb8'), 'weapon:missile': C('missile', '#ff8a3d', '#c9d2e8'),
+  'weapon:tesla': C('tesla', '#b69cff', '#7c86a8'), 'weapon:rail': C('rail', '#eaf6ff', '#5d6c95'), 'weapon:plasma': C('plasma', '#6dff8e', '#2fae63'),
+  'weapon:mine': C('mine', '#ff5fa2', '#8e9bb8'), 'weapon:prism': C('prism', '#ff8bff', '#fff'),
+  'ability:overdrive': C('overdrive', '#ffb547', '#ffd88a'), 'ability:emp': C('emp', '#5ee6ff', '#a9f3ff'), 'ability:barrage': C('barrage', '#ff8a3d', '#ffc28f'),
+  'ability:aegis': C('aegis', '#7aa2ff', '#c3d4ff'), 'ability:strike': C('strike', '#ff4d7a', '#ff9fb6'), 'ability:slow': C('slow', '#b69cff', '#e1d6ff'),
+  'ability:swarm': C('swarm', '#66ffc2', '#baffe3'), 'ability:hole': C('hole', '#c77dff', '#e6c6ff'), 'ability:charge': C('charge', '#ffe066', '#fff3b8'),
+  // offence
+  'mod:m_dmg': C('hotloads', OFF, OFF2), 'mod:m_rate': C('autoloader', OFF2, '#b08a4a'), 'mod:m_crit': C('crosshair', '#ff5f7a', '#ffb3c0'), 'mod:m_critd': C('hollowpoint', '#d9dff0', '#8e9bb8'),
+  'mod:m_pierce': C('needle', OFF, OFF2), 'mod:m_multi': C('multishot', '#d68cff', '#f0d6ff'), 'mod:m_apen': C('drill', OFF2, '#8e9bb8'), 'mod:m_boss': C('giant', '#ff5f7a', '#ffd166'),
+  'mod:m_blast': C('blast', OFF, OFF2), 'mod:m_critex': C('fragcrit', '#ff5f7a', '#ffb3c0'), 'mod:m_killex': C('chain', OFF, OFF2), 'mod:m_bounce': C('ricochet', '#d68cff', '#8e9bb8'),
+  'mod:m_burst': C('doubletap', OFF2, '#b08a4a'), 'mod:m_aim': C('gyro', '#ff5f7a', '#ffb3c0'),
+  // defence
+  'mod:m_hull': C('plating', DEF, '#2f6fa8'), 'mod:m_shield': C('deflector', '#7aa2ff', DEF2), 'mod:m_regen': C('nanites', '#6dff8e', '#c3ffd2'), 'mod:m_leech': C('siphon', '#ff4d7a', '#ffd1dc'),
+  'mod:m_armour': C('ablative', DEF, '#2f6fa8'), 'mod:m_srech': C('battery', '#7aa2ff', DEF2), 'mod:m_barrier': C('bunker', DEF, '#2f6fa8'), 'mod:m_last': C('laststand', '#ff4d7a', '#ffd1dc'),
+  // utility
+  'mod:m_speed': C('thrusters', '#9aa6c8', '#5d6c95'), 'mod:m_magnet': C('magnet', '#ff4d7a', UTL2), 'mod:m_xp': C('crystal', UTL, '#2fae8a'), 'mod:m_salvage': C('crate', '#ffc857', '#b0782a'),
+  'mod:m_drone': C('drone', UTL, '#5d6c95'), 'mod:m_droned': C('uplink', UTL, '#5d6c95'), 'mod:m_cd': C('cycle', '#ffe066', '#b08a4a'), 'mod:m_power': C('capacitor', '#ffe066', '#b08a4a'),
+  // relics
+  'relic:r_quantum': C('atom', '#5ee6ff', RELIC), 'relic:r_glass': C('reactor', RELIC, RELIC2), 'relic:r_aegis': C('honeycomb', '#7aa2ff', RELIC), 'relic:r_phoenix': C('phoenix', '#ff8a3d', RELIC2),
+  'relic:r_midas': C('coins', RELIC2, '#c0892e'), 'relic:r_swarm': C('beacon', RELIC, UTL), 'relic:r_barrel': C('triplebarrel', RELIC2, RELIC), 'relic:r_chain': C('spiralround', RELIC, '#6b4fb8'),
+  'relic:r_predict': C('eye', RELIC, '#5ee6ff'), 'relic:r_crit': C('dagger', '#ff5f7a', RELIC), 'relic:r_chrono': C('lens', RELIC, '#6b4fb8'), 'relic:r_titan': C('fortress', RELIC, '#6b4fb8'),
+  'relic:r_leech': C('fangs', RELIC, RELIC2), 'relic:r_scholar': C('blackbox', RELIC, '#6b4fb8'), 'relic:r_giant': C('skull', RELIC2, RELIC),
+  // workshop
+  'ws:w_dmg': C('hotloads', OFF, OFF2), 'ws:w_rate': C('autoloader', OFF2, '#b08a4a'), 'ws:w_hull': C('plating', DEF, '#2f6fa8'), 'ws:w_shield': C('deflector', '#7aa2ff', DEF2),
+  'ws:w_crit': C('crosshair', '#ff5f7a', '#ffb3c0'), 'ws:w_regen': C('nanites', '#6dff8e', '#c3ffd2'), 'ws:w_speed': C('thrusters', '#9aa6c8', '#5d6c95'), 'ws:w_magnet': C('magnet', '#ff4d7a', UTL2),
+  'ws:w_xp': C('crystal', UTL, '#2fae8a'), 'ws:w_salvage': C('crate', '#ffc857', '#b0782a'), 'ws:w_barrier': C('bunker', DEF, '#2f6fa8'), 'ws:w_reroll': C('dice', '#ffc857', '#8e9bb8'),
+  'ws:w_start': C('medal', '#ffc857', '#ff5f7a'), 'ws:w_choice': C('cards', '#5ee6ff', '#2f6fa8'), 'ws:w_revive': C('siren', '#ff4d7a', '#8e9bb8'),
+  // ships
+  'ship:vanguard': C('vanguard', '#dbe7f5', '#5ee6ff'), 'ship:striker': C('striker', '#e9dcf5', '#ff6bff'), 'ship:bulwark': C('bulwark', '#e2e6ee', '#ffb547'),
+  'ship:tempest': C('tempest', '#dcdcf5', '#b69cff'), 'ship:revenant': C('revenant', '#eadfe3', '#ff4d7a'),
+  // currencies and supplies
+  'cur:salvage': C('salvage', '#ffc857', '#e89a2c'), 'cur:xp': C('xp', UTL, '#2fae8a'),
+  'supply:heal': C('nanites', '#6dff8e', '#c3ffd2'), 'supply:cash': C('crate', '#ffc857', '#b0782a'),
+};
+
+/** SVG markup for a key such as 'weapon:laser'. Unknown keys fall back to the salvage glyph rather than a browser glyph. */
+export function artSvg(key) {
+  const [glyph, a, b] = ART[key] || ART['cur:salvage'];
+  return `<svg viewBox="0 0 64 64" aria-hidden="true" focusable="false" style="--ic-a:${a};--ic-b:${b}">${P[glyph]}</svg>`;
+}
+/** A span holding the artwork, sized by CSS through the given class names. */
+export function art(key, className = '') {
+  const el = document.createElement('span');
+  el.className = 'art' + (className ? ' ' + className : '');
+  el.innerHTML = artSvg(key);
+  return el;
+}
+export const GLYPHS = P;

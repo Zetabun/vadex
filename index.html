@@ -6,6 +6,12 @@
 <meta name="theme-color" content="#040716">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Last Orbit">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="icon" href="icons/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="manifest" href="manifest.webmanifest">
 <title>Last Orbit</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Semi+Condensed:wght@500;600;700&family=Chakra+Petch:wght@500;600;700&display=swap" rel="stylesheet">
@@ -36,10 +42,7 @@ h1,h2,h3,p{margin:0}
 #vig.on{opacity:1;transition:none}
 #flash{position:absolute;inset:0;pointer-events:none;background:#fff;opacity:0;z-index:60}
 .ui-icon{display:inline-flex;width:20px;height:20px;flex:none}.ui-icon svg{width:100%;height:100%}
-.game-icon{display:inline-flex;align-items:center;justify-content:center;flex:none}.game-icon img{width:100%;height:100%;image-rendering:pixelated;object-fit:contain}
-.game-icon-fallback{display:inline-flex;align-items:center;justify-content:center;flex:none;color:var(--dim)}
 .kicker{font:700 10.5px var(--cond);letter-spacing:.22em;text-transform:uppercase;color:var(--dim)}
-.cur{font-family:var(--disp);color:var(--gold);margin-right:2px}
 .gold{color:var(--gold)}.muted{color:var(--mute)}
 
 /* ---------- shared controls ---------- */
@@ -51,7 +54,6 @@ h1,h2,h3,p{margin:0}
 .btn:active:not(:disabled){transform:scale(.97)}
 .btn.primary{background:linear-gradient(180deg,#7df0ff,#2ab8d8);color:#03141c;border:0;box-shadow:0 6px 24px rgba(94,230,255,.28)}
 .btn.gold{background:linear-gradient(180deg,#ffe08f,#f0a93a);color:#261400;border:0;box-shadow:0 6px 24px rgba(255,200,87,.25)}
-.btn.gold .cur{color:#261400}
 .btn.ghost{background:rgba(255,255,255,.04)}
 .btn.danger{border-color:rgba(255,77,122,.5);color:#ff9fb6;background:rgba(255,77,122,.08)}
 .btn.small{min-height:38px;font-size:12px}
@@ -97,7 +99,7 @@ select{background:var(--solid);color:var(--ink);border:1px solid var(--line2);bo
 .loadout{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;min-height:36px;align-items:flex-end}
 .gun,.relic-mini{display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 5px 3px;border-radius:9px;background:rgba(255,255,255,.05);border:1px solid color-mix(in srgb,var(--c,#b69cff) 45%,transparent)}
 .relic-mini{--c:#b69cff;padding:4px}
-.gun-icon{width:26px;height:26px}
+.gun-icon{width:28px;height:28px}
 .rank{display:flex;gap:1.5px}.rank i{width:3px;height:3px;border-radius:1px;background:rgba(255,255,255,.18)}.rank i.on{background:var(--c)}
 .dock-row{display:flex;align-items:center;gap:12px}
 .bars{flex:1;display:flex;flex-direction:column;gap:6px;min-width:0}
@@ -110,7 +112,7 @@ select{background:var(--solid);color:var(--ink);border:1px solid var(--line2);bo
 .shield-row.off{display:none}
 .abilities{display:flex;gap:10px}
 .abil{position:relative;width:60px;height:60px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 35%,rgba(255,255,255,.12),rgba(8,12,34,.9));border:2px solid color-mix(in srgb,var(--c) 40%,transparent);transition:transform .1s}
-.abil .abil-icon{width:34px;height:34px;opacity:.5;filter:grayscale(.7)}
+.abil .abil-icon{width:34px;height:34px;opacity:.45;filter:grayscale(.8)}
 .abil .cd{position:absolute;inset:-2px;border-radius:50%;background:conic-gradient(transparent var(--p,360deg),rgba(2,4,14,.7) 0);pointer-events:none}
 .abil.ready{border-color:var(--c);box-shadow:0 0 18px color-mix(in srgb,var(--c) 55%,transparent),inset 0 0 12px color-mix(in srgb,var(--c) 30%,transparent)}
 .abil.ready .abil-icon{opacity:1;filter:none}
@@ -130,12 +132,32 @@ select{background:var(--solid);color:var(--ink);border:1px solid var(--line2);bo
 #banner h2{font:700 30px/1.05 var(--disp);letter-spacing:.06em;text-transform:uppercase;text-shadow:0 0 26px currentColor,0 2px 0 #000}
 #banner p{margin:8px 28px 0;font:500 14px var(--body);color:var(--ink);text-shadow:0 1px 8px #000}
 #banner .k{font:700 11px var(--cond);letter-spacing:.32em;color:var(--dim);text-transform:uppercase;margin-bottom:6px}
-#toasts{position:absolute;left:12px;right:12px;top:calc(var(--st) + 118px);z-index:45;display:flex;flex-direction:column;gap:6px;pointer-events:none;align-items:center}
+#toasts{position:absolute;left:12px;right:12px;top:calc(var(--st) + 112px);z-index:35;display:flex;flex-direction:column;align-items:stretch;gap:6px;pointer-events:none}
 #app[data-mode="hangar"] #toasts{top:calc(var(--st) + 70px)}
-.toast{width:max-content;max-width:100%;padding:9px 14px;border-radius:12px;font:600 13.5px/1.3 var(--body);background:rgba(10,16,44,.96);border:1px solid var(--line2);box-shadow:0 8px 28px rgba(0,0,0,.5);animation:tin .25s}
-@keyframes tin{from{opacity:0;transform:translateY(-8px)}}
+.toast{display:flex;align-items:center;gap:12px;width:100%;box-sizing:border-box;padding:10px 14px;border-radius:14px;font:600 14px/1.3 var(--body);background:rgba(10,16,44,.96);border:1px solid var(--line2);box-shadow:0 10px 30px rgba(0,0,0,.55);animation:tin .28s cubic-bezier(.2,.8,.3,1.2)}
+.toast-text{flex:1;min-width:0;overflow-wrap:anywhere}
+@keyframes tin{from{opacity:0;transform:translateY(-10px) scale(.97)}}
 .toast.out{opacity:0;transform:translateY(-6px);transition:.3s}
-.toast.unlock{border-color:rgba(255,200,87,.6);color:#ffe6a6}.toast.good{border-color:rgba(109,255,200,.5)}.toast.warn{border-color:rgba(255,77,122,.6)}
+.toast.unlock{border-color:rgba(255,200,87,.6)}.toast.good{border-color:rgba(109,255,200,.5)}.toast.warn{border-color:rgba(255,77,122,.6)}
+.notice{padding:8px 12px 8px 8px;background:linear-gradient(100deg,rgba(40,30,8,.97),rgba(10,16,44,.97) 55%)}
+.notice-art{width:44px;height:44px;flex:none;border-radius:11px;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,200,87,.35)}
+.notice-ico{width:32px;height:32px}
+.notice-main{flex:1;min-width:0;display:flex;flex-direction:column}
+.notice-main small{font:700 10px var(--cond);letter-spacing:.2em;text-transform:uppercase;color:var(--gold)}
+.notice-main b{font:700 16px/1.15 var(--disp);letter-spacing:.03em}
+.notice-main span{font:600 12.5px var(--body);color:var(--dim);overflow-wrap:anywhere}
+.notice-reward{flex:none;display:flex;align-items:center;font:700 16px var(--disp);color:var(--gold)}
+
+/* ---------- artwork (see modules/ui/art.js) ---------- */
+.art{display:inline-flex;flex:none}.art svg{width:100%;height:100%;overflow:visible;filter:drop-shadow(0 0 2.5px color-mix(in srgb,var(--ic-a) 55%,transparent))}
+.art .a{fill:var(--ic-a)}.art .b{fill:var(--ic-b)}.art .c{fill:#0b1330}.art .w{fill:#fff}.art .f{fill:#ffcf5e}.art .r{fill:#ff4d7a}
+.art .a,.art .b,.art .c,.art .w,.art .f,.art .r{stroke:#040816;stroke-width:2.5;stroke-linejoin:round;paint-order:stroke}
+.art .s,.art .t,.art .k{fill:none;stroke-linecap:round;stroke-linejoin:round;stroke-width:4}
+.art .s{stroke:var(--ic-a)}.art .t{stroke:var(--ic-b)}.art .k{stroke:#fff;stroke-width:2.5}.art .g{opacity:.3}
+.cur-ico{width:1.05em;height:1.05em;margin-right:4px;vertical-align:-.16em}
+.cur-ico svg{filter:none}
+.boss-ico{width:16px;height:16px}
+.ship-icon{width:52px;height:52px}
 
 /* ---------- hangar ---------- */
 #hangar{position:absolute;inset:0;z-index:12;display:flex;flex-direction:column}
@@ -186,8 +208,7 @@ select{background:var(--solid);color:var(--ink);border:1px solid var(--line2);bo
 .row-desc{font:500 13px var(--body);color:var(--dim);margin-top:2px}
 .lvl-pips{display:flex;gap:3px;margin-top:7px}.lvl-pips i{flex:1;max-width:18px;height:4px;border-radius:2px;background:rgba(255,255,255,.1)}.lvl-pips i.on{background:var(--gold)}
 .buy{min-width:86px;min-height:44px;padding:0 12px;border-radius:10px;font:700 15px var(--disp);background:linear-gradient(180deg,#ffe08f,#f0a93a);color:#261400;display:inline-flex;align-items:center;justify-content:center;gap:2px;box-shadow:0 4px 16px rgba(255,200,87,.2)}
-.buy .cur{color:#261400}
-.buy:disabled{background:rgba(255,255,255,.06);color:var(--mute);box-shadow:none}.buy:disabled .cur{color:var(--mute)}
+.buy:disabled{background:rgba(255,255,255,.06);color:var(--mute);box-shadow:none}.buy:disabled .cur-ico{opacity:.5;filter:grayscale(1)}
 .buy:active:not(:disabled){transform:scale(.96)}
 .row.maxed .buy{background:none;color:var(--green);border:1px solid rgba(109,255,200,.3)}
 .grid{display:flex;flex-direction:column;gap:8px}
@@ -222,6 +243,35 @@ select{background:var(--solid);color:var(--ink);border:1px solid var(--line2);bo
 .c-count{font:700 12px var(--disp);color:var(--mute);font-variant-numeric:tabular-nums}
 .contract.done{opacity:.55}
 
+/* ---------- pilot career ---------- */
+.rank-strip{display:flex;align-items:center;gap:12px;width:100%;margin-top:12px;padding:10px 12px;border-radius:12px;background:rgba(182,156,255,.08);border:1px solid rgba(182,156,255,.3);text-align:left}
+.rank-badge{flex:none;width:44px;height:44px;border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(160deg,#3a2a78,#1a1440);border:1px solid rgba(182,156,255,.55);box-shadow:0 0 14px rgba(182,156,255,.25)}
+.rank-badge small{font:700 8px var(--cond);letter-spacing:.2em;text-transform:uppercase;color:#cdbfff}
+.rank-badge b{font:700 19px/1 var(--disp);color:#fff}
+.rank-badge.big{width:62px;height:62px}.rank-badge.big b{font-size:28px}
+.rank-main{flex:1;min-width:0}
+.rank-line{display:flex;justify-content:space-between;align-items:center;gap:8px;font:600 12.5px var(--body);color:var(--dim)}
+.rank-line b{font:700 15px var(--disp);color:var(--ink)}
+.reward{display:inline-flex;align-items:center;gap:4px;font:700 12.5px var(--disp);color:var(--gold)}.reward.paint{color:#d6c6ff}
+.meter.rank{height:6px;margin-top:6px}.meter.rank>i{background:linear-gradient(90deg,#8d6bff,#d6c6ff);box-shadow:0 0 8px rgba(182,156,255,.6)}
+.swatch{display:inline-block;width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.7);box-shadow:0 0 6px rgba(0,0,0,.5);flex:none}
+.career-top{display:flex;align-items:center;gap:14px}.career-top h3{margin:0;font:700 20px var(--disp);letter-spacing:.06em;text-transform:uppercase;color:var(--ink)}.career-top p{font:600 13px var(--body);color:var(--dim);margin-top:2px}
+.career .meter.rank{height:8px;margin:14px 0}
+.track{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
+.track-step{position:relative;flex:0 0 76px;display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 6px;border-radius:12px;background:rgba(255,255,255,.04);border:1px solid var(--line);text-align:center}
+.track-step small{font:700 9px var(--cond);letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+.track-step b{font:700 12px var(--disp);color:var(--gold)}.track-step.is-paint b{color:#d6c6ff}
+.track-step .swatch{width:26px;height:26px}.track-ico{width:26px;height:26px}
+.track-step.got{opacity:.5}.track-step .ui-icon{position:absolute;top:6px;right:6px;width:14px;height:14px;color:var(--green)}
+.track-step.next{border-color:rgba(182,156,255,.7);box-shadow:0 0 16px rgba(182,156,255,.25);background:rgba(182,156,255,.1)}
+.paints{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px}
+.paint{display:flex;align-items:center;gap:8px;padding:9px 10px;border-radius:10px;background:var(--panel);border:1px solid var(--line);font:700 12.5px var(--disp);color:var(--ink)}
+.paint .swatch{width:20px;height:20px}
+.paint.on{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan)}.paint.locked{opacity:.4}.paint.locked .swatch{filter:grayscale(1)}
+.pilot-xp{padding:12px 14px;border-radius:14px;background:rgba(182,156,255,.08);border:1px solid rgba(182,156,255,.3)}
+.pilot-row{display:flex;justify-content:space-between;align-items:center;font:700 13px var(--disp);letter-spacing:.04em;color:#e3dbff}.pilot-row b{color:#d6c6ff}
+.rank-rewards{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+
 /* ---------- overlays ---------- */
 #layer{position:absolute;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;padding:calc(var(--st) + 12px) 12px calc(var(--sb) + 12px);pointer-events:none;background:rgba(2,3,12,0);transition:background .2s,backdrop-filter .2s}
 #layer.on{pointer-events:auto;background:rgba(2,3,12,.62);backdrop-filter:blur(5px)}
@@ -240,7 +290,7 @@ select{background:var(--solid);color:var(--ink);border:1px solid var(--line2);bo
 .card:active{transform:scale(.98)}
 .card.picked{animation:pick .2s forwards}@keyframes pick{to{transform:scale(1.04);border-color:#fff;box-shadow:0 0 40px var(--r)}}
 .card-art{width:62px;height:62px;border-radius:14px;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle,color-mix(in srgb,var(--c) 28%,transparent),rgba(255,255,255,.03) 70%);border:1px solid color-mix(in srgb,var(--c) 35%,transparent)}
-.card-icon{width:44px;height:44px}
+.card-icon{width:46px;height:46px}
 .card-kicker{display:flex;justify-content:space-between;gap:8px;font:700 10.5px var(--cond);letter-spacing:.16em;text-transform:uppercase;color:var(--c)}
 .card-kicker .rar{color:var(--r);opacity:.9}
 .card-title{font:700 19px/1.1 var(--disp);letter-spacing:.03em;margin-top:3px}
@@ -272,8 +322,8 @@ select{background:var(--solid);color:var(--ink);border:1px solid var(--line2);bo
 .earned div{font:700 38px/1.1 var(--disp);color:var(--gold)}.earned small{color:#ffe6a6}
 .debrief .stat-grid{grid-template-columns:repeat(4,1fr);margin:0}
 .unlocks{display:flex;flex-direction:column;gap:5px}
-.unlock{display:grid;grid-template-columns:18px auto 1fr;gap:8px;align-items:center;padding:7px 10px;border-radius:10px;background:rgba(109,255,200,.07);border:1px solid rgba(109,255,200,.22)}
-.unlock .ui-icon{width:16px;height:16px;color:var(--green)}.unlock b{font:700 13px var(--disp)}.unlock small{font:600 11.5px var(--body);color:var(--dim);text-align:right}
+.unlocks .unlock{display:grid;grid-template-columns:18px auto 1fr;gap:8px;align-items:center;padding:7px 10px;border-radius:10px;background:rgba(109,255,200,.07);border:1px solid rgba(109,255,200,.22)}
+.unlocks .unlock .ui-icon{width:16px;height:16px;color:var(--green)}.unlocks .unlock b{font:700 13px var(--disp)}.unlocks .unlock small{font:600 11.5px var(--body);color:var(--dim);text-align:right}
 .btn.wide{flex-basis:100%}
 
 /* ---------- boot ---------- */
@@ -289,6 +339,6 @@ select{background:var(--solid);color:var(--ink);border:1px solid var(--line2);bo
 <body>
 <div id="app"><canvas id="gl" tabindex="0" aria-label="Battlefield. Drag or use A and D to steer; guns fire automatically."></canvas><canvas id="overlay" aria-hidden="true"></canvas><div id="boot"><h1>Last Orbit</h1><p>Calibrating defence grid</p></div></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script type="importmap">{"imports":{"@last-orbit/audio/audio.js":"./modules/audio/audio.js?v=2.0.0","@last-orbit/combat/abilities.js":"./modules/combat/abilities.js?v=2.0.0","@last-orbit/combat/bosses.js":"./modules/combat/bosses.js?v=2.0.0","@last-orbit/combat/drones.js":"./modules/combat/drones.js?v=2.0.0","@last-orbit/combat/enemies.js":"./modules/combat/enemies.js?v=2.0.0","@last-orbit/combat/pickups.js":"./modules/combat/pickups.js?v=2.0.0","@last-orbit/combat/player.js":"./modules/combat/player.js?v=2.0.0","@last-orbit/combat/sim.js":"./modules/combat/sim.js?v=2.0.0","@last-orbit/combat/waves.js":"./modules/combat/waves.js?v=2.0.0","@last-orbit/combat/weapons.js":"./modules/combat/weapons.js?v=2.0.0","@last-orbit/combat/world.js":"./modules/combat/world.js?v=2.0.0","@last-orbit/core/big.js":"./modules/core/big.js?v=2.0.0","@last-orbit/core/events.js":"./modules/core/events.js?v=2.0.0","@last-orbit/core/format.js":"./modules/core/format.js?v=2.0.0","@last-orbit/core/game.js":"./modules/core/game.js?v=2.0.0","@last-orbit/core/rng.js":"./modules/core/rng.js?v=2.0.0","@last-orbit/core/state.js":"./modules/core/state.js?v=2.0.0","@last-orbit/data/abilities.js":"./modules/data/abilities.js?v=2.0.0","@last-orbit/data/balance.js":"./modules/data/balance.js?v=2.0.0","@last-orbit/data/bosses.js":"./modules/data/bosses.js?v=2.0.0","@last-orbit/data/cards.js":"./modules/data/cards.js?v=2.0.0","@last-orbit/data/contracts.js":"./modules/data/contracts.js?v=2.0.0","@last-orbit/data/drones.js":"./modules/data/drones.js?v=2.0.0","@last-orbit/data/enemies.js":"./modules/data/enemies.js?v=2.0.0","@last-orbit/data/relics.js":"./modules/data/relics.js?v=2.0.0","@last-orbit/data/sectors.js":"./modules/data/sectors.js?v=2.0.0","@last-orbit/data/ships.js":"./modules/data/ships.js?v=2.0.0","@last-orbit/data/weapons.js":"./modules/data/weapons.js?v=2.0.0","@last-orbit/data/workshop.js":"./modules/data/workshop.js?v=2.0.0","@last-orbit/main.js":"./modules/main.js?v=2.0.0","@last-orbit/progression/meta.js":"./modules/progression/meta.js?v=2.0.0","@last-orbit/progression/run.js":"./modules/progression/run.js?v=2.0.0","@last-orbit/progression/stats.js":"./modules/progression/stats.js?v=2.0.0","@last-orbit/rendering/background.js":"./modules/rendering/background.js?v=2.0.0","@last-orbit/rendering/effects.js":"./modules/rendering/effects.js?v=2.0.0","@last-orbit/rendering/geometry.js":"./modules/rendering/geometry.js?v=2.0.0","@last-orbit/rendering/renderer.js":"./modules/rendering/renderer.js?v=2.0.0","@last-orbit/save/save.js":"./modules/save/save.js?v=2.0.0","@last-orbit/ui/debug.js":"./modules/ui/debug.js?v=2.0.0","@last-orbit/ui/dom.js":"./modules/ui/dom.js?v=2.0.0","@last-orbit/ui/hangar.js":"./modules/ui/hangar.js?v=2.0.0","@last-orbit/ui/hud.js":"./modules/ui/hud.js?v=2.0.0","@last-orbit/ui/icons.js":"./modules/ui/icons.js?v=2.0.0","@last-orbit/ui/overlays.js":"./modules/ui/overlays.js?v=2.0.0","@last-orbit/ui/ui.js":"./modules/ui/ui.js?v=2.0.0"}}</script><script type="module">import '@last-orbit/main.js';</script>
+<script type="importmap">{"imports":{"@last-orbit/audio/audio.js":"./modules/audio/audio.js?v=2.1.0","@last-orbit/combat/abilities.js":"./modules/combat/abilities.js?v=2.1.0","@last-orbit/combat/bosses.js":"./modules/combat/bosses.js?v=2.1.0","@last-orbit/combat/drones.js":"./modules/combat/drones.js?v=2.1.0","@last-orbit/combat/enemies.js":"./modules/combat/enemies.js?v=2.1.0","@last-orbit/combat/pickups.js":"./modules/combat/pickups.js?v=2.1.0","@last-orbit/combat/player.js":"./modules/combat/player.js?v=2.1.0","@last-orbit/combat/sim.js":"./modules/combat/sim.js?v=2.1.0","@last-orbit/combat/waves.js":"./modules/combat/waves.js?v=2.1.0","@last-orbit/combat/weapons.js":"./modules/combat/weapons.js?v=2.1.0","@last-orbit/combat/world.js":"./modules/combat/world.js?v=2.1.0","@last-orbit/core/big.js":"./modules/core/big.js?v=2.1.0","@last-orbit/core/events.js":"./modules/core/events.js?v=2.1.0","@last-orbit/core/format.js":"./modules/core/format.js?v=2.1.0","@last-orbit/core/game.js":"./modules/core/game.js?v=2.1.0","@last-orbit/core/rng.js":"./modules/core/rng.js?v=2.1.0","@last-orbit/core/state.js":"./modules/core/state.js?v=2.1.0","@last-orbit/data/abilities.js":"./modules/data/abilities.js?v=2.1.0","@last-orbit/data/balance.js":"./modules/data/balance.js?v=2.1.0","@last-orbit/data/bosses.js":"./modules/data/bosses.js?v=2.1.0","@last-orbit/data/cards.js":"./modules/data/cards.js?v=2.1.0","@last-orbit/data/career.js":"./modules/data/career.js?v=2.1.0","@last-orbit/data/contracts.js":"./modules/data/contracts.js?v=2.1.0","@last-orbit/data/drones.js":"./modules/data/drones.js?v=2.1.0","@last-orbit/data/enemies.js":"./modules/data/enemies.js?v=2.1.0","@last-orbit/data/relics.js":"./modules/data/relics.js?v=2.1.0","@last-orbit/data/sectors.js":"./modules/data/sectors.js?v=2.1.0","@last-orbit/data/ships.js":"./modules/data/ships.js?v=2.1.0","@last-orbit/data/weapons.js":"./modules/data/weapons.js?v=2.1.0","@last-orbit/data/workshop.js":"./modules/data/workshop.js?v=2.1.0","@last-orbit/main.js":"./modules/main.js?v=2.1.0","@last-orbit/progression/meta.js":"./modules/progression/meta.js?v=2.1.0","@last-orbit/progression/run.js":"./modules/progression/run.js?v=2.1.0","@last-orbit/progression/stats.js":"./modules/progression/stats.js?v=2.1.0","@last-orbit/rendering/background.js":"./modules/rendering/background.js?v=2.1.0","@last-orbit/rendering/effects.js":"./modules/rendering/effects.js?v=2.1.0","@last-orbit/rendering/geometry.js":"./modules/rendering/geometry.js?v=2.1.0","@last-orbit/rendering/renderer.js":"./modules/rendering/renderer.js?v=2.1.0","@last-orbit/save/save.js":"./modules/save/save.js?v=2.1.0","@last-orbit/ui/art.js":"./modules/ui/art.js?v=2.1.0","@last-orbit/ui/debug.js":"./modules/ui/debug.js?v=2.1.0","@last-orbit/ui/dom.js":"./modules/ui/dom.js?v=2.1.0","@last-orbit/ui/hangar.js":"./modules/ui/hangar.js?v=2.1.0","@last-orbit/ui/hud.js":"./modules/ui/hud.js?v=2.1.0","@last-orbit/ui/icons.js":"./modules/ui/icons.js?v=2.1.0","@last-orbit/ui/overlays.js":"./modules/ui/overlays.js?v=2.1.0","@last-orbit/ui/ui.js":"./modules/ui/ui.js?v=2.1.0"}}</script><script type="module">import '@last-orbit/main.js';</script>
 </body>
 </html>

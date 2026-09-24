@@ -7,6 +7,7 @@ import { Big } from '@last-orbit/core/big.js';
 import { FIELD } from '@last-orbit/data/balance.js';
 import { DRONES } from '@last-orbit/data/drones.js';
 import { activeShip } from '@last-orbit/progression/stats.js';
+import { PAINT_BY_ID } from '@last-orbit/data/career.js';
 import { shapeGeometry, playerParts, unitBox, droneGeometry, supportCraftGeometry } from '@last-orbit/rendering/geometry.js';
 import { SpriteBatch, Particles, Transients, makeTextures, rgb, css, jagged, WHITE } from '@last-orbit/rendering/effects.js';
 import { Background } from '@last-orbit/rendering/background.js';
@@ -69,7 +70,8 @@ export class Renderer {
     pp.wings.visible = cards >= 4 || ship.id !== 'vanguard'; pp.pods.visible = guns >= 2; pp.pods2.visible = guns >= 3; pp.armour.visible = cards >= 12 || ship.id === 'bulwark';
     pp.fins.visible = cards >= 20 || ship.id === 'striker' || ship.id === 'revenant'; pp.crown.visible = (run?.relics.length || 0) >= 2;
     this.player.scale.setScalar(3.1 + Math.min(0.7, cards / 60));
-    this.playerMats.trim.color.set(ship.trim); this.playerMats.trim.emissive.set(ship.trim).multiplyScalar(0.35);
+    const paint = PAINT_BY_ID[st.paint] || PAINT_BY_ID.factory, trim = paint.trim ?? ship.trim;
+    this.playerMats.trim.color.set(trim); this.playerMats.trim.emissive.set(trim).multiplyScalar(0.35); this.playerMats.hull.color.set(paint.hull ?? 0x718996);
   }
 
   setQuality() { const q = G.state.settings.quality, dpr = window.devicePixelRatio || 1; if (q !== this.qualityMode) { this.qualityMode = q; this.lowT = 0; this.highT = 0; if (q === 'auto') this.autoLow = false; } this.pr = q === 'low' ? 1 : q === 'high' ? Math.min(dpr, 2.5) : Math.min(dpr, this.autoLow ? 1.25 : 2); this.parts.scale = q === 'low' || (q === 'auto' && this.autoLow) ? 0.45 : 1; this.resize(); }
@@ -191,7 +193,7 @@ export class Renderer {
 
   drawPlayer(w, dt) {
     const p = w.player, g = this.player, B = this.B, t = w.t; g.visible = p.alive; if (!p.alive) return;
-    if (this.lookV !== G.sheet.version) { this.lookV = G.sheet.version; this.refreshPlayerLook(); }
+    const look = G.sheet.version + ':' + G.state.paint + ':' + (G.state.run?.ship || G.state.ship); if (this.lookV !== look) { this.lookV = look; this.refreshPlayerLook(); }
     g.position.set(p.x, p.y, 0); g.rotation.set(0, -p.tilt * 0.6, -p.tilt * 0.12);
     const blink = p.invuln > 0 && Math.sin(t * 40) > 0; g.visible = !blink;
     const over = w.abil.active.overdrive > 0, glow = over ? AMBER : CYAN;

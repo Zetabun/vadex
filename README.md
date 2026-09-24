@@ -9,6 +9,8 @@ Last Orbit is a browser orbital-defence roguelite. The live page is [zetabun.git
 - **Sectors and bosses.** Every sector is ten waves: an elite or mini-boss at wave 5, a salvage convoy at wave 8 and a sector boss at wave 10. Beating a boss offers a choice of three relics. After sector 6 the Deep Void is endless.
 - **Salvage.** Salvage canisters, wave clears and bosses pay salvage. It is banked when the sortie ends, win or lose.
 - **The Hangar.** Spend salvage on permanent Workshop upgrades and new ships. Contracts are the long-term goals: each pays salvage and unlocks a weapon, an ability or a ship.
+- **Career.** Every sortie earns pilot XP; 40 pilot ranks pay salvage and unlock paint jobs for your ship.
+- **Install it.** Add the page to your home screen for a full-screen app with its own icon.
 
 ## Source layout
 
@@ -30,6 +32,6 @@ Three.js and fonts load from CDNs. Add `?debug=1` for a sandboxed test panel (it
 python tools/run_release_gates.py
 ```
 
-The gate checks the import map, every module's syntax and the regression suite. `npm run balance` flies bot sorties headlessly and reports where they end (arguments: runs, Workshop level, ship, `fresh|some|all` unlocks, dodge skill 0-3). After adding or removing a module, run `python tools/build_importmap.py <version>`.
+The gate checks the import map, every module's syntax and the regression suite. `npm run balance` flies bot sorties headlessly and reports where they end (arguments: runs, Workshop level, ship, `fresh|some|all` unlocks, dodge skill 0-3). After adding or removing a module, run `python tools/build_importmap.py <version>`. `node tools/shoot.mjs <outDir> [scene…]` captures phone-sized screenshots and `node tools/render-icons.mjs` regenerates the app icons from `icons/icon.svg` (both need the local server).
 
-Current build: **v2.0.0**; save schema **20** (v2 saves use their own storage keys and never overwrite a v1 save).
+Current build: **v2.1.0**; save schema **21** (v2 saves use their own storage keys and never overwrite a v1 save).
