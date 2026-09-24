@@ -26,9 +26,9 @@ function padTexture(kind) {
 /** Soft cloud wisps for the mist layer (tiles seamlessly enough at low opacity). */
 function mistTexture() {
   const c = document.createElement('canvas'); c.width = c.height = 256; const g = c.getContext('2d');
-  for (let i = 0; i < 22; i++) {
-    const x = R() * 256, y = R() * 256, r = 40 + R() * 80, grad = g.createRadialGradient(x, y, 0, x, y, r);
-    grad.addColorStop(0, `rgba(255,255,255,${0.35 + R() * 0.35})`); grad.addColorStop(0.55, `rgba(255,255,255,${0.12 + R() * 0.12})`); grad.addColorStop(1, 'rgba(255,255,255,0)');
+  for (let i = 0; i < 26; i++) {
+    const x = R() * 256, y = R() * 256, r = 30 + R() * 70, grad = g.createRadialGradient(x, y, 0, x, y, r);
+    grad.addColorStop(0, `rgba(255,255,255,${0.16 + R() * 0.2})`); grad.addColorStop(1, 'rgba(255,255,255,0)');
     g.fillStyle = grad; for (const dx of [-256, 0, 256]) for (const dy of [-256, 0, 256]) { g.save(); g.translate(dx, dy); g.fillRect(x - r, y - r, r * 2, r * 2); g.restore(); }
   }
   return c;
@@ -51,10 +51,9 @@ export class Ground {
     this.pads = [0, 1, 2].map((k) => inst(flat, mat(THREE.MeshLambertMaterial, { map: new THREE.CanvasTexture(padTexture(k)), color: 0x8a93a6 }), CAP.pad));
     // Mist: a gentle dark tint plus slow drifting wisps, between the rooftops and the fighting.
     this.mistTex = new THREE.CanvasTexture(mistTexture()); this.mistTex.wrapS = this.mistTex.wrapT = THREE.RepeatWrapping; this.mistTex.repeat.set(1.4, 2.6);
-    this.tint = new THREE.Mesh(new THREE.PlaneGeometry(WIDTH + 60, 330), mat(THREE.MeshBasicMaterial, { color: 0x0a1226, depthWrite: false }, 0.3)); this.tint.position.set(0, 75, -1.3); this.tint.renderOrder = 2;
-    this.mist = new THREE.Mesh(new THREE.PlaneGeometry(WIDTH + 60, 330), mat(THREE.MeshBasicMaterial, { map: this.mistTex, color: 0x8ea4c8, depthWrite: false }, 0.3)); this.mist.position.set(0, 75, -0.9); this.mist.renderOrder = 3;
+    this.tint = new THREE.Mesh(new THREE.PlaneGeometry(WIDTH + 60, 330), mat(THREE.MeshBasicMaterial, { color: 0x0a1226, depthWrite: false }, 0.24)); this.tint.position.set(0, 75, -1.3);
+    this.mist = new THREE.Mesh(new THREE.PlaneGeometry(WIDTH + 60, 330), mat(THREE.MeshBasicMaterial, { map: this.mistTex, color: 0xa9c2e6, depthWrite: false }, 0.2)); this.mist.position.set(0, 75, -0.9);
     this.city = new THREE.Group(); this.city.add(this.slab, this.bld, this.shadow, this.roof, this.tree, this.cyl, ...this.pads);
-    this.street.renderOrder = -6; for (const m of this.city.children) m.renderOrder = -5; this.pillar.renderOrder = -4;
     this.group = new THREE.Group(); this.group.add(this.street, this.city, this.pillar, this.tint, this.mist); this.group.visible = false; scene.add(this.group);
     this.d = new THREE.Object3D(); this.c = new THREE.Color();
     this.reset();
