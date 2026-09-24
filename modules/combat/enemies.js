@@ -36,6 +36,7 @@ export function updateEnemies(w, dt) {
     const stunned = stunAll || e.stunT > 0; if (e.stunT > 0) e.stunT -= dt;
     if (e.boss || e.parent) { alive++; continue; } // driven by bosses.js
     if (e.slot) { alive++; if (e.slot.x < minOff) minOff = e.slot.x; if (e.slot.x > maxOff) maxOff = e.slot.x; }
+    if (def.blink && e.path && !stunned) { e.blinkT = (e.blinkT ?? def.blink.every * (0.5 + rand() * 0.5)) - edt; if (e.blinkT <= 0) { e.blinkT = def.blink.every; fx(w, 'boom', e.x, e.y, e.r * 0.9, def.color); const nx = Math.max(-40, Math.min(40, (e.path.x0 ?? e.x) + (rand() - 0.5) * 2 * def.blink.range)); if (e.path.x0 != null) e.path.x0 = nx; e.x = nx; fx(w, 'boom', e.x, e.y, e.r * 0.9, def.color); sfx(w, 'teleport', 0.4); } }
     if (def.stealth) { const cyc = def.stealth.on + def.stealth.off; e.cloaked = (e.t % cyc) < def.stealth.on && !stunned; e.visible = !e.cloaked; }
 
     if (!stunned) {
@@ -72,9 +73,10 @@ export function updateEnemies(w, dt) {
           hurtPlayer(w, 1, e); if (!e.elite) { killEnemy(w, e, null, false, 0); continue; }
         }
       } else if (e.y < FIELD.LAND_Y && e.state !== 'dive' && !def.cruiser) { hurtPlayer(w, 0, e); landed(w, e); continue; }
-      if (def.fire && f.enter <= 0 && e.spawnT <= 0 && !(def.fire.onlyDiving && e.state !== 'dive') && !(w.counter && (e.y > FIELD.H - 2 || (e.y < p.y + 6 && !def.ground)))) {
+      if (def.fire && f.enter <= 0 && e.spawnT <= 0 && !(def.fire.onlyDiving && e.state !== 'dive') && !(w.counter && (e.y > FIELD.H - 2 || (e.y < p.y + 6 && !def.ground && def.fire.kind !== 'side')))) {
         e.fireT -= edt * w.sim.fireRate * (w.wave.info?.mod?.fireRate || 1) * (e.buffed ? 1.6 : 1) * (e.elite?.fireRate || 1);
-        if (e.fireT <= 0) { e.fireT = def.fire.every * (0.75 + rand() * 0.5); if (!e.cloaked) enemyFire(w, e, def.fire); }
+        // aligned: hold fire until level with the ship (broadside gunships)
+        if (e.fireT <= 0 && (!def.fire.aligned || Math.abs(e.y - p.y) < 3)) { e.fireT = def.fire.every * (0.75 + rand() * 0.5); if (!e.cloaked) enemyFire(w, e, def.fire); }
       }
     }
     e.lastVx = (e.x - px) / Math.max(dt, 1e-4);
@@ -104,10 +106,16 @@ function enemyFire(w, e, fire) {
   switch (fire.kind) {
     case 'bolt': spawnBullet(w, e.x, e.y - e.r, 0, -fire.speed, fire.dmg, 'bolt'); break;
     case 'heavy': spawnBullet(w, e.x, e.y - e.r, 0, -fire.speed, fire.dmg, 'heavy'); break;
-    case 'aimed': { const a = Math.atan2(p.y - e.y, p.x - e.x); spawnBullet(w, e.x, e.y - e.r, Math.cos(a) * fire.speed, Math.sin(a) * fire.speed, fire.dmg, 'bolt'); break; }
-    case 'snipe': w.hazards.push({ kind: 'snipe', src: e, x: e.x, y: e.y, tx: p.x, ty: p.y, t: 0, telegraph: fire.telegraph, speed: fire.speed, dmg: fire.dmg }); break;
+    case 'aimed': case 'spread': { // a ship hidden in a nebula bank throws the aim off
+      const a = Math.atan2(p.y - e.y, p.x - e.x) + (w.playerVeiled ? (rand() - 0.5) * 1.1 : 0);
+      for (const o of fire.kind === 'spread' ? [-0.24, 0, 0.24] : [0]) spawnBullet(w, e.x, e.y - e.r, Math.cos(a + o) * fire.speed, Math.sin(a + o) * fire.speed, fire.dmg, 'bolt'); break; }
+    case 'snipe': w.hazards.push({ kind: 'snipe', src: e, x: e.x, y: e.y, tx: p.x + (w.playerVeiled ? (rand() - 0.5) * 24 : 0), ty: p.y, t: 0, telegraph: fire.telegraph, speed: fire.speed, dmg: fire.dmg }); break;
     case 'beam': w.hazards.push({ kind: 'beam', src: e, x: e.x, y: e.y, t: 0, telegraph: fire.telegraph, dur: fire.dur, width: 7, dmg: fire.dmg }); break;
     case 'shell': w.hazards.push({ kind: 'shell', x: p.x + (rand() - 0.5) * 8, y: p.y, t: 0, telegraph: fire.telegraph, r: fire.radius, dmg: fire.dmg }); break;
+    case 'side': for (const d of [-1, 1]) spawnBullet(w, e.x + d * e.r, e.y, d * fire.speed, -3, fire.dmg, 'bolt'); break; // broadsides: dodge up or down
+    case 'mine': w.hazards.push({ kind: 'mine', x: e.x, y: e.y - e.r, vy: -(fire.drift || 7), t: 0, fuse: fire.fuse || 3.4, r: fire.radius || 8, dmg: fire.dmg }); break;
+    case 'split': { const a = Math.atan2(p.y - e.y, p.x - e.x) + (w.playerVeiled ? (rand() - 0.5) * 1.1 : 0), b = spawnBullet(w, e.x, e.y - e.r, Math.cos(a) * fire.speed, Math.sin(a) * fire.speed, fire.dmg, 'orb', 1.7); if (b) b.split = { t: fire.fuse || 0.9, n: fire.n || 5, speed: fire.split || 30 }; break; }
+    case 'wave': for (let k = 0; k < (fire.n || 5); k++) { const b = spawnBullet(w, e.x, e.y - e.r - k * 3.2, 0, -fire.speed, fire.dmg, 'orb'); if (b) b.wob = { a: 24, f: 4, p: k * 0.45 }; } break;
     case 'rocket': { const r = spawnEnemy(w, 'rocket', e.x, e.y - e.r, { state: 'free' }); if (r) { r.homingRocket = { speed: fire.speed, dmg: fire.dmg, life: 9 }; r.rewardMul = 0; } break; }
   }
   if (rand() < 0.3) sfx(w, 'eshot', 0.4);
@@ -129,7 +137,9 @@ export function updateBullets(w, dt) {
   const p = w.player, slow = w.slowT > 0 ? 0.35 : 1, B = w.ebullets, manual = w.input.manualT < BAL.manualWindow;
   for (let i = B.length - 1; i >= 0; i--) {
     const b = B[i]; b.x += b.vx * dt * slow; b.y += b.vy * dt * slow;
+    if (b.wob) { b.wt = (b.wt || 0) + dt * slow; b.x += Math.cos(b.wt * b.wob.f + b.wob.p) * b.wob.a * dt * slow; } // snaking streams
     let dead = !b.alive || b.y < -6 || b.y > FIELD.H + 20 || Math.abs(b.x) > HALF + 10;
+    if (!dead && b.split) { b.split.t -= dt * slow; if (b.split.t <= 0) { const o = rand() * 6.28; for (let k = 0; k < b.split.n; k++) { const a = o + (k / b.split.n) * 6.283; spawnBullet(w, b.x, b.y, Math.cos(a) * b.split.speed, Math.sin(a) * b.split.speed, b.dmg * 0.7, 'orb'); } fx(w, 'hit', b.x, b.y, 0xff5d8f); dead = true; } } // bursting orbs
     if (!dead && b.y < FIELD.BARRIER_Y + 3 && b.y > FIELD.BARRIER_Y - 3) for (const br of w.barriers) if (br.hp > 0 && Math.abs(b.x - br.x) < br.w / 2) { br.hp -= b.dmg * w.base.dmgPerBarrier; br.flash = 0.12; fx(w, 'hit', b.x, b.y, 0x7aa2ff); fx(w, 'boom', b.x, b.y, 2.2, 0x7aa2ff); dead = true; break; }
     if (!dead && p.alive) {
       const dx = b.x - p.x, dy = b.y - p.y, d2 = dx * dx + dy * dy, rr = p.r + b.r;
@@ -149,6 +159,15 @@ export function updateHazards(w, dt) {
     switch (h.kind) {
       case 'snipe': if (h.t >= h.telegraph) { const a = Math.atan2(h.ty - h.y, h.tx - h.x); spawnBullet(w, h.src.x, h.src.y, Math.cos(a) * h.speed, Math.sin(a) * h.speed, h.dmg, 'snipe', 1.3); sfx(w, 'snipe'); done = true; } else { h.x = h.src.x; h.y = h.src.y; } break;
       case 'beam': if (h.src) h.x = h.src.x; if (h.t >= h.telegraph) { if (!h.fired) { h.fired = true; sfx(w, 'ebeam'); } if (Math.abs(p.x - h.x) < h.width / 2 + p.r * 0.6) hurtPlayer(w, h.dmg * dt * 3, h); if (h.t >= h.telegraph + h.dur) done = true; } break;
+      // Horizontal beam across the field at one height: get above or below it.
+      case 'hbeam': if (h.t >= h.telegraph) { if (!h.fired) { h.fired = true; sfx(w, 'ebeam'); fx(w, 'shake', 0.25); } if (Math.abs(p.y - h.y) < h.width / 2 + p.r * 0.6) hurtPlayer(w, h.dmg * dt * 3, h); if (h.t >= h.telegraph + h.dur) done = true; } break;
+      // A laser swinging from its source through an arc.
+      case 'sweep': { if (h.src) { h.x = h.src.x; h.y = h.src.y - (h.src.r || 0) * 0.5; } const k = Math.max(0, Math.min(1, (h.t - h.telegraph) / h.dur)); h.ang = h.a0 + (h.a1 - h.a0) * k;
+        if (h.t >= h.telegraph) { if (!h.fired) { h.fired = true; sfx(w, 'ebeam'); } const dx = p.x - h.x, dy = p.y - h.y, along = dx * Math.cos(h.ang) + dy * Math.sin(h.ang), perp = Math.abs(-dx * Math.sin(h.ang) + dy * Math.cos(h.ang)); if (along > 0 && perp < h.width / 2 + p.r * 0.6) hurtPlayer(w, h.dmg * dt * 3, h); }
+        if (h.t >= h.telegraph + h.dur) done = true; break; }
+      // Drifting proximity mine: arms when the ship comes close, or blows when its fuse runs out.
+      case 'mine': { h.y += h.vy * dt; const d = Math.hypot(p.x - h.x, p.y - h.y); if (!h.arm && d < h.r + 3) { h.arm = h.t + 0.55; sfx(w, 'charge', 0.5); }
+        if (h.t >= h.fuse || (h.arm && h.t >= h.arm)) { fx(w, 'boom', h.x, h.y, h.r, 0xffb070); sfx(w, 'boom', 0.6); if (d < h.r + p.r) hurtPlayer(w, h.dmg, h); done = true; } else if (h.y < -10) done = true; break; }
       case 'shell': if (h.t >= h.telegraph) { fx(w, 'boom', h.x, h.y, h.r, 0xffa94d); fx(w, 'shake', 0.3); sfx(w, 'boom', 0.8); if (Math.hypot(p.x - h.x, p.y - h.y) < h.r + p.r) hurtPlayer(w, h.dmg, h); done = true; } break;
       case 'well': { const dx = h.x - p.x; p.x += Math.sign(dx) * Math.min(Math.abs(dx), h.pull * dt); if (Math.abs(dx) < 6) hurtPlayer(w, 1.5 * dt, h); if (h.t >= h.dur) done = true; break; }
       case 'pool': h.tick -= dt; if (h.tick <= 0) { h.tick = 0.4; for (const e of w.enemies) if (e.alive && Math.hypot(e.x - h.x, e.y - h.y) < h.r + e.r) hitEnemy(w, e, h.src, h.mult * 0.12, e.x, e.y, true); } if (h.t >= h.dur) done = true; break;

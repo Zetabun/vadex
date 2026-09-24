@@ -15,6 +15,7 @@ import { Banner } from '@last-orbit/rendering/banner.js';
 import { Ground } from '@last-orbit/rendering/ground.js';
 import { counterProgress } from '@last-orbit/combat/counter.js';
 import { TRAIL_BY_ID } from '@last-orbit/data/prestige.js';
+import { SetPieces } from '@last-orbit/rendering/setpieces.js';
 import { playSfx } from '@last-orbit/audio/audio.js';
 
 const CAP = { swarm: 110, scout: 70, weaver: 70, plate: 60, armourPlate: 12, turret: 12, wyrmSeg: 16, rocket: 30 };
@@ -48,7 +49,7 @@ export class Renderer {
     this.parts = new Particles(1800); this.trans = new Transients(); this.texts = []; this.engineT = 0;
     this.supportWorld = null; this.salvageDrops = []; this.salvageCraft = null; this.repairCraft = null; this.repairBeamT = 0;
     this.view = { ...VIEWS.field }; this.viewTarget = VIEWS.field;
-    this.buildPlayer(); this.banner = new Banner(this.scene); this.ground = new Ground(this.scene); this.resize(); this.lastSector = -1;
+    this.buildPlayer(); this.banner = new Banner(this.scene); this.ground = new Ground(this.scene); this.sets = new SetPieces(this.scene); this.resize(); this.lastSector = -1;
   }
   inst(geo, mat, cap) { const THREE = window.THREE, m = new THREE.InstancedMesh(geo, mat, cap); m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3).fill(1), 3); m.instanceMatrix.setUsage(THREE.DynamicDrawUsage); m.instanceColor.setUsage(THREE.DynamicDrawUsage); m.frustumCulled = false; m.count = 0; this.scene.add(m); return m; }
   meshFor(shape) { return this.meshes[shape] || (this.meshes[shape] = this.inst(shapeGeometry(shape), this.enemyMat, CAP[shape] || (shape.startsWith('boss') || shape.startsWith('mini') ? 3 : 40))); }
@@ -175,7 +176,9 @@ export class Renderer {
     this.fitCamera(dt); if (this.shake > 0) this.shake = Math.max(0, this.shake - dt * 2.2);
     const secIdx = w.base.sectorIdx % 6; if (secIdx !== this.lastSector) { this.bg.setSector(secIdx, this.lastSector < 0); this.lastSector = secIdx; this.rails.material.color.set(this.bg.target.mistCol); }
     // Counterattack flies away from the home planet: no horizon, and the starfield rushes past.
-    this.bg.planet.visible = !!this.bg.planetOn && !(w.counter && this.bg.decor === 'none');
+    // Event Horizon draws its own singularity in the field, so the backdrop's black hole steps aside.
+    const ownHole = w.set?.kind === 'horizon';
+    this.bg.planet.visible = !!this.bg.planetOn && !(w.counter && this.bg.decor === 'none') && !ownHole; this.bg.disc.visible = this.bg.decor === 'rings' && !ownHole;
     // Liftoff: the city below until the ship climbs clear of it; stars only once in the dark.
     const gs = w.counter?.stage.ground || 0, fade = gs ? Math.max(0, Math.min(1, (gs + 0.07 - counterProgress(w)) / 0.14)) : 0;
     if (gs && this.groundWorld !== w) { this.groundWorld = w; this.ground.reset(); } // each attempt starts back at the spaceport
@@ -184,6 +187,7 @@ export class Renderer {
     this.bg.update(dt * (w.counter ? 3.2 : 1), speedMul); this.drain(w);
     const fdt = dt * Math.min(3, speedMul); this.parts.update(fdt); this.trans.update(fdt);
     const B = this.B; for (const k in B) B[k].begin();
+    this.sets.update(w, fdt, B);
     this.drawEnemies(w); this.drawPlayer(w, fdt); this.drawShots(w); this.drawHazards(w); this.drawBarriers(w); this.drawDrones(w); this.drawPickups(w); this.drawSupportCraft(w, fdt);
     this.trans.draw(B); this.parts.draw(B.soft);
     for (const k in B) B[k].end();
@@ -204,7 +208,9 @@ export class Renderer {
       const big = !!e.boss, wob = big ? 0.06 : 0.22; d.position.set(e.x, e.y, 0); d.rotation.set(Math.sin(t * 1.3 + e.id) * wob * 0.6, Math.sin(t * 1.7 + e.id * 1.7) * wob + (e.vx ? Math.max(-0.5, Math.min(0.5, e.vx * 0.012)) : 0), e.rot || 0);
       if (shape === 'miniF' || shape === 'bossOracle' || shape === 'bossSing' || shape === 'aegis' || shape === 'bossBastion') d.rotation.z += t * (big ? 0.35 : 0.9);
       if (e.def.cruiser) d.rotation.z = e.vx < 0 ? Math.PI : 0;
-      const pulse = e.state === 'dive' ? 1.1 : 1; d.scale.setScalar(e.r * 0.92 * pulse); d.updateMatrix(); m.setMatrixAt(n, d.matrix);
+      if (shape === 'rift' || shape === 'bossShroud') d.rotation.z += t * (shape === 'rift' ? 2.4 : 0.5); else if (shape === 'bossUnmaker') d.rotation.z -= t * 0.3;
+      const beat = shape === 'bossHeart' || shape === 'pod' ? 1 + 0.07 * Math.max(0, Math.sin(t * (shape === 'pod' ? 4 : 2.6) + e.id)) ** 4 : 1, tell = e.boss?.charge || 0;
+      const pulse = (e.state === 'dive' ? 1.1 : 1) * beat * (1 + 0.07 * tell * (0.6 + 0.4 * Math.sin(t * 40))); d.scale.setScalar(e.r * 0.92 * pulse); d.updateMatrix(); m.setMatrixAt(n, d.matrix);
       const c = rgb(e.color ?? e.def.color ?? 0xffffff); let r = c[0], g = c[1], b = c[2], mul = 1;
       if (e.elite) { const ec = rgb(e.elite.color), k = 0.45 + 0.35 * Math.sin(t * 6 + e.id); r += (ec[0] - r) * k; g += (ec[1] - g) * k; b += (ec[2] - b) * k; }
       if (e.cloaked) mul = 0.16; else if (e.invuln && e.boss && !(e.boss.enter > 0)) mul = 0.5; if (e.stunT > 0 || w.stunT > 0) { r = r * 0.5 + 0.2; g = g * 0.5 + 0.4; b = b * 0.5 + 0.5; }
@@ -217,6 +223,10 @@ export class Renderer {
       if (e.burnT > 0) B.soft.add(e.x + Math.sin(t * 20 + e.id) * e.r * 0.4, e.y + e.r * 0.3, e.r * 1.6, e.r * 2.2, 0, AMBER, 0.6);
       if (e.def.aura && !e.cloaked) { const ar = e.def.aura.radius * 2; B.ring.add(e.x, e.y, ar * 1.15, ar * 1.15, -t * 0.3, c, 0.1); }
       if (e.weak) { const wx = e.x + e.weak.x, wy = e.y - e.r * 0.55; if (e.weakOpen) { const s = e.weak.r * 2.6 * (1 + 0.15 * Math.sin(t * 12)); B.soft.add(wx, wy, s * 1.6, s * 1.6, 0, AMBER, 1.2); B.reticle.add(wx, wy, s * 1.5, s * 1.5, t * 2, WHITE, 1); } else B.soft.add(wx, wy, e.weak.r * 1.4, e.weak.r * 1.4, 0, RED, 0.35); }
+      // Wind-up: before each attack the boss glows in the attack's colour and a ring closes in on it.
+      if (e.boss?.charge > 0) { const k = e.boss.charge, cc = rgb(e.boss.chargeCol || 0xffffff); B.soft.add(e.x, e.y, e.r * (2.4 + k * 2), e.r * (2.4 + k * 2), 0, cc, 0.25 + 0.55 * k); B.ring.add(e.x, e.y, e.r * (4.2 - 2.4 * k), e.r * (4.2 - 2.4 * k), t * 3, cc, 0.3 + 0.6 * k); }
+      // Lungers flash a warning line across the tunnel at the height they are about to cross.
+      if (e.path?.kind === 'lunge' && e.path.t >= 0 && e.path.t < e.path.wait) { const k = e.path.t / e.path.wait; B.streak.line(-50, e.path.y0, 50, e.path.y0, 1.2 + k * 2.2, rgb(0xff5fd2), 0.45 + 0.75 * k * (0.6 + 0.4 * Math.sin(t * 30))); B.soft.add(e.x, e.y, e.r * 4, e.r * 4, 0, rgb(0xff5fd2), 0.5 + k); }
       if (e.boss?.enraged) B.soft.add(e.x, e.y, e.r * 5, e.r * 5, 0, RED, 0.25 + 0.15 * Math.sin(t * 9));
       if (e.mined) B.ring.add(e.x, e.y, e.r * 3.1, e.r * 3.1, t * 0.7, rgb(0xffca65), 0.75);
       if (e.droneMarkT > 0 && e !== w.painted) B.reticle.add(e.x, e.y, e.r * 3.5, e.r * 3.5, t * 2, rgb(0xf077b5), 0.9);
@@ -295,6 +305,15 @@ export class Renderer {
     for (const h of w.hazards) {
       if (h.kind === 'snipe') { const k = Math.min(1, h.t / h.telegraph), a = Math.atan2(h.ty - h.y, h.tx - h.x), sx = h.src?.x ?? h.x, sy = h.src?.y ?? h.y; B.streak.line(sx, sy, sx + Math.cos(a) * 200, sy + Math.sin(a) * 200, 0.6 + k * 1.2, RED, 0.25 + k * 0.7); }
       else if (h.kind === 'beam') { const live = h.t >= h.telegraph, y0 = h.src ? h.src.y : h.y; if (!live) { const k = h.t / h.telegraph; B.streak.line(h.x, y0, h.x, -10, 1 + k * 2, RED, 0.2 + 0.5 * k * (0.6 + 0.4 * Math.sin(t * 30))); B.soft.add(h.x, y0 - 3, 4 + k * 8, 4 + k * 8, 0, RED, k); } else { B.streak.line(h.x, y0, h.x, -10, h.width * 2.4, rgb(0xff3df0), 1.2); B.streak.line(h.x, y0, h.x, -10, h.width * 0.9, WHITE, 1.2); B.soft.add(h.x, FIELD.PLAYER_Y - 4, h.width * 3, 8, 0, rgb(0xff3df0), 1); } }
+      else if (h.kind === 'hbeam') { const live = h.t >= h.telegraph, k = Math.min(1, h.t / h.telegraph);
+        if (!live) { B.streak.line(-52, h.y, 52, h.y, 0.8 + k * 2, RED, 0.2 + 0.5 * k * (0.6 + 0.4 * Math.sin(t * 30))); B.soft.add(-48, h.y, 5 + k * 6, 5 + k * 6, 0, RED, k); B.soft.add(48, h.y, 5 + k * 6, 5 + k * 6, 0, RED, k); }
+        else { B.streak.line(-52, h.y, 52, h.y, h.width * 2.2, rgb(0xff3d6a), 1.2); B.streak.line(-52, h.y, 52, h.y, h.width * 0.8, WHITE, 1.2); } }
+      else if (h.kind === 'sweep') { const a = h.ang ?? h.a0, L = 190, x2 = h.x + Math.cos(a) * L, y2 = h.y + Math.sin(a) * L;
+        if (h.t < h.telegraph) { const k = h.t / h.telegraph; B.streak.line(h.x, h.y, x2, y2, 0.8 + k * 1.5, RED, 0.25 + 0.5 * k); const a1 = h.a1, e2x = h.x + Math.cos(a1) * 40, e2y = h.y + Math.sin(a1) * 40; B.streak.line(h.x, h.y, e2x, e2y, 0.6, RED, 0.25 * k); }
+        else { B.streak.line(h.x, h.y, x2, y2, h.width * 2.2, rgb(0xff3d6a), 1.2); B.streak.line(h.x, h.y, x2, y2, h.width * 0.8, WHITE, 1.2); B.soft.add(h.x, h.y, 12, 12, 0, rgb(0xff3d6a), 1); } }
+      else if (h.kind === 'mine') { const blink = h.arm ? Math.sin(t * 40) > 0 : Math.sin(t * 6 + h.x) > 0.6, k = h.arm ? 1 : Math.min(1, h.t / h.fuse);
+        B.soft.add(h.x, h.y, 5, 5, 0, rgb(0xffb070), 0.6); B.ring.add(h.x, h.y, 3.2, 3.2, t * 2, rgb(0xffe0b0), 0.9); if (blink) B.soft.add(h.x, h.y, 3, 3, 0, RED, 1.4);
+        if (h.arm || k > 0.7) B.ring.add(h.x, h.y, h.r * 2, h.r * 2, 0, RED, 0.25 + 0.4 * (h.arm ? 1 : (k - 0.7) / 0.3)); }
       else if (h.kind === 'shell') { const k = Math.min(1, Math.max(0, h.t / h.telegraph)); if (h.t >= 0) { B.ring.add(h.x, h.y, h.r * 2.3, h.r * 2.3, 0, RED, 0.35 + 0.4 * k); B.ring.add(h.x, h.y, h.r * 2.3 * k, h.r * 2.3 * k, 0, AMBER, 0.9); B.soft.add(h.x, h.y + (1 - k) * 120, 4, 7, 0, AMBER, 1.2); } }
       else if (h.kind === 'well') { B.dark.add(h.x, h.y, 16, 16, 0, WHITE, 1); B.ring.add(h.x, h.y, 14 + 3 * Math.sin(t * 6), 14 + 3 * Math.sin(t * 6), t * 3, VIOLET, 0.9); B.streak.line(h.x, h.y, h.x, 160, 2, VIOLET, 0.25); }
       else if (h.kind === 'pool') { const k = 1 - h.t / h.dur; B.soft.add(h.x, h.y, h.r * 2.6, h.r * 2.6, 0, rgb(h.src.color ?? 0x6dff8e), 0.35 * k + 0.1 * Math.sin(t * 12)); }
@@ -362,7 +381,7 @@ export class Renderer {
     const g = this.ctx2d, k = this.opr, s = [0, 0]; g.setTransform(k, 0, 0, k, 0, 0); g.clearRect(0, 0, this.w, this.h);
     const unit = this.unitPx();
     // enemy hull bars (only damaged or special)
-    for (let i = 0; i < w.enemies.length; i++) { const e = w.enemies[i]; if (!e.alive || e.cloaked || e.def.projectile || (e.boss && !e.boss.def.mini && false)) continue; if (e.hp >= 0.999 && !e.elite) continue; if (e.boss) continue;
+    for (let i = 0; i < w.enemies.length; i++) { const e = w.enemies[i]; if (!e.alive || e.cloaked || e.veiled || e.def.projectile || (e.boss && !e.boss.def.mini && false)) continue; if (e.hp >= 0.999 && !e.elite) continue; if (e.boss) continue;
       this.worldToScreen(e.x, e.y + e.r + 1.6, s); const bw = Math.max(14, e.r * unit * 1.7), bh = 3; g.fillStyle = 'rgba(4,8,20,.75)'; g.fillRect(s[0] - bw / 2 - 1, s[1] - 1, bw + 2, bh + 2); g.fillStyle = e.elite ? css(e.elite.color) : e.part ? '#ffb547' : '#ff4d7a'; g.fillRect(s[0] - bw / 2, s[1], bw * Math.max(0, e.hp), bh);
       const eliteName = e.elite?.name; if (eliteName && eliteName !== 'null' && eliteName !== 'undefined') { g.font = '600 9px "Barlow Semi Condensed",sans-serif'; g.textAlign = 'center'; g.fillStyle = css(e.elite.color); g.fillText(String(eliteName).toUpperCase(), s[0], s[1] - 3); } }
     // floating text

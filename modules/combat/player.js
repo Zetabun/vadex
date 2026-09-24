@@ -34,7 +34,7 @@ export function updatePlayer(w, dt) {
   else { p.autoThinkT = 0; p.autoWantX = p.x; }
   const dx = Math.max(-HALF, Math.min(HALF, want)) - p.x, stepX = Math.sign(dx) * Math.min(Math.abs(dx), speed * dt);
   if (w.counter) { // Counterattack: the ship also flies up and down the lower half of the field
-    const dirY = inp.keysY || 0, wantY = dirY ? p.y + dirY * 30 : inp.active && inp.targetY != null ? inp.targetY : p.y;
+    const dirY = inp.keysY || 0, wantY = dirY ? p.y + dirY * 30 : inp.active && inp.targetY != null ? inp.targetY : flag('f.autopilot') && w.wave.state === 'fighting' ? autoY(w, p) : p.y;
     const dy = Math.max(FIELD.PLAYER_Y, Math.min(COUNTER_TOP, wantY)) - p.y; p.y += Math.sign(dy) * Math.min(Math.abs(dy), speed * 0.9 * dt);
   }
   p.x += stepX; p.vx = stepX / Math.max(dt, 1e-4); p.tilt += (Math.max(-1, Math.min(1, p.vx / 60)) - p.tilt) * Math.min(1, 10 * dt);
@@ -80,6 +80,16 @@ function paint(w, x, y) {
 // prediction horizon, notices near misses / telegraphed hazards and reacts a little faster.
 // Decisions are sampled rather than recomputed continuously so manual flying remains superior.
 const CAND = [0, -4, 4, -8, 8, -13, 13, -19, 19, -27, 27];
+/** The bot's height in Counterattack: low by default, and out of the way of horizontal beams and lungers. */
+function autoY(w, p) {
+  let want = 14;
+  const bands = [];
+  for (const h of w.hazards) if (h.kind === 'hbeam') bands.push([h.y, h.width / 2 + 5]);
+  for (const e of w.enemies) if (e.alive && e.path?.kind === 'lunge') bands.push([e.path.y0, e.r + 5]);
+  for (let tries = 0; tries < 4; tries++) { const hit = bands.find(([y, r]) => Math.abs(want - y) < r); if (!hit) break; want = hit[0] > 40 ? hit[0] - hit[1] - 2 : hit[0] + hit[1] + 2; }
+  return Math.max(FIELD.PLAYER_Y, Math.min(COUNTER_TOP, want));
+}
+
 export function autopilot(w, p, dodge, dt) {
   dodge = Math.max(0, Math.min(3, Number(dodge) || 0));
   const t = pickTarget(w); let desired = t ? t.x : 0;

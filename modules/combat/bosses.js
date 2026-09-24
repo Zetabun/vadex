@@ -6,6 +6,11 @@ import { BOSSES } from '@last-orbit/data/bosses.js';
 import { ENEMIES } from '@last-orbit/data/enemies.js';
 import { fx, sfx, spawnEnemy, spawnBullet } from '@last-orbit/combat/world.js';
 import { G } from '@last-orbit/core/game.js';
+import { squadPaths } from '@last-orbit/combat/paths.js';
+
+/** Seconds before an attack in which the boss visibly winds up (drawn by the renderer from boss.boss.charge). */
+const TELL = 0.7;
+const TELL_COL = { hbeam: 0xff4d5e, sweep: 0xff4d5e, beam: 0xff3df0, mines: 0xffb070, gapwall: 0xffd166, split: 0xff5d8f, wave: 0xb69cff, ring: 0xd17bff, spiral: 0xd17bff, well: 0xb69cff, shell: 0xffa94d, ambush: 0x7dffcf, veil: 0xff4d6d };
 
 export function spawnBoss(w, id) {
   const def = BOSSES[id];
@@ -61,7 +66,10 @@ export function updateBoss(w, dt) {
   if (stunned) return;
   // attacks
   const rate = b.enraged ? 1.7 : 1;
-  phase.attacks.forEach((a, i) => { b.timers[i] -= edt * rate; if (b.timers[i] <= 0) { b.timers[i] = a.every; attack(w, boss, a); } });
+  b.charge = 0;
+  phase.attacks.forEach((a, i) => { b.timers[i] -= edt * rate; if (b.timers[i] <= 0) { b.timers[i] = a.every; attack(w, boss, a); } else if (b.timers[i] < TELL && TELL_COL[a.kind]) { const k = 1 - b.timers[i] / TELL; if (k > b.charge) { b.charge = k; b.chargeCol = TELL_COL[a.kind]; } } });
+  // Veil: the boss fades out, untouchable, and reappears somewhere else.
+  if (b.veilT > 0) { b.veilT -= edt; boss.invuln = true; boss.cloaked = true; if (b.veilT <= 0) { boss.cloaked = false; boss.x = (rand() - 0.5) * 60; fx(w, 'boom', boss.x, boss.y, boss.r, def.color); sfx(w, 'teleport'); } }
   // running spirals
   if (b.spiral) { const s = b.spiral; s.t -= edt; s.acc += edt; while (s.acc >= s.rate) { s.acc -= s.rate; s.ang += 0.35; for (let k = 0; k < s.arms; k++) { const a = s.ang + (k / s.arms) * Math.PI * 2; spawnBullet(w, boss.x, boss.y, Math.cos(a) * s.speed, Math.sin(a) * s.speed, 1, 'orb'); } } if (s.t <= 0) b.spiral = null; }
   for (const part of gens) if (part.def.fire) { part.fireT -= edt * rate; if (part.fireT <= 0) { part.fireT = part.def.fire.every * (0.8 + rand() * 0.4); const a = Math.atan2(p.y - part.y, p.x - part.x), f = part.def.fire; spawnBullet(w, part.x, part.y, Math.cos(a) * f.speed, Math.sin(a) * f.speed, f.dmg, 'bolt'); } }
@@ -91,6 +99,20 @@ function attack(w, boss, a) {
     case 'shell': for (let i = 0; i < a.n; i++) w.hazards.push({ kind: 'shell', x: i === 0 ? p.x : (rand() - 0.5) * (FIELD.W - 14), y: p.y, t: 0, telegraph: a.telegraph + i * 0.25, r: a.radius, dmg: 3 }); sfx(w, 'charge'); break;
     case 'summon': { let live = 0; for (const e of w.enemies) if (e.alive && !e.boss && !e.parent) live++; if (live > 18) break; for (let i = 0; i < a.n; i++) { const c = spawnEnemy(w, a.type, boss.x + (i - (a.n - 1) / 2) * 8, boss.y - boss.r, { state: 'free', vy: -14, vx: (i - (a.n - 1) / 2) * 5, reward: 0.25 }); if (c) { c.spawnT = 0.4; if (c.def.kamikaze) { c.state = 'dive'; c.aimX = p.x; } } } sfx(w, 'dive'); break; }
     case 'well': w.hazards.push({ kind: 'well', x: (rand() - 0.5) * 60, y: p.y, t: 0, dur: a.dur, pull: a.pull, src: null }); sfx(w, 'charge'); break;
+    case 'hbeam': { // rows across the field: the first at the pilot's height, the rest far enough away to leave room
+      const rows = [Math.max(12, Math.min(70, p.y))]; for (let k = 1; k < a.rows; k++) { let y; for (let tries = 0; tries < 8; tries++) { y = 12 + rand() * 58; if (rows.every((o) => Math.abs(o - y) > 20)) break; } rows.push(y); }
+      for (const y of rows) w.hazards.push({ kind: 'hbeam', src: boss, y, t: 0, telegraph: a.telegraph, dur: a.dur, width: 6, dmg: 2.2 }); sfx(w, 'charge'); break; }
+    case 'sweep': { const dir = p.x < boss.x ? 1 : -1, half = a.arc / 2; w.hazards.push({ kind: 'sweep', src: boss, x: boss.x, y: boss.y, a0: -Math.PI / 2 - dir * half, a1: -Math.PI / 2 + dir * half, t: 0, telegraph: a.telegraph, dur: a.dur, width: 5, dmg: 2.2 }); sfx(w, 'charge'); break; }
+    case 'mines': for (let i = 0; i < a.n; i++) w.hazards.push({ kind: 'mine', x: (rand() - 0.5) * 80, y: boss.y - 10 - rand() * 20, vy: -9, t: 0, fuse: 4.5 + rand(), r: 9, dmg: 1.8 }); sfx(w, 'charge', 0.5); break;
+    case 'wave': for (let s = 0; s < a.n; s++) { const x0 = boss.x + (s - (a.n - 1) / 2) * 12; for (let k = 0; k < 6; k++) { const bl = spawnBullet(w, x0, boss.y - boss.r - k * 3.2, 0, -a.speed, 1, 'orb'); if (bl) bl.wob = { a: 24, f: 4, p: k * 0.45 + s }; } } sfx(w, 'ring'); break;
+    case 'split': { const base = Math.atan2(p.y - boss.y, p.x - boss.x); for (let i = 0; i < a.n; i++) { const ang = base + (a.n === 1 ? 0 : (i / (a.n - 1) - 0.5) * a.spread * 2), bl = spawnBullet(w, boss.x, boss.y - boss.r * 0.6, Math.cos(ang) * a.speed, Math.sin(ang) * a.speed, 1, 'orb', 1.8); if (bl) bl.split = { t: 1 + rand() * 0.3, n: 5, speed: 28 }; } sfx(w, 'ring'); break; }
+    case 'gapwall': { const gx = Math.max(-38, Math.min(38, p.x + (rand() - 0.5) * 40)); for (let x = -48; x <= 48; x += 4.5) if (Math.abs(x - gx) > a.gap / 2) spawnBullet(w, x, boss.y - boss.r, 0, -a.speed, 1, 'bolt'); sfx(w, 'ring'); break; }
+    case 'veil': b.veilT = a.dur; fx(w, 'boom', boss.x, boss.y, boss.r, b.def.color); sfx(w, 'teleport'); break;
+    case 'ambush': { // flankers climb from behind, lungers burst from the walls, riftlings drop in to hover
+      let live = 0; for (const e of w.enemies) if (e.alive && !e.boss && !e.parent) live++; if (live > 16) break;
+      const pattern = a.type === 'flanker' ? 'rise' : a.type === 'lunger' ? 'lunge' : 'hover';
+      for (const path of squadPaths(pattern, a.n, (rand() - 0.5) * 50, rand() < 0.5 ? -1 : 1, rand() * 6, rand, p)) { const e = spawnEnemy(w, a.type, path.x0 ?? 0, FIELD.H + 12, { state: 'path' }); if (e) { e.path = path; e.rewardMul = 0.3; } }
+      break; }
     case 'teleport': fx(w, 'boom', boss.x, boss.y, boss.r, b.def.color); boss.x = (rand() - 0.5) * 66; fx(w, 'boom', boss.x, boss.y, boss.r, b.def.color); sfx(w, 'teleport'); break;
   }
 }

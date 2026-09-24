@@ -347,7 +347,18 @@ fresh(); run = launch(); step(TICK); { const p = G.world.player, x0 = p.x; G.wor
   // every stage builds a timeline that fills its length with squads of real enemies
   { const tl = buildTimeline(STAGES[0], false); assert.equal(STAGES[0].name, 'Liftoff'); assert.ok(tl.some((ev) => ev.type === 'tower' && ev.pattern === 'ground'), 'Liftoff has gun towers on the ground');
     assert.ok(tl.some((ev) => ev.type === 'skimmer'), 'Liftoff has skimmers'); assert.ok(tl.every((ev, i) => !i || tl[i - 1].t <= ev.t), 'The timeline is in order');
-    assert.ok(!buildTimeline(STAGES[3], false).some((ev) => ev.pattern === 'ground'), 'Only Liftoff has ground towers'); }
+    assert.ok(!buildTimeline(STAGES[3], false).some((ev) => ev.type === 'tower'), 'Only Liftoff has gun towers');
+    assert.ok(buildTimeline(STAGES[3], false).some((ev) => ev.type === 'hullgun'), 'Iron Curtain has deck guns'); assert.ok(buildTimeline(STAGES[4], false).some((ev) => ev.type === 'spore'), 'Hive Breach has spore pods'); }
+  // set pieces: wrecks are cover, hive walls hem the ship in, the singularity pulls
+  { const SP = await import('@last-orbit/combat/setpieces.js');
+    run = startSortie({ counter: 2, seed: 3 }); initWorld(); run.offer = null; run.pendingLevels = 0; step(TICK); assert.equal(G.world.set.kind, 'wrecks');
+    G.world.set.items.push({ x: 0, y: 40, w: 20, h: 8, rot: 0, vr: 0, seed: 1 }); G.world.ebullets.push({ x: 0, y: 41, vx: 0, vy: 0, r: 1, dmg: 1, alive: true, kind: 'bolt' }); step(TICK);
+    assert.ok(!G.world.ebullets.some((b) => b.alive && Math.abs(b.y - 41) < 2 && b.x === 0), 'A wreck stops enemy fire');
+    G.world.player.x = 0; G.world.player.y = 38; step(TICK); assert.ok(Math.abs(G.world.player.y - 40) > 3 || Math.abs(G.world.player.x) > 9, 'The ship cannot sit inside a wreck'); endSortie('abandoned');
+    run = startSortie({ counter: 5, seed: 3 }); initWorld(); run.offer = null; run.pendingLevels = 0; G.world.counter.t = 60; step(TICK); G.world.player.x = -60; step(TICK);
+    assert.ok(G.world.player.x > -50.5 + SP.hiveDepth(G.world.player.y + G.world.set.scroll, -1, G.world.set.ramp) - 0.5, 'Hive walls hem the ship in'); endSortie('abandoned');
+    run = startSortie({ counter: 6, seed: 3 }); initWorld(); run.offer = null; run.pendingLevels = 0; G.world.counter.t = 10; G.world.player.x = -30; const x0 = G.world.player.x; for (let i = 0; i < 30; i++) step(TICK);
+    assert.ok(G.world.player.x > x0, 'The singularity pulls the ship'); endSortie('abandoned'); G.state.stats.counterRuns = 0; }
   for (const sg of STAGES) { const tl = buildTimeline(sg, false); assert.ok(tl.length > 30, 'stage ' + sg.n + ' has squads'); assert.ok(tl.every((ev) => ev.type && ev.pattern && ev.n > 0)); assert.ok(buildTimeline(sg, true).length > tl.length, 'Hard mode is denser'); }
   // every path pattern moves an enemy and eventually lets it leave
   for (const kind of ['column', 'vee', 'sweep', 'swirl', 'hover', 'dive']) { const [path] = squadPaths(kind, 1, 0, 1, 0, Math.random); const e = { x: 0, y: 160, rot: 0, path }; let alive = true, n = 0; while (alive && n++ < 4000) alive = movePath(e, 1 / 60, { x: 0, y: 9 }); assert.ok(!alive, kind + ' leaves the field'); }

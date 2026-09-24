@@ -40,6 +40,16 @@ function runScene(scene, hooks, ui) {
   const [name, arg, arg2, arg3] = scene.split(':');
   if (name === 'hull' || name === 'hullfly') { st.unlocked.ships[arg] = 1; st.ship = arg; st.banner = 'none'; recalc(); if (name === 'hull') { hooks.toHangar('launch'); return; } }
   if (name === 'paint') { st.paints[arg] = 1; st.paint = arg; hooks.toHangar('launch'); return; }
+  if (name === 'caintro') { st.counter.unlocked = true; hooks.toHangar('missions'); setTimeout(() => document.querySelector('.ca-how')?.click(), 400); return; }
+  // counter:<n>:boss jumps to the stage's boss; counter:<n>:foe sends in the stage's own enemy again and again. The ship cannot die.
+  if (name === 'counter' && (arg2 === 'boss' || arg2 === 'foe')) {
+    st.counter.unlocked = true; hooks.launch({ counter: +arg }); for (let g = 0; g < 60 && (nextRelic() || nextOffer()); g++) { if (st.run.relicOffer) pickRelic(0); else pickCard(autoPickIndex(st.run)); } ui.closeOverlays();
+    const c = G.world.counter, x = c.stage.extra;
+    if (arg2 === 'boss') { c.t = c.stage.len + 8; c.next = c.events.length; c.midDone = true; }
+    else { c.t = c.stage.len * 0.3; c.midDone = true; c.events = Array.from({ length: 40 }, (_, i) => ({ t: c.t + 1 + i * 3.5, type: x?.type || 'grunt', pattern: x?.pattern || 'hover', n: x?.n || 2, x: ((i * 37) % 50) - 25, dir: i % 2 ? 1 : -1, ph: i, elite: false })); c.next = 0; }
+    setInterval(() => { const w = G.world, run = st.run; if (!w?.player || !run) return; if (run.offer || run.relicOffer) { run.offer = run.relicOffer = null; run.pendingLevels = run.pendingRelics = 0; ui.closeOverlays(); } w.player.hull = 1; w.player.invuln = 0; if (arg3 === 'look') w.shots.length = 0; }, 100); // look: hold fire, to see the models
+    return;
+  }
   if (name === 'counter' && arg2 === 'late') { st.counter.unlocked = true; hooks.launch({ counter: +arg }); for (let g = 0; g < 60 && (nextRelic() || nextOffer()); g++) { if (st.run.relicOffer) pickRelic(0); else pickCard(autoPickIndex(st.run)); } ui.closeOverlays(); G.world.counter.t = G.world.counter.stage.len * (arg3 ? +arg3 : 0.5); G.world.counter.midDone = true; G.world.counter.next = G.world.counter.events.findIndex((ev) => ev.t >= G.world.counter.t); if (G.world.counter.next < 0) G.world.counter.next = G.world.counter.events.length;
     setTimeout(() => { if (G.renderer?.ground) { G.renderer.groundWorld = G.world; G.renderer.ground.reset(); G.renderer.ground.scroll = G.world.counter.t * 13; for (const row of G.renderer.ground.rows) { row.y += G.renderer.ground.scroll; row.plan = G.renderer.ground.planRow(row.y); } G.renderer.ground.rebuild(); } }, 50);
     setInterval(() => { const run = st.run; if (!run) return; run.offer = null; run.pendingLevels = 0; ui.closeOverlays(); if (G.world?.player) G.world.player.hull = 1; }, 150); return; }

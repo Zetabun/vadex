@@ -2,6 +2,15 @@
 
 ## v2.6.0 — unreleased
 
+- **Counterattack stages 2–6 each get a set piece, a new enemy and a boss of their own.**
+  - **Graveyard Run:** derelict hulks drift through the field. They are solid and soak up fire from both sides, so they make cover. New enemy: the **Scrapper**, which seeds the lanes with drifting proximity mines. Boss: **Scrapmonger Vorr**, with claw turrets, mine fields, a cutting-torch sweep and flak walls.
+  - **Into the Red:** crimson gas banks drift past. Enemies inside are veiled, and aimed fire loses track of a ship hiding in one. New enemy: the **Stalker**, which cloaks and fires orbs that burst into rings. Boss: **The Red Shroud**, which fades out, reappears elsewhere, and fires snaking streams and bursting orbs.
+  - **Iron Curtain:** a colossal machine battleship slides beneath you, with deck guns firing fans of three. New enemy: the **Flanker**, which climbs up from behind and fires broadsides when level with you. Boss: **Iron Admiral Kross**, with deck turrets, horizontal broadside beams, sweeping lasers and flak walls.
+  - **Hive Breach:** organic walls close in and open out, with spore pods growing on them. New enemy: the **Lunger**, which bursts from the wall at your height and dashes across. Boss: **The Hive Heart**, a beating heart with orbiting tendrils, horizontal lashes and lunger ambushes.
+  - **Event Horizon:** the singularity looms over the field. It pulls the ship and bends enemy fire towards it, with a tidal surge now and then. New enemy: the **Riftling**, which blinks through folded space. Boss: **The Unmaker**, with sweeping beams, gravity wells, horizontal beams and flak walls.
+  - **Moving up and down matters now:** flying higher hits harder (up to +25% damage at the top of your airspace), and horizontal beams, broadsides and lungers come at your height, so climb or dive to dodge them.
+  - **Attack tells:** every boss now winds up visibly before each attack, glowing in the attack's colour as a ring closes in.
+
 - **Overhaul: a prestige loop for the late game.** Once every Workshop upgrade is maxed, an Overhaul panel appears at the top of the Workshop. Overhauling strips the Workshop back to zero for **Blueprints** (5, plus 1 for every 10 waves past 60 you reached since the last Overhaul, up to +5) and raises your Overhaul rank. Ships, weapons, cosmetics, ranks, mastery, medals, records, Counterattack progress and salvage in the bank are all kept.
   - **Escort drones:** Blueprints buy an Escort Bay (up to two) and escort types that fly with you on every sortie, in both modes: Attack, Missile, Repair, Shield, Interceptor and Target Painter. Pick which ones fly from the Blueprints section.
   - **Perks:** Salvage Contracts (+25% salvage per level), Veteran Engineers (Workshop 8% cheaper per level), Head Start (after an Overhaul, Workshop upgrades start up to 3 levels higher; the one-off capstones excepted) and Deep Calibration (+5% damage and hull per level).

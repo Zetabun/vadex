@@ -14,6 +14,7 @@ import { spawnBoss, updateBoss } from '@last-orbit/combat/bosses.js';
 import { updateDrones } from '@last-orbit/combat/drones.js';
 import { updatePickups, collectAll } from '@last-orbit/combat/pickups.js';
 import { squadPaths, PATTERNS } from '@last-orbit/combat/paths.js';
+import { initSetPiece, stepSetPiece, HULL, HIVE, hiveDepth, hullFront, hullLength } from '@last-orbit/combat/setpieces.js';
 
 /** Small seeded generator so every attempt at a stage flies the same assault. */
 function rng(seed) { let s = seed >>> 0 || 1; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
@@ -34,6 +35,12 @@ export function buildTimeline(stage, hard) {
     for (let t = 12; t < stage.len * (stage.ground + 0.1); t += 11 + r() * 5) out.push({ t, type: 'skimmer', pattern: 'skim', n: 3, x: 0, dir: r() < 0.5 ? -1 : 1, ph: r() * 6, elite: false });
     out.sort((a, b) => a.t - b.t);
   }
+  // The stage's own enemy, woven through the squads from early on.
+  if (stage.extra) { const x = stage.extra; for (let t = 9; t < stage.len - 6; t += x.gap[0] + r() * (x.gap[1] - x.gap[0])) out.push({ t, type: x.type, pattern: x.pattern, n: x.n, x: (r() - 0.5) * 50, dir: r() < 0.5 ? -1 : 1, ph: r() * 6, elite: false }); out.sort((a, b) => a.t - b.t); }
+  // Iron Curtain: guns on the battleship's deck while its hull passes beneath.
+  if (stage.set === 'hull') { for (let t = HULL.from * stage.len + 6; t < HULL.to * stage.len - 4; t += 3.4 + r() * 2) out.push({ t, type: 'hullgun', pattern: 'ground', n: r() < 0.4 ? 3 : 2, x: (r() - 0.5) * 30, dir: 1, ph: 0, elite: false, hull: true }); out.sort((a, b) => a.t - b.t); }
+  // Hive Breach: spore pods on the tunnel walls (placed on the wall when they spawn).
+  if (stage.set === 'hive') { for (let t = HIVE.from * stage.len + 8; t < HIVE.to * stage.len - 6; t += 2.8 + r() * 2.4) out.push({ t, type: 'spore', pattern: 'ground', n: 1, x: 0, side: r() < 0.5 ? -1 : 1, dir: 1, ph: 0, elite: false, pod: true }); out.sort((a, b) => a.t - b.t); }
   return out;
 }
 
@@ -47,13 +54,21 @@ export function initCounter(w) {
   const ws = w.wave; ws.num = stage.sector * 10 + 1; ws.state = 'fighting'; ws.t = 0; ws.info = { kind: 'counter', sector: { idx: stage.sector } }; ws.pending = [];
   w.form.total = 0; w.form.enter = 0;
   fx(w, 'sector', stage.sector, `Stage ${stage.n}: ${stage.name}`, stage.brief);
+  initSetPiece(w);
 }
 
 /** Progress through the stage, 0..1, for the HUD. */
 export const counterProgress = (w) => { const c = w.counter; if (!c) return 0; return c.boss ? 1 : Math.max(0, Math.min(0.97, c.t / c.stage.len)); };
 
 function spawnSquad(w, ev) {
-  const c = w.counter, paths = squadPaths(ev.pattern, ev.n, ev.x, ev.dir, ev.ph, Math.random);
+  const c = w.counter, s = w.set, top = FIELD.H + 12;
+  // Deck guns only while the hull is under the spawn line; pods sit on whichever wall is thick enough there.
+  if (ev.hull && s) { const f = hullFront(c.stage, s.clock ?? c.t); if (f > top - 20 || f + hullLength(c.stage) < top + 10) return; }
+  let podX = null;
+  if (ev.pod && s) { const wy = top + (s.scroll || 0); let side = ev.side; if (hiveDepth(wy, side, s.ramp) < 7) side = -side; const d = hiveDepth(wy, side, s.ramp); if (d < 7) return; podX = side * (FIELD.W / 2 - d + 1.2); }
+  const paths = squadPaths(ev.pattern, ev.n, ev.x, ev.dir, ev.ph, Math.random, w.player); if (podX != null) paths[0].x0 = podX;
+  // Lungers wait at the hive wall's inner edge, where the pilot can see them coming.
+  if (s?.kind === 'hive') for (const path of paths) if (path.kind === 'lunge') path.edge = FIELD.W / 2 - hiveDepth(path.y0 + (s.scroll || 0), path.side, s.ramp) - 2;
   paths.forEach((path, i) => {
     const e = spawnEnemy(w, ev.type, path.x0 ?? -ev.dir * 62, FIELD.H + 12, { state: 'path' }); if (!e) return;
     e.path = path; c.spawned++; G.state.run.spawned = c.spawned; G.state.run.pathSpawned = (G.state.run.pathSpawned || 0) + 1;
@@ -77,7 +92,7 @@ export function counterStep(w, dt, afterDeath) {
       }
       rebuildBuckets(w);
       updateEnemies(w, dt); updateBoss(w, dt); updateRockets(w, dt);
-      updateWeapons(w, dt); updateDrones(w, dt); updateBullets(w, dt); updateHazards(w, dt); updatePickups(w, dt);
+      updateWeapons(w, dt); updateDrones(w, dt); updateBullets(w, dt); updateHazards(w, dt); updatePickups(w, dt); stepSetPiece(w, dt);
       if (c.boss && !c.boss.alive && w.player.alive && !c.won) {
         c.won = true; run.stageCleared = true; ws.state = 'cleared'; ws.timer = 3;
         fx(w, 'sectorClear', c.stage.sector, 'Stage cleared'); sfx(w, 'milestone');

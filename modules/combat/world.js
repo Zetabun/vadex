@@ -1,5 +1,6 @@
 // The live battle. Pure simulation state: no DOM, no Three.js. The renderer reads these arrays and drains world.fx.
 import { Big } from '@last-orbit/core/big.js';
+import { COUNTER_TOP, HEIGHT_BONUS } from '@last-orbit/data/counter.js';
 import { G, count, maxStat, flag } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { rand } from '@last-orbit/core/rng.js';
@@ -91,6 +92,8 @@ export function hitEnemy(w, e, src, mult, hx, hy, noCrit) {
   if (e.invuln) { if (rand() < 0.3) fx(w, 'text', e.x, e.y + e.r, 'SHIELDED', '#7aa2ff', 0); e.flash = 0.06; return 0; }
   const p = w.player, sh = G.sheet;
   let m = mult * (1 + p.focus), crit = false, weak = false;
+  // Counterattack rewards flying high: up to +25% damage at the top of the airspace.
+  if (w.counter) m *= 1 + HEIGHT_BONUS * Math.max(0, Math.min(1, (p.y - FIELD.PLAYER_Y) / (COUNTER_TOP - FIELD.PLAYER_Y)));
   if (!noCrit && (w.chargeShots > 0 && src.id !== 'drone' ? true : rand() < src.critChance)) { crit = true; m *= src.critMult; }
   if (e.boss || e.parent) m *= sh.n('bossDmg') * (src.bossMul || 1); else if (e.elite) m *= sh.n('eliteDmg') * (src.bossMul || 1);
   if (e.armour > 0) m *= 1 - e.armour * (1 - (src.armorPen || 0));

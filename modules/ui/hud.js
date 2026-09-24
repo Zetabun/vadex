@@ -95,7 +95,7 @@ export function createHud(hooks) {
     // Opening lessons: the flight hint in the first two waves of a pilot's first sorties, and in Counterattack the reminder
     // that the ship flies up and down too, for the first few stages flown.
     const ca = !!w.counter, kind = ca ? 'ca' : 'main';
-    if (kind !== hintKind) { hintKind = kind; setText($.hintB, ca ? 'Drag to fly anywhere' : 'Hold a side or drag to steer'); setText($.hintS, ca ? 'Up and down too, across the lower half. Double-tap a side to dash through fire.' : 'Double-tap a side to dash through fire. Your guns shoot on their own; tap an enemy to focus it.'); }
+    if (kind !== hintKind) { hintKind = kind; setText($.hintB, ca ? 'Drag to fly anywhere' : 'Hold a side or drag to steer'); setText($.hintS, ca ? 'Up and down too. Fly higher to hit harder; climb or dive out of beams and lungers.' : 'Double-tap a side to dash through fire. Your guns shoot on their own; tap an enemy to focus it.'); }
     const lesson = ca ? (G.state.stats.counterRuns || 0) <= 3 && hintT < 9 : G.state.stats.sorties <= 2 && run.wave <= 2 && hintT < 14;
     hintT += dt; setClass($.hint, 'on', lesson && w.wave.state !== 'dead' && !hooks.blocking?.());
   }

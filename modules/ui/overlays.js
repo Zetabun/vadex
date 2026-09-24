@@ -183,8 +183,9 @@ export function createOverlays(layer, hooks) {
       h('div.modal-head', h('div.kicker', 'New mode'), h('h2', 'Counterattack'), h('p', 'A vertical shooter. The invaders are falling back: chase them through six stages and take the fight to them.')),
       h('div.ca-intro-body', diagram, h('ul.ca-tips',
         tip('Fly anywhere', 'Drag to steer: up and down as well as side to side, anywhere in the lower half. W/A/S/D on a keyboard.'),
+        tip('Press the attack', 'Flying higher hits harder: up to +25% damage at the top of your airspace. Some threats come at your height, so climb or dive to dodge them.'),
         tip('Dash through fire', 'Double-tap a side (Shift on a keyboard). Your guns fire on their own.'),
-        tip('Break through', 'Squads fly in on set paths. A mini-boss holds the middle and the sector boss waits at the end.'),
+        tip('Break through', 'Each stage has its own hazards: wrecks, gas banks, a battleship, the hive, the singularity. A mini-boss holds the middle and a boss of its own waits at the end.'),
         tip('Earn stars', `Clear the stage, take ${STAR_HITS} hits or fewer, and destroy ${Math.round(STAR_KILLS * 100)}% of the assault force. Stars pay Alien Cores for Alien Tech, which powers up both modes.`))),
       h('div.modal-actions', go ? h('button.btn.ghost', { onclick: close }, 'Not yet') : null,
         h('button.btn.primary', { onclick: () => { close(); go?.(); }, 'data-autofocus': '' }, go ? 'Launch' : 'Got it')));

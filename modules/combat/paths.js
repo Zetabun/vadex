@@ -29,6 +29,11 @@ export function movePath(e, dt, player) {
       else if (t < arrive + P.stay) { e.x = P.x0 + Math.sin((t - arrive) * 0.8 + P.ph) * 9; e.y = P.yh + Math.sin((t - arrive) * 1.6) * 2; }
       else { e.x += (P.x0 >= 0 ? 1 : -1) * 30 * dt; e.y += 12 * dt; } // peel away up and out
       break; }
+    case 'rise': { // up from below and behind the ship, weaving, and out of the top
+      const u = Math.max(0, t); e.x = P.x0 + Math.sin(u * 1.1 + P.ph) * 7; e.y = -14 + P.speed * u; e.rot = Math.PI; if (e.y > TOP + 6) return false; break; }
+    case 'lunge': { // bursts from a wall at the pilot's height, holds while it telegraphs, then crosses at speed
+      const edge = P.side * (P.edge ?? 47); if (t < 0) { e.x = P.side * 62; e.y = P.y0; break; }
+      e.rot = P.side * Math.PI / 2; if (t < P.wait) { e.x += (edge - e.x) * Math.min(1, 6 * dt); e.y = P.y0 + Math.sin(t * 18) * 0.4; } else { e.x -= P.side * P.speed * dt; e.y = P.y0; } break; }
     case 'dive': { // fall on the pilot's position at launch, drifting after them a little
       if (t < 0) { e.x = P.x0; e.y = TOP; break; }
       e.y -= P.speed * dt; const dx = (player?.x ?? P.tx) - e.x; e.x += Math.sign(dx) * Math.min(Math.abs(dx), 9 * dt); e.rot += dt * 5; break; }
@@ -37,7 +42,7 @@ export function movePath(e, dt, player) {
 }
 
 /** Per-member path settings for a squad of `n` using pattern `kind`. */
-export function squadPaths(kind, n, x, dir, ph, rand) {
+export function squadPaths(kind, n, x, dir, ph, rand, player) {
   const out = [];
   for (let i = 0; i < n; i++) {
     switch (kind) {
@@ -49,6 +54,8 @@ export function squadPaths(kind, n, x, dir, ph, rand) {
       case 'dive': out.push({ kind, t: -i * 0.7, x0: x + (i - (n - 1) / 2) * 10, speed: 34, tx: x }); break;
       case 'ground': out.push({ kind, t: 0, x0: Math.max(-44, Math.min(44, x + (i - (n - 1) / 2) * 18)) }); break;
       case 'skim': out.push({ kind, t: -i * 0.3, dir, y0: 34 + rand() * 14, speed: 44, ph: ph + i }); break;
+      case 'rise': out.push({ kind, t: -i * 0.8, x0: Math.max(-40, Math.min(40, x + (i - (n - 1) / 2) * 16)), speed: 22, ph: ph + i }); break;
+      case 'lunge': { const side = i % 2 ? -dir : dir, y0 = Math.max(12, Math.min(68, (player?.y ?? 20) + (i ? (rand() < 0.5 ? -1 : 1) * 16 : 0))); out.push({ kind, t: -i * 1.4, side, y0, wait: 1.15, speed: 95 }); break; }
     }
   }
   return out;

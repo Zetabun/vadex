@@ -3,6 +3,14 @@
 export const ENEMIES = {
   // ---- Counterattack: Liftoff (the home world's surface)
   tower:     { name: 'Gun Tower', hp: 2.2, reward: 2, r: 3.6, cost: 2, prio: 2, color: 0xc9d2e8, shape: 'turret', ground: true, fire: { every: 2.8, kind: 'aimed', speed: 40, dmg: 1 }, desc: 'Rooftop battery. Shoots up at you as you pass over.' },
+  hullgun:   { name: 'Hull Gun', hp: 2.6, reward: 2.2, r: 3.8, cost: 2, prio: 2, color: 0x9ff5d8, shape: 'deckgun', ground: true, fire: { every: 3.3, kind: 'spread', speed: 36, dmg: 0.9 }, desc: 'Deck battery on the machine battleship. Fires a fan of three.' },
+  spore:     { name: 'Spore Pod', hp: 1.6, reward: 1.6, r: 3.4, cost: 1.5, prio: 2, color: 0xff7ad9, shape: 'pod', ground: true, fire: { every: 3.4, kind: 'aimed', speed: 26, dmg: 0.9 }, desc: 'Grows on the hive walls and spits slow spores.' },
+  // ---- Counterattack: one new enemy per stage past Liftoff (see data/counter.js STAGES extra)
+  scrapper:  { name: 'Scrapper', hp: 1.6, reward: 1.8, r: 3.6, cost: 2, prio: 3, color: 0xffb070, shape: 'scrapper', fire: { every: 4.6, kind: 'mine', dmg: 1.6, fuse: 3.4, radius: 8, drift: 7 }, desc: 'Salvage drone. Seeds the lanes with drifting mines that blow when you get close.' },
+  stalker:   { name: 'Stalker', hp: 1.4, reward: 2.2, r: 3.3, cost: 2.2, prio: 3, color: 0xff4d6d, shape: 'stalker', stealth: { on: 2.4, off: 1.8 }, fire: { every: 3.6, kind: 'split', speed: 30, dmg: 0.8, fuse: 0.9, n: 5, split: 30 }, desc: 'Hunts from inside the gas. Its orbs burst into a ring.' },
+  flanker:   { name: 'Flanker', hp: 2, reward: 2.4, r: 3.8, cost: 2.4, prio: 3, color: 0x7dffcf, shape: 'flanker', fire: { every: 1.6, kind: 'side', speed: 46, dmg: 0.9, aligned: true }, desc: 'Climbs up from behind you and fires broadsides when level. Change height.' },
+  lunger:    { name: 'Lunger', hp: 1.2, reward: 1.8, r: 3.6, cost: 1.8, prio: 4, color: 0xff5fd2, shape: 'lunger', desc: 'Bursts from the hive wall at your height and lunges across. Climb or dive.' },
+  riftling:  { name: 'Riftling', hp: 1.3, reward: 2, r: 3.2, cost: 2, prio: 3, color: 0xb69cff, shape: 'rift', blink: { every: 2.6, range: 14 }, fire: { every: 3.8, kind: 'wave', speed: 30, dmg: 0.7, n: 5 }, desc: 'Blinks through folded space and fires snaking streams.' },
   skimmer:   { name: 'Skimmer', hp: 0.6, reward: 1.2, r: 2.8, cost: 1.2, prio: 2, color: 0x5ee6ff, shape: 'phantom', fire: { every: 2.6, kind: 'bolt', speed: 46, dmg: 0.8 }, desc: 'Fast interceptor that skims low across the city.' },
   grunt:     { name: 'Scout', hp: 1, reward: 1, r: 3.4, cost: 1, prio: 1, color: 0x6fd3ff, shape: 'scout', fire: { every: 5.5, kind: 'bolt', speed: 38, dmg: 1 }, desc: 'Holds formation and takes pot shots.' },
   weaver:    { name: 'Weaver', hp: 0.85, reward: 1.2, r: 3.2, cost: 1.3, prio: 1, color: 0x9dff8a, shape: 'weaver', weave: 7, fire: { every: 6, kind: 'bolt', speed: 42, dmg: 0.9 }, desc: 'Sways out of line. Hard to hit with slow shots.' },

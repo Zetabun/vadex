@@ -339,7 +339,7 @@ export function createHangar(hooks) {
     const anyHard = STAGES.some((sg) => (c.stars[sg.n] || 0) > 0);
     return h('section.panel.ca-panel',
       h('div.ca-head', h('div', h('div.kicker', 'Counterattack', h('button.ca-how', { onclick: () => hooks.counterIntro(null) }, 'How it works')), h('h3', 'Take the fight to them')), h('div.ca-cores', art('relic:r_quantum', 'ca-core-ico'), h('b', String(c.cores)), h('small', 'cores'))),
-      h('p', 'Fly free in every direction: drag to move, double-tap a side to dash. Each stage ends with its sector boss. Stars earn Alien Cores for Alien Tech in the Workshop.'),
+      h('p', 'Fly free in every direction: drag to move, double-tap a side to dash. Each stage has its own set piece and ends on a boss of its own. Stars earn Alien Cores for Alien Tech in the Workshop.'),
       h('div.ca-meta', h('span', `★ ${stars(c.stars)}/18` + (anyHard ? ` · Hard ★ ${stars(c.hard)}/18` : '')), anyHard ? h('button.ca-toggle' + (counterHard ? '.on' : ''), { onclick: () => { counterHard = !counterHard; playSfx('tab'); render(); } }, counterHard ? 'Hard mode on' : 'Hard mode off') : null),
       h('div.ca-list', rows));
   }
