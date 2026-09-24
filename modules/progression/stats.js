@@ -9,6 +9,9 @@ import { MODS } from '@last-orbit/data/cards.js';
 import { RELICS } from '@last-orbit/data/relics.js';
 import { SHIPS } from '@last-orbit/data/ships.js';
 import { WORKSHOP } from '@last-orbit/data/workshop.js';
+import { masteryFx } from '@last-orbit/data/career.js';
+import { threatMods, threatSalvage } from '@last-orbit/data/threat.js';
+import { MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
 
 export const STAT_BASE = {
   damage: 1, fireRate: 1, critChance: 0.03, critDmg: 1, projSpeed: 1, multishot: 0, pierce: 0, blast: 1, armorPen: 0, bossDmg: 1, eliteDmg: 1, weakMult: BAL.weakMult,
@@ -65,10 +68,13 @@ export function computeSheet(state, sheet = new Sheet()) {
   sheet.s = {};
   const run = state.run, ship = activeShip(state);
   sheet.fx(ship.fx, 1, 'Ship');
+  const mastery = state.mastery?.[ship.id]?.level || 1; if (mastery > 1) sheet.fx(masteryFx(mastery), 1, 'Mastery');
   for (const id in state.workshop) sheet.fx(DEF.workshop[id]?.fx, state.workshop[id], 'Workshop');
   if (run) {
     for (const id in run.cards) sheet.fx(DEF.mods[id]?.fx, run.cards[id], 'Cards');
     for (const id of run.relics) sheet.fx(DEF.relics[id]?.fx, 1, 'Relics');
+    if (run.mutator) sheet.fx(MUTATOR_BY_ID[run.mutator]?.fx, 1, 'Daily');
+    if (run.threat) { sheet.mul('hull', 'Threat', threatMods(run.threat).hull); sheet.mul('salvageGain', 'Threat', threatSalvage(run.threat)); }
   }
   sheet.finish();
   sheet.weapons = {};

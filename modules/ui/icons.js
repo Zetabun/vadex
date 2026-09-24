@@ -16,6 +16,8 @@ const paths = {
   play: 'M7 4l13 8-13 8z',
   home: 'M3 11l9-8 9 8M5 9v12h14V9',
   chevron: 'M9 5l7 7-7 7',
+  back: 'M15 5l-7 7 7 7',
+  missions: 'M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z',
 };
 export function uiIcon(id) {
   const path = paths[id] || paths.ships;

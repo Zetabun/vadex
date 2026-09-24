@@ -9,6 +9,8 @@ import { CONTRACT_BY_ID } from '@last-orbit/data/contracts.js';
 import { describeCard, pickCard, reroll, pickRelic } from '@last-orbit/progression/run.js';
 import { unlockLabel, pilotProgress } from '@last-orbit/progression/meta.js';
 import { PAINT_BY_ID, rankTitle } from '@last-orbit/data/career.js';
+import { THREATS } from '@last-orbit/data/threat.js';
+import { MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
 import { applyVolumes, playSfx } from '@last-orbit/audio/audio.js';
 import { h, clear, toggle, slider, select } from '@last-orbit/ui/dom.js';
 import { uiIcon } from '@last-orbit/ui/icons.js';
@@ -70,6 +72,7 @@ export function createOverlays(layer, hooks) {
       field('Master volume', slider(() => s.master, set('master'), 0, 1, 0.05, 'Master volume')),
       field('Music', slider(() => s.music, set('music'), 0, 1, 0.05, 'Music volume')),
       field('Sound effects', slider(() => s.sfx, set('sfx'), 0, 1, 0.05, 'Sound effects volume')),
+      field('Hold screen sides to move', toggle(() => s.holdSides !== false, set('holdSides'), 'Hold screen sides to move')),
       field('Screen shake', toggle(() => s.shake, set('shake'), 'Screen shake')),
       field('Damage numbers', toggle(() => s.dmgNumbers, set('dmgNumbers'), 'Damage numbers')),
       field('Scanlines', toggle(() => s.scanlines, set('scanlines'), 'Scanlines')),
@@ -117,15 +120,17 @@ export function createOverlays(layer, hooks) {
     const salvageEl = h('b.count', '0');
     const done = s.contracts.map((id) => CONTRACT_BY_ID[id]);
     const el = h('div.modal.debrief', { role: 'dialog', 'aria-label': 'Sortie debrief' },
-      h('div.modal-head', h('div.kicker', `${ship.name} · Sector ${s.sector} · ${s.sectorName}`), h('h2', win), s.best && s.wave > 1 ? h('div.pb', 'New best wave') : null),
+      h('div.modal-head', h('div.kicker', `${ship.name} · Sector ${s.sector} · ${s.sectorName}` + (s.threat ? ` · Threat ${THREATS[s.threat].roman}` : '') + (s.mutator ? ` · Daily: ${MUTATOR_BY_ID[s.mutator].name}` : '')), h('h2', win), s.best && s.wave > 1 ? h('div.pb', 'New best wave') : null),
       h('div.hero-row', h('div.big-wave', h('small', 'Wave'), h('b', String(s.wave))), h('div.earned', h('small', 'Salvage banked'), h('div', art('cur:salvage', 'cur-ico'), salvageEl))),
       h('div.stat-grid', stat('Level', s.level), stat('Kills', fmtInt(s.kills)), stat('Bosses', s.bosses), stat('Time', fmtTime(s.time))),
+      s.daily ? h('div.earned.daily-earned', h('small', `Daily bonus · ${s.daily.streak}-day streak`), h('div', art('cur:salvage', 'cur-ico'), '+' + fmtInt(s.daily.bonus))) : null,
+      s.mastery ? h('div.pilot-row.mastery-row', h('span', `${SHIP_BY_ID[s.ship].name} mastery ${s.mastery.to}` + (s.mastery.to > s.mastery.from ? ' · level up!' : '')), h('b', '+' + s.mastery.gained)) : null,
       s.pilot ? h('div.pilot-xp', h('div.pilot-row', h('span', s.pilot.to > s.pilot.from ? `Rank up! ${rankTitle(s.pilot.to)} · Rank ${s.pilot.to}` : `Pilot rank ${s.pilot.to}`), h('b', '+' + fmtInt(s.pilot.gained) + ' XP')),
         h('div.meter.rank', h('i', { style: `width:${(pilotProgress() * 100).toFixed(1)}%` })),
         s.pilot.rewards.length ? h('div.rank-rewards', s.pilot.rewards.map((r) => h('span.reward' + (r.paint ? '.paint' : ''), r.paint ? `${PAINT_BY_ID[r.paint].name} paint unlocked` : [art('cur:salvage', 'cur-ico'), '+' + fmtInt(r.salvage)]))) : null) : null,
       done.length ? h('div.unlocks', h('div.kicker', `Contracts complete (${done.length})`), done.map((c) => h('div.unlock', uiIcon('check'), h('b', c.name), h('small', `+${c.salvage} salvage` + (c.unlock ? ' · ' + unlockLabel(c.unlock) : ''))))) : null,
       h('div.build', s.weapons.map(([id, r]) => h('div.build-item', { style: `--c:#${WEAPONS[id].color.toString(16).padStart(6, '0')}` }, art('weapon:' + id, 'build-icon'), h('span', WEAPONS[id].name), h('b', 'R' + r))), s.relics.map((id) => h('div.build-item.relic', art('relic:' + id, 'build-icon'), h('span', RELIC_BY_ID[id].name)))),
-      h('div.modal-actions', h('button.btn.primary', { onclick: () => { close(); hooks.launch(); }, 'data-autofocus': '' }, uiIcon('launch'), 'Launch again'),
+      h('div.modal-actions', h('button.btn.primary', { onclick: () => { close(); hooks.launch(); }, 'data-autofocus': '' }, uiIcon('launch'), s.daily ? 'Launch a sortie' : 'Launch again'),
         h('button.btn.gold', { onclick: () => { close(); hooks.toHangar('workshop'); } }, uiIcon('workshop'), 'Workshop'),
         h('button.btn.ghost.wide', { onclick: () => { close(); hooks.toHangar('launch'); } }, uiIcon('home'), 'Back to hangar')));
     mount('debrief', el, () => false);

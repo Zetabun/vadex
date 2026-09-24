@@ -18,7 +18,8 @@ export function updatePlayer(w, dt) {
 
   // ---- steering ----
   const speed = 62 * sh.n('moveSpeed'); let want = p.x;
-  if (inp.active || inp.keys) { want = inp.keys ? p.x + inp.keys * 30 : inp.targetX; inp.manualT = 0; p.autoThinkT = 0; p.autoWantX = p.x; }
+  const dir = inp.keys || inp.hold || 0;
+  if (inp.active || dir) { want = dir ? p.x + dir * 30 : inp.targetX; inp.manualT = 0; p.autoThinkT = 0; p.autoWantX = p.x; }
   else if (flag('f.autopilot') && w.wave.state === 'fighting') want = autopilot(w, p, sh.n('autoDodge'), dt);
   else { p.autoThinkT = 0; p.autoWantX = p.x; }
   const dx = Math.max(-HALF, Math.min(HALF, want)) - p.x, stepX = Math.sign(dx) * Math.min(Math.abs(dx), speed * dt);

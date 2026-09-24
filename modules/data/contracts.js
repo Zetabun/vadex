@@ -25,6 +25,18 @@ export const CONTRACTS = [
   { id: 'c_level40', name: 'Living Legend', desc: 'Reach pilot level 40 in one sortie', stat: 'maxLevel', goal: 40, salvage: 1000 },
   { id: 'c_boss25', name: 'Titan Slayer', desc: 'Defeat 25 bosses or mini-bosses', stat: 'bossKills', goal: 25, salvage: 1000 },
   { id: 'c_void', name: 'Into the Void', desc: 'Reach wave 80', stat: 'bestWave', goal: 80, salvage: 2500 },
+  // ---- late game: dailies, mastery, threat and the fleet
+  { id: 'c_daily1', name: 'Daily Duty', desc: 'Fly a Daily Sortie', stat: 'dailies', goal: 1, salvage: 100 },
+  { id: 'c_mastery5', name: 'Specialist', desc: 'Reach mastery 5 with any ship', stat: 'maxMastery', goal: 5, salvage: 600 },
+  { id: 'c_threat1', name: 'Under Pressure', desc: 'Defeat the wave 40 boss at Threat I or higher', stat: 'threatClear', goal: 1, salvage: 800, unlock: { paint: 'hazard' } },
+  { id: 'c_daily7', name: 'Regular', desc: 'Fly 7 Daily Sorties', stat: 'dailies', goal: 7, salvage: 700, unlock: { paint: 'daybreak' } },
+  { id: 'c_fleet', name: 'Fleet Admiral', desc: 'Own all five ships', stat: 'shipsOwned', goal: 5, salvage: 1500 },
+  { id: 'c_threat3', name: 'Hardened', desc: 'Defeat the wave 40 boss at Threat III or higher', stat: 'threatClear', goal: 3, salvage: 1500 },
+  { id: 'c_streak7', name: 'Devoted', desc: 'Keep a 7-day Daily Sortie streak', stat: 'bestStreak', goal: 7, salvage: 1500 },
+  { id: 'c_mastery10', name: 'Master Pilot', desc: 'Reach mastery 10 with any ship', stat: 'maxMastery', goal: 10, salvage: 2500 },
+  { id: 'c_threat5', name: 'No Mercy', desc: 'Defeat the wave 40 boss at Threat V or higher', stat: 'threatClear', goal: 5, salvage: 3000, unlock: { paint: 'inferno' } },
+  { id: 'c_wave100', name: 'Void Walker', desc: 'Reach wave 100', stat: 'bestWave', goal: 100, salvage: 5000, unlock: { paint: 'deepvoid' } },
+  { id: 'c_threat10', name: 'Apex Pilot', desc: 'Defeat the wave 40 boss at Threat X', stat: 'threatClear', goal: 10, salvage: 8000, unlock: { paint: 'apex' } },
 ];
 export const CONTRACT_BY_ID = Object.fromEntries(CONTRACTS.map((c) => [c.id, c]));
 /** Everything a fresh pilot starts with. */

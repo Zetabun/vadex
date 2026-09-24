@@ -27,7 +27,7 @@ export const sfx = (w, id, vol) => fx(w, 'sfx', id, vol);
 
 export function setWaveBase(w, waveNum, sectorIdx) {
   const b = w.base; b.sectorIdx = sectorIdx; b.wave = waveNum;
-  b.hp = enemyHp(waveNum, sectorIdx); b.dmg = enemyDmg(waveNum, sectorIdx);
+  const m = w.mods || {}; b.hp = enemyHp(waveNum, sectorIdx).mul(m.hp || 1); b.dmg = enemyDmg(waveNum, sectorIdx).mul(m.dmg || 1);
   refreshDefence(w);
 }
 export function refreshDefence(w) {

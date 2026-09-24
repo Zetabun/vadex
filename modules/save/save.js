@@ -28,6 +28,8 @@ async function del(key) { try { localStorage.removeItem(LS + key); } catch { /* 
 const MIGRATIONS = {
   // v2.1: pilot career and paint jobs (defaults are filled in by withDefaults).
   20: (s) => s,
+  // v2.2: threat levels, daily sorties and ship mastery (defaults filled in by withDefaults); count owned ships.
+  21: (s) => { s.stats ||= {}; s.stats.shipsOwned = Object.keys(s.unlocked?.ships || { vanguard: 1 }).length; return s; },
 };
 export function parseSave(text) {
   let raw = text.trim(); if (!raw.startsWith('{')) raw = decodeURIComponent(escape(atob(raw)));

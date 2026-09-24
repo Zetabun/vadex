@@ -1,7 +1,7 @@
 // Single source of truth for what gets saved. Two layers:
 //   meta (salvage, workshop, unlocks, contracts, lifetime stats) persists forever;
 //   run (the current sortie) exists only while a sortie is in progress and is discarded when it ends.
-export const SCHEMA = 21;
+export const SCHEMA = 22;
 
 export function newRun(ship, opts = {}) {
   return {
@@ -17,16 +17,19 @@ export function newState() {
   return {
     v: SCHEMA,
     meta: { created: now, lastSave: now, playTime: 0, sandbox: false, legacyChecked: false, introSeen: false },
-    settings: { master: 0.7, music: 0.5, sfx: 0.8, shake: true, dmgNumbers: true, scanlines: false, quality: 'auto', notation: 'suffix', speed: 1 },
+    settings: { master: 0.7, music: 0.5, sfx: 0.8, shake: true, dmgNumbers: true, scanlines: false, quality: 'auto', notation: 'suffix', speed: 1, holdSides: true },
     salvage: 0,
     ship: 'vanguard',
     pilot: { rank: 1, xp: 0 },
     paints: { factory: 1 },
     paint: 'factory',
+    threat: 0,
+    daily: { day: '', done: false, wave: 0, streak: 0, lastDay: '', best: 0 },
+    mastery: {},
     workshop: {},
     unlocked: { weapons: { cannon: 1 }, abilities: { overdrive: 1 }, ships: { vanguard: 1 } },
     contracts: {},
-    stats: { kills: 0, bossKills: 0, sectorBosses: 0, bestWave: 0, bestSector: 1, sectorsCleared: 0, sorties: 0, maxLevel: 1, flawless: 0, maxRank: 1, maxDrones: 0, maxWeapons: 1, bestSalvage: 0, totalSalvage: 0, deaths: 0, cards: 0 },
+    stats: { kills: 0, bossKills: 0, sectorBosses: 0, bestWave: 0, bestSector: 1, sectorsCleared: 0, sorties: 0, maxLevel: 1, flawless: 0, maxRank: 1, maxDrones: 0, maxWeapons: 1, bestSalvage: 0, totalSalvage: 0, deaths: 0, cards: 0, threatClear: 0, dailies: 0, bestStreak: 0, maxMastery: 1, shipsOwned: 1 },
     seen: { enemies: {}, bosses: {}, elites: {} },
     history: [],
     run: null,

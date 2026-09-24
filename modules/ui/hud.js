@@ -7,6 +7,7 @@ import { ABILITIES } from '@last-orbit/data/abilities.js';
 import { WEAPONS } from '@last-orbit/data/weapons.js';
 import { RELIC_BY_ID } from '@last-orbit/data/relics.js';
 import { BAL } from '@last-orbit/data/balance.js';
+import { THREATS } from '@last-orbit/data/threat.js';
 import { useAbility, abilityCooldown, abilityMaxCharges } from '@last-orbit/combat/abilities.js';
 import { xpProgress } from '@last-orbit/progression/run.js';
 import { h, clear, setText, setClass, setWidth } from '@last-orbit/ui/dom.js';
@@ -36,7 +37,7 @@ export function createHud(hooks) {
     h('div.dock-row',
       h('div.bars', $.shieldRow, h('div.bar-row', h('span.lbl', 'HULL'), h('div.meter.hull', $.hull), $.hullTxt)),
       $.abil));
-  $.hint = h('div.fly-hint', h('b', 'Drag to steer'), h('span', 'Your guns fire automatically. Tap an enemy to focus fire.'));
+  $.hint = h('div.fly-hint', h('b', 'Hold a side or drag to steer'), h('span', 'Your guns fire automatically. Tap an enemy to focus fire.'));
   const el = h('div.hud-layer', top, dock, $.hint);
 
   let pipSig = '', loadSig = '', abilSig = '', hintT = 0;
@@ -66,9 +67,9 @@ export function createHud(hooks) {
     const run = G.state.run, w = G.world; if (!run || !w) return;
     const waveShown = w.wave.num || run.wave, sec = sectorOf(waveShown);
     buildPips(waveShown); buildLoadout(run); buildAbilities(run);
-    setText($.sector, `Sector ${sec.idx + 1} · ${sec.def.name}`); setText($.waveN, `${sec.n}/${sec.len}`);
+    setText($.sector, `Sector ${sec.idx + 1} · ${sec.def.name}` + (run.mutator ? ' · Daily' : run.threat ? ` · Threat ${THREATS[run.threat].roman}` : '')); setText($.waveN, `${sec.n}/${sec.len}`);
     const cur = sec.n - 1, cleared = w.wave.state === 'cleared';
-    [...$.pips.children].forEach((p, i) => { setClass(p, 'done', i < cur || (i === cur && cleared)); setClass(p, 'now', i === cur && !cleared); });
+    const pips = $.pips.children; for (let i = 0; i < pips.length; i++) { setClass(pips[i], 'done', i < cur || (i === cur && cleared)); setClass(pips[i], 'now', i === cur && !cleared); }
     setText($.salvage, fmt(Math.floor(run.salvage)));
     setText($.level, String(run.level)); setWidth($.xp, xpProgress(run));
     const p = w.player; setWidth($.hull, p.hull); setText($.hullTxt, Math.max(0, Math.round(p.hull * 100)) + '%'); setClass($.hull.parentNode, 'low', p.hull < 0.3);
@@ -78,7 +79,7 @@ export function createHud(hooks) {
     const max = abilityMaxCharges();
     for (const id in abilBtns) {
       const a = abilBtns[id], ch = w.abil.charges[id] ?? max, cd = w.abil.cd[id] || 0, full = abilityCooldown(id), ready = ch > 0 && w.wave.state === 'fighting' && p.alive;
-      const frac = ch > 0 ? 1 : 1 - cd / full; a.ring.style.setProperty('--p', (frac * 360).toFixed(0) + 'deg');
+      const deg = Math.round((ch > 0 ? 1 : 1 - cd / full) * 360); if (a.deg !== deg) { a.deg = deg; a.ring.style.setProperty('--p', deg + 'deg'); }
       setClass(a.b, 'ready', ready); setClass(a.b, 'active', (w.abil.active[id] || 0) > 0); setText(a.charges, max > 1 ? String(ch) : '');
     }
     // Opening lesson: show the flight hint during the first two waves of a pilot's first sorties.

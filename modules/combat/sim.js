@@ -19,12 +19,18 @@ import { updatePlayer } from '@last-orbit/combat/player.js';
 import { updatePickups, collectAll } from '@last-orbit/combat/pickups.js';
 import { grantSalvage, grantXp } from '@last-orbit/progression/run.js';
 import { checkContracts } from '@last-orbit/progression/meta.js';
+import { threatMods, THREAT_GATE_WAVE } from '@last-orbit/data/threat.js';
+import { MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
 
 const BARRIER_X = [-34, -11.5, 11.5, 34];
 
 export function initWorld() {
   const w = (G.world = createWorld());
   if (G.state.run) for (const x of BARRIER_X) w.barriers.push({ x, w: 13, hp: 1, flash: 0 });
+  // Enemy-side rules from the threat level and any daily mutator.
+  const run = G.state.run, m = threatMods(run?.threat || 0), mw = MUTATOR_BY_ID[run?.mutator]?.world || {};
+  w.mods = { hp: m.hp * (mw.hp || 1), dmg: m.dmg, bossHp: m.bossHp, elites: m.elites + (mw.elites || 0) };
+  w.sim.fireRate = m.fireRate * (mw.fireRate || 1); w.sim.formSpeed = m.formSpeed * (mw.formSpeed || 1);
   w.dps = Big.ZERO; w.dpsT = 0;
   syncDrones(w); w.wave.state = 'idle'; w.wave.timer = 1.4;
   return w;
@@ -94,14 +100,15 @@ export function startWave(w) {
   const f = w.form; f.x = 0; f.dir = rand() < 0.5 ? 1 : -1; f.enter = BAL.formationEnter; f.total = 0; f.alive = 0;
   f.speed = BAL.formSpeed * (1 + sec.n * 0.04 + Math.min(6, sec.idx) * 0.1);
   const seen = st.seen.enemies, seenB = st.seen.bosses;
-  if (info.boss) { seenB[info.boss] = 1; spawnBoss(w, info.boss); f.total = 0; }
+  if (info.boss) { seenB[info.boss] = 1; if (w.mods.bossHp !== 1) w.base.hp = w.base.hp.mul(w.mods.bossHp); spawnBoss(w, info.boss); f.total = 0; }
   else {
     const rows = info.rows, nR = rows.length; f.y = 132; let cols = 0;
     const placed = [];
     for (let r = 0; r < nR; r++) { const row = rows[r]; cols = Math.max(cols, row.length); for (let c = 0; c < row.length; c++) { seen[row[c]] = 1; const sx = (c - (row.length - 1) / 2) * info.spacing, sy = r * 8; const e = spawnEnemy(w, row[c], sx, f.y - sy + 60, { slot: { x: sx, y: sy } }); if (e) placed.push(e); } }
     f.total = placed.length; f.alive = placed.length; f.minOff = -((cols - 1) / 2) * info.spacing - 4; f.maxOff = -f.minOff;
     const rng = info.rng || rand;
-    for (let i = 0; i < info.elites && placed.length; i++) { const cand = placed.filter((e) => !e.elite && !e.def.aura && e.def.cost >= 1); if (!cand.length) break; makeElite(w, cand[Math.floor(rng() * cand.length)], ELITE_MODS[Math.floor(rng() * ELITE_MODS.length)]); }
+    const elites = info.elites + (w.mods.elites || 0);
+    for (let i = 0; i < elites && placed.length; i++) { const cand = placed.filter((e) => !e.elite && !e.def.aura && e.def.cost >= 1); if (!cand.length) break; makeElite(w, cand[Math.floor(rng() * cand.length)], ELITE_MODS[Math.floor(rng() * ELITE_MODS.length)]); }
     for (let i = 0; i < info.haulers; i++) ws.pending.push({ t: 1.5 + i * 2.2, type: 'treasure' });
   }
   if (newSector) fx(w, 'sector', sec.idx, sec.def.name, sec.def.intro);
@@ -129,6 +136,7 @@ function clearWave(w) {
   p.hull = Math.min(1, p.hull + 0.06);
   if (sec.n === sec.len) {
     maxStat('sectorsCleared', sec.idx + 1);
+    if (run.wave === THREAT_GATE_WAVE && run.threat) maxStat('threatClear', run.threat);
     run.pendingRelics++; p.hull = 1; p.shield = 1; ws.timer = 2.6;
     fx(w, 'sectorClear', sec.idx, sec.def.name); sfx(w, 'milestone');
   }

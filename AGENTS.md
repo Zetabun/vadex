@@ -1,6 +1,6 @@
 # Last Orbit agent guide
 
-Current build: **v2.1.2**. Save schema: **21**.
+Current build: **v2.2.0**. Save schema: **22**.
 
 ## Start
 

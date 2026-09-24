@@ -31,7 +31,7 @@ const hooks = {
   setInsets: (t, b) => renderer && renderer.setInsets(t, b),
   applySettings: () => { renderer.setQuality(); setNotation(G.state.settings.notation); document.getElementById('scan')?.classList.toggle('off', !G.state.settings.scanlines); },
   celebrate: (color) => { const p = G.world.player; renderer.celebrate(p.x, p.y + 6, color, 40); },
-  launch: () => { initAudio(); startSortie(); initWorld(); ui.setMode('sortie'); save('launch'); if (nextOffer()) ui.nextChoice(); },
+  launch: (opts = {}) => { initAudio(); if (!startSortie(opts)) { toast('Today\'s Daily Sortie has already been flown.', 'warn'); return; } initWorld(); ui.setMode('sortie'); save('launch'); if (nextOffer()) ui.nextChoice(); },
   abandon: () => finish('abandoned'),
   toHangar: (tab) => { initWorld(); ui.setMode('hangar', tab); },
   pendingOffer: () => nextOffer(),
@@ -54,12 +54,21 @@ bus.on('levelUp', (lvl) => { if (G.mode !== 'sortie' || !G.world) return; if (le
 function wireInput() {
   let down = null; const inp = () => G.world.input;
   const at = (e) => { const r = glCanvas.getBoundingClientRect(); return renderer.screenToWorld(e.clientX - r.left, e.clientY - r.top); };
-  glCanvas.addEventListener('pointerdown', (e) => { initAudio(); if (G.mode !== 'sortie') return; e.preventDefault(); try { glCanvas.setPointerCapture(e.pointerId); } catch { /* not critical */ } const p = at(e); down = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), sx: p.x, px: G.world.player.x }; const i = inp(); i.active = true; i.targetX = G.world.player.x; });
-  app.addEventListener('pointerdown', initAudio, { capture: true });
-  addEventListener('keydown', initAudio, { capture: true });
-  // Relative drag: the ship follows your finger's movement, so your thumb never covers it.
-  glCanvas.addEventListener('pointermove', (e) => { if (!down || e.pointerId !== down.id) return; const p = at(e); inp().targetX = down.px + (p.x - down.sx) * 1.35; });
-  const up = (e) => { if (!down || e.pointerId !== down.id) return; const i = inp(); i.active = false; if (performance.now() - down.t < 260 && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 12) { const p = at(e); if (p.y > FIELD.BARRIER_Y + 6) i.tap = p; } down = null; };
+  // Two touch schemes at once: hold the left or right half of the screen to fly that way, or drag to steer.
+  // A press starts as a hold; once the finger slides it becomes a relative drag. Short taps still mark targets.
+  const holdOn = () => G.state.settings.holdSides !== false;
+  glCanvas.addEventListener('pointerdown', (e) => {
+    initAudio(); if (G.mode !== 'sortie') return; e.preventDefault(); try { glCanvas.setPointerCapture(e.pointerId); } catch { /* not critical */ }
+    const r = glCanvas.getBoundingClientRect(), p = at(e), side = e.clientX < r.left + r.width / 2 ? -1 : 1;
+    down = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), sx: p.x, px: G.world.player.x, drag: !holdOn() };
+    const i = inp(); i.active = true; i.targetX = G.world.player.x; i.hold = down.drag ? 0 : side;
+  });
+  glCanvas.addEventListener('pointermove', (e) => {
+    if (!down || e.pointerId !== down.id) return; const i = inp(), p = at(e);
+    if (!down.drag && Math.abs(e.clientX - down.x) > 14) { down.drag = true; i.hold = 0; down.sx = p.x; down.px = G.world.player.x; }
+    if (down.drag) i.targetX = down.px + (p.x - down.sx) * 1.35;
+  });
+  const up = (e) => { if (!down || e.pointerId !== down.id) return; const i = inp(); i.active = false; i.hold = 0; if (performance.now() - down.t < 260 && Math.hypot(e.clientX - down.x, e.clientY - down.y) < 12) { const p = at(e); if (p.y > FIELD.BARRIER_Y + 6) i.tap = p; } down = null; };
   glCanvas.addEventListener('pointerup', up); glCanvas.addEventListener('pointercancel', up);
   const keys = { l: false, r: false };
   addEventListener('keydown', (e) => {
@@ -72,6 +81,7 @@ function wireInput() {
   const editable = (target) => !!target?.closest?.('input,textarea,select');
   const block = (e) => { if (!editable(e.target) && e.cancelable) e.preventDefault(); };
   for (const ev of ['contextmenu', 'selectstart', 'dragstart']) app.addEventListener(ev, block);
+  document.addEventListener('dblclick', block, { passive: false }); // no double-tap zoom anywhere
   for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) app.addEventListener(ev, block, { passive: false });
   app.addEventListener('touchmove', (e) => { if (e.touches.length > 1) block(e); }, { passive: false });
 }

@@ -6,7 +6,9 @@ import { SHIP_BY_ID } from '@last-orbit/data/ships.js';
 import { CONTRACTS, CONTRACT_BY_ID } from '@last-orbit/data/contracts.js';
 import { WEAPONS } from '@last-orbit/data/weapons.js';
 import { ABILITIES } from '@last-orbit/data/abilities.js';
-import { MAX_RANK, rankNeed, rankReward, PAINT_BY_ID } from '@last-orbit/data/career.js';
+import { MAX_RANK, rankNeed, rankReward, PAINT_BY_ID, PAINTS, MAX_MASTERY, masteryNeed } from '@last-orbit/data/career.js';
+import { MAX_THREAT, THREAT_UNLOCK_SECTOR } from '@last-orbit/data/threat.js';
+import { dayKey, dailyFor } from '@last-orbit/data/daily.js';
 
 // ---------------------------------------------------------------- workshop
 export const workshopLevel = (id) => G.state.workshop[id] || 0;
@@ -28,7 +30,7 @@ export function shipStatus(id) {
 }
 export function buyShip(id) {
   const s = SHIP_BY_ID[id]; if (shipStatus(id) !== 'buyable' || G.state.salvage < s.cost) return false;
-  G.state.salvage -= s.cost; G.state.unlocked.ships[id] = Date.now(); G.state.ship = id; recalc(); bus.emit('bought', 'ship', id); return true;
+  G.state.salvage -= s.cost; G.state.unlocked.ships[id] = Date.now(); G.state.ship = id; G.state.stats.shipsOwned = Object.keys(G.state.unlocked.ships).length; recalc(); checkContracts(); bus.emit('bought', 'ship', id); return true;
 }
 export function selectShip(id) { if (!G.state.unlocked.ships[id] || G.state.run) return false; G.state.ship = id; recalc(); bus.emit('shipSelected', id); return true; }
 
@@ -41,6 +43,7 @@ export function unlockLabel(u) {
   if (u.weapon) return 'Weapon: ' + WEAPONS[u.weapon].name;
   if (u.ability) return 'Ability: ' + ABILITIES[u.ability].name;
   if (u.ship) return 'Ship: ' + SHIP_BY_ID[u.ship].name;
+  if (u.paint) return 'Paint: ' + PAINT_BY_ID[u.paint].name;
   return '';
 }
 /** Complete every contract whose goal is met. Rewards are banked immediately. Returns newly completed ids. */
@@ -52,7 +55,8 @@ export function checkContracts({ silent = false } = {}) {
     const u = c.unlock;
     if (u?.weapon) st.unlocked.weapons[u.weapon] = Date.now();
     if (u?.ability) st.unlocked.abilities[u.ability] = Date.now();
-    if (!silent) bus.emit('notice', { kind: 'unlock', kicker: 'Contract complete', title: c.name, salvage: c.salvage, sub: u ? unlockLabel(u) + (u.ship ? ' available in Ships' : ' unlocked') : '', art: u?.weapon ? 'weapon:' + u.weapon : u?.ability ? 'ability:' + u.ability : u?.ship ? 'ship:' + u.ship : 'cur:salvage' });
+    if (u?.paint) st.paints[u.paint] = Date.now();
+    if (!silent) bus.emit('notice', { kind: 'unlock', kicker: 'Contract complete', title: c.name, salvage: c.salvage, sub: u ? unlockLabel(u) + (u.ship ? ' available in Ships' : ' unlocked') : '', art: u?.weapon ? 'weapon:' + u.weapon : u?.ability ? 'ability:' + u.ability : u?.ship ? 'ship:' + u.ship : 'cur:salvage', paint: u?.paint });
     bus.emit('contract', c.id);
   }
   return done;
@@ -77,3 +81,29 @@ export function addPilotXp(amount) {
 }
 export const pilotProgress = () => { const p = G.state.pilot; return p.rank >= MAX_RANK ? 1 : Math.min(1, p.xp / rankNeed(p.rank)); };
 export function selectPaint(id) { if (!G.state.paints[id] || !PAINT_BY_ID[id]) return false; G.state.paint = id; bus.emit('paint', id); return true; }
+
+// ---------------------------------------------------------------- threat levels
+/** Highest threat level the pilot may select (0 until they reach sector 4). */
+export function threatMax() { const st = G.state.stats; return (st.bestSector || 1) >= THREAT_UNLOCK_SECTOR ? Math.min(MAX_THREAT, (st.threatClear || 0) + 1) : 0; }
+export function setThreat(t) { const v = Math.max(0, Math.min(threatMax(), t | 0)); G.state.threat = v; bus.emit('threat', v); return v; }
+
+// ---------------------------------------------------------------- daily sortie
+/** Today's daily: seed, mutator and whether it has been flown. Rolls the record over at local midnight. */
+export function dailyToday() {
+  const d = G.state.daily, today = dailyFor(dayKey());
+  if (d.day !== today.key) { d.day = today.key; d.done = false; d.wave = 0; }
+  return { ...today, done: d.done, wave: d.wave, streak: d.streak, lastDay: d.lastDay, best: d.best };
+}
+
+// ---------------------------------------------------------------- ship mastery
+export const masteryOf = (ship) => G.state.mastery[ship] || { level: 1, xp: 0 };
+export const masteryProgress = (ship) => { const m = masteryOf(ship); return m.level >= MAX_MASTERY ? 1 : Math.min(1, m.xp / masteryNeed(m.level)); };
+/** Add mastery XP (one per wave flown) to a ship; level 10 unlocks its Prime paint. */
+export function addMastery(ship, amount) {
+  const m = (G.state.mastery[ship] ||= { level: 1, xp: 0 }), from = m.level, gained = Math.max(0, Math.round(amount)), rewards = [];
+  if (m.level < MAX_MASTERY) m.xp += gained;
+  while (m.level < MAX_MASTERY && m.xp >= masteryNeed(m.level)) { m.xp -= masteryNeed(m.level); m.level++; rewards.push(m.level); }
+  if (m.level >= MAX_MASTERY) { m.xp = 0; const paint = PAINTS.find((p) => p.ship === ship); if (paint) G.state.paints[paint.id] ||= Date.now(); }
+  const s = G.state.stats; if (!(s.maxMastery >= m.level)) s.maxMastery = m.level;
+  return { ship, gained, from, to: m.level, rewards };
+}

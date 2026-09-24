@@ -14,6 +14,7 @@ import { Background } from '@last-orbit/rendering/background.js';
 import { playSfx } from '@last-orbit/audio/audio.js';
 
 const CAP = { swarm: 110, scout: 70, weaver: 70, plate: 60, armourPlate: 12, turret: 12, wyrmSeg: 16, rocket: 30 };
+const TEXT_FONTS = { 11: '700 11px "Chakra Petch",sans-serif', 14: '700 14px "Chakra Petch",sans-serif', 17: '700 17px "Chakra Petch",sans-serif' };
 const RED = rgb(0xff4d7a), AMBER = rgb(0xffb547), CYAN = rgb(0x5ee6ff), GOLD = rgb(0xffd700), VIOLET = rgb(0xc77dff);
 const SCRAP = rgb(0xc9d5df), REPAIR = rgb(0x80ffd2), XPC = rgb(0x6dffc8);
 // Camera framings: the whole battlefield, or a close-up of the ship for the Hangar.
@@ -70,8 +71,15 @@ export class Renderer {
     pp.wings.visible = cards >= 4 || ship.id !== 'vanguard'; pp.pods.visible = guns >= 2; pp.pods2.visible = guns >= 3; pp.armour.visible = cards >= 12 || ship.id === 'bulwark';
     pp.fins.visible = cards >= 20 || ship.id === 'striker' || ship.id === 'revenant'; pp.crown.visible = (run?.relics.length || 0) >= 2;
     this.player.scale.setScalar(3.1 + Math.min(0.7, cards / 60));
-    const paint = PAINT_BY_ID[st.paint] || PAINT_BY_ID.factory, trim = paint.trim ?? ship.trim;
-    this.playerMats.trim.color.set(trim); this.playerMats.trim.emissive.set(trim).multiplyScalar(0.35); this.playerMats.hull.color.set(paint.hull ?? 0x718996);
+    // Paint jobs recolour the big deck and wing panels too, not just the trim lights, so the change is obvious.
+    const paint = PAINT_BY_ID[st.paint] || PAINT_BY_ID.factory, trim = paint.trim ?? ship.trim, M = this.playerMats, painted = paint.id !== 'factory';
+    const mix = (a, b, k) => new window.THREE.Color(a).lerp(new window.THREE.Color(b), k);
+    M.trim.color.set(trim); M.trim.emissive.set(trim).multiplyScalar(0.35);
+    M.hull.color.set(painted ? paint.hull : 0x718996);
+    M.deck.color.copy(painted ? mix(trim, 0xffffff, 0.5) : new window.THREE.Color(0xe2eced));
+    M.gold.color.set(painted ? mix(trim, 0xffffff, 0.2) : 0xffb94e); M.gold.emissive.set(painted ? trim : 0x583000).multiplyScalar(painted ? 0.25 : 1);
+    M.gun.color.set(painted ? mix(paint.hull, 0x000000, 0.25) : 0x667782);
+    this.glow = painted || ship.id !== 'vanguard' ? rgb(trim) : CYAN;
   }
 
   setQuality() { const q = G.state.settings.quality, dpr = window.devicePixelRatio || 1; if (q !== this.qualityMode) { this.qualityMode = q; this.lowT = 0; this.highT = 0; if (q === 'auto') this.autoLow = false; } this.pr = q === 'low' ? 1 : q === 'high' ? Math.min(dpr, 2.5) : Math.min(dpr, this.autoLow ? 1.25 : 2); this.parts.scale = q === 'low' || (q === 'auto' && this.autoLow) ? 0.45 : 1; this.resize(); }
@@ -196,7 +204,7 @@ export class Renderer {
     const look = G.sheet.version + ':' + G.state.paint + ':' + (G.state.run?.ship || G.state.ship); if (this.lookV !== look) { this.lookV = look; this.refreshPlayerLook(); }
     g.position.set(p.x, p.y, 0); g.rotation.set(0, -p.tilt * 0.6, -p.tilt * 0.12);
     const blink = p.invuln > 0 && Math.sin(t * 40) > 0; g.visible = !blink;
-    const over = w.abil.active.overdrive > 0, glow = over ? AMBER : CYAN;
+    const over = w.abil.active.overdrive > 0, glow = over ? AMBER : this.glow || CYAN;
     B.under.add(p.x, p.y, 15, 15, 0, glow, 0.17 + (p.fireFlash > 0 ? 0.2 : 0));
     // Exhaust follows the actual nozzle transforms, including banking and progression scale.
     this.nozzle ||= new window.THREE.Vector3(); g.updateMatrixWorld(true);
@@ -305,8 +313,8 @@ export class Renderer {
       this.worldToScreen(e.x, e.y + e.r + 1.6, s); const bw = Math.max(14, e.r * unit * 1.7), bh = 3; g.fillStyle = 'rgba(4,8,20,.75)'; g.fillRect(s[0] - bw / 2 - 1, s[1] - 1, bw + 2, bh + 2); g.fillStyle = e.elite ? css(e.elite.color) : e.part ? '#ffb547' : '#ff4d7a'; g.fillRect(s[0] - bw / 2, s[1], bw * Math.max(0, e.hp), bh);
       const eliteName = e.elite?.name; if (eliteName && eliteName !== 'null' && eliteName !== 'undefined') { g.font = '600 9px "Barlow Semi Condensed",sans-serif'; g.textAlign = 'center'; g.fillStyle = css(e.elite.color); g.fillText(String(eliteName).toUpperCase(), s[0], s[1] - 3); } }
     // floating text
-    const T = this.texts; g.textAlign = 'center'; g.lineJoin = 'round';
-    for (let i = T.length - 1; i >= 0; i--) { const t = T[i]; t.t += dt; if (t.t >= t.life) { T.splice(i, 1); continue; } const p = t.t / t.life; this.worldToScreen(t.x, t.y + p * (t.size ? 9 : 6), s); const px = t.size === 2 ? 17 : t.size === 1 ? 14 : 11; g.globalAlpha = p > 0.7 ? (1 - p) / 0.3 : 1; g.font = `700 ${px}px "Chakra Petch",sans-serif`; g.lineWidth = 3; g.strokeStyle = 'rgba(3,6,18,.85)'; g.strokeText(t.s, s[0], s[1]); g.fillStyle = t.c; g.fillText(t.s, s[0], s[1]); }
+    const T = this.texts; g.textAlign = 'center'; g.lineJoin = 'round'; let fontPx = 0; // setting ctx.font re-parses it, so only change it when the size changes
+    for (let i = T.length - 1; i >= 0; i--) { const t = T[i]; t.t += dt; if (t.t >= t.life) { T.splice(i, 1); continue; } const p = t.t / t.life; this.worldToScreen(t.x, t.y + p * (t.size ? 9 : 6), s); const px = t.size === 2 ? 17 : t.size === 1 ? 14 : 11; g.globalAlpha = p > 0.7 ? (1 - p) / 0.3 : 1; if (px !== fontPx) { fontPx = px; g.font = TEXT_FONTS[px]; } g.lineWidth = 3; g.strokeStyle = 'rgba(3,6,18,.85)'; g.strokeText(t.s, s[0], s[1]); g.fillStyle = t.c; g.fillText(t.s, s[0], s[1]); }
     g.globalAlpha = 1;
   }
   unitPx() { const a = [0, 0], b = [0, 0]; this.worldToScreen(0, 70, a); this.worldToScreen(10, 70, b); return (b[0] - a[0]) / 10; }

@@ -9,15 +9,21 @@ import { CONTRACTS } from '@last-orbit/data/contracts.js';
 import { WEAPONS, WEAPON_ORDER } from '@last-orbit/data/weapons.js';
 import { ABILITIES, ABILITY_ORDER } from '@last-orbit/data/abilities.js';
 import { SECTORS } from '@last-orbit/data/sectors.js';
-import { PAINTS, MAX_RANK, rankNeed, rankReward, rankTitle, paintRank } from '@last-orbit/data/career.js';
-import { workshopLevel, workshopNext, buyWorkshop, shipStatus, shipContract, buyShip, selectShip, contractProgress, nextContracts, unlockLabel, pilotProgress, selectPaint } from '@last-orbit/progression/meta.js';
+import { PAINTS, MAX_RANK, rankNeed, rankReward, rankTitle, paintRank, MAX_MASTERY, masteryNeed, MASTERY_PERKS } from '@last-orbit/data/career.js';
+import { THREATS, MAX_THREAT, THREAT_UNLOCK_SECTOR, threatSalvage, threatPilotXp } from '@last-orbit/data/threat.js';
+import { dailyBonus } from '@last-orbit/data/daily.js';
+import { workshopLevel, workshopNext, buyWorkshop, shipStatus, shipContract, buyShip, selectShip, contractProgress, nextContracts, unlockLabel, pilotProgress, selectPaint, threatMax, setThreat, dailyToday, masteryOf, masteryProgress } from '@last-orbit/progression/meta.js';
 import { weaponDps, buildWeapon } from '@last-orbit/progression/stats.js';
 import { playSfx } from '@last-orbit/audio/audio.js';
 import { h, clear, setText, setClass } from '@last-orbit/ui/dom.js';
 import { uiIcon } from '@last-orbit/ui/icons.js';
 import { art } from '@last-orbit/ui/art.js';
 
-const TABS = [['launch', 'Launch'], ['workshop', 'Workshop'], ['armory', 'Armory'], ['ships', 'Ships'], ['contracts', 'Career']];
+const TABS = [['launch', 'Launch'], ['missions', 'Missions'], ['workshop', 'Workshop'], ['armory', 'Armory'], ['ships', 'Ships'], ['contracts', 'Career']];
+const PER_PAGE = 4; // with more tabs than fit, the bar pages with chevrons
+const pageOf = (id) => Math.floor(TABS.findIndex((t) => t[0] === id) / PER_PAGE);
+const roman = (t) => (t ? THREATS[t].roman : '0');
+const untilMidnight = () => { const n = new Date(), m = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1); const s = Math.max(0, (m - n) / 1000); return `${Math.floor(s / 3600)}h ${String(Math.floor(s / 60) % 60).padStart(2, '0')}m`; };
 const hex = (n) => '#' + n.toString(16).padStart(6, '0');
 const unlockedBy = (kind, id) => CONTRACTS.find((c) => c.unlock?.[kind] === id);
 
@@ -30,18 +36,30 @@ export function createHangar(hooks) {
     h('button.icon-btn', { 'aria-label': 'Settings', onclick: () => hooks.settings() }, uiIcon('gear')));
   $.body = h('main.hg-body');
   $.nav = h('nav.hg-nav', { role: 'tablist' });
-  const navBtns = {};
-  for (const [id, name] of TABS) { const b = h('button.nav-btn', { role: 'tab', onclick: () => show(id) }, uiIcon(id === 'launch' ? 'launch' : id), h('span', name), h('i.badge')); navBtns[id] = b; $.nav.append(b); }
+  const navBtns = {}; let page = 0;
+  for (const [id, name] of TABS) navBtns[id] = h('button.nav-btn', { role: 'tab', onclick: () => show(id) }, uiIcon(id === 'launch' ? 'launch' : id), h('span', name), h('i.badge'));
+  const pages = Math.ceil(TABS.length / PER_PAGE);
+  $.next = h('button.nav-btn.nav-page', { 'aria-label': 'More menus', onclick: () => turn(1) }, uiIcon('chevron'), h('span', 'More'), h('i.badge'));
+  $.prev = h('button.nav-btn.nav-page', { 'aria-label': 'Back to main menus', onclick: () => turn(-1) }, uiIcon('back'), h('span', 'Back'), h('i.badge'));
+  function layoutNav() {
+    clear($.nav); const ids = TABS.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE).map((t) => t[0]);
+    if (page > 0) $.nav.append($.prev);
+    for (const id of ids) $.nav.append(navBtns[id]);
+    if (page < pages - 1) $.nav.append($.next);
+    while ($.nav.children.length < PER_PAGE + 1) $.nav.append(h('span.nav-gap'));
+  }
+  function turn(d) { page = Math.max(0, Math.min(pages - 1, page + d)); playSfx('tab'); layoutNav(); badges(); }
   const el = h('div#hangar', top, $.body, $.nav);
 
   function show(id, quiet) {
     if (!quiet && id !== tab) playSfx('tab');
-    tab = id; for (const k in navBtns) { setClass(navBtns[k], 'on', k === id); navBtns[k].setAttribute('aria-selected', String(k === id)); }
+    tab = id; if (pageOf(id) !== page) { page = pageOf(id); layoutNav(); }
+    for (const k in navBtns) { setClass(navBtns[k], 'on', k === id); navBtns[k].setAttribute('aria-selected', String(k === id)); }
     el.dataset.tab = id; render(); hooks.measure?.();
   }
   function render() {
     clear($.body); $.body.scrollTop = 0;
-    const view = { launch: launchView, workshop: workshopView, armory: armoryView, ships: shipsView, contracts: contractsView }[tab]();
+    const view = { launch: launchView, missions: missionsView, workshop: workshopView, armory: armoryView, ships: shipsView, contracts: contractsView }[tab]();
     $.body.append(view);
   }
 
@@ -53,6 +71,7 @@ export function createHangar(hooks) {
     const card = h('section.launch-card',
       h('div.ship-head', h('div', h('div.kicker', ship.role), h('h1', ship.name)), h('button.link', { onclick: () => show('ships') }, 'Change ship', uiIcon('chevron'))),
       rankStrip(),
+      opsRow(),
       fresh ? h('p.lede', 'Invaders are descending on the last orbit. Fly a sortie, level up mid-fight by picking upgrades, and bring salvage home to build a better ship.')
         : h('div.stat-row', stat('Best wave', best || '—'), stat('Furthest', 'Sector ' + bestSector), stat('Sorties', fmtInt(s.sorties))),
       next.length ? h('div.next', h('div.kicker', next.length > 1 ? 'Next contracts' : 'Next contract'), next.map((c) => contractLine(c, true))) : null);
@@ -60,6 +79,15 @@ export function createHangar(hooks) {
     return h('div.launch', h('div.ship-stage', { 'aria-hidden': 'true' }), card, history(), go);
   }
   const stat = (k, v) => h('div.stat', h('small', k), h('b', String(v)));
+  /** Daily Sortie and threat shortcuts on the Launch card, once they matter. */
+  function opsRow() {
+    const st = G.state, d = dailyToday(), tmax = threatMax(), items = [];
+    if (st.stats.sorties > 0) items.push(h('button.op' + (d.done ? '.done' : '.hot'), { onclick: () => show('missions') }, art('relic:r_phoenix', 'op-ico'),
+      h('div', h('small', d.done ? 'Daily done' : 'Daily sortie'), h('b', d.done ? 'Back in ' + untilMidnight() : d.mutator.name))));
+    if (tmax > 0) items.push(h('button.op', { onclick: () => show('missions') }, art('relic:r_giant', 'op-ico'),
+      h('div', h('small', 'Threat'), h('b', st.threat ? `${roman(st.threat)} · +${Math.round((threatSalvage(st.threat) - 1) * 100)}%` : 'Off'))));
+    return items.length ? h('div.ops', items) : null;
+  }
   function rewardBadge(r) {
     const rw = rankReward(r);
     return rw.paint ? h('span.reward.paint', swatch(rw.paint), PAINTS.find((p) => p.id === rw.paint).name + ' paint') : h('span.reward', art('cur:salvage', 'cur-ico'), fmtInt(rw.salvage));
@@ -133,15 +161,50 @@ export function createHangar(hooks) {
       list.append(h('article.ship' + (sel ? '.sel' : '') + (status === 'locked' ? '.locked' : ''), { style: `--c:${hex(s.trim)}` },
         h('div.ship-top', h('div', h('div.kicker', s.role), h('h3', s.name)), art('ship:' + s.id, 'ship-icon')),
         h('p', s.desc),
+        status === 'owned' ? masteryLine(s.id) : null,
         h('ul.perks', s.perks.map((p, i) => h('li' + (p.startsWith('−') ? '.neg' : ''), p)), h('li', 'Ability: ' + ABILITIES[s.ability].name)),
         action));
     }
     const paints = h('div.paints', PAINTS.map((pt) => {
       const owned = !!st.paints[pt.id], on = st.paint === pt.id;
-      return h('button.paint' + (on ? '.on' : '') + (owned ? '' : '.locked'), { disabled: !owned, title: owned ? pt.name : `${pt.name}: unlocked at pilot rank ${paintRank(pt.id)}`, onclick: () => { if (selectPaint(pt.id)) { playSfx('tab'); render(); } } }, swatch(pt.id), h('span', owned ? pt.name : 'Rank ' + paintRank(pt.id)));
+      const how = pt.source === 'mastery' ? `${SHIP_BY_ID[pt.ship].name} mastery 10` : pt.source === 'contract' ? `Contract: ${CONTRACTS.find((c) => c.unlock?.paint === pt.id)?.name}` : `Pilot rank ${paintRank(pt.id)}`;
+      const short = pt.source === 'mastery' ? 'Mastery 10' : pt.source === 'contract' ? 'Contract' : 'Rank ' + paintRank(pt.id);
+      return h('button.paint' + (on ? '.on' : '') + (owned ? '' : '.locked'), { disabled: !owned, title: owned ? pt.name : `${pt.name}: ${how}`, onclick: () => { if (selectPaint(pt.id)) { playSfx('tab'); render(); } } }, swatch(pt.id), h('span', owned ? pt.name : short));
     }));
     return h('div.screen', h('div.screen-head', h('h2', 'Ships'), h('p', 'Each hull starts with its own gun and signature ability. Workshop upgrades apply to all of them.')),
       h('h3', 'Paint job'), paints, h('h3', 'Hulls'), list);
+  }
+
+  function masteryLine(id) {
+    const m = masteryOf(id), max = m.level >= MAX_MASTERY, nextPerk = Object.keys(MASTERY_PERKS).map(Number).find((l) => l > m.level);
+    return h('div.mastery', h('div.mastery-top', h('b', `Mastery ${m.level}`), h('span', max ? 'Maxed' : `${m.xp}/${masteryNeed(m.level)} waves` + (nextPerk ? ` · Lv ${nextPerk}: ${MASTERY_PERKS[nextPerk]}` : ''))),
+      h('div.meter.mastery-bar', h('i', { style: `width:${(masteryProgress(id) * 100).toFixed(1)}%` })), h('small', `+${(m.level - 1) * 2}% damage and hull with this ship`));
+  }
+
+  // ------------------------------------------------------------ missions: daily sortie and threat
+  function missionsView() {
+    const st = G.state, d = dailyToday(), tmax = threatMax();
+    const streakNext = d.lastDay && !d.done ? d.streak + 1 : Math.max(1, d.streak);
+    const daily = h('section.panel.daily' + (d.done ? '.done' : ''),
+      h('div.daily-head', h('div', h('div.kicker', 'Daily sortie · ' + d.key), h('h3', d.mutator.name)), h('div.streak', art('relic:r_phoenix', 'streak-ico'), h('b', String(d.streak || 0)), h('small', 'day streak'))),
+      h('p', d.mutator.desc),
+      h('ul.perks', h('li', 'Same seed for every pilot today'), h('li', 'One attempt'), h('li', 'Double pilot XP'), h('li', `Bonus ${fmtInt(dailyBonus(20, streakNext))}+ salvage`)),
+      d.done ? h('div.lock-note', uiIcon('check'), h('span', `Flown today: reached wave ${d.wave}. Next daily in ${untilMidnight()}.`))
+        : h('button.btn.gold.daily-go', { onclick: () => hooks.launch({ daily: true }) }, uiIcon('launch'), 'Fly the daily'));
+    let threat;
+    if (!tmax) threat = h('div.lock-note', uiIcon('lock'), h('span', `Threat levels open when you reach sector ${THREAT_UNLOCK_SECTOR} (Machine Territory).`));
+    else {
+      threat = h('div.rows');
+      for (let t = 0; t <= MAX_THREAT; t++) {
+        const open = t <= tmax, on = st.threat === t;
+        threat.append(h('button.threat' + (on ? '.on' : '') + (open ? '' : '.locked'), { disabled: !open, onclick: () => { setThreat(t); playSfx('tab'); render(); } },
+          h('div.threat-lv', h('small', 'Threat'), h('b', roman(t))),
+          h('div.threat-main', h('b', t ? THREATS[t].rule : 'Standard rules'), h('small', t ? (open ? `+${Math.round((threatSalvage(t) - 1) * 100)}% salvage · +${Math.round((threatPilotXp(t) - 1) * 100)}% pilot XP · includes all lower levels` : `Defeat the wave 40 boss at Threat ${roman(t - 1)}`) : 'No extra rules')),
+          on ? uiIcon('check') : open ? null : uiIcon('lock')));
+      }
+    }
+    return h('div.screen', h('div.screen-head', h('h2', 'Missions'), h('p', 'A fresh Daily Sortie every day, and Threat levels for when the sectors stop being scary.')),
+      daily, h('h3', 'Threat level'), threat);
   }
 
   // ------------------------------------------------------------ contracts
@@ -164,9 +227,13 @@ export function createHangar(hooks) {
   function badges() {
     const st = G.state, canBuy = WORKSHOP.some((u) => { const c = workshopNext(u.id); return c != null && st.salvage >= c; });
     const ship = SHIPS.some((s) => shipStatus(s.id) === 'buyable' && st.salvage >= s.cost);
-    setClass(navBtns.workshop, 'badged', canBuy); setClass(navBtns.ships, 'badged', ship);
+    const daily = st.stats.sorties > 0 && !dailyToday().done;
+    setClass(navBtns.workshop, 'badged', canBuy); setClass(navBtns.ships, 'badged', ship); setClass(navBtns.missions, 'badged', daily);
+    const hidden = (p) => TABS.some(([id], i) => Math.floor(i / PER_PAGE) === p && navBtns[id].classList.contains('badged'));
+    setClass($.next, 'badged', hidden(page + 1)); setClass($.prev, 'badged', page > 0 && hidden(page - 1));
   }
   function update() { setText($.salvage, fmtInt(G.state.salvage)); badges(); }
   bus.on('contract', () => { if (G.mode === 'hangar') render(); });
+  layoutNav();
   return { el, top, nav: $.nav, show, render, update, get tab() { return tab; } };
 }

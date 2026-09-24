@@ -38,15 +38,21 @@ export class SpriteBatch {
   }
   /** A streak from (x1,y1) to (x2,y2). */
   line(x1, y1, x2, y2, width, c, a = 1) { const dx = x2 - x1, dy = y2 - y1, len = Math.hypot(dx, dy); if (len < 0.01) return; this.add((x1 + x2) / 2, (y1 + y2) / 2, len, width, Math.atan2(dy, dx), c, a); }
-  end() { const m = this.mesh; m.count = this.n; m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true; }
+  // Upload only the instances written this frame; the rest of the buffer is never drawn.
+  end() {
+    const m = this.mesh, n = this.n; m.count = n; if (!n && !this.last) return; this.last = n;
+    const mi = m.instanceMatrix, ci = m.instanceColor; mi.updateRange.offset = 0; mi.updateRange.count = n * 16; ci.updateRange.offset = 0; ci.updateRange.count = n * 3;
+    mi.needsUpdate = true; ci.needsUpdate = true;
+  }
 }
 
 // ------------------------------------------------------------------ particles (struct of arrays, swap-remove)
+const PARTICLE_FIELDS = ['x', 'y', 'vx', 'vy', 'life', 'max', 'size', 'r', 'g', 'b', 'drag'];
 export class Particles {
-  constructor(cap) { this.cap = cap; this.n = 0; this.scale = 1; for (const k of ['x', 'y', 'vx', 'vy', 'life', 'max', 'size', 'r', 'g', 'b', 'drag']) this[k] = new Float32Array(cap); }
+  constructor(cap) { this.cap = cap; this.n = 0; this.scale = 1; for (const k of PARTICLE_FIELDS) this[k] = new Float32Array(cap); }
   emit(x, y, vx, vy, life, size, c, drag = 1.5) { let i = this.n; if (i >= this.cap) i = (Math.random() * this.cap) | 0; else this.n++; this.x[i] = x; this.y[i] = y; this.vx[i] = vx; this.vy[i] = vy; this.life[i] = this.max[i] = life; this.size[i] = size; this.r[i] = c[0]; this.g[i] = c[1]; this.b[i] = c[2]; this.drag[i] = drag; }
   burst(x, y, count, c, speed, size, life) { count = Math.max(1, Math.round(count * this.scale)); for (let i = 0; i < count; i++) { const a = Math.random() * 6.283, s = speed * (0.25 + Math.random()); this.emit(x, y, Math.cos(a) * s, Math.sin(a) * s, life * (0.5 + Math.random() * 0.7), size * (0.6 + Math.random() * 0.8), c); } }
-  update(dt) { for (let i = this.n - 1; i >= 0; i--) { this.life[i] -= dt; if (this.life[i] <= 0) { const l = --this.n; if (i !== l) for (const k of ['x', 'y', 'vx', 'vy', 'life', 'max', 'size', 'r', 'g', 'b', 'drag']) this[k][i] = this[k][l]; continue; } const d = Math.max(0, 1 - this.drag[i] * dt); this.vx[i] *= d; this.vy[i] *= d; this.x[i] += this.vx[i] * dt; this.y[i] += this.vy[i] * dt; } }
+  update(dt) { for (let i = this.n - 1; i >= 0; i--) { this.life[i] -= dt; if (this.life[i] <= 0) { const l = --this.n; if (i !== l) for (const k of PARTICLE_FIELDS) this[k][i] = this[k][l]; continue; } const d = Math.max(0, 1 - this.drag[i] * dt); this.vx[i] *= d; this.vy[i] *= d; this.x[i] += this.vx[i] * dt; this.y[i] += this.vy[i] * dt; } }
   draw(batch) { const c = [0, 0, 0]; for (let i = 0; i < this.n; i++) { const t = this.life[i] / this.max[i]; c[0] = this.r[i]; c[1] = this.g[i]; c[2] = this.b[i]; const s = this.size[i] * (0.4 + t * 0.6); batch.add(this.x[i], this.y[i], s, s, 0, c, t * 1.4); } }
 }
 

@@ -104,5 +104,6 @@ export function initUI(app, hooks) {
     showDebrief: (s) => { clear($.toasts); $.banner.classList.remove('on'); overlays.showDebrief(s); },
     pause: () => uiHooks.pause(),
     refreshHangar: () => { if (G.mode === 'hangar') hangar.render(); },
+    closeOverlays: () => overlays.close(),
   };
 }

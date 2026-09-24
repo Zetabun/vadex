@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.2.0 — 2026-09-24
+
+- **Missions tab.** A new home for the two return loops below. The tab bar now pages with chevrons (More / Back), and a dot on the chevron shows when something on the other page needs attention.
+- **Daily Sortie.** One attempt a day on a seed shared by every pilot, with one of eight twists (Glass Cannon, Overclock, Loaded, Elite Squadron, Carrier Group, Veteran Start, Blood Moon, Rush Hour). Finishing pays a salvage bonus that grows with the wave reached and your day streak, and doubles pilot XP.
+- **Threat levels I–X.** Once you reach sector 4, stack extra rules (tougher, faster, more elites, weaker hull) for up to +200% salvage and +150% pilot XP. Each level opens by beating the wave 40 boss at the level below.
+- **Ship Mastery.** Every ship levels up with the waves it flies: +2% damage and hull per level, an opening card at 3, a reroll at 6 and a Prime paint job at 10.
+- **Late-game contracts and paints.** Eleven new contracts (dailies, streaks, mastery, threat, owning every ship, wave 100) and ten new paint jobs.
+- **Controls.** Hold the left or right side of the screen to fly that way; sliding your finger switches to drag steering as before. Toggle in Settings.
+- **Paint jobs** now recolour the whole ship (deck, wings, hull, markings and engine glow), not just the trim lights.
+- **No more double-tap zoom** on menus, cards and buttons in iOS.
+- **Smoother frames, identical visuals.** Glow and particle batches upload only the sprites in use each frame (previously ~250 KB per frame regardless), particle removal no longer allocates, and floating combat text no longer re-parses its font per number.
+
 ## v2.1.2 — 2026-09-24
 
 - Second fix for the iOS home-screen app stopping short of the bottom of the screen: the page root now grows to the full screen as well, with a `display-mode: standalone` CSS fallback.

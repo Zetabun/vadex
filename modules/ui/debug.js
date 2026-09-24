@@ -29,13 +29,21 @@ export async function initDebug(app, { hooks, ui } = {}) {
 
 function runScene(scene, hooks, ui) {
   const st = G.state; st.salvage = 4200; for (const id of WEAPON_ORDER) st.unlocked.weapons[id] = 1; for (const id of ABILITY_ORDER) st.unlocked.abilities[id] = 1;
-  st.unlocked.ships.striker = 1; st.stats.sorties = 6; st.stats.bestWave = 27; st.stats.bestSector = 3; st.stats.kills = 900; st.workshop.w_dmg = 3; st.workshop.w_hull = 2; st.pilot = { rank: 6, xp: 700 }; st.paints.ember = st.paints.crimson = 1; recalc();
+  st.unlocked.ships.striker = 1; st.stats.sorties = 6; st.stats.bestWave = 27; st.stats.bestSector = 4; st.stats.threatClear = 2; st.threat = 2; st.mastery = { vanguard: { level: 4, xp: 60 }, striker: { level: 2, xp: 10 } }; st.daily.streak = 3; st.daily.lastDay = '2000-01-01'; st.stats.kills = 900; st.workshop.w_dmg = 3; st.workshop.w_hull = 2; st.pilot = { rank: 6, xp: 700 }; st.paints.ember = st.paints.crimson = 1; recalc();
   const [name, arg] = scene.split(':');
-  if (['workshop', 'armory', 'ships', 'contracts', 'launch'].includes(name)) { hooks.toHangar(name); return; }
+  if (name === 'paint') { st.paints[arg] = 1; st.paint = arg; hooks.toHangar('launch'); return; }
+  if (['workshop', 'armory', 'ships', 'contracts', 'launch', 'missions'].includes(name)) { hooks.toHangar(name); return; }
   hooks.launch();
   if (name === 'levelup') { grantXp(40); ui.nextChoice(); }
   else if (name === 'relic') { st.run.pendingRelics = 1; ui.nextChoice(); }
   else if (name === 'notice') bus.emit('notice', { kind: 'unlock', kicker: 'Contract complete', title: 'Hold the Line', salvage: 40, sub: 'Weapon: Lance Laser unlocked', art: 'weapon:laser' });
   else if (name === 'pause') ui.pause();
+  else if (name === 'stress') {
+    // Late-game load: wave 34, four rank-7 guns, relics and drones, autopilot on.
+    const run = st.run; run.order = ['cannon', 'laser', 'missile', 'tesla']; for (const id of run.order) run.weapons[id] = 7;
+    run.relics = ['r_barrel', 'r_swarm', 'r_chain']; run.cards = { m_multi: 2, m_rate: 6, m_dmg: 8, m_drone: 2 }; run.wave = +(arg || 34); run.level = 30; recalc();
+    bus.on('stats', () => { G.sheet.totalN['f.autopilot'] = 1; G.sheet.totalN.autoDodge = 2; }); recalc(); debugSetWave(run.wave);
+    setInterval(() => { if (st.run?.offer) st.run.offer = null, st.run.pendingLevels = 0; if (st.run) st.run.pendingRelics = 0; if (st.run?.relicOffer) st.run.relicOffer = null; ui.closeOverlays?.(); const p = G.world?.player; if (p) { p.hull = 1; p.invuln = 1; } }, 200);
+  }
   else if (name === 'debrief') { st.run.salvage = 812; st.run.weapons.laser = 5; st.run.order.push('laser'); st.run.relics.push('r_glass'); st.run.contractsDone = ['c_wave5', 'c_kills']; G.world.wave.num = 23; hooks.abandon(); }
 }

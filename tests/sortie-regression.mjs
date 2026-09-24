@@ -15,10 +15,13 @@ import { initWorld, step } from '@last-orbit/combat/sim.js';
 import { spawnPickup, collectAll } from '@last-orbit/combat/pickups.js';
 import { hurtPlayer } from '@last-orbit/combat/world.js';
 import { startSortie, endSortie, recoverInterruptedRun, grantXp, rollOffer, pickCard, cardPool, nextOffer, rollRelics, pickRelic, describeCard, choicePending } from '@last-orbit/progression/run.js';
-import { addPilotXp, selectPaint, buyWorkshop, workshopNext, shipStatus, shipContract, buyShip, selectShip, checkContracts } from '@last-orbit/progression/meta.js';
+import { addPilotXp, selectPaint, threatMax, setThreat, dailyToday, addMastery, masteryOf, buyWorkshop, workshopNext, shipStatus, shipContract, buyShip, selectShip, checkContracts } from '@last-orbit/progression/meta.js';
 import { parseSave } from '@last-orbit/save/save.js';
 import { rankMult } from '@last-orbit/progression/stats.js';
-import { rankNeed, rankReward, MAX_RANK } from '@last-orbit/data/career.js';
+import { rankNeed, rankReward, MAX_RANK, masteryNeed } from '@last-orbit/data/career.js';
+import { threatMods, THREAT_UNLOCK_SECTOR } from '@last-orbit/data/threat.js';
+import { dayKey, prevDayKey, dailyFor, dailyBonus, MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
+import { setWaveBase } from '@last-orbit/combat/world.js';
 
 const fresh = () => { G.state = newState(); G.mode = 'hangar'; recalc(); initWorld(); };
 const launch = (opts) => { const r = startSortie({ seed: 7, ...opts }); initWorld(); return r; };
@@ -160,6 +163,47 @@ run = launch(); grantXp(200); const sp = endSortie('destroyed'); assert.ok(sp.pi
 G.state.pilot = { rank: MAX_RANK - 1, xp: 0 }; addPilotXp(1e9); assert.equal(G.state.pilot.rank, MAX_RANK); assert.equal(G.state.pilot.xp, 0);
 const v20 = JSON.parse(JSON.stringify(G.state)); v20.v = 20; delete v20.pilot; delete v20.paints; delete v20.paint;
 const up = parseSave(JSON.stringify(v20)); assert.equal(up.pilot.rank, 1); assert.equal(up.paint, 'factory');
+
+// ---- threat levels: gated, cumulative, harder enemies and better pay ----
+fresh();
+assert.equal(threatMax(), 0, 'Threat is locked for new pilots'); assert.equal(setThreat(3), 0);
+G.state.stats.bestSector = THREAT_UNLOCK_SECTOR; assert.equal(threatMax(), 1); assert.equal(setThreat(5), 1);
+G.state.stats.threatClear = 4; assert.equal(threatMax(), 5);
+assert.deepEqual(threatMods(3), { hp: 1.3, dmg: 1.25, elites: 1, bossHp: 1, fireRate: 1, hull: 1, formSpeed: 1 });
+setThreat(0); run = launch(); setWaveBase(G.world, 5, 0); const hp0 = G.world.base.hp, hull0 = G.sheet.n('hull'), sg0 = G.sheet.n('salvageGain'); endSortie('abandoned');
+setThreat(5); run = launch(); assert.equal(run.threat, 5); setWaveBase(G.world, 5, 0);
+assert.ok(Math.abs(G.world.base.hp.ratio(hp0) - 1.3) < 1e-6, 'Threat I+ raises enemy health'); assert.equal(G.world.sim.fireRate, 1.25);
+assert.equal(G.sheet.n('hull'), hull0, 'Hull is untouched until Threat VI'); assert.ok(G.sheet.n('salvageGain') > sg0, 'Threat pays more salvage');
+run.wave = 40; G.world.wave.timer = 0; step(TICK); for (const e of G.world.enemies) e.alive = false;
+for (let i = 0; i < 300 && G.world.wave.state !== 'cleared'; i++) step(TICK);
+assert.equal(G.state.stats.threatClear, 5, 'Beating the wave 40 boss records the threat level'); assert.equal(threatMax(), 6);
+const tSum = endSortie('abandoned'); assert.equal(tSum.threat, 5);
+
+// ---- daily sortie: shared seed and mutator, one attempt, streaks and bonus ----
+fresh(); G.state.stats.sorties = 1;
+const today = dailyToday(); assert.equal(today.key, dayKey()); assert.equal(today.seed, dailyFor(today.key).seed); assert.equal(today.done, false);
+G.state.threat = 0; G.state.daily.lastDay = prevDayKey(today.key); G.state.daily.streak = 4;
+run = launch({ daily: true }); assert.ok(run, 'The daily launches'); assert.equal(run.seed, today.seed); assert.equal(run.mutator, today.mutator.id); assert.equal(run.threat, 0);
+assert.equal(dailyToday().done, true, "Launching uses today's attempt");
+const s0 = G.state.salvage; G.world.wave.num = 12; const dsum = endSortie('destroyed');
+assert.equal(dsum.daily.streak, 5, 'Flying on consecutive days extends the streak'); assert.equal(dsum.daily.bonus, dailyBonus(12, 5));
+assert.ok(G.state.salvage >= s0 + dsum.daily.bonus); assert.equal(G.state.stats.dailies, 1); assert.ok(G.state.contracts.c_daily1);
+assert.equal(startSortie({ daily: true }), null, 'Only one daily a day'); assert.equal(G.state.run, null);
+assert.equal(prevDayKey('2026-03-01'), '2026-02-28');
+for (const m of Object.values(MUTATOR_BY_ID)) { fresh(); G.state.stats.sorties = 1; G.state.daily = { day: '', done: false, wave: 0, streak: 0, lastDay: '', best: 0 };
+  run = startSortie({ seed: 1 }); run.mutator = m.id; recalc(); initWorld(); step(TICK); endSortie('abandoned'); }
+
+// ---- ship mastery: waves flown level the ship, add bonuses and unlock its paint ----
+fresh(); const dmgM = G.sheet.n('damage');
+const mr = addMastery('vanguard', masteryNeed(1) + masteryNeed(2)); assert.equal(mr.to, 3); assert.equal(masteryOf('vanguard').level, 3);
+recalc(); assert.ok(G.sheet.n('damage') > dmgM, 'Mastery adds damage'); assert.equal(G.sheet.n('startLevels'), 1, 'Mastery 3 grants an opening card');
+addMastery('vanguard', 1e6); assert.equal(masteryOf('vanguard').level, 10); assert.ok(G.state.paints.m_vanguard, 'Mastery 10 unlocks the Prime paint');
+assert.equal(G.state.stats.maxMastery, 10);
+run = launch(); G.world.wave.num = 9; assert.equal(endSortie('destroyed').mastery.gained, 9, 'A sortie gives one mastery point per wave');
+
+// ---- hold a screen side to steer ----
+fresh(); run = launch(); const p0 = G.world.player.x; G.world.input.hold = -1; for (let i = 0; i < 30; i++) step(TICK);
+assert.ok(G.world.player.x < p0 - 5, 'Holding the left side flies left'); G.world.input.hold = 0; endSortie('abandoned');
 
 // ---- saves round-trip and refuse newer schemas ----
 fresh(); G.state.salvage = 1234; G.state.workshop.w_hull = 3;

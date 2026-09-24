@@ -27,6 +27,6 @@ for (const scene of scenes) {
   await send('Page.navigate', { url: `http://localhost:${PORT}/?debug=1&scene=${scene}` });
   await sleep(+(process.env.WAIT || 3500));
   const shot = await send('Page.captureScreenshot', { format: 'png' });
-  const file = resolve(outDir, scene + '.png'); writeFileSync(file, Buffer.from(shot.result.data, 'base64')); console.log('captured', file);
+  const file = resolve(outDir, scene.replace(/[^a-z0-9_-]/gi, '-') + '.png'); writeFileSync(file, Buffer.from(shot.result.data, 'base64')); console.log('captured', file);
 }
 ws.close(); proc.kill();

@@ -10,17 +10,26 @@ import { ABILITIES, ABILITY_ORDER } from '@last-orbit/data/abilities.js';
 import { MODS, MOD_BY_ID, RARITY } from '@last-orbit/data/cards.js';
 import { RELICS, RELIC_BY_ID } from '@last-orbit/data/relics.js';
 import { SHIP_BY_ID } from '@last-orbit/data/ships.js';
-import { checkContracts, addPilotXp } from '@last-orbit/progression/meta.js';
+import { checkContracts, addPilotXp, threatMax, dailyToday, addMastery } from '@last-orbit/progression/meta.js';
 import { sortiePilotXp } from '@last-orbit/data/career.js';
+import { threatPilotXp } from '@last-orbit/data/threat.js';
+import { MUTATOR_BY_ID, prevDayKey, dailyBonus } from '@last-orbit/data/daily.js';
 
 // ---------------------------------------------------------------- sortie lifecycle
 export function startSortie(opts = {}) {
   const st = G.state, ship = SHIP_BY_ID[st.ship] || SHIP_BY_ID.vanguard;
-  st.run = newRun(ship, opts); st.run.prevBest = st.stats.bestWave || 0; G.mode = 'sortie';
-  recalc();
+  // A Daily Sortie uses the day's shared seed and mutator, at no threat. It can be flown once a day.
+  const daily = opts.daily ? dailyToday() : null;
+  if (daily && daily.done) return null;
+  st.run = newRun(ship, { ...opts, seed: daily ? daily.seed : opts.seed }); st.run.prevBest = st.stats.bestWave || 0; G.mode = 'sortie';
   const run = st.run;
+  run.threat = daily ? 0 : Math.max(0, Math.min(threatMax(), st.threat || 0));
+  if (daily) { run.daily = daily.key; run.mutator = daily.mutator.id; st.daily.done = true; }
+  const start = MUTATOR_BY_ID[run.mutator]?.start;
+  if (start?.weapon) { const pool = WEAPON_ORDER.filter((id) => !run.weapons[id]); const id = pool[Math.floor(rand() * pool.length)]; run.weapons[id] = 1; run.order.push(id); }
+  recalc();
   run.rerolls = Math.round(G.sheet.n('rerolls'));
-  run.pendingLevels = Math.round(G.sheet.n('startLevels'));
+  run.pendingLevels = Math.round(G.sheet.n('startLevels')) + (start?.cards || 0);
   count('sorties'); checkContracts();
   bus.emit('sortieStart', run);
   return run;
@@ -38,9 +47,16 @@ export function endSortie(reason = 'destroyed') {
     weapons: run.order.map((id) => [id, run.weapons[id]]), best: reached > (run.prevBest || 0), date: Date.now(),
   };
   st.run = null; G.mode = 'hangar';
+  summary.threat = run.threat || 0; summary.mutator = run.mutator || null;
+  if (run.daily) {
+    const d = st.daily; d.streak = d.lastDay === prevDayKey(run.daily) ? d.streak + 1 : d.lastDay === run.daily ? d.streak : 1; d.lastDay = run.daily;
+    d.wave = reached; d.best = Math.max(d.best || 0, reached); count('dailies'); maxStat('bestStreak', d.streak);
+    const bonus = dailyBonus(reached, d.streak); st.salvage += bonus; summary.daily = { bonus, streak: d.streak };
+  }
+  summary.mastery = addMastery(run.ship, reached);
+  summary.pilot = addPilotXp(sortiePilotXp({ xpTotal: run.xpTotal, wave: reached, bosses: summary.bosses }) * threatPilotXp(summary.threat) * (run.daily ? 2 : 1));
   // Contracts finished mid-sortie were announced as they happened; the debrief lists them all.
   summary.contracts = (run.contractsDone || []).concat(checkContracts({ silent: true }));
-  summary.pilot = addPilotXp(sortiePilotXp({ xpTotal: run.xpTotal, wave: reached, bosses: summary.bosses }));
   st.history.unshift({ wave: summary.wave, level: summary.level, ship: summary.ship, salvage: banked, time: summary.time, date: summary.date }); st.history.length = Math.min(st.history.length, 12);
   recalc(); bus.emit('sortieEnded', summary);
   return summary;
