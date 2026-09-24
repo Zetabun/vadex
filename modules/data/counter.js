@@ -17,7 +17,7 @@ const BRIEFS = [
 export const COUNTER_UNLOCK_SECTOR = 3;
 export const STAGES = SECTORS.slice(0, 6).map((sec, i) => ({
   n: i + 1, sector: i, name: TITLES[i], brief: BRIEFS[i], boss: sec.boss, mini: sec.mini,
-  wave: [4, 12, 21, 30, 39, 45][i], rec: [0, 18, 32, 46, 60, 72][i], len: [170, 190, 205, 220, 235, 250][i],
+  wave: [6, 18, 33, 40, 50, 55][i], rec: [0, 35, 55, 85, 100, 110][i], len: [170, 190, 205, 220, 235, 250][i],
   fire: [1, 1, 1, 1, 1, 0.8][i], // enemy fire-rate multiplier: sector 6's artillery, rockets and beams all aim at the ship
   ground: i === 0 ? 0.55 : 0, // Liftoff: the stage starts over the city; the surface falls away by this share of the stage
 }));
