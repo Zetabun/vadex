@@ -40,6 +40,7 @@ function runScene(scene, hooks, ui) {
   const [name, arg, arg2, arg3] = scene.split(':');
   // Scenes play as an established pilot (every menu open), except newpilot:<sorties>, which shows the menus opening up.
   st.seen.menus = {}; st.seen.menusInit = false; refreshMenus();
+  if (name === 'callsign') { st.pilot.name = arg || ''; st.seen.callsign = !!arg; hooks.toHangar('launch'); setTimeout(() => (arg2 === 'greet' ? ui.greet() : ui.callsign({ first: !arg })), 400); return; }
   if (name === 'newpilot') { st.stats.sorties = +arg || 0; st.seen.menus = {}; st.seen.menusInit = true; refreshMenus(); hooks.toHangar('launch'); if (arg2) setTimeout(() => [...document.querySelectorAll('.nav-btn')].find((b) => b.textContent.toLowerCase().includes(arg2))?.click(), 500); return; }
   if (name === 'hull' || name === 'hullfly') { st.unlocked.ships[arg] = 1; st.ship = arg; st.banner = 'none'; recalc(); if (name === 'hull') { hooks.toHangar('launch'); return; } }
   if (name === 'paint') { st.paints[arg] = 1; st.paint = arg; hooks.toHangar('launch'); return; }
@@ -106,6 +107,9 @@ function runScene(scene, hooks, ui) {
   else if (name === 'synergy') { const run = st.run; run.offer = null; run.pendingLevels = 0; run.cards = { m_crit: 1, m_critd: 2 }; recalc();
     run.offer = [{ kind: 'mod', id: 'm_aim', stack: 1, rarity: 'common' }, { kind: 'mod', id: 'm_hull', stack: 1, rarity: 'common' }, { kind: 'mod', id: 'm_drone', stack: 1, rarity: 'rare' }]; ui.closeOverlays(); ui.nextChoice(); }
   else if (name === 'dash') { const run = st.run; run.offer = null; run.pendingLevels = 0; ui.closeOverlays(); let d = 1; setInterval(() => { const w = G.world; if (!w) return; w.input.dash = d; d = -d; w.player.hull = 1; }, 900); }
+  else if (name === 'anomaly') { const run = st.run; run.offer = null; run.pendingLevels = 0; run.wave = 71; run.anomalies = arg ? arg.split(',') : ['hardened']; run.pendingAnomaly = true; recalc(); ui.closeOverlays(); ui.nextChoice(); }
+  else if (name === 'void') { const run = st.run; run.offer = null; run.pendingLevels = 0; ui.closeOverlays(); run.wave = +(arg2 || 62); run.anomalies = (arg || 'lances').split(','); for (const id of ['laser', 'tesla']) { run.order.push(id); run.weapons[id] = 6; } run.weapons.cannon = 7; recalc(); bus.emit('anomalyPicked'); debugSetWave(run.wave);
+    setInterval(() => { const w = G.world; if (!w?.player || !st.run) return; if (st.run.offer || st.run.relicOffer) { st.run.offer = st.run.relicOffer = null; st.run.pendingLevels = st.run.pendingRelics = 0; ui.closeOverlays(); } w.player.hull = 1; const s = Math.sin(performance.now() / 1300); w.input.hold = s > 0.35 ? 1 : s < -0.35 ? -1 : 0; }, 100); }
   else if (name === 'route') { st.run.offer = null; st.run.pendingLevels = 0; st.run.pendingRoute = true; ui.closeOverlays(); ui.nextChoice(); }
   else if (name === 'fusion') { const run = st.run; run.offer = null; run.pendingLevels = 0; run.order.push('laser'); run.weapons.cannon = 7; run.weapons.laser = 7; st.mastery.vanguard = { level: 5, xp: 0 }; recalc();
     run.offer = [{ kind: 'fusion', id: 'fu_twinsuns', rarity: 'fusion' }, { kind: 'signature', id: run.ship, rarity: 'signature' }, { kind: 'mod', id: 'm_dmg', stack: 1, rarity: 'common' }]; ui.closeOverlays(); ui.nextChoice(); }

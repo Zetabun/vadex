@@ -20,7 +20,7 @@ export function newState() {
     settings: { master: 0.7, music: 0.5, sfx: 0.8, shake: true, dmgNumbers: true, scanlines: false, quality: 'auto', notation: 'suffix', speed: 1, holdSides: true },
     salvage: 0,
     ship: 'vanguard',
-    pilot: { rank: 1, xp: 0 },
+    pilot: { rank: 1, xp: 0, name: '' }, // name: the pilot's callsign, asked for on first launch
     paints: { factory: 1 },
     paint: 'factory',
     banners: { none: 1 },
@@ -41,7 +41,7 @@ export function newState() {
     stats: { kills: 0, bossKills: 0, sectorBosses: 0, bestWave: 0, bestSector: 1, sectorsCleared: 0, sorties: 0, maxLevel: 1, flawless: 0, maxRank: 1, maxDrones: 0, maxWeapons: 1, bestSalvage: 0, totalSalvage: 0, deaths: 0, cards: 0, threatClear: 0, dailies: 0, bestStreak: 0, maxMastery: 1, shipsOwned: 1,
       bestScore: 0, bestKills: 0, longestRun: 0, perfectSectors: 0, flawlessBosses: 0, soloWave: 0, maxedWeapons: 0, maxRelics: 0, fusions: 0, signatures: 0, counterStars: 0, counterBest: 0, counterHard: 0, overhauls: 0 },
     // menus: hangar menu id → 'new' (opened, explainer not yet shown) or true (seen); see data/menus.js
-    seen: { enemies: {}, bosses: {}, elites: {}, medals: 0, records: true, menus: {}, menusInit: false },
+    seen: { enemies: {}, bosses: {}, elites: {}, medals: 0, records: true, menus: {}, menusInit: false, callsign: false },
     // Records: the local top 10 sorties by score and each ship's best. Medals: achievement id → tiers earned.
     records: { top: [], ships: {} },
     medals: {},

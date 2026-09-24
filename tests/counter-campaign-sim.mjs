@@ -8,7 +8,7 @@ import { G, recalc } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { newState } from '@last-orbit/core/state.js';
 import { initWorld, step } from '@last-orbit/combat/sim.js';
-import { startSortie, endSortie, nextOffer, pickCard, nextRelic, pickRelic, nextRoute, pickRoute, autoPickIndex } from '@last-orbit/progression/run.js';
+import { startSortie, endSortie, nextOffer, pickCard, nextRelic, pickRelic, nextRoute, nextAnomaly, pickAnomaly, pickRoute, autoPickIndex } from '@last-orbit/progression/run.js';
 import { WORKSHOP } from '@last-orbit/data/workshop.js';
 import { STAGES } from '@last-orbit/data/counter.js';
 import { workshopNext, buyWorkshop, unlockCounter, buyTech, powerRating } from '@last-orbit/progression/meta.js';
@@ -26,6 +26,7 @@ function fly(opts, counter) {
     if (nextOffer()) { const o = G.state.run.offer; if (counter) pickCard(autoPickIndex(G.state.run)); else { let bi = 0; o.forEach((c, i) => { if (pickScore(c) + Math.random() > pickScore(o[bi]) + Math.random() * 0.5) bi = i; }); pickCard(bi); } continue; }
     if (nextRelic()) { pickRelic(Math.floor(Math.random() * G.state.run.relicOffer.length)); continue; }
     if (nextRoute()) { pickRoute(Math.floor(Math.random() * G.state.run.routeOffer.length)); continue; }
+    if (nextAnomaly()) { pickAnomaly(Math.floor(Math.random() * G.state.run.anomalyOffer.length)); continue; }
     step(TICK); t += TICK; G.world.fx.length = 0;
     if (Math.random() < 0.02) for (const id of G.state.run.abilities) useAbility(G.world, id, true);
   }

@@ -240,3 +240,10 @@ export function refreshMenus() {
 export function menuState(id) { if (!MENU_BY_ID[id]) return 'open'; const v = G.state.seen.menus?.[id]; return v === true ? 'open' : v === 'new' ? 'new' : 'locked'; }
 export function menuSeen(id) { if (G.state.seen.menus?.[id] === 'new') G.state.seen.menus[id] = true; }
 export function menuLockText(id) { const m = MENU_BY_ID[id], left = Math.max(1, m.sorties - (G.state.stats.sorties || 0)); return `${m.title} opens after ${left} more sortie${left > 1 ? 's' : ''}`; }
+
+// ---------------------------------------------------------------- callsign
+export const CALLSIGN_MAX = 16;
+/** Tidy a typed callsign: letters, digits, spaces and . _ ' - only, single spaces, at most CALLSIGN_MAX characters. */
+export function cleanCallsign(s) { return [...String(s || '').replace(/[^\p{L}\p{N} ._'-]/gu, '').replace(/\s+/g, ' ').trim()].slice(0, CALLSIGN_MAX).join('').trim(); }
+/** Set the callsign (an empty one clears it). The pilot has been asked either way. */
+export function setCallsign(s) { G.state.pilot.name = cleanCallsign(s); G.state.seen.callsign = true; return G.state.pilot.name; }

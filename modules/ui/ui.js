@@ -24,6 +24,7 @@ export function initUI(app, hooks) {
     counterIntro: (go) => overlays.showCounterIntro(go),
     confirmOverhaul: () => overlays.showOverhaul(),
     menuIntro: (m) => overlays.showMenuIntro(m),
+    callsignSet: (name, first) => { if (G.mode === 'hangar') hangar.render(); if (first) greet(true); },
     overhauled: (bp) => { banner('Overhaul complete', `Rank ${G.state.prestige.level}`, `+${bp} Blueprints`, '#ff9f43', 2200); if (G.mode === 'hangar') hangar.render(); },
     pause: () => { if (G.mode === 'sortie' && !overlays.blocking()) { playSfx('tab'); overlays.showPause(); } },
     toHangar: (tab) => hooks.toHangar(tab),
@@ -56,6 +57,7 @@ export function initUI(app, hooks) {
     const run = G.state.run; if (!run) return false;
     if (hooks.pendingRelic()) { overlays.showRelics(); return true; }
     if (hooks.pendingRoute()) { overlays.showRoutes(); return true; }
+    if (hooks.pendingAnomaly?.()) { overlays.showAnomalies(); return true; }
     if (hooks.pendingOffer()) { overlays.showOffer(); return true; }
     return false;
   }
@@ -104,9 +106,12 @@ export function initUI(app, hooks) {
   function update(dt) {
     if (G.mode === 'sortie') hud.update(dt); else hangar.update();
   }
+  /** The greeting when the app opens (or right after a new pilot registers). */
+  function greet(fresh) { const n = G.state.pilot.name; if (n) banner(fresh ? 'Welcome aboard' : 'Welcome back', n, null, 'var(--cyan)', 2600); }
   addEventListener('resize', () => setTimeout(measure, 50));
   return {
-    update, setMode, measure, banner, nextChoice,
+    update, setMode, measure, banner, nextChoice, greet,
+    callsign: (o) => overlays.showCallsign(o),
     blocking: () => overlays.blocking(),
     showDebrief: (s) => { clear($.toasts); $.banner.classList.remove('on'); overlays.showDebrief(s); },
     pause: () => uiHooks.pause(),

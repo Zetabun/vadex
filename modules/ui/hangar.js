@@ -136,7 +136,7 @@ export function createHangar(hooks) {
     const p = G.state.pilot, max = p.rank >= MAX_RANK;
     return h('button.rank-strip', { onclick: () => show('contracts') },
       insignia(p.rank, 'rank-ins'),
-      h('div.rank-main', h('div.rank-line', h('b', rankTitle(p.rank)), max ? h('span', 'Max rank') : rewardTag(p.rank + 1)),
+      h('div.rank-main', h('div.rank-line', p.name ? h('div.rank-who', h('small', rankTitle(p.rank)), h('b', p.name)) : h('b', rankTitle(p.rank)), max ? h('span', 'Max rank') : rewardTag(p.rank + 1)),
         h('div.meter.rank', h('i', { style: `width:${(pilotProgress() * 100).toFixed(1)}%` }))));
   }
   function swatch(id) {

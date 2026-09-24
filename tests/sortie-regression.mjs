@@ -23,7 +23,7 @@ import { threatMods, THREAT_UNLOCK_SECTOR } from '@last-orbit/data/threat.js';
 import { dayKey, prevDayKey, dailyFor, dailyBonus, MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
 
 import { setWaveBase, killEnemy } from '@last-orbit/combat/world.js';
-import { killScore, waveScore, scoreMult, TOP_N } from '@last-orbit/data/score.js';
+import { killScore, waveScore, scoreMult, TOP_N, addScore as addScoreT } from '@last-orbit/data/score.js';
 import { ACHIEVEMENTS, FEATS, TIERS, FEAT_XP, MEDAL_COUNT } from '@last-orbit/data/achievements.js';
 import { checkAchievements, medalProgress, medalTotal, medalDesc } from '@last-orbit/progression/meta.js';
 import { selectBanner } from '@last-orbit/progression/meta.js';
@@ -285,6 +285,28 @@ assert.ok(describeCard({ kind: 'fusion', id: 'fu_twinsuns' }).icon2); endSortie(
   pickRoute(1); assert.equal(run.route, 'salvage'); assert.ok(G.world.mods.hp > hp0 && G.sheet.n('salvageGain') > sal0, 'A route changes both sides');
   run.pendingRoute = true; nextRoute(); run.routeOffer = ['steady', 'gauntlet', 'blitz']; pickRoute(0); assert.equal(run.route, null, 'Steady Course clears the route');
   for (const r of Object.values(ROUTE_BY_ID)) assert.ok(r.name && r.desc && r.art, r.id); endSortie('abandoned'); }
+
+// ---- v2.8: Deep Void anomalies (one per Deep Void sector, stacking) ----
+{ const { nextAnomaly, pickAnomaly, rollAnomalies } = await import('@last-orbit/progression/run.js'); const { ANOMALIES, ANOMALY_BY_ID, anomalyPay, anomalyName } = await import('@last-orbit/data/anomalies.js');
+  for (const a of ANOMALIES) assert.ok(a.name && a.desc && a.pay > 0 && a.max >= 1 && (a.world || a.mech), a.id);
+  // Beating the wave 60 boss queues one; earlier sector bosses do not.
+  fresh(); run = launch(); run.offer = null; run.pendingLevels = 0;
+  for (const wv of [50, 60]) { run.wave = wv; startWave(G.world); for (let i = 0; i < 4000 && G.world.wave.state === 'fighting'; i++) { for (const e of [...G.world.enemies]) if (e.alive) killEnemy(G.world, e, null, false, 0); step(TICK); }
+    assert.equal(!!run.pendingAnomaly, wv === 60, 'Anomaly after the wave ' + wv + ' boss: ' + (wv === 60)); run.pendingRoute = false; run.routeOffer = null; run.pendingRelics = 0; run.relicOffer = null; }
+  assert.ok(nextAnomaly() && choicePending(), 'An anomaly offer freezes combat'); assert.equal(run.anomalyOffer.length, 2); assert.notEqual(run.anomalyOffer[0], run.anomalyOffer[1]);
+  const hp0 = G.world.mods.hp, sal0 = G.sheet.n('salvageGain'); run.anomalyOffer = ['hardened', 'lances']; pickAnomaly(0);
+  assert.ok(G.world.mods.hp > hp0 * 1.15 && Math.abs(G.sheet.n('salvageGain') / sal0 - 1.2) < 1e-9, 'Hardened Hulls: tougher invaders, +20% salvage');
+  const sc = run.score || 0; addScoreT(run, 100); assert.equal(run.score - sc, Math.round(100 * scoreMult(run.threat) * 1.2), 'Anomalies raise the score');
+  run.anomalies.push('hardened', 'hardened'); recalc(); rollAnomalies(run); assert.ok(!run.anomalyOffer.includes('hardened'), 'A maxed anomaly is not offered again');
+  run.anomalyOffer = ['lances', 'minefield']; pickAnomaly(0); assert.ok(G.world.anom?.lances, 'Rule anomalies switch on'); assert.equal(anomalyName('hardened', 3), 'Hardened Hulls III'); assert.equal(anomalyName('lances'), 'Void Lances');
+  assert.ok(Math.abs(anomalyPay(run) - (1 + 0.2 * 3 + ANOMALY_BY_ID.lances.pay)) < 1e-9);
+  endSortie('abandoned'); fresh(); assert.equal(G.world.anom ?? null, null, 'A new sortie starts clean'); }
+
+// ---- v2.8: callsign ----
+{ const { cleanCallsign, setCallsign, CALLSIGN_MAX } = await import('@last-orbit/progression/meta.js');
+  assert.equal(cleanCallsign('  Ace<b>  Rimmer!! '), 'Aceb Rimmer'); assert.equal(cleanCallsign('Zoë-7'), 'Zoë-7'); assert.equal(cleanCallsign('x'.repeat(40)).length, CALLSIGN_MAX); assert.equal(cleanCallsign('!!!'), '');
+  fresh(); assert.equal(G.state.seen.callsign, false); assert.equal(setCallsign(' Adam '), 'Adam'); assert.equal(G.state.pilot.name, 'Adam'); assert.ok(G.state.seen.callsign);
+  const back = parseSave(JSON.stringify(G.state)); assert.equal(back.pilot.name, 'Adam'); }
 
 // ---- v2.4: warp start ----
 { const { warpMax } = await import('@last-orbit/progression/run.js');

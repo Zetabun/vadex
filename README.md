@@ -6,7 +6,7 @@ Last Orbit is a browser orbital-defence roguelite. The live page is [zetabun.git
 
 - **Sorties.** Launch from the Hangar and hold the line against formations of invaders. Your guns fire automatically; drag (or use A/D) to steer, dodge and line up shots, and tap an enemy to focus fire.
 - **Level up mid-fight.** Kills drop experience orbs. Each level offers a choice of cards: new weapons (up to four), weapon ranks that evolve each gun, abilities and passive modules.
-- **Sectors and bosses.** Every sector is ten waves: an elite or mini-boss at wave 5, a salvage convoy at wave 8 and a sector boss at wave 10. Beating a boss offers a choice of three relics. After sector 6 the Deep Void is endless.
+- **Sectors and bosses.** Every sector is ten waves: an elite or mini-boss at wave 5, a salvage convoy at wave 8 and a sector boss at wave 10. Beating a boss offers a choice of three relics. After sector 6 the Deep Void is endless, and each Deep Void sector makes you take one of two anomalies: they stack, and each raises your salvage and score.
 - **Salvage.** Salvage canisters, wave clears and bosses pay salvage. It is banked when the sortie ends, win or lose.
 - **The Hangar.** Spend salvage on permanent Workshop upgrades and new ships. Contracts are the long-term goals: each pays salvage and unlocks a weapon, an ability or a ship.
 - **Career.** Every sortie earns pilot XP; 40 pilot ranks pay salvage and unlock paint jobs for your ship. Each ship also earns mastery as you fly it.

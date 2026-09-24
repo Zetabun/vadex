@@ -5,6 +5,7 @@ import { BAL, FIELD } from '@last-orbit/data/balance.js';
 import { ENEMIES } from '@last-orbit/data/enemies.js';
 import { fx, sfx, spawnEnemy, spawnBullet, hurtPlayer, hitEnemy, killEnemy } from '@last-orbit/combat/world.js';
 import { movePath } from '@last-orbit/combat/paths.js';
+import { weave } from '@last-orbit/combat/anomalies.js';
 
 const HALF = FIELD.W / 2;
 
@@ -104,8 +105,8 @@ function applyAura(w, src, aura) {
 function enemyFire(w, e, fire) {
   const p = w.player;
   switch (fire.kind) {
-    case 'bolt': spawnBullet(w, e.x, e.y - e.r, 0, -fire.speed, fire.dmg, 'bolt'); break;
-    case 'heavy': spawnBullet(w, e.x, e.y - e.r, 0, -fire.speed, fire.dmg, 'heavy'); break;
+    case 'bolt': weave(w, spawnBullet(w, e.x, e.y - e.r, 0, -fire.speed, fire.dmg, 'bolt')); break;
+    case 'heavy': weave(w, spawnBullet(w, e.x, e.y - e.r, 0, -fire.speed, fire.dmg, 'heavy')); break;
     case 'aimed': case 'spread': { // a ship hidden in a nebula bank throws the aim off
       const a = Math.atan2(p.y - e.y, p.x - e.x) + (w.playerVeiled ? (rand() - 0.5) * 1.1 : 0);
       for (const o of fire.kind === 'spread' ? [-0.24, 0, 0.24] : [0]) spawnBullet(w, e.x, e.y - e.r, Math.cos(a + o) * fire.speed, Math.sin(a + o) * fire.speed, fire.dmg, 'bolt'); break; }

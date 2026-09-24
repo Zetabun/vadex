@@ -26,6 +26,8 @@ import { ROUTE_BY_ID } from '@last-orbit/data/routes.js';
 import { SHIP_BY_ID } from '@last-orbit/data/ships.js';
 import { updatePassives } from '@last-orbit/combat/passives.js';
 import { initCounter, counterStep } from '@last-orbit/combat/counter.js';
+import { stepAnomalies } from '@last-orbit/combat/anomalies.js';
+import { ANOMALY_BY_ID } from '@last-orbit/data/anomalies.js';
 
 const BARRIER_X = [-34, -11.5, 11.5, 34];
 
@@ -41,13 +43,18 @@ export function initWorld() {
   return w;
 }
 
-/** Enemy-side rules from the threat level, any daily mutator and the current route. */
+/** Enemy-side rules from the threat level, any daily mutator, the current route and Deep Void anomalies. */
 export function applyRunMods(w) {
   const run = G.state.run, m = threatMods(run?.threat || 0), mw = MUTATOR_BY_ID[run?.mutator]?.world || {}, rw = ROUTE_BY_ID[run?.route]?.world || {};
-  w.mods = { hp: m.hp * (mw.hp || 1) * (rw.hp || 1), dmg: m.dmg * (rw.dmg || 1), bossHp: m.bossHp, elites: m.elites + (mw.elites || 0) + (rw.elites || 0) };
-  w.sim.fireRate = m.fireRate * (mw.fireRate || 1) * (rw.fireRate || 1); w.sim.formSpeed = m.formSpeed * (mw.formSpeed || 1) * (rw.formSpeed || 1);
+  // Anomalies stack: each copy multiplies (or adds its elites) again.
+  const av = { hp: 1, dmg: 1, fireRate: 1, formSpeed: 1, elites: 0 }, mech = {};
+  for (const id of run?.anomalies || []) { const a = ANOMALY_BY_ID[id]; if (!a) continue; for (const k in a.world || {}) { if (k === 'elites') av.elites += a.world[k]; else av[k] *= a.world[k]; } if (a.mech) mech[a.mech] = 1; }
+  w.anom = Object.keys(mech).length ? mech : null;
+  w.mods = { hp: m.hp * (mw.hp || 1) * (rw.hp || 1) * av.hp, dmg: m.dmg * (rw.dmg || 1) * av.dmg, bossHp: m.bossHp, elites: m.elites + (mw.elites || 0) + (rw.elites || 0) + av.elites };
+  w.sim.fireRate = m.fireRate * (mw.fireRate || 1) * (rw.fireRate || 1) * av.fireRate; w.sim.formSpeed = m.formSpeed * (mw.formSpeed || 1) * (rw.formSpeed || 1) * av.formSpeed;
 }
 bus.on('routePicked', () => { if (G.world) applyRunMods(G.world); });
+bus.on('anomalyPicked', () => { if (G.world) applyRunMods(G.world); });
 
 let accum = 0;
 /** How far the next tick has come, 0..1: the renderer draws moving things this far between their last two positions,
@@ -79,7 +86,7 @@ export function step(dt) {
       spawnPending(w, dt);
       rebuildBuckets(w);
       updateFormation(w, dt); updateEnemies(w, dt); updateBoss(w, dt); updateRockets(w, dt);
-      updateWeapons(w, dt); updateDrones(w, dt); updateBullets(w, dt); updateHazards(w, dt); updatePickups(w, dt);
+      updateWeapons(w, dt); updateDrones(w, dt); updateBullets(w, dt); updateHazards(w, dt); updatePickups(w, dt); stepAnomalies(w, dt);
       if (!w.player.alive) break;
       let live = 0; for (let i = 0; i < w.enemies.length; i++) { const e = w.enemies[i]; if (e.alive && !e.def.projectile && !(e.def.cruiser && ws.info.kind !== 'resource')) live++; }
       if (live === 0 && !ws.pending.length && ws.t > 0.5) clearWave(w);
@@ -169,6 +176,8 @@ function clearWave(w) {
     run.pendingRelics += 1 + (route?.relic || 0); p.hull = 1; p.shield = 1; ws.timer = 2.6;
     // The route ends with its sector; the pilot picks the next one after the relic.
     run.route = null; run.pendingRoute = true; recalc(); applyRunMods(w);
+    // Every Deep Void sector brings another anomaly (chosen after the route).
+    if (sectorOf(run.wave + 1).endless) run.pendingAnomaly = true;
     fx(w, 'sectorClear', sec.idx, sec.def.name); sfx(w, 'milestone');
   }
   run.wave++;

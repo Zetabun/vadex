@@ -17,6 +17,7 @@ import { threatPilotXp } from '@last-orbit/data/threat.js';
 import { MUTATOR_BY_ID, prevDayKey, dailyBonus } from '@last-orbit/data/daily.js';
 import { FUSIONS, FUSION_BY_ID } from '@last-orbit/data/fusions.js';
 import { ROUTES, ROUTE_BY_ID } from '@last-orbit/data/routes.js';
+import { ANOMALIES, ANOMALY_BY_ID, ANOMALY_CHOICES, anomalyCounts } from '@last-orbit/data/anomalies.js';
 import { SYNERGIES, synergyOf, synergyCount } from '@last-orbit/data/synergies.js';
 import { STAGE_BY_N, STAR_HITS, STAR_KILLS, CORES_PER_STAR, clearBounty } from '@last-orbit/data/counter.js';
 import { unlockCounter } from '@last-orbit/progression/meta.js';
@@ -291,8 +292,28 @@ export function pickRoute(idx) {
   return ROUTE_BY_ID[id];
 }
 
+// ---------------------------------------------------------------- Deep Void anomalies (one per Deep Void sector, stacking)
+/** Offer two anomalies the run can still take. */
+export function rollAnomalies(run = G.state.run) {
+  const have = anomalyCounts(run), pool = ANOMALIES.filter((a) => (have[a.id] || 0) < a.max), out = [];
+  while (out.length < ANOMALY_CHOICES && pool.length) out.push(pool.splice(Math.floor(rand() * pool.length), 1)[0].id);
+  run.anomalyOffer = out.length ? out : null; return run.anomalyOffer;
+}
+export function nextAnomaly() {
+  const run = G.state.run; if (!run) return false;
+  if (run.anomalyOffer) return true;
+  if (run.pendingAnomaly) { run.pendingAnomaly = false; return !!rollAnomalies(run); }
+  return false;
+}
+export function pickAnomaly(idx) {
+  const run = G.state.run, id = run?.anomalyOffer?.[idx]; if (!id) return null;
+  (run.anomalies ||= []).push(id); run.anomalyOffer = null; recalc(); maxStat('maxAnomalies', run.anomalies.length);
+  bus.emit('anomalyPicked', id); // the sim re-applies enemy-side modifiers
+  return ANOMALY_BY_ID[id];
+}
+
 /** True while the pilot must choose something; combat is frozen until they do. */
-export function choicePending() { const run = G.state.run; return !!(run && (run.offer || run.relicOffer || run.routeOffer)); }
+export function choicePending() { const run = G.state.run; return !!(run && (run.offer || run.relicOffer || run.routeOffer || run.anomalyOffer)); }
 
 // ---------------------------------------------------------------- descriptions (shared by the card UI and tests)
 export function describeCard(c, run = G.state.run) {

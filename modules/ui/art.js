@@ -110,7 +110,7 @@ const P = {
 
 // Key → [glyph, primary colour, secondary colour]
 const C = (glyph, a, b) => [glyph, a, b];
-const OFF = '#ff9b4a', OFF2 = '#ffd166', DEF = '#5ec8ff', DEF2 = '#a9e8ff', UTL = '#6dffc8', UTL2 = '#c3ffe8', RELIC = '#c7a2ff', RELIC2 = '#ffe08f';
+const OFF = '#ff9b4a', OFF2 = '#ffd166', DEF = '#5ec8ff', DEF2 = '#a9e8ff', UTL = '#6dffc8', UTL2 = '#c3ffe8', RELIC = '#c7a2ff', RELIC2 = '#ffe08f', VOID = '#c77dff', VOID2 = '#ff5fa2';
 export const ART = {
   'weapon:cannon': C('cannon', '#ffc857', '#8e9bb8'), 'weapon:laser': C('laser', '#5ee6ff', '#8e9bb8'), 'weapon:missile': C('missile', '#ff8a3d', '#c9d2e8'),
   'weapon:tesla': C('tesla', '#b69cff', '#7c86a8'), 'weapon:rail': C('rail', '#eaf6ff', '#5d6c95'), 'weapon:plasma': C('plasma', '#6dff8e', '#2fae63'),
@@ -134,6 +134,10 @@ export const ART = {
   'relic:r_midas': C('coins', RELIC2, '#c0892e'), 'relic:r_swarm': C('beacon', RELIC, UTL), 'relic:r_barrel': C('triplebarrel', RELIC2, RELIC), 'relic:r_chain': C('spiralround', RELIC, '#6b4fb8'),
   'relic:r_predict': C('eye', RELIC, '#5ee6ff'), 'relic:r_crit': C('dagger', '#ff5f7a', RELIC), 'relic:r_chrono': C('lens', RELIC, '#6b4fb8'), 'relic:r_titan': C('fortress', RELIC, '#6b4fb8'),
   'relic:r_leech': C('fangs', RELIC, RELIC2), 'relic:r_scholar': C('blackbox', RELIC, '#6b4fb8'), 'relic:r_giant': C('skull', RELIC2, RELIC),
+  // Deep Void anomalies
+  'void:hardened': C('fortress', VOID, VOID2), 'void:overdrive': C('autoloader', VOID, VOID2), 'void:ordnance': C('skull', VOID2, VOID), 'void:march': C('thrusters', VOID, VOID2),
+  'void:vanguard': C('giant', VOID2, VOID), 'void:serpent': C('ricochet', VOID, VOID2), 'void:minefield': C('mine', VOID2, VOID), 'void:shrapnel': C('fragcrit', VOID2, VOID),
+  'void:lances': C('strike', VOID, VOID2), 'void:wells': C('hole', VOID, VOID2),
   // workshop
   'ws:w_dmg': C('hotloads', OFF, OFF2), 'ws:w_rate': C('autoloader', OFF2, '#b08a4a'), 'ws:w_hull': C('plating', DEF, '#2f6fa8'), 'ws:w_shield': C('deflector', '#7aa2ff', DEF2),
   'ws:w_crit': C('crosshair', '#ff5f7a', '#ffb3c0'), 'ws:w_regen': C('nanites', '#6dff8e', '#c3ffd2'), 'ws:w_speed': C('thrusters', '#9aa6c8', '#5d6c95'), 'ws:w_magnet': C('magnet', '#ff4d7a', UTL2),

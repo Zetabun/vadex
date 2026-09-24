@@ -9,14 +9,15 @@ import { RELIC_BY_ID } from '@last-orbit/data/relics.js';
 import { WEAPONS } from '@last-orbit/data/weapons.js';
 import { SHIP_BY_ID } from '@last-orbit/data/ships.js';
 import { CONTRACT_BY_ID } from '@last-orbit/data/contracts.js';
-import { describeCard, pickCard, reroll, pickRelic, pickRoute, autoPickIndex } from '@last-orbit/progression/run.js';
+import { describeCard, pickCard, reroll, pickRelic, pickRoute, pickAnomaly, autoPickIndex } from '@last-orbit/progression/run.js';
+import { ANOMALY_BY_ID, anomalyCounts, anomalyPay, anomalyName } from '@last-orbit/data/anomalies.js';
 import { SYNERGIES, synergyOf, synergyCount, activeTiers } from '@last-orbit/data/synergies.js';
 import { ROUTE_BY_ID } from '@last-orbit/data/routes.js';
 import { FUSION_BY_ID } from '@last-orbit/data/fusions.js';
 import { sectorOf } from '@last-orbit/data/sectors.js';
 import { BOSSES } from '@last-orbit/data/bosses.js';
 import { BAL } from '@last-orbit/data/balance.js';
-import { unlockLabel, pilotProgress, medalDesc, overhaul, overhaulReward, blueprintLevel } from '@last-orbit/progression/meta.js';
+import { unlockLabel, pilotProgress, medalDesc, overhaul, overhaulReward, blueprintLevel, setCallsign, cleanCallsign, CALLSIGN_MAX } from '@last-orbit/progression/meta.js';
 import { TRAILS, OVERHAUL_COST_STEP } from '@last-orbit/data/prestige.js';
 import { PAINT_BY_ID, rankTitle } from '@last-orbit/data/career.js';
 import { THREATS } from '@last-orbit/data/threat.js';
@@ -102,11 +103,30 @@ export function createOverlays(layer, hooks) {
     mount('route', el, (e) => { const n = Number(e.key); if (n >= 1 && n <= run.routeOffer.length) { choose(n - 1); return true; } return false; });
   }
 
+  // ------------------------------------------------------------ Deep Void anomalies
+  function showAnomalies() {
+    const run = G.state.run; if (!run?.anomalyOffer) return;
+    const cards = h('div.cards.anomalies'), next = sectorOf(run.wave), have = anomalyCounts(run), carried = (run.anomalies || []).length;
+    const choose = (i) => { if (!open || open.busy) return; open.busy = true; cards.children[i]?.classList.add('picked'); playSfx('unlock', 0.8);
+      setTimeout(() => { pickAnomaly(i); hooks.flash?.('#c77dff'); if (!hooks.nextChoice()) close(); }, 220); };
+    run.anomalyOffer.forEach((id, i) => {
+      const a = ANOMALY_BY_ID[id], n = (have[id] || 0) + 1;
+      cards.append(h('button.card.anomaly', { style: `--c:#c77dff;--r:#ff5fa2;--d:${i * 90}ms`, onclick: () => choose(i), 'data-autofocus': i === 0 ? '' : null },
+        h('div.card-art', art('void:' + id, 'card-icon')), h('div.card-main', h('div.card-kicker', h('span', n > 1 ? 'Stacks again' : 'Anomaly'), h('span.rar', `+${Math.round(a.pay * 100)}% salvage & score`)), h('div.card-title', anomalyName(id, n)), h('div.card-body', a.desc)), h('span.card-key', String(i + 1))));
+    });
+    const now = Math.round((anomalyPay(run) - 1) * 100);
+    const el = h('div.modal.anomaly-pick', { role: 'dialog', 'aria-label': 'Choose an anomaly' },
+      h('div.modal-head', h('div.kicker', `Entering ${next.def.name}`), h('h2', 'Choose an anomaly'),
+        h('p', carried ? `Anomalies stack for the rest of the sortie. You carry ${carried}, paying +${now}% salvage and score.` : 'The Deep Void bends the rules. Anomalies stack for the rest of the sortie, and each one raises your salvage and score.')), cards);
+    mount('anomaly', el, (e) => { const k = Number(e.key); if (k >= 1 && k <= run.anomalyOffer.length) { choose(k - 1); return true; } return false; });
+  }
+
   // ------------------------------------------------------------ pause / settings
   function settingsBody() {
     const s = G.state.settings, set = (k) => (v) => { s[k] = v; applyVolumes(); hooks.applySettings?.(); };
     const field = (label, control) => h('label.field', h('span', label), control);
     return h('div.settings',
+      field('Callsign', h('button.btn.ghost.small.callsign-edit', { onclick: () => showCallsign({ fromSettings: true }) }, G.state.pilot.name || 'Add callsign', uiIcon('chevron'))),
       field('Master volume', slider(() => s.master, set('master'), 0, 1, 0.05, 'Master volume')),
       field('Music', slider(() => s.music, set('music'), 0, 1, 0.05, 'Music volume')),
       field('Sound effects', slider(() => s.sfx, set('sfx'), 0, 1, 0.05, 'Sound effects volume')),
@@ -153,6 +173,7 @@ export function createOverlays(layer, hooks) {
     const rules = [];
     if (run.route) rules.push(row(ROUTE_BY_ID[run.route].art, '#ffc857', 'Route: ' + ROUTE_BY_ID[run.route].name, 'This sector', ROUTE_BY_ID[run.route].desc));
     if (run.mutator) rules.push(row('relic:r_phoenix', '#ffc857', 'Daily: ' + MUTATOR_BY_ID[run.mutator].name, 'Today', MUTATOR_BY_ID[run.mutator].desc));
+    for (const [id, n] of Object.entries(anomalyCounts(run))) rules.push(row('void:' + id, '#c77dff', anomalyName(id, n), 'Anomaly', ANOMALY_BY_ID[id].desc + (n > 1 ? ` (×${n})` : '') + ` +${Math.round(ANOMALY_BY_ID[id].pay * n * 100)}% salvage and score.`));
     for (let t = 1; t <= (run.threat || 0); t++) rules.push(row('relic:r_giant', '#ff5f7a', 'Threat ' + THREATS[t].roman, null, THREATS[t].rule + '.'));
     const el = h('div.modal.loadout-sheet', { role: 'dialog', 'aria-label': 'Loadout' },
       h('div.modal-head', h('div.kicker', `${run.mode === 'counter' ? 'Stage ' + run.stage : 'Wave ' + run.wave} · Level ${run.level}`), h('h2', 'Loadout'), h('p', 'Everything working for (and against) you this sortie.')),
@@ -190,6 +211,28 @@ export function createOverlays(layer, hooks) {
       h('div.modal-actions', go ? h('button.btn.ghost', { onclick: close }, 'Not yet') : null,
         h('button.btn.primary', { onclick: () => { close(); go?.(); }, 'data-autofocus': '' }, go ? 'Launch' : 'Got it')));
     mount('counter-intro', el, (e) => { if (e.key === 'Escape') { close(); return true; } return false; });
+  }
+
+  // ------------------------------------------------------------ callsign
+  /** Ask for the pilot's callsign. first: the first launch (or the first time since this arrived); fromSettings: return there. */
+  function showCallsign({ first = false, fromSettings = false } = {}) {
+    const cur = G.state.pilot.name || '';
+    const input = h('input.callsign-input', { type: 'text', value: cur, maxLength: CALLSIGN_MAX, placeholder: 'Your callsign', autocomplete: 'nickname', autocapitalize: 'words', spellcheck: false, enterKeyHint: 'done', 'aria-label': 'Callsign', 'data-autofocus': '' });
+    const ok = h('button.btn.primary', { onclick: () => done(true) }, first ? 'Confirm' : 'Save');
+    const sync = () => { ok.disabled = !cleanCallsign(input.value); }; input.addEventListener('input', sync); sync();
+    const back = () => (fromSettings ? showSettings(false) : close());
+    function done(save) {
+      if (save && !cleanCallsign(input.value)) return;
+      let name = cur; if (save) name = setCallsign(input.value); else G.state.seen.callsign = true;
+      input.blur(); back(); hooks.callsignSet?.(name, first && save);
+    }
+    const el = h('div.modal.confirm.callsign', { role: 'dialog', 'aria-label': 'Callsign' },
+      h('div.mi-icon', art('ship:' + (G.state.ship || 'vanguard'))),
+      h('div.modal-head', h('div.kicker', first ? 'Pilot registration' : 'Callsign'), h('h2', first ? 'Welcome, pilot' : 'Change callsign'),
+        h('p', first ? 'Invaders are descending on the last orbit. Before you launch: what do they call you?' : 'The name on your pilot card.')),
+      input,
+      h('div.modal-actions', ok, h('button.btn.ghost', { onclick: () => done(false) }, first ? 'Skip for now' : 'Cancel')));
+    mount('callsign', el, (e) => { if (e.key === 'Enter') { done(true); return true; } if (e.key === 'Escape') { done(false); return true; } return false; });
   }
 
   // ------------------------------------------------------------ a menu opening for the first time
@@ -285,7 +328,7 @@ export function createOverlays(layer, hooks) {
   };
 
   return {
-    showOffer, showRelics, showRoutes, showPause, showSettings, showDebrief, showLoadout, showCounterIntro, showOverhaul, showMenuIntro, close,
+    showOffer, showRelics, showRoutes, showAnomalies, showPause, showSettings, showDebrief, showLoadout, showCounterIntro, showOverhaul, showMenuIntro, showCallsign, close,
     get kind() { return open?.kind || null; },
     /** Combat freezes while any overlay is up. */
     blocking: () => !!open,

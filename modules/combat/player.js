@@ -139,6 +139,7 @@ function danger(w, p, x, horizon, dodge, directOnly) {
     const left = Math.max(0, (h.telegraph || 0) - (h.t || 0));
     if (h.kind === 'beam' && left <= horizon + 0.12 && Math.abs(h.x - x) < h.width / 2 + p.r + 1) d += 7 + dodge;
     else if (h.kind === 'shell' && left <= horizon + 0.18 && Math.abs(h.x - x) < h.r + p.r + 1) d += 6 + dodge;
+    else if (h.kind === 'mine' && h.y < p.y + 26 && Math.abs(h.x - x) < h.r + p.r + 1) d += 5 + dodge;
     else if (dodge >= 2 && h.kind === 'well' && Math.abs(h.x - x) < 8 + dodge) d += 2.5;
   }
   if (dodge >= 2) for (const e of w.enemies) {

@@ -5,7 +5,7 @@ import { G, recalc } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { newState } from '@last-orbit/core/state.js';
 import { initWorld, step } from '@last-orbit/combat/sim.js';
-import { startSortie, endSortie, nextOffer, pickCard, nextRelic, pickRelic, nextRoute, pickRoute } from '@last-orbit/progression/run.js';
+import { startSortie, endSortie, nextOffer, pickCard, nextRelic, pickRelic, nextRoute, nextAnomaly, pickAnomaly, pickRoute } from '@last-orbit/progression/run.js';
 import { useAbility, bestDps } from '@last-orbit/combat/abilities.js';
 import { TICK, enemyHp } from '@last-orbit/data/balance.js';
 
@@ -27,6 +27,7 @@ for (let r = 0; r < runs; r++) {
     if (nextOffer()) { const o = G.state.run.offer; let bi = 0; o.forEach((c, i) => { if (score(c) + Math.random() > score(o[bi]) + Math.random() * 0.5) bi = i; }); pickCard(bi); continue; }
     if (nextRelic()) { pickRelic(0); continue; }
     if (nextRoute()) { pickRoute(0); continue; }
+    if (nextAnomaly()) { pickAnomaly(Math.floor(Math.random() * G.state.run.anomalyOffer.length)); continue; }
     step(TICK); t += TICK; G.world.fx.length = 0;
     if (Math.random() < 0.02) for (const id of G.state.run.abilities) useAbility(G.world, id, true);
   }

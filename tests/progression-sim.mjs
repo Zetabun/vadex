@@ -7,7 +7,7 @@ import { G, recalc } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { newState } from '@last-orbit/core/state.js';
 import { initWorld, step } from '@last-orbit/combat/sim.js';
-import { nextRoute, pickRoute } from '@last-orbit/progression/run.js';
+import { nextRoute, nextAnomaly, pickAnomaly, pickRoute } from '@last-orbit/progression/run.js';
 import { startSortie, endSortie, nextOffer, pickCard, nextRelic, pickRelic } from '@last-orbit/progression/run.js';
 import { WORKSHOP } from '@last-orbit/data/workshop.js';
 import { ACHIEVEMENTS, FEATS } from '@last-orbit/data/achievements.js';
@@ -31,6 +31,7 @@ for (let n = 1; n <= N; n++) {
     if (nextOffer()) { const o = G.state.run.offer; let bi = 0; o.forEach((c, i) => { if (pickScore(c) + Math.random() > pickScore(o[bi]) + Math.random() * 0.5) bi = i; }); pickCard(bi); continue; }
     if (nextRelic()) { pickRelic(Math.floor(Math.random() * G.state.run.relicOffer.length)); continue; }
     if (nextRoute()) { pickRoute(Math.floor(Math.random() * G.state.run.routeOffer.length)); continue; }
+    if (nextAnomaly()) { pickAnomaly(Math.floor(Math.random() * G.state.run.anomalyOffer.length)); continue; }
     step(TICK); t += TICK; G.world.fx.length = 0;
     if (Math.random() < 0.02) for (const id of G.state.run.abilities) useAbility(G.world, id, true);
   }
@@ -47,6 +48,8 @@ for (let n = 1; n <= N; n++) {
   for (const m of [20, 30, 40, 50, 60]) if (s.wave >= m && !firsts[m]) firsts[m] = n;
   rows.push({ n, wave: s.wave, score: s.score, income, medals: medalTotal().earned, rank: G.state.pilot.rank, workshop: wl, mastery: G.state.mastery.vanguard?.level || 1, min: +(s.time / 60).toFixed(1) });
 }
+// SNAP=file: keep the pilot's save at the end, for probes that start from a late-game pilot (tests/void-sim.mjs).
+if (process.env.SNAP) (await import('node:fs')).writeFileSync(process.env.SNAP, JSON.stringify(G.state));
 console.table(rows);
 const tot = rows.reduce((a, r) => a + r.income, 0);
 console.log(`${mode} dodge ${dodge} seed ${seed0}: first sortie reaching wave 20/30/40/50/60 = ${[20, 30, 40, 50, 60].map((m) => firsts[m] || '-').join('/')}; salvage earned ${tot}; workshop levels ${rows.at(-1).workshop}; rank ${rows.at(-1).rank}; medals ${rows.at(-1).medals}`);

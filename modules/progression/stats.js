@@ -13,6 +13,7 @@ import { masteryFx } from '@last-orbit/data/career.js';
 import { threatMods, threatSalvage } from '@last-orbit/data/threat.js';
 import { MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
 import { ROUTE_BY_ID } from '@last-orbit/data/routes.js';
+import { anomalyPay } from '@last-orbit/data/anomalies.js';
 import { fusionsFor } from '@last-orbit/data/fusions.js';
 import { SYNERGIES, activeTiers } from '@last-orbit/data/synergies.js';
 import { ALIEN_BY_ID } from '@last-orbit/data/alientech.js';
@@ -84,6 +85,7 @@ export function computeSheet(state, sheet = new Sheet()) {
     if (run.mutator) sheet.fx(MUTATOR_BY_ID[run.mutator]?.fx, 1, 'Daily');
     if (run.route) sheet.fx(ROUTE_BY_ID[run.route]?.fx, 1, 'Route');
     if (run.threat) { sheet.mul('hull', 'Threat', threatMods(run.threat).hull); sheet.mul('salvageGain', 'Threat', threatSalvage(run.threat)); }
+    if (run.anomalies?.length) sheet.mul('salvageGain', 'Anomalies', anomalyPay(run));
   }
   sheet.finish();
   sheet.weapons = {};

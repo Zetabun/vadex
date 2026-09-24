@@ -8,7 +8,7 @@ import { FIELD } from '@last-orbit/data/balance.js';
 import { initWorld, advance } from '@last-orbit/combat/sim.js';
 import { useAbility } from '@last-orbit/combat/abilities.js';
 import { collectAll } from '@last-orbit/combat/pickups.js';
-import { startSortie, endSortie, nextOffer, nextRelic, nextRoute, recoverInterruptedRun } from '@last-orbit/progression/run.js';
+import { startSortie, endSortie, nextOffer, nextRelic, nextRoute, nextAnomaly, recoverInterruptedRun } from '@last-orbit/progression/run.js';
 import { checkContracts, unlockCounter, refreshMenus } from '@last-orbit/progression/meta.js';
 import { save, load, hardReset, legacyBestWave } from '@last-orbit/save/save.js';
 import { initAudio, applyVolumes, tickMusic, setMusicMode, suspendAudio } from '@last-orbit/audio/audio.js';
@@ -39,7 +39,8 @@ const hooks = {
   pendingOffer: () => nextOffer(),
   pendingRelic: () => nextRelic(),
   pendingRoute: () => nextRoute(),
-  hardReset: async () => { await hardReset(); const s = newState(); s.meta.sandbox = G.state.meta.sandbox; s.meta.legacyChecked = G.state.meta.legacyChecked; adopt(s); ui.setMode('hangar'); await save('reset'); toast('Save erased. Good luck, pilot.', 'warn'); },
+  pendingAnomaly: () => nextAnomaly(),
+  hardReset: async () => { await hardReset(); const s = newState(); s.meta.sandbox = G.state.meta.sandbox; s.meta.legacyChecked = G.state.meta.legacyChecked; adopt(s); ui.setMode('hangar'); await save('reset'); toast('Save erased. Good luck, pilot.', 'warn'); setTimeout(() => ui.callsign({ first: true }), 600); },
 };
 
 function finish(reason) {
@@ -129,7 +130,7 @@ function frame(now) {
   if (speed > 0) advance(real * speed);
   // A level-up or sector relic freezes combat until the pilot chooses.
   if (levelBeat > 0) levelBeat -= real;
-  else if (G.mode === 'sortie' && !paused && G.state.run && (nextRelic() || nextRoute() || nextOffer())) ui.nextChoice();
+  else if (G.mode === 'sortie' && !paused && G.state.run && (nextRelic() || nextRoute() || nextAnomaly() || nextOffer())) ui.nextChoice();
   const w = G.world;
   setMusicMode(G.mode === 'sortie' ? w.base.sectorIdx % 6 : 0, !!(w.wave.boss && w.wave.boss.alive)); tickMusic();
   renderer.render(real, w, speed); ui.update(real);
@@ -164,6 +165,8 @@ async function boot() {
     if (best > 1) { const gift = Math.min(1500, Math.round(best * 6)); G.state.salvage += gift; toast(`Veteran pilot detected (best wave ${best} in the original). +${gift} salvage to get you started.`, 'unlock'); }
     save('legacy');
   }
+  // Callsign: asked once (new pilots, and existing ones the first time this version runs); after that, a greeting.
+  if (!/[?&]scene=/.test(location.search)) { if (!G.state.seen.callsign) setTimeout(() => ui.callsign({ first: true }), 700); else setTimeout(() => ui.greet(), 900); }
   wireInput();
   addEventListener('resize', () => { renderer.resize(); ui.measure(); }); new ResizeObserver(() => { renderer.resize(); ui.measure(); }).observe(app);
   document.addEventListener('visibilitychange', () => {

@@ -186,7 +186,7 @@ export class Renderer {
     if (gs && this.groundWorld !== w) { this.groundWorld = w; this.ground.reset(); } // each attempt starts back at the spaceport
     this.ground.update(gs > 0, fade, dt * Math.min(3, speedMul), gs ? w.enemies.filter((e) => e.alive && e.def.ground) : []); for (const s of this.bg.stars) s.visible = fade < 0.6;
     this.overGround = fade > 0.05; // enemy fire gets a dark backing while the busy city is underneath
-    this.bg.update(dt * (w.counter ? 3.2 : 1), speedMul); this.drain(w);
+    this.bg.battle = G.mode === 'sortie'; this.bg.update(dt * (w.counter ? 3.2 : 1), speedMul); this.drain(w);
     const fdt = dt * Math.min(3, speedMul); this.parts.update(fdt); this.trans.update(fdt);
     const B = this.B; for (const k in B) B[k].begin();
     this.sets.update(w, fdt, B);

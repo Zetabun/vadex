@@ -79,7 +79,7 @@ export function createHud(hooks) {
       const c = w.counter; setText($.sector, `Counterattack · Stage ${c.stage.n}: ${c.stage.name}` + (c.hard ? ' · Hard' : ''));
       setText($.waveN, Math.round(counterProgress(w) * 100) + '%'); setText($.waveLbl, 'STAGE'); $.pips.hidden = true;
     } else { $.pips.hidden = false; setText($.waveLbl, 'WAVE'); buildPips(waveShown); }
-    if (!w.counter) setText($.sector, `Sector ${sec.idx + 1} · ${sec.def.name}` + (run.mutator ? ' · Daily' : run.threat ? ` · Threat ${THREATS[run.threat].roman}` : '') + (run.route ? ' · ' + ROUTE_BY_ID[run.route].name : '')); if (!w.counter) setText($.waveN, `${sec.n}/${sec.len}`);
+    if (!w.counter) setText($.sector, (sec.endless ? sec.def.name : `Sector ${sec.idx + 1} · ${sec.def.name}`) + (run.mutator ? ' · Daily' : run.threat ? ` · Threat ${THREATS[run.threat].roman}` : '') + (run.route ? ' · ' + ROUTE_BY_ID[run.route].name : '') + (run.anomalies?.length ? ` · ${run.anomalies.length} anomal${run.anomalies.length > 1 ? 'ies' : 'y'}` : '')); if (!w.counter) setText($.waveN, `${sec.n}/${sec.len}`);
     const cur = sec.n - 1, cleared = w.wave.state === 'cleared';
     const pips = $.pips.children; for (let i = 0; i < pips.length; i++) { setClass(pips[i], 'done', i < cur || (i === cur && cleared)); setClass(pips[i], 'now', i === cur && !cleared); }
     setText($.salvage, fmt(Math.floor(run.salvage)));
