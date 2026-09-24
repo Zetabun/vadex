@@ -1,6 +1,6 @@
 # Changelog
 
-## v2.6.2 — unreleased
+## v2.6.2 — 2026-09-24 (engine hum in v2.6.3)
 
 - **Smoother motion:** ships, enemies and bullets are now drawn between simulation steps, so movement stays smooth when frames do not line up with the 60 Hz simulation, and uses the full refresh rate on 120 Hz screens. Before, uneven frame timing made the ship step in small jerks that read as a low frame rate.
 - **No more magnifier:** touches on the battlefield are cancelled during a sortie, so iOS no longer brings up its magnifier on a long press or a double-tap-and-hold (a dodge, or holding a corner to steer). Text selection is off everywhere except input fields.
