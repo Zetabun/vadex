@@ -20,7 +20,7 @@ const S = {
   ability: ['triangle', 330, 990, 0.3, 0.16, 0.1, 0.1, 0], dash: ['sawtooth', 240, 1100, 0.24, 0.2, 0.12, 0.85, 0.06], dashReady: ['sine', 1320, 1980, 0.09, 0.06, 0.3, 0, 0], paint: ['sine', 1100, 1500, 0.08, 0.09, 0.08, 0, 0], hauler: ['triangle', 1320, 1760, 0.25, 0.1, 0.5, 0, 0],
   // ui
   buy: ['triangle', 660, 880, 0.06, 0.08, 0.03, 0, 0.04], deny: ['square', 140, 110, 0.09, 0.06, 0.1, 0, 0], tab: ['sine', 520, 620, 0.04, 0.05, 0.03, 0, 0],
-  milestone: ['triangle', 523, 1046, 0.5, 0.16, 0.2, 0, 0], unlock: ['sine', 440, 1320, 0.6, 0.14, 0.3, 0, 0], rewind: ['sawtooth', 1200, 40, 2.2, 0.25, 2, 0.4, 0], loot: ['sine', 990, 1480, 0.2, 0.1, 0.1, 0, 0.05],
+  milestone: ['triangle', 523, 1046, 0.5, 0.16, 0.2, 0, 0], unlock: ['sine', 440, 1320, 0.6, 0.14, 0.3, 0, 0], rewind: ['sawtooth', 1200, 40, 2.2, 0.25, 2, 0.4, 0], count: ['triangle', 1180, 1050, 0.035, 0.05, 0.05, 0, 0.02], loot: ['sine', 990, 1480, 0.2, 0.1, 0.1, 0, 0.05],
 };
 
 export function initAudio() {
@@ -48,10 +48,10 @@ export function suspendAudio(on) {
 // Any touch, click or key brings sound back (or starts it), whichever screen it lands on.
 if (typeof document !== 'undefined') for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) document.addEventListener(ev, () => { if (!ctx || ctx.state !== 'running') initAudio(); }, { capture: true, passive: true });
 
-export function playSfx(id, vol = 1) {
+export function playSfx(id, vol = 1, pitch = 1) {
   if (!ctx || ctx.state !== 'running') return; const d = S[id]; if (!d) return;
   const now = ctx.currentTime; if (now - (last[id] || 0) < d[5] || voices >= MAX_VOICES) return; last[id] = now;
-  const [type, f0, f1, dur, v, , nz, spread] = d, p = 1 + (Math.random() * 2 - 1) * spread;
+  const [type, f0, f1, dur, v, , nz, spread] = d, p = (1 + (Math.random() * 2 - 1) * spread) * pitch;
   const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(v * vol, now + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, now + dur); g.connect(sfxBus);
   const o = ctx.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0 * p, now); o.frequency.exponentialRampToValueAtTime(Math.max(10, f1 * p), now + dur); o.connect(g); o.start(now); o.stop(now + dur + 0.02);
   voices++; o.onended = () => { voices = Math.max(0, voices - 1); g.disconnect(); };

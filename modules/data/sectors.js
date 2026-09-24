@@ -4,7 +4,7 @@ export const SECTORS = [
   { id: 'orbit', name: 'Outer Orbit', waves: 10, boss: 'broodcarrier', mini: 'warden',
     sky: ['#050a24', '#0d1b4a', '#123a6b'], star: '#bcd8ff', accent: '#5ee6ff', decor: 'none',
     intro: 'Scout formations. Learn the guns.',
-    pool: [['grunt', 1, 10], ['weaver', 2, 6], ['diver', 3, 4], ['lancer', 6, 3], ['plate', 8, 3]] },
+    pool: [['grunt', 1, 10], ['weaver', 2, 6], ['diver', 2, 5], ['lancer', 4, 3], ['plate', 8, 3]] }, // divers and lancers arrive early so the opening has teeth
   { id: 'graveyard', name: 'Lunar Graveyard', waves: 10, boss: 'bastion', mini: 'gravekeeper',
     sky: ['#07070f', '#1a1c2e', '#3a3f55'], star: '#e6e2d0', accent: '#c9d2ff', decor: 'rocks',
     intro: 'Wrecks hide shield projectors and snipers. Scrap is plentiful.',

@@ -14,6 +14,7 @@ import { BANNERS, BANNER_BY_ID } from '@last-orbit/data/banners.js';
 import { COUNTER_UNLOCK_SECTOR } from '@last-orbit/data/counter.js';
 import { ALIEN_BY_ID } from '@last-orbit/data/alientech.js';
 import { WORKSHOP } from '@last-orbit/data/workshop.js';
+import { MENUS, MENU_BY_ID, ESTABLISHED } from '@last-orbit/data/menus.js';
 import { BLUEPRINT_BY_ID, ENGINEER_DISCOUNT, OVERHAUL_COST_STEP, HEAD_START_SKIP, ESCORT_BLUEPRINT, TRAIL_BY_ID, overhaulBlueprints } from '@last-orbit/data/prestige.js';
 
 // ---------------------------------------------------------------- workshop
@@ -172,7 +173,7 @@ export function medalDesc(a, tier = 0) {
 /** Open Counterattack once the sector 3 boss has fallen. Returns true the moment it unlocks. */
 export function unlockCounter({ silent = false } = {}) {
   const c = G.state.counter; if (c.unlocked || (G.state.stats.sectorsCleared || 0) < COUNTER_UNLOCK_SECTOR) return false;
-  c.unlocked = true;
+  c.unlocked = true; refreshMenus();
   if (!silent) bus.emit('notice', { kind: 'legendary', kicker: 'New mode unlocked', title: 'Counterattack', sub: 'The invaders are retreating. Take the fight to them from the Missions tab.', art: 'ship:vanguard' });
   return true;
 }
@@ -224,3 +225,18 @@ export function toggleEscort(type) {
 }
 export const trailUnlocked = (id) => (TRAIL_BY_ID[id]?.at ?? 99) <= (G.state.prestige?.level || 0);
 export function selectTrail(id) { if (!trailUnlocked(id)) return false; G.state.trail = id; bus.emit('trail', id); return true; }
+
+// ---------------------------------------------------------------- menus (second onboarding phase)
+/** Open any hangar menus the pilot has now earned (marked 'new' until first opened). Pilots already established when
+ *  this arrived keep everything open, quietly. Returns the ids newly opened. */
+export function refreshMenus() {
+  const seen = G.state.seen, st = G.state.stats; seen.menus ||= {};
+  if (!seen.menusInit) { seen.menusInit = true; if ((st.sorties || 0) >= ESTABLISHED) { for (const m of MENUS) seen.menus[m.id] = true; return []; } }
+  const opened = [];
+  for (const m of MENUS) if (!seen.menus[m.id] && ((st.sorties || 0) >= m.sorties || (m.counter && G.state.counter.unlocked))) { seen.menus[m.id] = 'new'; opened.push(m.id); }
+  return opened;
+}
+/** 'open' | 'new' | 'locked' for a hangar tab (Launch, and anything not gated, is always open). */
+export function menuState(id) { if (!MENU_BY_ID[id]) return 'open'; const v = G.state.seen.menus?.[id]; return v === true ? 'open' : v === 'new' ? 'new' : 'locked'; }
+export function menuSeen(id) { if (G.state.seen.menus?.[id] === 'new') G.state.seen.menus[id] = true; }
+export function menuLockText(id) { const m = MENU_BY_ID[id], left = Math.max(1, m.sorties - (G.state.stats.sorties || 0)); return `${m.title} opens after ${left} more sortie${left > 1 ? 's' : ''}`; }

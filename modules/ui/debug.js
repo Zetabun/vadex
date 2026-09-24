@@ -12,7 +12,7 @@ import { h } from '@last-orbit/ui/dom.js';
 import { BANNERS, BANNER_BY_ID } from '@last-orbit/data/banners.js';
 import { WORKSHOP } from '@last-orbit/data/workshop.js';
 import { STAGE_BY_N } from '@last-orbit/data/counter.js';
-import { powerRating } from '@last-orbit/progression/meta.js';
+import { powerRating, refreshMenus } from '@last-orbit/progression/meta.js';
 
 export async function initDebug(app, { hooks, ui } = {}) {
   await enterSandbox(); if (!location.search.includes('scene=')) toast('Debug sandbox: progress here is kept apart from your real save.', 'warn');
@@ -38,6 +38,9 @@ function runScene(scene, hooks, ui) {
   st.records.top = [48210, 40555, 31204, 22950, 9120].map((score, i) => ({ score, wave: [28, 26, 23, 19, 11][i], ship: i === 1 ? 'striker' : 'vanguard', level: 24 - i * 3, kills: 600 - i * 90, threat: i === 0 ? 2 : 0, daily: i === 2, date: Date.now() - i * 86400000 }));
   st.records.ships = { vanguard: { score: 48210, wave: 28 }, striker: { score: 40555, wave: 26 } }; recalc();
   const [name, arg, arg2, arg3] = scene.split(':');
+  // Scenes play as an established pilot (every menu open), except newpilot:<sorties>, which shows the menus opening up.
+  st.seen.menus = {}; st.seen.menusInit = false; refreshMenus();
+  if (name === 'newpilot') { st.stats.sorties = +arg || 0; st.seen.menus = {}; st.seen.menusInit = true; refreshMenus(); hooks.toHangar('launch'); if (arg2) setTimeout(() => [...document.querySelectorAll('.nav-btn')].find((b) => b.textContent.toLowerCase().includes(arg2))?.click(), 500); return; }
   if (name === 'hull' || name === 'hullfly') { st.unlocked.ships[arg] = 1; st.ship = arg; st.banner = 'none'; recalc(); if (name === 'hull') { hooks.toHangar('launch'); return; } }
   if (name === 'paint') { st.paints[arg] = 1; st.paint = arg; hooks.toHangar('launch'); return; }
   // shipfx:<hull%>: a shielded ship held at that hull, dodging now and then (shield bubble, damage smoke, dodge chip).

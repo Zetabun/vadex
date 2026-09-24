@@ -4,6 +4,7 @@ import { makeRng } from '@last-orbit/core/rng.js';
 import { sectorOf } from '@last-orbit/data/sectors.js';
 import { ENEMIES, WAVE_MODS } from '@last-orbit/data/enemies.js';
 import { BOSSES } from '@last-orbit/data/bosses.js';
+import { BAL, earlyPressure } from '@last-orbit/data/balance.js';
 
 export function waveKind(w) {
   const sec = sectorOf(w);
@@ -31,7 +32,7 @@ export function genWave(seed, w) {
   if (kind === 'swarm') { const cols = 11, rows = 4 + Math.min(3, sec.idx); out.spacing = 6.5; for (let r = 0; r < rows; r++) out.rows.push(Array(cols).fill('swarmling')); out.label = 'Swarm'; return out; }
 
   const cols = Math.min(9, 6 + Math.floor(sec.n / 3) + Math.min(2, sec.idx));
-  let budget = (11 + sec.n * 1.5 + sec.idx * 5) * (out.mod?.budget || 1);
+  let budget = (11 + sec.n * 1.5 + sec.idx * 5 + (sec.idx === 0 ? BAL.earlyPressure.budget * earlyPressure(w) : 0)) * (out.mod?.budget || 1);
   if (kind === 'resource') { budget *= 0.6; out.haulers = 2 + Math.min(3, sec.idx); out.label = 'Salvage convoy'; }
   budget = Math.min(budget, 52);
   const filler = pool.filter(([t]) => ENEMIES[t].cost < 2.2), special = pool.filter(([t]) => ENEMIES[t].cost >= 2.2);

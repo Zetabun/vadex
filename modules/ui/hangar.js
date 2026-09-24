@@ -29,6 +29,8 @@ import { MOD_BY_ID } from '@last-orbit/data/cards.js';
 import { warpMax } from '@last-orbit/progression/run.js';
 import { STAGES, COUNTER_UNLOCK_SECTOR } from '@last-orbit/data/counter.js';
 import { ALIEN_TECH } from '@last-orbit/data/alientech.js';
+import { menuState, menuSeen, menuLockText } from '@last-orbit/progression/meta.js';
+import { MENU_BY_ID } from '@last-orbit/data/menus.js';
 import { techLevel, buyTech, powerRating, workshopMaxed, workshopProgress, overhaulReward, blueprintLevel, blueprintNext, buyBlueprint, blueprintLocked, escortSlots, escortTypes, toggleEscort, trailUnlocked, selectTrail } from '@last-orbit/progression/meta.js';
 import { BLUEPRINTS, TRAILS, BP_BASE, OVERHAUL_FX_CAP, OVERHAUL_COST_STEP } from '@last-orbit/data/prestige.js';
 import { DRONES } from '@last-orbit/data/drones.js';
@@ -52,7 +54,7 @@ export function createHangar(hooks) {
   $.body = h('main.hg-body');
   $.nav = h('nav.hg-nav', { role: 'tablist' });
   const navBtns = {}; let page = 0;
-  for (const [id, name] of TABS) navBtns[id] = h('button.nav-btn', { role: 'tab', onclick: () => show(id) }, uiIcon(id === 'launch' ? 'launch' : id), h('span', name), h('i.badge'));
+  for (const [id, name] of TABS) navBtns[id] = h('button.nav-btn', { role: 'tab', onclick: () => show(id) }, uiIcon(id === 'launch' ? 'launch' : id), h('span', name), h('i.badge'), h('i.nav-lock', uiIcon('lock')), h('b.nav-new', 'NEW'));
   const pages = Math.ceil(TABS.length / PER_PAGE);
   $.next = h('button.nav-btn.nav-page', { 'aria-label': 'More menus', onclick: () => turn(1) }, uiIcon('chevron'), h('span', 'More'), h('i.badge'));
   $.prev = h('button.nav-btn.nav-page', { 'aria-label': 'Back to main menus', onclick: () => turn(-1) }, uiIcon('back'), h('span', 'Back'), h('i.badge'));
@@ -67,6 +69,9 @@ export function createHangar(hooks) {
   const el = h('div#hangar', top, $.body, $.nav);
 
   function show(id, quiet) {
+    // A menu the pilot has not earned yet stays shut (with a note on when it opens); a newly opened one explains itself once.
+    if (menuState(id) === 'locked') { if (!quiet) { playSfx('deny'); hooks.toast?.(menuLockText(id), 'info'); } if (tab !== id) return; id = 'launch'; }
+    if (menuState(id) === 'new') { menuSeen(id); setTimeout(() => hooks.menuIntro?.(MENU_BY_ID[id]), 150); }
     if (!quiet && id !== tab) playSfx('tab');
     tab = id; if (pageOf(id) !== page) { page = pageOf(id); layoutNav(); }
     for (const k in navBtns) { setClass(navBtns[k], 'on', k === id); navBtns[k].setAttribute('aria-selected', String(k === id)); }
@@ -88,9 +93,9 @@ export function createHangar(hooks) {
     const best = s.bestWave || 0, bestSector = Math.min(SECTORS.length, s.bestSector || 1);
     const fresh = !s.sorties;
     const card = h('section.launch-card',
-      h('div.ship-head', h('div', h('div.kicker', ship.role), h('h1', ship.name)), h('button.link', { onclick: () => show('ships') }, 'Change ship', uiIcon('chevron'))),
+      h('div.ship-head', h('div', h('div.kicker', ship.role), h('h1', ship.name)), menuState('ships') !== 'locked' ? h('button.link', { onclick: () => show('ships') }, 'Change ship', uiIcon('chevron')) : null),
       rankStrip(),
-      opsRow(),
+      menuState('missions') !== 'locked' ? opsRow() : null,
       warpRow(),
       fresh ? h('p.lede', 'Invaders are descending on the last orbit. Fly a sortie, level up mid-fight by picking upgrades, and bring salvage home to build a better ship.')
         : h('button.stat-row.as-link', { onclick: () => show('records'), 'aria-label': 'Open records' }, stat('High score', s.bestScore ? fmt(s.bestScore) : '—'), stat('Best wave', best ? `${best} · S${bestSector}` : '—'), stat('Sorties', fmtInt(s.sorties))),
@@ -119,11 +124,19 @@ export function createHangar(hooks) {
     const rw = rankReward(r);
     return rw.paint ? h('span.reward.paint', swatch(rw.paint), PAINTS.find((p) => p.id === rw.paint).name + ' paint') : h('span.reward', art('cur:salvage', 'cur-ico'), fmtInt(rw.salvage));
   }
+  /** The next rank's reward as a tag: your ship in the paint job it unlocks (or the salvage), in that paint's colours. */
+  function rewardTag(r) {
+    const rw = rankReward(r), label = h('small', `Next · Rank ${r}`);
+    if (!rw.paint) return h('span.reward-tag.salvage', h('span.rt-ico', art('cur:salvage')), h('span.rt-text', label, h('b', fmtInt(rw.salvage) + ' salvage')));
+    const pt = PAINTS.find((p) => p.id === rw.paint), ship = SHIP_BY_ID[G.state.ship], trim = hex(pt.trim ?? ship.trim), hull = hex(pt.hull ?? 0x718996);
+    const icon = art('ship:' + ship.id, 'rt-ship'), svg = icon.querySelector('svg'); svg.style.setProperty('--ic-a', trim); svg.style.setProperty('--ic-b', hull);
+    return h('span.reward-tag', { style: `--rt:${trim};--rh:${hull}` }, icon, h('span.rt-text', label, h('b', pt.name + ' paint')));
+  }
   function rankStrip() {
     const p = G.state.pilot, max = p.rank >= MAX_RANK;
     return h('button.rank-strip', { onclick: () => show('contracts') },
       insignia(p.rank, 'rank-ins'),
-      h('div.rank-main', h('div.rank-line', h('b', rankTitle(p.rank)), max ? h('span', 'Max rank') : h('span', 'Next ', rewardBadge(p.rank + 1))),
+      h('div.rank-main', h('div.rank-line', h('b', rankTitle(p.rank)), max ? h('span', 'Max rank') : rewardTag(p.rank + 1)),
         h('div.meter.rank', h('i', { style: `width:${(pilotProgress() * 100).toFixed(1)}%` }))));
   }
   function swatch(id) {
@@ -415,7 +428,8 @@ export function createHangar(hooks) {
     const daily = (st.stats.sorties > 0 && !dailyToday().done) || (st.counter.unlocked && !Object.keys(st.counter.stars).length);
     setClass(navBtns.records, 'badged', !st.seen.records); setClass(navBtns.awards, 'badged', medalTotal().earned > (st.seen.medals || 0));
     setClass(navBtns.workshop, 'badged', canBuy); setClass(navBtns.ships, 'badged', ship); setClass(navBtns.missions, 'badged', daily);
-    const hidden = (p) => TABS.some(([id], i) => Math.floor(i / PER_PAGE) === p && navBtns[id].classList.contains('badged'));
+    for (const [id] of TABS) { const m = menuState(id); setClass(navBtns[id], 'locked', m === 'locked'); setClass(navBtns[id], 'fresh', m === 'new'); if (m === 'locked') setClass(navBtns[id], 'badged', false); }
+    const hidden = (p) => TABS.some(([id], i) => Math.floor(i / PER_PAGE) === p && (navBtns[id].classList.contains('badged') || navBtns[id].classList.contains('fresh')));
     setClass($.next, 'badged', hidden(page + 1)); setClass($.prev, 'badged', page > 0 && hidden(page - 1));
   }
   function update() { setText($.salvage, fmtInt(G.state.salvage)); badges(); }

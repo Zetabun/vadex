@@ -317,6 +317,13 @@ fresh(); run = launch(); step(TICK); { const p = G.world.player, x0 = p.x; G.wor
   const intel = G.state.intel[boss.boss.id]; assert.equal(intel, 1, 'Dying to a sector boss records intel');
   const s = endSortie('destroyed'); assert.equal(s.intel.level, 1); }
 
+// ---- v2.7: menus open up for new pilots ----
+{ const M = await import('@last-orbit/progression/meta.js');
+  fresh(); assert.deepEqual(M.refreshMenus(), [], 'A new pilot starts with only Launch'); assert.equal(M.menuState('workshop'), 'locked'); assert.equal(M.menuState('launch'), 'open');
+  G.state.stats.sorties = 1; assert.deepEqual(M.refreshMenus(), ['workshop'], 'The Workshop opens after the first sortie'); assert.equal(M.menuState('workshop'), 'new');
+  M.menuSeen('workshop'); assert.equal(M.menuState('workshop'), 'open'); assert.equal(M.menuState('awards'), 'locked');
+  fresh(); G.state.stats.sorties = 9; M.refreshMenus(); assert.equal(M.menuState('awards'), 'open', 'Established pilots keep every menu, without explainers'); }
+
 // ---- v2.6: Overhaul (prestige) ----
 { const M = await import('@last-orbit/progression/meta.js'); const { OVERHAUL_COST_STEP, BP_BASE } = await import('@last-orbit/data/prestige.js');
   fresh(); assert.equal(M.workshopMaxed(), false); assert.equal(M.overhaul(), 0, 'No Overhaul until the Workshop is maxed');

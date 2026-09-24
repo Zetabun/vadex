@@ -5,7 +5,7 @@ import { Big } from '@last-orbit/core/big.js';
 import { G, count, maxStat, toast, recalc } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { rand } from '@last-orbit/core/rng.js';
-import { BAL, FIELD, TICK, clearSalvage } from '@last-orbit/data/balance.js';
+import { BAL, FIELD, TICK, clearSalvage, earlyPressure } from '@last-orbit/data/balance.js';
 import { sectorOf } from '@last-orbit/data/sectors.js';
 import { ENEMIES, ELITE_MODS } from '@last-orbit/data/enemies.js';
 import { waveScore } from '@last-orbit/data/score.js';
@@ -113,6 +113,7 @@ export function startWave(w) {
   const prevSector = ws.num ? sectorOf(ws.num).idx : -1;
   ws.num = run.wave; ws.info = info; ws.state = 'fighting'; ws.t = 0; ws.damaged = false; ws.bossDamaged = false; ws.kills = 0; ws.boss = null; ws.pending = []; ws.shotsFired = 0;
   setWaveBase(w, run.wave, sec.idx);
+  const ep = sec.idx === 0 ? earlyPressure(run.wave) : 0; ws.fire = 1 + BAL.earlyPressure.fire * ep; ws.march = 1 + BAL.earlyPressure.march * ep; // the opening waves press harder
   maxStat('bestWave', run.wave); maxStat('bestSector', sec.idx + 1);
   if (run.order.length === 1) maxStat('soloWave', run.wave);
   w.enemies = w.enemies.filter((e) => e.alive && e.def.cruiser); w.ebullets.length = 0; w.hazards = w.hazards.filter((h) => h.kind === 'pool');
@@ -121,7 +122,7 @@ export function startWave(w) {
   if (newSector) { run.sectorHit = sec.n > 1; run.windUsed = false; } // a sector joined part-way (debug jumps) cannot be perfect
   for (const b of w.barriers) b.hp = newSector ? 1 : Math.min(1, Math.max(0, b.hp) + 0.25);
   const f = w.form; f.x = 0; f.dir = rand() < 0.5 ? 1 : -1; f.enter = BAL.formationEnter; f.total = 0; f.alive = 0;
-  f.speed = BAL.formSpeed * (1 + sec.n * 0.04 + Math.min(6, sec.idx) * 0.1);
+  f.speed = BAL.formSpeed * (1 + sec.n * 0.04 + Math.min(6, sec.idx) * 0.1) * (ws.march || 1);
   const seen = st.seen.enemies, seenB = st.seen.bosses;
   if (info.boss) { seenB[info.boss] = 1; if (w.mods.bossHp !== 1) w.base.hp = w.base.hp.mul(w.mods.bossHp); spawnBoss(w, info.boss); f.total = 0; }
   else {

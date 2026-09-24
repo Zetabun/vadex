@@ -40,7 +40,8 @@ export function newState() {
     contracts: {},
     stats: { kills: 0, bossKills: 0, sectorBosses: 0, bestWave: 0, bestSector: 1, sectorsCleared: 0, sorties: 0, maxLevel: 1, flawless: 0, maxRank: 1, maxDrones: 0, maxWeapons: 1, bestSalvage: 0, totalSalvage: 0, deaths: 0, cards: 0, threatClear: 0, dailies: 0, bestStreak: 0, maxMastery: 1, shipsOwned: 1,
       bestScore: 0, bestKills: 0, longestRun: 0, perfectSectors: 0, flawlessBosses: 0, soloWave: 0, maxedWeapons: 0, maxRelics: 0, fusions: 0, signatures: 0, counterStars: 0, counterBest: 0, counterHard: 0, overhauls: 0 },
-    seen: { enemies: {}, bosses: {}, elites: {}, medals: 0, records: true },
+    // menus: hangar menu id → 'new' (opened, explainer not yet shown) or true (seen); see data/menus.js
+    seen: { enemies: {}, bosses: {}, elites: {}, medals: 0, records: true, menus: {}, menusInit: false },
     // Records: the local top 10 sorties by score and each ship's best. Medals: achievement id → tiers earned.
     records: { top: [], ships: {} },
     medals: {},

@@ -10,7 +10,7 @@ import { ABILITIES, ABILITY_ORDER } from '@last-orbit/data/abilities.js';
 import { MODS, MOD_BY_ID, RARITY } from '@last-orbit/data/cards.js';
 import { RELICS, RELIC_BY_ID } from '@last-orbit/data/relics.js';
 import { SHIP_BY_ID } from '@last-orbit/data/ships.js';
-import { checkContracts, checkAchievements, addPilotXp, threatMax, dailyToday, addMastery } from '@last-orbit/progression/meta.js';
+import { checkContracts, checkAchievements, addPilotXp, threatMax, dailyToday, addMastery, refreshMenus } from '@last-orbit/progression/meta.js';
 import { TOP_N } from '@last-orbit/data/score.js';
 import { sortiePilotXp } from '@last-orbit/data/career.js';
 import { threatPilotXp } from '@last-orbit/data/threat.js';
@@ -75,6 +75,7 @@ export function endSortie(reason = 'destroyed') {
   // Contracts finished mid-sortie were announced as they happened; the debrief lists them all.
   summary.contracts = (run.contractsDone || []).concat(checkContracts({ silent: true, medals: false }));
   summary.counterUnlocked = unlockCounter({ silent: true });
+  summary.menus = refreshMenus();
   // Medals earned during the sortie, and those its records just earned, pay their pilot XP with the sortie's own.
   // Rank-ups can unlock paint jobs, which can earn further medals: keep paying until nothing new is earned.
   let medals = checkAchievements({ silent: true, pay: false });

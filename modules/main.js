@@ -9,7 +9,7 @@ import { initWorld, advance } from '@last-orbit/combat/sim.js';
 import { useAbility } from '@last-orbit/combat/abilities.js';
 import { collectAll } from '@last-orbit/combat/pickups.js';
 import { startSortie, endSortie, nextOffer, nextRelic, nextRoute, recoverInterruptedRun } from '@last-orbit/progression/run.js';
-import { checkContracts, unlockCounter } from '@last-orbit/progression/meta.js';
+import { checkContracts, unlockCounter, refreshMenus } from '@last-orbit/progression/meta.js';
 import { save, load, hardReset, legacyBestWave } from '@last-orbit/save/save.js';
 import { initAudio, applyVolumes, tickMusic, setMusicMode, suspendAudio } from '@last-orbit/audio/audio.js';
 import { Renderer } from '@last-orbit/rendering/renderer.js';
@@ -23,7 +23,7 @@ function adopt(state) {
   const recovered = recoverInterruptedRun(state);
   G.state = state;
   if (recovered > 0) setTimeout(() => toast(`Recovered ${recovered} salvage from your last sortie.`, 'good'), 600);
-  setNotation(state.settings.notation); recalc(); checkContracts({ silent: true }); unlockCounter({ silent: true }); initWorld(); applyVolumes();
+  setNotation(state.settings.notation); recalc(); checkContracts({ silent: true }); unlockCounter({ silent: true }); refreshMenus(); initWorld(); applyVolumes();
   if (renderer) { renderer.lastSector = -1; renderer.lookV = -1; renderer.setQuality(); }
 }
 

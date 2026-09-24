@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.7.0 — unreleased
+
+- **A sharper opening:** the first waves now press harder without turning enemies into bullet sponges. Sector 1 opens with a fuller formation, more frequent enemy fire and a quicker march, and Stoopers (which dive and fire aimed shots) and Lancers (kamikazes) arrive from waves 2 and 4 instead of 3 and 6. A little extra health on the first dozen waves means a scout takes two or three shots instead of one, and it is gone by wave 13. Early levels come slightly slower. In the bot probes the first three waves last 11–27 seconds instead of 9–21 and actually land hits, and a new pilot's first-death point is unchanged.
+- **Menus open up as you play:** a new pilot starts with just Launch. The Workshop opens after the first sortie, the Armory and Career after the second, Ships, Records and Missions after the third (Missions sooner if Counterattack unlocks), and Awards after the fourth. Locked menus show a lock and say when they open; new ones carry a NEW tag and explain themselves the first time they are opened. The launch screen's ship switcher and Daily/Threat row appear with their menus. Pilots already past their first few sorties keep everything open.
+- **Next rank reward:** the rank card now shows the next reward as a tag in its own colours, with your ship in the paint job it unlocks.
+- **Debrief count-up:** the salvage tally ticks as it counts up, rising in pitch, and lands on a chime.
+
 ## v2.6.2 — 2026-09-24 (engine hum in v2.6.3)
 
 - **Smoother motion:** ships, enemies and bullets are now drawn between simulation steps, so movement stays smooth when frames do not line up with the 60 Hz simulation, and uses the full refresh rate on 120 Hz screens. Before, uneven frame timing made the ship step in small jerks that read as a low frame rate.

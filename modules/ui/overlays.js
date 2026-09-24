@@ -192,6 +192,16 @@ export function createOverlays(layer, hooks) {
     mount('counter-intro', el, (e) => { if (e.key === 'Escape') { close(); return true; } return false; });
   }
 
+  // ------------------------------------------------------------ a menu opening for the first time
+  function showMenuIntro(m) {
+    if (!m || open) return;
+    const el = h('div.modal.confirm.menu-intro', { role: 'dialog', 'aria-label': m.title },
+      h('div.mi-icon', uiIcon(m.icon)), h('div.modal-head', h('div.kicker', 'New menu'), h('h2', m.title), h('p', m.text)),
+      h('div.modal-actions', h('button.btn.primary', { onclick: close, 'data-autofocus': '' }, 'Got it')));
+    mount('menu-intro', el, (e) => { if (e.key === 'Escape' || e.key === 'Enter') { close(); return true; } return false; });
+    playSfx('unlock', 0.7);
+  }
+
   // ------------------------------------------------------------ overhaul
   function showOverhaul() {
     const st = G.state, bp = overhaulReward(), head = blueprintLevel('bp_head'), rank = st.prestige.level + 1, trail = TRAILS.find((t) => t.at === rank);
@@ -260,8 +270,11 @@ export function createOverlays(layer, hooks) {
         h('button.btn.ghost.wide', { onclick: () => { close(); hooks.toHangar('launch'); } }, uiIcon('home'), 'Back to hangar')));
     mount('debrief', el, () => false);
     // Count the salvage up for a little payoff.
-    const target = s.salvage, t0 = performance.now(), dur = Math.min(1400, 400 + target * 3);
-    const tick = (now) => { const k = Math.min(1, (now - t0) / dur); salvageEl.textContent = fmtInt(Math.round(target * (1 - Math.pow(1 - k, 3)))); if (k < 1 && salvageEl.isConnected) requestAnimationFrame(tick); else if (k >= 1) playSfx('loot'); };
+    // Each change of the counter ticks (rate-limited in audio), rising in pitch as it climbs, and it lands on a chime.
+    const target = s.salvage, dur = Math.min(1400, 400 + target * 3); let t0 = 0, shown = -1;
+    const tick = (now) => { t0 ||= now; const k = Math.min(1, (now - t0) / dur), v = Math.round(target * (1 - Math.pow(1 - k, 3)));
+      if (v !== shown) { shown = v; salvageEl.textContent = fmtInt(v); if (k < 1 && target > 0) playSfx('count', 0.9, 1 + k * 0.7); }
+      if (k < 1 && salvageEl.isConnected) requestAnimationFrame(tick); else if (k >= 1) playSfx('loot'); };
     setTimeout(() => requestAnimationFrame(tick), 350);
   }
   const stat = (k, v) => h('div.stat', h('small', k), h('b', String(v)));
@@ -272,7 +285,7 @@ export function createOverlays(layer, hooks) {
   };
 
   return {
-    showOffer, showRelics, showRoutes, showPause, showSettings, showDebrief, showLoadout, showCounterIntro, showOverhaul, close,
+    showOffer, showRelics, showRoutes, showPause, showSettings, showDebrief, showLoadout, showCounterIntro, showOverhaul, showMenuIntro, close,
     get kind() { return open?.kind || null; },
     /** Combat freezes while any overlay is up. */
     blocking: () => !!open,

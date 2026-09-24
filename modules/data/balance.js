@@ -12,13 +12,17 @@ export const BAL = {
   // early toughness: extra enemy health through the opening sectors, peaking in waves 6-12 (when early upgrade cards
   // pile up fastest) and gone by earlyWave, so the opening waves last long enough for the enemy to shoot back
   earlyHp: 1.2, earlyWave: 25,
+  // opening pressure: the first waves come fuller, shoot more and march faster (not tougher), fading out by earlyPressure.until
+  earlyPressure: { until: 10, budget: 6, fire: 0.6, march: 0.25 },
+  // opening health: a little extra on the very first waves only (so a scout takes two or three shots, not one), gone by wave 13
+  openHp: 1, openWaves: 12,
   // Enemy damage grows more slowly after dmgLateWave, so sector 6 is a climb rather than a wall for a maxed Workshop.
   dmgBase: 7, dmgGrowth: 1.045, dmgLateGrowth: 1.02, dmgLateWave: 40, sectorDmgJump: 1.15,
   eliteHp: 5, eliteReward: 6, bossReward: 40, miniReward: 18,
   // salvage (the permanent currency)
   salvageChance: 0.16, salvagePerWave: 0.12, clearSalvage: 3, clearSalvagePerWave: 0.7, bossSalvage: 30, miniSalvage: 12,
   // experience
-  xpPerKill: 1, xpSectorBonus: 0.35, xpBase: 8, xpLinear: 3.2, xpCurve: 1.55, xpCurveMul: 0.55,
+  xpPerKill: 1, xpSectorBonus: 0.35, xpBase: 10, xpLinear: 3.2, xpCurve: 1.55, xpCurveMul: 0.55,
   // pickups
   magnet: 16, pickupCap: 140,
   // player baseline
@@ -43,7 +47,7 @@ export const BAL = {
 export function enemyHp(w, sectorIdx) {
   const early = Math.min(w, BAL.lateWave) - 1, late = Math.max(0, w - BAL.lateWave);
   const bump = w <= 6 ? 0.4 + 0.6 * (w - 1) / 5 : w <= 12 ? 1 : Math.max(0, (BAL.earlyWave - w) / (BAL.earlyWave - 12));
-  const fresh = 1 + BAL.earlyHp * bump;
+  const fresh = 1 + BAL.earlyHp * bump + BAL.openHp * Math.max(0, 1 - (w - 1) / BAL.openWaves);
   return Big.pow(BAL.hpGrowth, early).mul(Big.pow(BAL.hpLateGrowth, late)).mul(BAL.hpBase * fresh * Math.pow(BAL.sectorHpJump, sectorIdx));
 }
 export function enemyDmg(w, sectorIdx) {
@@ -58,3 +62,5 @@ export const clearSalvage = (w) => Math.round(BAL.clearSalvage + w * BAL.clearSa
 export const xpToNext = (L) => Math.round(BAL.xpBase + BAL.xpLinear * (L - 1) + BAL.xpCurveMul * Math.pow(L - 1, BAL.xpCurve));
 /** XP from a kill (rewardMul is the enemy's reward weight: 1 for a scout, ~40 for a boss). */
 export const killXp = (rewardMul, sectorIdx) => rewardMul * BAL.xpPerKill * (1 + sectorIdx * BAL.xpSectorBonus);
+/** How much of the opening pressure applies at wave w: 1 at wave 1, falling to 0 by BAL.earlyPressure.until. */
+export const earlyPressure = (w) => Math.max(0, 1 - (w - 1) / (BAL.earlyPressure.until - 1));
