@@ -21,6 +21,8 @@ function configs() {
 export function syncDrones(w) {
   const want = [];
   for (let i = 0, n = Math.min(8, Math.floor(G.sheet.n('drones'))); i < n; i++) want.push(i % 3 === 2 ? 'missile' : 'attack');
+  // Overhaul escorts: the types flown in the pilot's escort bays (see data/prestige.js).
+  const pr = G.state.prestige; if (pr && G.state.run) for (const t of pr.escorts.slice(0, pr.tech.bp_bay || 0)) want.push(t);
   const keep = w.drones.filter((d) => d.temp);
   const perm = w.drones.filter((d) => !d.temp);
   const next = [];

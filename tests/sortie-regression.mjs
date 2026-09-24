@@ -317,6 +317,28 @@ fresh(); run = launch(); step(TICK); { const p = G.world.player, x0 = p.x; G.wor
   const intel = G.state.intel[boss.boss.id]; assert.equal(intel, 1, 'Dying to a sector boss records intel');
   const s = endSortie('destroyed'); assert.equal(s.intel.level, 1); }
 
+// ---- v2.6: Overhaul (prestige) ----
+{ const M = await import('@last-orbit/progression/meta.js'); const { OVERHAUL_COST_STEP, BP_BASE } = await import('@last-orbit/data/prestige.js');
+  fresh(); assert.equal(M.workshopMaxed(), false); assert.equal(M.overhaul(), 0, 'No Overhaul until the Workshop is maxed');
+  for (const u of WORKSHOP) G.state.workshop[u.id] = u.max; recalc(); const d0 = G.sheet.n('damage');
+  G.state.prestige.cycleBest = 75; assert.equal(M.overhaulReward(), BP_BASE + 1, 'Waves past 60 pay extra Blueprints');
+  assert.equal(M.overhaul(), BP_BASE + 1); const pr = G.state.prestige;
+  assert.equal(pr.level, 1); assert.equal(pr.bp, BP_BASE + 1); assert.equal(pr.cycleBest, 0); assert.equal(G.state.stats.overhauls, 1);
+  assert.ok(WORKSHOP.every((u) => !G.state.workshop[u.id]), 'The Workshop is stripped back to zero'); assert.ok(G.sheet.n('damage') < d0);
+  assert.ok(G.state.banners.t_overhaul, 'The Overhaul Log banner unlocks');
+  assert.equal(M.workshopNext('w_dmg'), Math.round(workshopCost(WORKSHOP[0], 0) * (1 + OVERHAUL_COST_STEP) / 5) * 5, 'Each rank makes the Workshop dearer');
+  // Blueprints: escort types need a bay; the first bay flies the Attack escort
+  assert.equal(M.buyBlueprint('bp_intercept'), false, 'Escort types need an Escort Bay');
+  assert.ok(M.buyBlueprint('bp_bay')); assert.deepEqual(pr.escorts, ['attack']);
+  assert.ok(M.buyBlueprint('bp_intercept')); assert.ok(M.toggleEscort('intercept')); assert.deepEqual(pr.escorts, ['intercept'], 'A full bay swaps out the oldest pick');
+  run = startSortie({ seed: 5 }); initWorld(); run.offer = null; run.pendingLevels = 0; step(TICK);
+  assert.ok(G.world.drones.some((d) => d.type === 'intercept'), 'Escorts fly in the sortie'); endSortie('abandoned');
+  // Head Start and trails
+  pr.bp = 20; assert.ok(M.buyBlueprint('bp_head')); for (const u of WORKSHOP) G.state.workshop[u.id] = u.max; M.overhaul();
+  assert.equal(G.state.workshop.w_dmg, 1, 'Head Start keeps a level'); assert.equal(G.state.workshop.w_revive, 0, 'but not the capstones');
+  assert.ok(M.selectTrail('ember')); assert.equal(M.selectTrail('prism'), false, 'Prism needs Overhaul rank 3');
+  assert.ok(M.powerRating() > 0); }
+
 // ---- v2.5: Counterattack ----
 { const { unlockCounter, buyTech, powerRating } = await import('@last-orbit/progression/meta.js'); const { buildTimeline } = await import('@last-orbit/combat/counter.js');
   const { STAGES } = await import('@last-orbit/data/counter.js'); const { movePath, squadPaths } = await import('@last-orbit/combat/paths.js');

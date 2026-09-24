@@ -70,6 +70,16 @@ function runScene(scene, hooks, ui) {
     return;
   }
   if (name === 'banner' || name === 'bannerfly') { for (const id of ['signal', 'checker', 'ember', 'royal', 'jolly']) st.banners[id] = 1; st.banners[arg] = 1; st.banner = arg; if (name === 'banner') { hooks.toHangar(arg === 'royal' ? 'launch' : 'ships'); return; } }
+  // Overhaul: overhaul (Workshop maxed, ready), blueprints (rank 3 with Blueprints to spend), escorts[:trail] (in flight).
+  if (name === 'overhaul' || name === 'blueprints' || name === 'escorts') {
+    const pr = st.prestige;
+    if (name === 'overhaul') { for (const u of WORKSHOP) st.workshop[u.id] = u.max; pr.cycleBest = 74; }
+    else { pr.level = name === 'escorts' ? 8 : 3; pr.bp = 14; pr.tech = { bp_bay: 2, bp_intercept: 1, bp_shield: 1, bp_salvage: 1 }; pr.escorts = ['intercept', 'shield']; st.stats.overhauls = pr.level; st.trail = arg || 'prism'; for (const u of WORKSHOP) st.workshop[u.id] = Math.min(u.max, 6); }
+    recalc(); if (name !== 'escorts') { hooks.toHangar('workshop'); return; }
+    hooks.launch(); st.run.offer = null; st.run.pendingLevels = 0; ui.closeOverlays();
+    setInterval(() => { const w = G.world, run = st.run; if (!w?.player || !run) return; if (run.offer || run.relicOffer) { if (run.relicOffer) pickRelic(0); else pickCard(autoPickIndex(run)); if (!run.offer && !run.relicOffer) ui.closeOverlays(); }
+      const s = Math.sin(performance.now() / 1100); w.input.hold = s > 0.3 ? 1 : s < -0.3 ? -1 : 0; w.player.hull = 1; }, 120); return;
+  }
   if (arg === 'locked') { st.unlocked.weapons = { cannon: 1, laser: 1 }; st.unlocked.abilities = { overdrive: 1 }; }
   if (['workshop', 'armory', 'ships', 'contracts', 'launch', 'missions', 'records', 'awards'].includes(name)) { hooks.toHangar(name); return; }
   hooks.launch();

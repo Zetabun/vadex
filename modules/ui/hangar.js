@@ -29,7 +29,9 @@ import { MOD_BY_ID } from '@last-orbit/data/cards.js';
 import { warpMax } from '@last-orbit/progression/run.js';
 import { STAGES, COUNTER_UNLOCK_SECTOR } from '@last-orbit/data/counter.js';
 import { ALIEN_TECH } from '@last-orbit/data/alientech.js';
-import { techLevel, buyTech, powerRating } from '@last-orbit/progression/meta.js';
+import { techLevel, buyTech, powerRating, workshopMaxed, workshopProgress, overhaulReward, blueprintLevel, blueprintNext, buyBlueprint, blueprintLocked, escortSlots, escortTypes, toggleEscort, trailUnlocked, selectTrail } from '@last-orbit/progression/meta.js';
+import { BLUEPRINTS, TRAILS, BP_BASE, OVERHAUL_FX_CAP, OVERHAUL_COST_STEP } from '@last-orbit/data/prestige.js';
+import { DRONES } from '@last-orbit/data/drones.js';
 import { MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
 
 const TABS = [['launch', 'Launch'], ['missions', 'Missions'], ['workshop', 'Workshop'], ['armory', 'Armory'], ['ships', 'Ships'], ['contracts', 'Career'], ['records', 'Records'], ['awards', 'Awards']];
@@ -161,8 +163,42 @@ export function createHangar(hooks) {
       const btn = h('button.buy.tech', { disabled: maxed || c.cores < u.cost, onclick: () => { if (buyTech(u.id)) { playSfx('unlock'); render(); hooks.flash?.('#6dffc8'); } else playSfx('deny'); } }, maxed ? 'MAX' : [art('relic:r_quantum', 'cur-ico'), String(u.cost)]);
       return h('div.row.tech-row' + (maxed ? '.maxed' : ''), art(u.art, 'row-icon'), h('div.row-main', h('div.row-title', h('b', u.name), h('span.lv', `${lvl}/${u.max}`)), h('div.row-desc', u.per + ' per level'), pips), btn);
     })) : null;
-    return h('div.screen', h('div.screen-head', h('h2', 'Workshop'), h('p', 'Permanent upgrades. They apply to every ship on every sortie.')), list,
-      tech ? [h('h3.tech-h', 'Alien Tech', h('span', `${c.cores} cores`)), h('p.sub-note', 'Built from Alien Cores, which only Counterattack stars pay. Works in every mode.'), tech] : null);
+    const pr = G.state.prestige, ready = workshopMaxed();
+    return h('div.screen', h('div.screen-head', h('h2', 'Workshop'), h('p', 'Permanent upgrades. They apply to every ship on every sortie.')),
+      ready ? overhaulPanel() : null, list,
+      tech ? [h('h3.tech-h', 'Alien Tech', h('span', `${c.cores} cores`)), h('p.sub-note', 'Built from Alien Cores, which only Counterattack stars pay. Works in every mode.'), tech] : null,
+      pr.level || pr.bp ? blueprintView() : null, ready ? null : overhaulPanel());
+  }
+
+  // ------------------------------------------------------------ overhaul (prestige)
+  function overhaulPanel() {
+    const pr = G.state.prestige, ready = workshopMaxed(), prog = workshopProgress(), bp = overhaulReward(), next = TRAILS.find((t) => t.at > pr.level);
+    return h('section.panel.oh-panel' + (ready ? '.ready' : ''),
+      h('div.oh-head', h('div', h('div.kicker', pr.level ? `Overhaul rank ${pr.level}` : 'Overhaul'), h('h3', ready ? 'Ready to overhaul' : 'Strip it down, build it better')), h('div.oh-rank', h('b', String(pr.level)), h('small', 'rank'))),
+      h('p', ready
+        ? `Reset the Workshop to earn ${bp} Blueprints${bp > BP_BASE ? ` (${BP_BASE} + ${bp - BP_BASE} for going past wave 60)` : ''}. Blueprints buy escort drones and perks that are never lost. Ships, cosmetics, ranks and Counterattack progress all stay.`
+        : 'Max every Workshop upgrade to unlock an Overhaul: reset the Workshop for Blueprints, which buy escort drones and permanent perks. Reach past wave 60 first for extra Blueprints.'),
+      ready ? null : h('div.oh-meter', h('div.meter.small', h('i', { style: `width:${(prog.cur / prog.goal * 100).toFixed(1)}%` })), h('small', `${prog.cur}/${prog.goal} Workshop levels`)),
+      h('div.oh-perks', h('span', `Each rank: +10% salvage, +2% damage${pr.level >= OVERHAUL_FX_CAP ? ' (maxed)' : ''}`), h('span', `Workshop costs +${Math.round(OVERHAUL_COST_STEP * 100)}% per rank`), next ? h('span', `Rank ${next.at}: ${next.name} engine trail`) : null),
+      ready ? h('button.btn.gold.oh-go', { onclick: () => hooks.confirmOverhaul() }, 'Overhaul') : null);
+  }
+  function blueprintView() {
+    const pr = G.state.prestige, types = escortTypes(), slots = escortSlots();
+    const row = (b) => {
+      const lvl = blueprintLevel(b.id), cost = blueprintNext(b.id), maxed = cost == null, pips = h('div.lvl-pips'); for (let i = 0; i < b.max; i++) pips.append(h('i' + (i < lvl ? '.on' : '')));
+      const locked = blueprintLocked(b.id), btn = h('button.buy.bp', { disabled: maxed || locked || pr.bp < cost, onclick: () => { if (buyBlueprint(b.id)) { playSfx('unlock'); render(); hooks.flash?.('#ff9f43'); } else playSfx('deny'); } }, maxed ? (b.kind === 'escort' ? 'OWNED' : 'MAX') : locked ? 'NEEDS BAY' : [h('i.bp-ico'), String(cost)]);
+      return h('div.row.bp-row' + (maxed ? '.maxed' : ''), art(b.art, 'row-icon'), h('div.row-main', h('div.row-title', h('b', b.name), b.max > 1 ? h('span.lv', `${lvl}/${b.max}`) : null), h('div.row-desc', b.per + (b.max > 1 && b.kind !== 'bay' ? ' per level' : '')), b.max > 1 ? pips : null), btn);
+    };
+    // The escort bays: tap a type to fly it (a full bay swaps out the oldest pick).
+    const bays = slots ? h('div.escorts', h('div.esc-head', h('b', 'Escorts'), h('span', `${pr.escorts.length}/${slots} bays · tap to fly`)),
+      h('div.esc-list', types.map((t) => h('button.esc' + (pr.escorts.includes(t) ? '.on' : ''), { style: `--c:${hex(DRONES[t].color)}`, onclick: () => { if (toggleEscort(t)) { playSfx('tab'); render(); } } }, h('i'), h('span', DRONES[t].name.replace(' drone', '')))))) : null;
+    const group = (title, list) => [h('h4.bp-sub', title), h('div.rows', list.map(row))];
+    return [h('h3.tech-h.bp-h', 'Blueprints', h('span', `${pr.bp} blueprints`)), h('p.sub-note', 'Earned by Overhauls and never lost. Escorts fly with you in every sortie, in both modes.'), bays,
+      group('Escort drones', BLUEPRINTS.filter((b) => b.kind)), group('Perks', BLUEPRINTS.filter((b) => !b.kind))];
+  }
+  function trailSwatch(t) {
+    const c = t.style === 'prism' ? 'conic-gradient(#ff5d8f,#ffc857,#6dff8e,#5ee6ff,#b69cff,#ff5d8f)' : t.color ? `radial-gradient(circle at 50% 30%,#fff 0 18%,${hex(t.color)} 40%,${hex(t.core ?? t.color)}55 100%)` : 'linear-gradient(#2a3348,#151a2c)';
+    return h('i.swatch.trail-sw', { style: `background:${c}` });
   }
 
   // ------------------------------------------------------------ armory
@@ -218,6 +254,8 @@ export function createHangar(hooks) {
         bannerThumb(b), h('span', owned ? b.name : bannerReqLabel(b), legend ? h('small.legend-tag', owned ? 'Legendary · ' + fmt(st.stats[b.live] || 0) : `Legendary · ${fmt(pr.cur)}/${fmt(pr.goal)}`) : null), owned || !b.req ? null : h('i.banner-meter', { style: `width:${(pr.frac * 100).toFixed(0)}%` }));
     };
     const banners = h('div.paints.banners', BANNERS.filter((b) => b.rarity !== 'legendary').map(pick));
+    const trails = h('div.paints', TRAILS.map((t) => { const owned = trailUnlocked(t.id), on = (st.trail || 'none') === t.id;
+      return h('button.paint' + (on ? '.on' : '') + (owned ? '' : '.locked'), { disabled: !owned, title: owned ? t.name : `${t.name}: Overhaul rank ${t.at}`, onclick: () => { if (selectTrail(t.id)) { playSfx('tab'); render(); } } }, trailSwatch(t), h('span', owned ? t.name : `Overhaul ${t.at}`)); }));
     const legendRow = (b) => {
       const owned = !!st.banners[b.id], on = st.banner === b.id, pr = bannerProgress(b), v = st.stats[b.live] || 0;
       return h('button.legend-row' + (on ? '.on' : '') + (owned ? '' : '.locked'), { disabled: !owned, style: `--lg:${b.colors[1]}`, onclick: () => { if (selectBanner(b.id)) { playSfx('tab'); render(); } } },
@@ -227,7 +265,8 @@ export function createHangar(hooks) {
     };
     const legends = h('div.legend-box', h('div.legend-head', h('b', 'Legendary'), h('span', 'Stat trackers: each shows a lifetime record, live.')), h('div.legend-list', BANNERS.filter((b) => b.rarity === 'legendary').map(legendRow)));
     return h('div.screen', h('div.screen-head', h('h2', 'Ships'), h('p', 'Each hull starts with its own gun and signature ability. Workshop upgrades apply to all of them.')),
-      h('h3', 'Paint job'), paints, h('h3', 'Banner'), h('p.sub-note', 'Cloth banners that stream from your ship. Earn them with medals and high scores.'), banners, legends, h('h3', 'Hulls'), list);
+      h('h3', 'Paint job'), paints, h('h3', 'Banner'), h('p.sub-note', 'Cloth banners that stream from your ship. Earn them with medals and high scores.'), banners, legends,
+      h('h3', 'Engine trail'), h('p.sub-note', 'Earned by Overhaul rank (Workshop, once it is maxed).'), trails, h('h3', 'Hulls'), list);
   }
 
   function bannerThumb(b, cls = 'banner-thumb') {

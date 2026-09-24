@@ -16,7 +16,8 @@ import { FUSION_BY_ID } from '@last-orbit/data/fusions.js';
 import { sectorOf } from '@last-orbit/data/sectors.js';
 import { BOSSES } from '@last-orbit/data/bosses.js';
 import { BAL } from '@last-orbit/data/balance.js';
-import { unlockLabel, pilotProgress, medalDesc } from '@last-orbit/progression/meta.js';
+import { unlockLabel, pilotProgress, medalDesc, overhaul, overhaulReward, blueprintLevel } from '@last-orbit/progression/meta.js';
+import { TRAILS, OVERHAUL_COST_STEP } from '@last-orbit/data/prestige.js';
 import { PAINT_BY_ID, rankTitle } from '@last-orbit/data/career.js';
 import { THREATS } from '@last-orbit/data/threat.js';
 import { COUNTER_TOP, STAR_HITS, STAR_KILLS } from '@last-orbit/data/counter.js';
@@ -190,6 +191,19 @@ export function createOverlays(layer, hooks) {
     mount('counter-intro', el, (e) => { if (e.key === 'Escape') { close(); return true; } return false; });
   }
 
+  // ------------------------------------------------------------ overhaul
+  function showOverhaul() {
+    const st = G.state, bp = overhaulReward(), head = blueprintLevel('bp_head'), rank = st.prestige.level + 1, trail = TRAILS.find((t) => t.at === rank);
+    const list = (title, items, cls) => h('div.oh-col' + cls, h('b', title), h('ul', items.map((t) => h('li', t))));
+    const el = h('div.modal.confirm.oh-confirm', { role: 'alertdialog', 'aria-label': 'Overhaul the Workshop?' },
+      h('div.modal-head', h('div.kicker', `Overhaul rank ${rank}`), h('h2', 'Overhaul?'), h('p', `Every Workshop upgrade goes back to ${head ? 'level ' + head + ' (Head Start)' : 'zero'}. Your next few sorties will be tougher while you rebuild, and each rank makes the Workshop ${Math.round(OVERHAUL_COST_STEP * 100)}% dearer.`)),
+      h('div.oh-cols', list('You get', [`${bp} Blueprints`, 'Overhaul rank ' + rank + ': +10% salvage, +2% damage', trail ? `${trail.name} engine trail` : null, rank === 1 ? 'Overhaul Log legendary banner' : null].filter(Boolean), '.get'),
+        list('You keep', ['Salvage in the bank', 'Ships, weapons and abilities', 'Paints, banners and ranks', 'Mastery, medals and records', 'Counterattack and Alien Tech', 'Blueprints and escorts'], '.keep')),
+      h('div.modal-actions', h('button.btn.ghost', { onclick: close, 'data-autofocus': '' }, 'Not yet'),
+        h('button.btn.gold', { onclick: () => { const got = overhaul(); close(); if (got) { hooks.celebrate?.('#ff9f43'); hooks.overhauled?.(got); } } }, 'Overhaul')));
+    mount('confirm', el, (e) => { if (e.key === 'Escape') { close(); return true; } return false; });
+  }
+
   function confirmAbandon() {
     const el = h('div.modal.confirm', { role: 'alertdialog', 'aria-label': 'Abandon sortie?' },
       h('div.modal-head', h('h2', 'Abandon sortie?'), h('p', 'You keep the salvage collected so far. Cards and relics are lost.')),
@@ -257,7 +271,7 @@ export function createOverlays(layer, hooks) {
   };
 
   return {
-    showOffer, showRelics, showRoutes, showPause, showSettings, showDebrief, showLoadout, showCounterIntro, close,
+    showOffer, showRelics, showRoutes, showPause, showSettings, showDebrief, showLoadout, showCounterIntro, showOverhaul, close,
     get kind() { return open?.kind || null; },
     /** Combat freezes while any overlay is up. */
     blocking: () => !!open,

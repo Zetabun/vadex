@@ -97,6 +97,7 @@ function recordSortie(st, run, s) {
   const score = Math.round(run.score || 0), rec = st.records;
   const prev = st.stats.bestScore || 0;
   maxStat('bestScore', score); maxStat('bestKills', s.kills); maxStat('longestRun', s.time);
+  if (st.prestige && !run.daily) st.prestige.cycleBest = Math.max(st.prestige.cycleBest || 0, s.wave);
   const entry = { score, wave: s.wave, ship: s.ship, level: s.level, kills: s.kills, threat: s.threat, daily: !!run.daily, warp: run.warp || 1, date: s.date };
   rec.top.push(entry); rec.top.sort((a, b) => b.score - a.score || a.date - b.date); rec.top.length = Math.min(rec.top.length, TOP_N);
   const place = rec.top.indexOf(entry) + 1;

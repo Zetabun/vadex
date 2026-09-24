@@ -16,6 +16,7 @@ import { ROUTE_BY_ID } from '@last-orbit/data/routes.js';
 import { fusionsFor } from '@last-orbit/data/fusions.js';
 import { SYNERGIES, activeTiers } from '@last-orbit/data/synergies.js';
 import { ALIEN_BY_ID } from '@last-orbit/data/alientech.js';
+import { BLUEPRINT_BY_ID, OVERHAUL_FX, OVERHAUL_FX_CAP } from '@last-orbit/data/prestige.js';
 
 export const STAT_BASE = {
   damage: 1, fireRate: 1, critChance: 0.03, critDmg: 1, projSpeed: 1, multishot: 0, pierce: 0, blast: 1, armorPen: 0, bossDmg: 1, eliteDmg: 1, weakMult: BAL.weakMult,
@@ -75,6 +76,7 @@ export function computeSheet(state, sheet = new Sheet()) {
   const mastery = state.mastery?.[ship.id]?.level || 1; if (mastery > 1) sheet.fx(masteryFx(mastery), 1, 'Mastery');
   for (const id in state.workshop) sheet.fx(DEF.workshop[id]?.fx, state.workshop[id], 'Workshop');
   for (const id in state.counter?.tech || {}) sheet.fx(ALIEN_BY_ID[id]?.fx, state.counter.tech[id], 'Alien tech');
+  const pr = state.prestige; if (pr) { sheet.fx(OVERHAUL_FX, Math.min(OVERHAUL_FX_CAP, pr.level || 0), 'Overhaul'); for (const id in pr.tech) sheet.fx(BLUEPRINT_BY_ID[id]?.fx, pr.tech[id], 'Blueprints'); }
   if (run) {
     for (const id in run.cards) sheet.fx(DEF.mods[id]?.fx, run.cards[id], 'Cards');
     for (const s of SYNERGIES) for (const t of activeTiers(s, run)) sheet.fx(t.fx, 1, 'Synergy');

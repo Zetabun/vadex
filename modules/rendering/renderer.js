@@ -14,6 +14,7 @@ import { Background } from '@last-orbit/rendering/background.js';
 import { Banner } from '@last-orbit/rendering/banner.js';
 import { Ground } from '@last-orbit/rendering/ground.js';
 import { counterProgress } from '@last-orbit/combat/counter.js';
+import { TRAIL_BY_ID } from '@last-orbit/data/prestige.js';
 import { playSfx } from '@last-orbit/audio/audio.js';
 
 const CAP = { swarm: 110, scout: 70, weaver: 70, plate: 60, armourPlate: 12, turret: 12, wyrmSeg: 16, rocket: 30 };
@@ -225,6 +226,21 @@ export class Renderer {
     for (const k in this.meshes) { const m = this.meshes[k]; if (m.count) { m.instanceMatrix.needsUpdate = true; m.instanceColor.needsUpdate = true; } }
   }
 
+  /** Overhaul engine trails: particles shed from each nozzle, in the style of the trail the pilot flies. */
+  trail(x, y, k, t, dt) {
+    const tr = TRAIL_BY_ID[G.state.trail]; if (!tr || tr.style === 'none') return;
+    const R = Math.random, rate = { stream: 60, sparks: 40, prism: 56, glitter: 30 }[tr.style] || 0;
+    for (let i = Math.floor(rate * dt + R()); i > 0; i--) {
+      // Slow drifters that hang where they were shed (the ship sits low in the field), so moving draws a wake.
+      if (tr.style === 'sparks') this.parts.emit(x, y, (R() - 0.5) * 10, -3 - R() * 5, 0.8 + R() * 0.3, (1.2 + R() * 0.8) * k, rgb(tr.color), 0.8);
+      else if (tr.style === 'glitter') this.parts.emit(x + (R() - 0.5) * 2.5 * k, y, (R() - 0.5) * 3, -1.5 - R() * 2, 1.2, (0.9 + R() * 1.4) * k, rgb(tr.color), 0.3);
+      else {
+        const hue = (t * 0.35 + R() * 0.08) % 1, f = (m) => { const q = (m + hue * 12) % 12; return 0.5 - 0.5 * Math.max(-1, Math.min(q - 3, 9 - q, 1)); };
+        this.parts.emit(x + (R() - 0.5) * 0.8 * k, y, (R() - 0.5) * 1.5, -3 - R() * 2, 1, 2.8 * k, tr.style === 'prism' ? [f(0), f(8), f(4)] : rgb(tr.color), 0.4);
+      }
+    }
+  }
+
   drawPlayer(w, dt) {
     const look = G.sheet.version + ':' + G.state.paint + ':' + (G.state.run?.ship || G.state.ship); if (this.lookV !== look) { this.lookV = look; this.refreshPlayerLook(); }
     const p = w.player, g = this.player, B = this.B, t = w.t; g.visible = p.alive;
@@ -248,6 +264,7 @@ export class Renderer {
       const length = (over ? 8.6 : 5.3) * flicker * k * big;
       B.soft.add(n.x, n.y - length * .34, 2.1 * k * big, length, -p.tilt * .12, glow, .85);
       B.soft.add(n.x, n.y - .7 * k, .85 * k * big, 2.5 * k, -p.tilt * .12, WHITE, .95);
+      if (!blink) this.trail(n.x, n.y - .8 * k, k * big, t, dt);
     }
     if (p.fireFlash > 0) B.soft.add(p.x, p.y + 5.5, 5, 5, 0, WHITE, p.fireFlash * 8);
     if (p.dashT > 0) for (let k = 1; k <= 3; k++) B.soft.add(p.x - p.dashDir * k * 3.2, p.y, 9 - k * 2, 11 - k * 2, 0, CYAN, 0.5 - k * 0.12);

@@ -22,6 +22,8 @@ export function initUI(app, hooks) {
     nextChoice: () => nextChoice(),
     settings: () => overlays.showSettings(false),
     counterIntro: (go) => overlays.showCounterIntro(go),
+    confirmOverhaul: () => overlays.showOverhaul(),
+    overhauled: (bp) => { banner('Overhaul complete', `Rank ${G.state.prestige.level}`, `+${bp} Blueprints`, '#ff9f43', 2200); if (G.mode === 'hangar') hangar.render(); },
     pause: () => { if (G.mode === 'sortie' && !overlays.blocking()) { playSfx('tab'); overlays.showPause(); } },
     toHangar: (tab) => hooks.toHangar(tab),
     toast: (text, kind = 'good') => toast(text, kind),

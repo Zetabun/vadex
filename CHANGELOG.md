@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.6.0 — unreleased
+
+- **Overhaul: a prestige loop for the late game.** Once every Workshop upgrade is maxed, an Overhaul panel appears at the top of the Workshop. Overhauling strips the Workshop back to zero for **Blueprints** (5, plus 1 for every 10 waves past 60 you reached since the last Overhaul, up to +5) and raises your Overhaul rank. Ships, weapons, cosmetics, ranks, mastery, medals, records, Counterattack progress and salvage in the bank are all kept.
+  - **Escort drones:** Blueprints buy an Escort Bay (up to two) and escort types that fly with you on every sortie, in both modes: Attack, Missile, Repair, Shield, Interceptor and Target Painter. Pick which ones fly from the Blueprints section.
+  - **Perks:** Salvage Contracts (+25% salvage per level), Veteran Engineers (Workshop 8% cheaper per level), Head Start (after an Overhaul, Workshop upgrades start up to 3 levels higher; the one-off capstones excepted) and Deep Calibration (+5% damage and hull per level).
+  - **Overhaul rank:** each rank adds +10% salvage and +2% damage (up to rank 10), and makes the Workshop 25% dearer, so rebuilds settle at a steady pace. Ranks unlock engine trails (Ion Wake, Ember Sparks, Prism, Gilded, Void Wake) in the Ships tab, and the first Overhaul unlocks the Overhaul Log legendary banner.
+  - **Balance:** in the bot probes the first climb is unchanged; after that a strong pilot rebuilds in roughly 10–16 sorties and a weaker one in about 15–22 (never faster than the first climb collapsing to a sortie or two), and buying every Blueprint takes about 150 sorties for a strong pilot and longer for a weaker one.
+
 ## v2.5.0 — 2026-09-25
 
 - **Counterattack: a new vertical shooter mode.** Unlocked by defeating the sector 3 boss, and found at the top of Missions. Six stages carry the fight back through the six sectors (about 3–5 minutes each). Fly freely in every direction (drag to move, W/A/S/D on a keyboard), dash through fire, and face squads on scripted flight paths, a mid-stage mini-boss and the sector boss.

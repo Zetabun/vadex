@@ -13,10 +13,14 @@ import { ACHIEVEMENTS, FEATS, TIERS, FEAT_XP, MEDAL_COUNT } from '@last-orbit/da
 import { BANNERS, BANNER_BY_ID } from '@last-orbit/data/banners.js';
 import { COUNTER_UNLOCK_SECTOR } from '@last-orbit/data/counter.js';
 import { ALIEN_BY_ID } from '@last-orbit/data/alientech.js';
+import { WORKSHOP } from '@last-orbit/data/workshop.js';
+import { BLUEPRINT_BY_ID, ENGINEER_DISCOUNT, OVERHAUL_COST_STEP, HEAD_START_SKIP, ESCORT_BLUEPRINT, TRAIL_BY_ID, overhaulBlueprints } from '@last-orbit/data/prestige.js';
 
 // ---------------------------------------------------------------- workshop
 export const workshopLevel = (id) => G.state.workshop[id] || 0;
-export function workshopNext(id) { const d = WORKSHOP_BY_ID[id], l = workshopLevel(id); return l >= d.max ? null : workshopCost(d, l); }
+export function workshopNext(id) { const d = WORKSHOP_BY_ID[id], l = workshopLevel(id); return l >= d.max ? null : Math.round(workshopCost(d, l) * workshopCostMult() / 5) * 5 || d.base; }
+/** Workshop price multiplier: dearer with each Overhaul rank, cheaper with Veteran Engineers. */
+export const workshopCostMult = () => (1 + OVERHAUL_COST_STEP * (G.state.prestige?.level || 0)) * (1 - ENGINEER_DISCOUNT * blueprintLevel('bp_engineers'));
 export function buyWorkshop(id) {
   const cost = workshopNext(id); if (cost == null || G.state.salvage < cost) return false;
   G.state.salvage -= cost; G.state.workshop[id] = workshopLevel(id) + 1; recalc(); checkAchievements(); bus.emit('bought', 'workshop', id); return true;
@@ -180,6 +184,43 @@ export function buyTech(id) {
 /** A rough measure of permanent strength for Counterattack's recommendations: Workshop levels, ship mastery and Alien Tech. */
 export function powerRating() {
   const st = G.state, ws = Object.values(st.workshop).reduce((a, b) => a + b, 0), m = (st.mastery[st.ship]?.level || 1) - 1;
-  const tech = Object.values(st.counter?.tech || {}).reduce((a, b) => a + b, 0);
-  return ws + m * 2 + tech * 2;
+  const tech = Object.values(st.counter?.tech || {}).reduce((a, b) => a + b, 0), pr = st.prestige || {};
+  return ws + m * 2 + tech * 2 + Math.min(10, pr.level || 0) * 2 + blueprintLevel('bp_calib') * 3 + escortSlots() * 3;
 }
+
+// ---------------------------------------------------------------- overhaul (prestige)
+export const blueprintLevel = (id) => G.state.prestige?.tech[id] || 0;
+export const workshopMaxed = () => WORKSHOP.every((u) => workshopLevel(u.id) >= u.max);
+/** Workshop levels bought against all there are, for the Overhaul progress bar. */
+export function workshopProgress() { let cur = 0, goal = 0; for (const u of WORKSHOP) { cur += Math.min(u.max, workshopLevel(u.id)); goal += u.max; } return { cur, goal }; }
+export const overhaulReward = () => overhaulBlueprints(G.state.prestige.cycleBest || 0);
+/** Strip the Workshop back to zero (or to the Head Start level) for Blueprints and a higher Overhaul rank. */
+export function overhaul() {
+  const st = G.state, pr = st.prestige; if (st.run || !workshopMaxed()) return 0;
+  const bp = overhaulReward(), head = blueprintLevel('bp_head');
+  pr.level++; pr.bp += bp; pr.bpEarned = (pr.bpEarned || 0) + bp; pr.cycleBest = 0; st.stats.overhauls = pr.level;
+  for (const u of WORKSHOP) st.workshop[u.id] = HEAD_START_SKIP.includes(u.id) ? 0 : Math.min(u.max, head);
+  recalc(); unlockBanners(); checkAchievements(); bus.emit('overhaul', pr.level); return bp;
+}
+export function blueprintNext(id) { const b = BLUEPRINT_BY_ID[id], l = blueprintLevel(id); return !b || l >= b.max ? null : b.cost[l]; }
+/** Escort types need an Escort Bay to fly from first. */
+export const blueprintLocked = (id) => BLUEPRINT_BY_ID[id]?.kind === 'escort' && !escortSlots();
+export function buyBlueprint(id) {
+  const cost = blueprintNext(id), pr = G.state.prestige; if (cost == null || pr.bp < cost || blueprintLocked(id)) return false;
+  pr.bp -= cost; pr.tech[id] = blueprintLevel(id) + 1;
+  // A new bay fills itself with the first free escort type, so buying one is felt straight away.
+  if (id === 'bp_bay') { const free = escortTypes().find((t) => !pr.escorts.includes(t)); if (free) pr.escorts.push(free); }
+  if (BLUEPRINT_BY_ID[id].kind === 'escort' && pr.escorts.length < escortSlots()) pr.escorts.push(BLUEPRINT_BY_ID[id].drone);
+  recalc(); bus.emit('bought', 'blueprint', id); return true;
+}
+export const escortSlots = () => blueprintLevel('bp_bay');
+/** Escort types the pilot can fly: Attack with the first bay, the rest once their blueprint is bought. */
+export const escortTypes = () => escortSlots() ? ['attack', ...Object.keys(ESCORT_BLUEPRINT).filter((t) => blueprintLevel(ESCORT_BLUEPRINT[t]))] : [];
+/** Put an escort type in a bay or take it out; when every bay is full, the oldest pick makes way. */
+export function toggleEscort(type) {
+  const pr = G.state.prestige, list = pr.escorts; if (G.state.run || !escortTypes().includes(type)) return false;
+  const i = list.indexOf(type); if (i >= 0) list.splice(i, 1); else { list.push(type); while (list.length > escortSlots()) list.shift(); }
+  recalc(); return true;
+}
+export const trailUnlocked = (id) => (TRAIL_BY_ID[id]?.at ?? 99) <= (G.state.prestige?.level || 0);
+export function selectTrail(id) { if (!trailUnlocked(id)) return false; G.state.trail = id; bus.emit('trail', id); return true; }
