@@ -90,7 +90,7 @@ function runScene(scene, hooks, ui) {
   if (name === 'comms') { st.pilot.name = 'Adam'; st.seen.callsign = true; hooks.toHangar('launch'); setTimeout(() => { const l = LINES.find((x) => x.id === (arg || 'welcome')); if (l) ui.comms.say(l.text); }, 600); return; }
   if (name === 'deck') { st.prestige.level = +arg || 3; st.pilot.name = 'Adam'; st.seen.callsign = true; for (const id of ['signal', 'checker', 'ember', 'royal']) st.banners[id] = 1; st.unlocked.ships.bulwark = 1; st.stats.bestWave = 74; st.stats.maxAnomalies = 2; st.counter.stars = { 1: 3, 2: 2, 3: 1 }; refreshMenus(); st.seen.menus.deck = true; recalc(); hooks.toHangar('deck');
     // deck:<rank>:<view>: stand somewhere and look at something (window, medals, ships, back, table)
-    const V = { window: [0, 1.5, 0, -0.08], medals: [-1.2, -2.2, 1.35, 0], ships: [1.4, -2.2, -1.35, -0.1], back: [0, -1.5, Math.PI, -0.05], table: [0, 0.2, 0, -0.35], door: [1.4, 2.0, -1.62, 0], doornear: [3.3, 2.3, -1.5708, 0.12] }[arg2];
+    const V = { window: [0, 1.5, 0, -0.08], medals: [-1.2, -2.2, 1.35, 0], ships: [1.4, -2.2, -1.35, -0.1], back: [0, -1.5, Math.PI, -0.05], table: [0, 0.2, 0, -0.35], door: [1.4, 2.0, -1.62, 0], doornear: [3.3, 2.3, -1.5708, 0.12], halldoor: [-1.3, 0.2, 1.5708, 0.06] }[arg2];
     if (V) { let n = 0; const iv = setInterval(() => { const d = G.renderer?.room; if (d) { d.pos.x = V[0]; d.pos.z = V[1]; d.yaw = V[2]; d.pitch = V[3]; } if (++n > 20) clearInterval(iv); }, 100); }
     return; }
   // replay:<start wave>[:<seconds>[:<view>]]: a bot flies a sortie from that wave for that long (headless, in an instant)
@@ -137,6 +137,19 @@ function runScene(scene, hooks, ui) {
     if (mode === 'missile') setInterval(() => { const g = G.renderer?.room, T3 = window.THREE; if (!g?.fireMissile || G.room !== 'gunner') return; g.yaw = 0; g.pitch = 0; g.picksDue = 0; g.spawnQ = []; if (g.pick) g.choosePick(0);
       const e = g.spawn('bomber', new T3.Vector3(14, 8, -170)); e.state = 'inbound'; e.goal = new T3.Vector3(14, 8, -3000); e.vel.set(0, 0, 0); Object.assign(g.ms, { target: e, locked: true, ammo: 2, reloadT: 0 }); g.fireMissile(); }, 2500);
     if (mode === 'auto') setInterval(() => { const g = G.renderer?.room; if (!g?.enemies || G.room !== 'gunner') return; const cam = g.cam.position, t = g.enemies.filter((e) => e.alive && e.kind !== 'capital').sort((a, b) => a.pos.distanceTo(cam) - b.pos.distanceTo(cam))[0]; if (!t) return; const d = g.lead(t, cam).clone().sub(cam); g.yaw = Math.atan2(-d.x, -d.z); g.pitch = Math.atan2(d.y, Math.hypot(d.x, d.z)); if (g.pick) g.choosePick(0); }, 50);
+    return; }
+  // hall[:captures[:hard[:view]]]: the Trophy Hall at Overhaul rank 2, with that many Counterattack bosses captured (default
+  // 4), that many hard stages cleared, and the main-game bosses met. view: left, right, front (the window), back (the doors),
+  // hunt (the hologram), plaque (close on a plaque), or tap:<exhibit> to open one's panel.
+  if (name === 'hall') { const caps = arg == null ? 4 : +arg, hard = +arg2 || 0; st.pilot.name = 'Adam'; st.seen.callsign = true; st.seen.hall = true; st.prestige.level = 2; st.stationName = 'Halcyon';
+    for (const l of LINES) st.seen.comms[l.id] = 1; st.seen.commsInit = true;
+    WORKSHOP.forEach((u, i) => { st.stationPeak[u.id] = u.max; st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.7 - (i % 5) * 0.12))); });
+    st.counter.unlocked = true; for (let k = 1; k <= caps; k++) { st.counter.stars[k] = 1 + (k % 3); st.counter.best[k] = 18000 + k * 7400; if (k <= hard) st.counter.hard[k] = 1 + (k % 2); }
+    for (const [i, b] of ['broodcarrier', 'bastion', 'wyrm', 'dreadnought', 'oracle'].entries()) { st.seen.bosses[b] = 1; if (i < 4) st.stats.bossBy[b] = 6 - i; } st.stats.sectorsCleared = 4; st.intel.oracle = 3; st.intel.dreadnought = 1;
+    recalc(); hooks.toHangar('hall');
+    const view = { left: [0.2, -2.9, 1.25, -0.08], right: [-0.2, -2.9, -1.25, -0.08], front: [0, -5.2, 0, 0.12], back: [0, -6.8, Math.PI, 0.06], hunt: [0, -0.6, Math.PI, 0.04], plaque: [-1.55, -1.5, 1.57, -0.55] }[arg3];
+    if (view) { let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 60) setTimeout(place, 100); return; } r.pos.set(view[0], 0, view[1]); r.yaw = view[2]; r.pitch = view[3]; }; place(); } /* once the room is built */
+    if (arg3 === 'tap') setTimeout(() => ui.tap?.(arg4 || 'cradle1'), 1500);
     return; }
   // sgdamage[:tab]: a station left damaged by a lost siege (three systems out), seen from a tab or room (default Defence Control)
   if (name === 'sgdamage') { st.pilot.name = 'Adam'; st.seen.callsign = true; st.counter.unlocked = true; st.counter.stars[1] = 2; st.counter.stars[2] = 1; st.seen.control = true; st.seen.gunnerIntro = true; st.stationName = 'Halcyon';

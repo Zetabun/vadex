@@ -12,7 +12,7 @@ import { ACHIEVEMENTS, FEATS } from '@last-orbit/data/achievements.js';
 import { BANNERS } from '@last-orbit/data/banners.js';
 import { SHIPS } from '@last-orbit/data/ships.js';
 import { PAINT_BY_ID, rankTitle } from '@last-orbit/data/career.js';
-import { STATION_CORE } from '@last-orbit/data/station.js';
+import { STATION_CORE, hallOpen } from '@last-orbit/data/station.js';
 import { siegeUnlocked } from '@last-orbit/data/siege.js';
 import { ReplayScreen, replayTitle, replayEnding } from '@last-orbit/rendering/replay.js';
 import { lastReplay, loadReplay } from '@last-orbit/progression/recorder.js';
@@ -23,13 +23,14 @@ const T = () => window.THREE;
 const W = 5, FRONT = -8, BACK = 4, H = 3.4;
 const TABLE = { x: 0, z: -3, r: 1.3 }, PEDESTAL_X = 4.1, PEDESTAL_Z = [-6.3, -4.7, -3.1, -1.5, 0.1];
 const TIER_COL = ['#d08a4e', '#cfd8e8', '#ffc857'], FEAT_COL = '#b69cff';
-/** Where Defence Control's door stands, on the right wall behind the ships. */
-const CONTROL_DOOR_Z = 2.3;
+/** Where Defence Control's door stands, on the right wall behind the ships; the Trophy Hall's on the left, between the
+ *  medal wall and the lounge. */
+const CONTROL_DOOR_Z = 2.3, HALL_DOOR_Z = 0;
 
 export class DeckRoom extends Room {
   constructor() {
     super({ w: W, front: FRONT, back: BACK, h: H, start: [0, 3.2, 0] });
-    this.shell({ floor: '#1b2233', wall: '#2a3348', window: { hw: 4.3, y0: 0.45, y1: 3.05, struts: [-1.45, 1.45] }, lamps: [-5.8, -2.4, 1], ribs: [-6.9, -0.9, 0.5] /* clear of the medal wall and the lounge screen */ });
+    this.shell({ floor: '#1b2233', wall: '#2a3348', window: { hw: 4.3, y0: 0.45, y1: 3.05, struts: [-1.45, 1.45] }, lamps: [-5.8, -2.4, 1], ribs: [-6.9, -1.45, 1.05] /* clear of the medal wall, the hall's door and the lounge screen */ });
     this.furnish(); this.outside();
     this.solids.push({ ...TABLE }, ...PEDESTAL_Z.map((z) => ({ x: PEDESTAL_X, z, r: 0.85 }))); this.blocks.push({ x0: -W, x1: -3.85, z0: 0.95, z1: 3.45 }); /* the couch */
     this.station = new Station(this.scene); this.station.group.visible = true; this.station.group.position.set(TABLE.x, 1.55, TABLE.z); this.station.group.scale.setScalar(0.042);
@@ -84,12 +85,12 @@ export class DeckRoom extends Room {
   sync(state) {
     const earned = [...ACHIEVEMENTS, ...FEATS].filter((a) => state.medals[a.id]).length, banners = BANNERS.filter((b) => b.shape && state.banners[b.id]).map((b) => b.id);
     const ships = SHIPS.map((s) => (state.unlocked.ships[s.id] ? 1 : 0)).join(''), rank = state.prestige?.level || 0;
-    const sig = [earned, banners.join(), ships, state.ship, state.paint, rank, state.pilot.name, state.pilot.rank, state.stats.bestWave, state.stats.bestScore, state.stationName, siegeUnlocked(state), lastReplay()?.stamp || 0].join('|');
+    const sig = [earned, banners.join(), ships, state.ship, state.paint, rank, state.pilot.name, state.pilot.rank, state.stats.bestWave, state.stats.bestScore, state.stationName, siegeUnlocked(state), hallOpen(state), lastReplay()?.stamp || 0].join('|');
     if (!this.askedReplay) { this.askedReplay = true; loadReplay(); } /* the stored replay, if any: the TV appears when it has loaded */
     this.station.sync(state);
     if (sig === this.sig) return; this.sig = sig;
     if (this.show) { this.scene.remove(this.show); this.untag(this.show); } const THREE = T(); this.show = new THREE.Group(); this.scene.add(this.show);
-    this.medalWall(state); this.shipBay(state); this.bannerHall(state, banners); this.recordsScreen(state); this.trophyShelf(rank); this.nameSign(state, rank); this.roadmap(rank); this.controlDoor(siegeUnlocked(state));
+    this.medalWall(state); this.shipBay(state); this.bannerHall(state, banners); this.recordsScreen(state); this.trophyShelf(rank); this.nameSign(state, rank); this.roadmap(rank); this.controlDoor(siegeUnlocked(state)); this.hallDoor(hallOpen(state));
   }
   medalWall(state) {
     const THREE = T(), g = new THREE.Group(); g.position.set(-W + 0.06, 0, 0); g.rotation.y = Math.PI / 2; this.show.add(g); // on the left wall, facing into the room
@@ -226,6 +227,7 @@ export class DeckRoom extends Room {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.3), new THREE.MeshBasicMaterial({ map: tex(c), transparent: true })); m.position.set(0, 3.225, FRONT + 0.17); this.show.add(m); /* fits the band between the window's top strip and the ceiling */
   }
   /** The way through to Defence Control: sealed until the invaders strike back (the first Counterattack clear). */
+  hallDoor(open) { this.door(this.show, -W, HALL_DOOR_Z, -Math.PI / 2, 'TROPHY HALL  ›', 'hall', { sealed: !open, sign: '#ffe2b0', edge: 0xffc857 }); }
   controlDoor(open) { this.door(this.show, W, CONTROL_DOOR_Z, Math.PI / 2, 'DEFENCE CONTROL  ›', 'control', { sealed: !open, sign: '#ffd9a0', edge: 0xffb547 }); }
   update(dt) {
     this.walk(dt); const night = nightAmount();

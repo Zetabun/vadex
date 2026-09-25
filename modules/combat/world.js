@@ -178,7 +178,7 @@ export function killEnemy(w, e, src, crit, over) {
   if (e.link?.alive) { const m = e.link; m.link = null; m.overcharged = true; fx(w, 'text', m.x, m.y + m.r + 2, 'OVERCHARGED', '#7df9ff', 1); } // the survivor fires much faster
   if (e.parent) bus.emit('partDied', w, e);
   if (e.boss) {
-    count('bossKills'); if (!e.boss.def.mini) count('sectorBosses');
+    count('bossKills'); if (!e.boss.def.mini) count('sectorBosses'); const by = (G.state.stats.bossBy ||= {}); by[e.boss.id] = (by[e.boss.id] || 0) + 1;
     bus.emit('bossDied', w, e);
   }
   if (w.painted === e) w.painted = null;

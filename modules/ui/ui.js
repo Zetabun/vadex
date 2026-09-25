@@ -131,7 +131,7 @@ export function initUI(app, hooks) {
   function greet(fresh) { const n = G.state.pilot.name; if (n) banner(fresh ? 'Welcome aboard' : 'Welcome back', n, null, 'var(--cyan)', 2600); }
   addEventListener('resize', () => setTimeout(measure, 50));
   return {
-    update, setMode, measure, banner, nextChoice, greet, siege: (n) => hangar.siege(n),
+    update, setMode, measure, banner, nextChoice, greet, siege: (n) => hangar.siege(n), tap: (kind) => hangar.tap(kind),
     intro: (o) => intro.play(o), comms,
     callsign: (o) => overlays.showCallsign(o),
     blocking: () => overlays.blocking(),

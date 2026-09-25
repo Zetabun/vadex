@@ -6,6 +6,7 @@
 import { WORKSHOP } from '@last-orbit/data/workshop.js';
 import { STAGES } from '@last-orbit/data/counter.js';
 import { BOSSES } from '@last-orbit/data/bosses.js';
+import { SECTORS } from '@last-orbit/data/sectors.js';
 
 /** Workshop modules. name: what the station calls it; shape: how it is drawn; x, y: where it sits on the trusses. */
 export const STATION_MODULES = [
@@ -48,6 +49,11 @@ export const STATION_TROPHIES = [
   { stage: 6, x: -18, y: -8, anchor: [-13.6, 0], say: 'The Unmaker, unmade. It will never threaten this orbit again.' },
 ].map((t) => ({ ...t, id: 'trophy' + t.stage, boss: STAGES[t.stage - 1].boss, name: BOSSES[STAGES[t.stage - 1].boss]?.name || 'Boss' }));
 export const TROPHY_BY_ID = Object.fromEntries(STATION_TROPHIES.map((t) => [t.id, t]));
+/** The Trophy Hall (rendering/hall.js) opens with the Habitat ring, at this Overhaul rank. */
+export const HALL_RANK = 2;
+export const hallOpen = (state) => (state.prestige?.level || 0) >= HALL_RANK;
+/** The Trophy Hall's hunting record: the main game's six sector bosses, and where each is fought. */
+export const HUNTED = SECTORS.slice(0, 6).map((sec, i) => ({ id: sec.boss, sector: i + 1, place: sec.name }));
 /** A stage's boss is captured once the stage has been cleared on either difficulty. */
 export const trophyWon = (state, n) => (state.counter?.stars?.[n] || 0) > 0 || (state.counter?.hard?.[n] || 0) > 0;
 export const caughtStages = (state) => STATION_TROPHIES.filter((t) => trophyWon(state, t.stage)).map((t) => t.stage);
@@ -57,7 +63,7 @@ export const caughtStages = (state) => STATION_TROPHIES.filter((t) => trophyWon(
 export const STATION_CORE = [
   { at: 0, id: 'hub', name: 'Station hub' },
   { at: 1, id: 'deck', name: 'Command Deck', line: 'Your own room aboard, to walk round', desc: 'Your own room aboard: medals, banners, records and ships on display.' },
-  { at: 2, id: 'ring', name: 'Habitat ring', line: 'A spinning ring round the hub', say: 'The habitat ring is turning again. It almost feels like home, {n}.' },
+  { at: 2, id: 'ring', name: 'Habitat ring', line: 'A spinning ring round the hub, with the Trophy Hall inside', say: 'The habitat ring is turning again. It almost feels like home, {n}.' },
   { at: 3, id: 'spire', name: 'Comms spire', line: 'A mast and beacon above it all', say: 'Comms spire online. For the first time in years, I can hear the rest of the system.' },
   { at: 4, id: 'solar', name: 'Solar wings', line: 'Great panels on both arms', say: 'Solar wings deployed. Full power, for the first time since the Fall.' },
   { at: 5, id: 'ring2', name: 'Outer ring', line: 'A second, wider ring', say: 'The outer ring is sealed. There is room for everyone now, {n}.' },

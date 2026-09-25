@@ -35,7 +35,8 @@ import { techLevel, buyTech, powerRating, workshopMaxed, workshopProgress, overh
 import { BLUEPRINTS, TRAILS, BP_BASE, OVERHAUL_FX_CAP, OVERHAUL_COST_STEP } from '@last-orbit/data/prestige.js';
 import { SIEGE_TIERS, SIEGE_SYSTEMS, SIEGE_CONSOLES, CONSOLE_BY_ID, TIER_BY_N, SYSTEM_BY_ID, siegeOpen, siegeUnlocked, siegeSystems, systemPart, systemSource, sourceName, nextSiege, lockedSiege, siegeAdvice, siegeGuns, siegeDamage, tierSummary, tierPhrase, listNames } from '@last-orbit/data/siege.js';
 import { settleSiege, repairStation } from '@last-orbit/progression/siege.js';
-import { STATION_CORE, MODULE_BY_ID, ALIEN_BY_ID, TROPHY_BY_ID, REBUILD_PARTS, rebuildPct, rebuildParts, stationSnapshot, caughtStages } from '@last-orbit/data/station.js';
+import { BOSSES } from '@last-orbit/data/bosses.js';
+import { STATION_CORE, MODULE_BY_ID, ALIEN_BY_ID, TROPHY_BY_ID, REBUILD_PARTS, rebuildPct, rebuildParts, stationSnapshot, caughtStages, hallOpen, STATION_TROPHIES, trophyWon, HUNTED } from '@last-orbit/data/station.js';
 import { stationBlueprint, pieceThumb } from '@last-orbit/ui/stationArt.js';
 import { replayTitle, replayEnding } from '@last-orbit/rendering/replay.js';
 import { TURRET_MOD, TURRET_RARITY, turretKit } from '@last-orbit/data/turret.js';
@@ -97,15 +98,20 @@ export function createHangar(hooks) {
   const el = h('div#hangar', top, $.body, $.coSvg, $.stationHot, $.callout, $.nav);
 
   // The rooms aboard the station: 3D spaces to walk round, each reached from the hangar and left the way you came.
-  const ROOMS = { deck: 'Command Deck', control: 'Defence Control', gunner: 'Gunner seat' };
+  const ROOMS = { deck: 'Command Deck', control: 'Defence Control', gunner: 'Gunner seat', hall: 'Trophy Hall' };
   const CONTROL_LOCK = 'Defence Control opens when the invaders strike back: clear Counterattack stage 1.';
   const CONTROL_INTRO = { icon: 'control', kicker: 'New room aboard', title: 'Defence Control', text: 'The station\'s war room. Its consoles run every defence you have built, the tactical table adds them up, and the threat board is where you launch a siege. Tap ORBIT\'s terminal for advice.' };
+  const HALL_LOCK = 'The Trophy Hall is in the Habitat ring: it opens at Overhaul rank 2.';
+  const HALL_INTRO = { icon: 'awards', kicker: 'New room aboard', title: 'Trophy Hall', text: 'The Habitat ring is turning again, and inside it a hall for everything you have beaten. Every boss you capture in the Counterattack hangs in a stasis cradle here, its record on the plaque, and the hologram keeps the hunting record of every sector boss you have faced.' };
   let outside = 'launch'; // the hangar tab the rooms lead back to
   let gunTier = 1, gunFrom = 'control'; // the siege in the gunner seat, and where leaving it goes
   function show(id, quiet) {
     // Defence Control stays sealed until the invaders first strike back.
     if (id === 'control' && !siegeUnlocked(G.state)) { if (!quiet) { playSfx('deny'); hooks.toast?.(CONTROL_LOCK, 'info'); } if (tab !== id) return; id = 'launch'; }
     if (id === 'control' && !G.state.seen.control) { G.state.seen.control = true; setTimeout(() => hooks.menuIntro?.(CONTROL_INTRO), 150); }
+    // The Trophy Hall opens with the Habitat ring.
+    if (id === 'hall' && !hallOpen(G.state)) { if (!quiet) { playSfx('deny'); hooks.toast?.(HALL_LOCK, 'info'); } if (tab !== id) return; id = 'launch'; }
+    if (id === 'hall' && !G.state.seen.hall) { G.state.seen.hall = true; setTimeout(() => hooks.menuIntro?.(HALL_INTRO), 150); }
     // A menu the pilot has not earned yet stays shut (with a note on when it opens); a newly opened one explains itself once.
     if (menuState(id) === 'locked') { if (!quiet) { playSfx('deny'); hooks.toast?.(menuLockText(id), 'info'); } if (tab !== id) return; id = 'launch'; }
     if (menuState(id) === 'new') { menuSeen(id); setTimeout(() => hooks.menuIntro?.(MENU_BY_ID[id]), 150); }
@@ -122,7 +128,7 @@ export function createHangar(hooks) {
    *  on a list (Workshop upgrades) stay on the row under the finger; switching tabs starts at the top. */
   function render(top = false) {
     const y = $.body.scrollTop; clear($.body);
-    const view = { launch: launchView, missions: missionsView, workshop: workshopView, armory: armoryView, ships: shipsView, contracts: contractsView, records: recordsView, awards: awardsView, deck: () => roomView('deck'), control: () => roomView('control'), gunner: () => gunnerView() }[tab]();
+    const view = { launch: launchView, missions: missionsView, workshop: workshopView, armory: armoryView, ships: shipsView, contracts: contractsView, records: recordsView, awards: awardsView, deck: () => roomView('deck'), control: () => roomView('control'), hall: () => roomView('hall'), gunner: () => gunnerView() }[tab]();
     $.body.append(view); $.body.scrollTop = top ? 0 : y;
   }
 
@@ -412,6 +418,7 @@ export function createHangar(hooks) {
     return h('section.panel.ca-panel',
       h('div.ca-head', h('div', h('div.kicker', 'Counterattack', h('button.ca-how', { onclick: () => hooks.counterIntro(null) }, 'How it works')), h('h3', 'Take the fight to them')), h('div.ca-cores', art('relic:r_quantum', 'ca-core-ico'), h('b', String(c.cores)), h('small', 'cores'))),
       h('p', 'Fly free in every direction: drag to move, double-tap a side to dash. Each stage has its own set piece and ends on a boss of its own. Stars earn Alien Cores for Alien Tech in the Workshop.'),
+      hallOpen(st) ? h('button.btn.ghost.wide.sg-room.hall-room', { onclick: () => show('hall') }, uiIcon('awards'), h('span', `Trophy Hall · ${caughtStages(st).length}/6 captured`), uiIcon('chevron')) : null,
       h('div.ca-meta', h('span', `★ ${stars(c.stars)}/18` + (anyHard ? ` · Hard ★ ${stars(c.hard)}/18` : '')), anyHard ? h('button.ca-toggle' + (counterHard ? '.on' : ''), { onclick: () => { counterHard = !counterHard; playSfx('tab'); render(); } }, counterHard ? 'Hard mode on' : 'Hard mode off') : null),
       h('div.ca-list', rows));
   }
@@ -529,8 +536,8 @@ export function createHangar(hooks) {
   function roomView(id) {
     // The room itself is 3D (rendering/deck.js and control.js, drawn while G.room is set); this is the touch layer over it.
     const p = G.state.pilot, hint = h('div.d3-hint', 'Drag to look around · Tap the floor to walk · Tap anything to inspect');
-    const el = h('div.deck3d' + (id === 'control' ? '.control' : ''), { 'aria-label': `${ROOMS[id]}. Drag to look around, tap the floor to walk, tap an exhibit to inspect it.` },
-      h('div.d3-top', h('div.d3-title', h('small', ROOMS[id]), h('b', id === 'deck' ? p.name || rankTitle(p.rank) : G.state.stationName || 'Station defence')), h('button.btn.ghost.small.d3-exit', { onclick: () => show(outside) }, uiIcon('back'), 'Exit')), hint);
+    const el = h('div.deck3d' + (id === 'control' ? '.control' : id === 'hall' ? '.hall' : ''), { 'aria-label': `${ROOMS[id]}. Drag to look around, tap the floor to walk, tap an exhibit to inspect it.` },
+      h('div.d3-top', h('div.d3-title', h('small', ROOMS[id]), h('b', id === 'deck' ? p.name || rankTitle(p.rank) : id === 'hall' ? `${caughtStages(G.state).length}/6 captured` : G.state.stationName || 'Station defence')), h('button.btn.ghost.small.d3-exit', { onclick: () => show(outside) }, uiIcon('back'), 'Exit')), hint);
     let down = null;
     if (watch && id === 'deck') { el.append(watch.el); el.classList.add('watching'); }
     el.addEventListener('pointerdown', (e) => { if (e.target.closest('button, input') || watch) return; down = { id: e.pointerId, x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, t: performance.now(), moved: false }; try { el.setPointerCapture(e.pointerId); } catch { /* not every pointer can be captured */ } });
@@ -543,7 +550,7 @@ export function createHangar(hooks) {
     const up = (e) => {
       if (!down || e.pointerId !== down.id) return; const tap = !down.moved && performance.now() - down.t < 450; down = null; hint.classList.add('off');
       if (!tap) return; const r = G.renderer.canvas.getBoundingClientRect(), res = G.renderer.room?.pick(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-      if (res?.exhibit) (id === 'control' ? controlExhibit : exhibit)(res.exhibit); else if (res?.walk) playSfx('tab', 0.4);
+      if (res?.exhibit) ({ control: controlExhibit, hall: hallExhibit }[id] || exhibit)(res.exhibit); else if (res?.walk) playSfx('tab', 0.4);
     };
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', () => { down = null; });
     return el;
@@ -574,6 +581,33 @@ export function createHangar(hooks) {
         h('h4.sg-group', { style: '--c:#ff8a5e' }, h('span', 'The guns on the hull'), h('small', `${guns.filter((g) => g.state).length}/3 online`)), defList(guns),
         next ? h('button.btn.gold.wide.sg-defend', { onclick: () => launchSiege(next.n) }, uiIcon('launch'), `Defend against ${next.name}`) : null,
         held ? h('button.btn.ghost.wide.sg-defend', { onclick: () => controlExhibit('board') }, 'Fly a siege again') : null);
+    }
+  }
+  /** Tapping something in the Trophy Hall: a cradle (the boss in it, its record, the way to fly its stage), the hunting
+   *  record, the window, or a door. */
+  function hallExhibit(kind) {
+    const st = G.state;
+    if (kind === 'exit') { show(outside); return; }
+    if (kind === 'deck') { show('deck'); return; }
+    playSfx('tab');
+    if (kind === 'window') { hooks.say?.('The ring turns once every seven and a half minutes, {n}. Out there: our hub, and everything we have towed home.'); return; }
+    const panel = (title, ...body) => hooks.panel?.({ kicker: 'Trophy Hall', title, body });
+    if (kind.startsWith('cradle')) {
+      const n = +kind.slice(6), sg = STAGES[n - 1], b = BOSSES[sg.boss] || {}, c = st.counter, won = trophyWon(st, n), s = c.stars?.[n] || 0, hd = c.hard?.[n] || 0, open = c.unlocked && (n === 1 || (c.stars?.[n - 1] || 0) > 0);
+      const say = STATION_TROPHIES[n - 1]?.say?.replace(/\{n\}/g, st.pilot.name || 'pilot');
+      panel(won ? b.name : `${b.name} · at large`,
+        h('p.sub-note', won ? `${b.title}. Captured in Counterattack stage ${n}, ${sg.name}, over ${sg.place}, and towed home to the station's tractor field.` : `Still out there. Clear Counterattack stage ${n}, ${sg.name}, to capture it and tow it home.`),
+        h('div.deck-board', [['Stars', `${s}/3`], ['Hard stars', `${hd}/3`], ['Best score', c.best?.[n] ? fmtInt(c.best[n]) : '—'], ['Status', won ? 'Captured' : 'At large']].map(([k, v]) => h('div.db-row', h('small', k), h('b', v)))),
+        won && say ? h('p.sg-orbit', h('b', 'ORBIT'), h('span', say)) : null,
+        open ? h('button.btn.primary.wide.hall-fly', { onclick: () => { hooks.closeOverlays?.(); launchCounter({ counter: n }); } }, uiIcon('launch'), won ? `Fly ${sg.name} again` : `Fly ${sg.name}`) : h('p.sub-note', c.unlocked ? `Clear stage ${n - 1} first.` : 'The Counterattack opens when you defeat the sector 3 boss.'),
+        open && s > 0 ? h('button.btn.danger.wide.hall-fly', { onclick: () => { hooks.closeOverlays?.(); launchCounter({ counter: n, hard: true }); } }, uiIcon('launch'), `${sg.name} · Hard`) : null);
+    } else if (kind === 'hunt') {
+      const s = st.stats, by = s.bossBy || {};
+      const rows = HUNTED.map((hb) => { const b = BOSSES[hb.id] || {}, met = !!st.seen.bosses?.[hb.id], beaten = (s.sectorsCleared || 0) >= hb.sector, kills = by[hb.id] || 0, lost = st.intel?.[hb.id] || 0;
+        return h('div.sg-def.hunt' + (beaten ? '.s2' : met ? '.s1' : '.s0'), h('i.sg-dot'), h('div', h('b', met ? b.name : 'Unknown'), h('small', `Sector ${hb.sector} boss · ${hb.place}`),
+          h('em', !met ? 'Not yet faced' : (beaten ? (kills ? `Defeated ${kills}×` : 'Defeated') : 'Faced, not yet beaten') + (lost ? ` · beat you ${lost}×, and you know its moves better for it` : '')))); });
+      panel('Hunting record', h('div.deck-board', [['Bosses downed', fmtInt(s.bossKills || 0)], ['Sector bosses', fmtInt(s.sectorBosses || 0)], ['Captured', `${caughtStages(st).length}/6`], ['Hard captures', `${STAGES.filter((x) => (st.counter.hard?.[x.n] || 0) > 0).length}/6`]].map(([k, v]) => h('div.db-row', h('small', k), h('b', v)))),
+        h('p.sub-note', 'Every sector boss of the main game, and how your hunts have gone. A boss that beats you teaches you its moves: you hit it harder next time.'), h('div.sg-defs', rows));
     }
   }
   const CONSOLE_NOTE = {
@@ -679,6 +713,7 @@ export function createHangar(hooks) {
     if (kind === 'exit') { show(outside); return; }
     if (kind === 'replay') { watchReplay(); return; }
     if (kind === 'control') { show('control'); return; }
+    if (kind === 'hall') { show('hall'); return; }
     const st = G.state, s = st.stats, rank = st.prestige?.level || 0; playSfx('tab');
     const panel = (kicker, title, ...body) => hooks.panel?.({ kicker, title, body });
     if (kind === 'records') {
@@ -802,7 +837,8 @@ export function createHangar(hooks) {
       overview(st), control ? damageNote() : null,
       h('div.sc-actions', h('button.btn.ghost', { onclick: () => hooks.nameStation?.() }, st.stationName ? 'Rename' : 'Name it'),
         deck ? h('button.btn.primary', { onclick: () => { hooks.closeOverlays?.(); show('deck'); } }, control ? 'Command Deck' : 'Board the Command Deck') : h('button.btn.ghost', { onclick: () => { hooks.closeOverlays?.(); show('workshop'); } }, 'Workshop'),
-        control ? h('button.btn.gold.sc-control', { onclick: () => { hooks.closeOverlays?.(); show('control'); } }, 'Defence Control') : null)] });
+        control ? h('button.btn.gold.sc-control', { onclick: () => { hooks.closeOverlays?.(); show('control'); } }, 'Defence Control') : null,
+        hallOpen(st) ? h('button.btn.ghost.sc-hall', { onclick: () => { hooks.closeOverlays?.(); show('hall'); } }, 'Trophy Hall') : null)] });
   }
 
   // W/A/S/D or the arrows walk the room aboard that is open.
@@ -823,5 +859,5 @@ export function createHangar(hooks) {
   bus.on('contract', () => { if (G.mode === 'hangar') render(); });
   bus.on('medal', () => { if (G.mode === 'hangar' && tab === 'awards') { G.state.seen.medals = medalTotal().earned; render(); } });
   layoutNav();
-  return { el, top, nav: $.nav, show, render, update, siege: (n) => launchSiege(n), get tab() { return tab; } };
+  return { el, top, nav: $.nav, show, render, update, siege: (n) => launchSiege(n), tap: (kind) => ({ control: controlExhibit, hall: hallExhibit }[G.room] || exhibit)(kind), get tab() { return tab; } };
 }

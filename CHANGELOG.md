@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.15.0 — 2026-09-25
+
+- **The Trophy Hall (new room aboard):** a gallery in the station's Habitat ring. It opens with the ring, at Overhaul rank 2. Walk in from the Command Deck (a new door on its left wall), from the station card, or from the Counterattack panel in Missions.
+  - **Six stasis cradles**, one for each Counterattack boss. A boss you've captured hangs inside its cradle's field, turning slowly in its own colour, with sparks drifting up through the light. One still at large shows only as a flickering red outline.
+  - **Each cradle has a plaque** with its stage, the boss, your stars and hard stars, and your best score. Tap a cradle for its record and ORBIT's word on it, and to fly its stage again (or on Hard) straight from the hall.
+  - **The hunting record:** a hologram between the doors turns through every main-game sector boss you've faced. Tap it for how each hunt has gone: which you've beaten and how many times, and which have beaten you (and so taught you their moves).
+  - **The window** looks back at your station's hub, with the bosses you've towed home held in its tractor fields. The view turns slowly as the ring spins.
+- Boss kills are now counted boss by boss, for the hunting record.
+
 ## v2.14.0 — 2026-09-25
 
 - **The Station Siege is now fought from the station's guns.** The gunner seat is no longer a prototype. It is the siege, and it replaces the old 2D one. Launch a siege from Missions, from Defence Control's threat board or its window, and it puts you straight in the seat.

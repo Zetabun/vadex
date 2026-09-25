@@ -539,6 +539,13 @@ assert.throws(() => parseSave('{"run":{},"cur":{}}'), /Not a Last Orbit v2 save/
   for (const u of WORKSHOP) G.state.workshop[u.id] = u.max; for (const a of ['x_alloy', 'x_phase', 'x_charts', 'x_siphon']) G.state.counter.tech[a] = 1;
   assert.equal(S.siegeSystems(G.state).count, S.SIEGE_SYSTEMS.length); assert.ok(S.siegeAdvice(G.state, 1).includes('maxed'), 'and says so when every system is maxed'); }
 
+// ---- v2.15: the Trophy Hall ----
+{ const S = await import('@last-orbit/data/station.js'); const { BOSSES } = await import('@last-orbit/data/bosses.js'); const { spawnBoss } = await import('@last-orbit/combat/bosses.js');
+  fresh(); assert.equal(S.hallOpen(G.state), false, 'The hall is shut before the Habitat ring is back'); G.state.prestige.level = S.HALL_RANK; assert.equal(S.hallOpen(G.state), true, 'and opens with it');
+  assert.equal(S.HUNTED.length, 6); assert.ok(S.HUNTED.every((b) => BOSSES[b.id] && !BOSSES[b.id].mini), 'The hunting record is the six sector bosses'); assert.equal(new Set(S.HUNTED.map((b) => b.id)).size, 6);
+  launch(); const e = spawnBoss(G.world, 'bastion'); killEnemy(G.world, e, null); assert.equal(G.state.stats.bossBy.bastion, 1, 'Each boss kill is tallied by boss');
+  endSortie('abandoned'); }
+
 // ---- v2.11: save backup codes ----
 { const S = await import('@last-orbit/save/save.js'); fresh(); G.state.pilot.name = 'Adam ✦'; G.state.salvage = 12345; G.state.stats.bestWave = 74; G.state.prestige.level = 3;
   const code = S.exportSave(); assert.ok(code.startsWith(S.BACKUP_TAG), 'A backup code is tagged so it can be recognised');
