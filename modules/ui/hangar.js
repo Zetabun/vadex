@@ -43,6 +43,8 @@ import { OBSERVATORY_RANK, VOID_MARKS, MARK_BY_WAVE, SKY_LINES, observatoryOpen,
 import { chartable, chartMark, isCharted } from '@last-orbit/progression/observatory.js';
 import { YARD_RANK, YARD_STAGES, YARD_SHIP, YARD_LINES, yardOpen, stageSalvage } from '@last-orbit/data/shipyard.js';
 import { yardStage, yardDone, nextStage, stageBlock, buildStage } from '@last-orbit/progression/shipyard.js';
+import { BEACON_RANK, VOID_BOSSES, VOID_BOSS_BP, VOID_LORE, BEACON_LINES, beaconsLit, firstWaveOf } from '@last-orbit/data/beacons.js';
+import { beaten as voidBeaten, allBeaten as voidAllBeaten } from '@last-orbit/progression/beacons.js';
 import { BOSSES } from '@last-orbit/data/bosses.js';
 import { STATION_CORE, MODULE_BY_ID, ALIEN_BY_ID, TROPHY_BY_ID, REBUILD_PARTS, rebuildPct, rebuildParts, stationSnapshot, caughtStages, hallOpen, STATION_TROPHIES, trophyWon, HUNTED } from '@last-orbit/data/station.js';
 import { stationBlueprint, pieceThumb } from '@last-orbit/ui/stationArt.js';
@@ -106,7 +108,7 @@ export function createHangar(hooks) {
   const el = h('div#hangar', top, $.body, $.coSvg, $.stationHot, $.callout, $.nav);
 
   // The rooms aboard the station: 3D spaces to walk round, each reached from the hangar and left the way you came.
-  const ROOMS = { deck: 'Command Deck', control: 'Defence Control', gunner: 'Gunner seat', hall: 'Trophy Hall', comms: 'Comms room', quarters: 'Pilot\'s quarters', observatory: 'Observatory', yard: 'Shipyard' };
+  const ROOMS = { deck: 'Command Deck', control: 'Defence Control', gunner: 'Gunner seat', hall: 'Trophy Hall', comms: 'Comms room', quarters: 'Pilot\'s quarters', observatory: 'Observatory', yard: 'Shipyard', beacons: 'Beacon array' };
   const CONTROL_LOCK = 'Defence Control opens when the invaders strike back: clear Counterattack stage 1.';
   const CONTROL_INTRO = { icon: 'control', kicker: 'New room aboard', title: 'Defence Control', text: 'The station\'s war room. Its consoles run every defence you have built, the tactical table adds them up, and the threat board is where you launch a siege. Tap ORBIT\'s terminal for advice.' };
   const HALL_LOCK = 'The Trophy Hall is in the Habitat ring: it opens at Overhaul rank 2.';
@@ -117,6 +119,8 @@ export function createHangar(hooks) {
   const QUARTERS_INTRO = { icon: 'home', kicker: 'New room aboard', title: 'Pilot\'s quarters', text: `The Outer ring is sealed, and there is a room in it with your name on the door. Rest in your bunk once a day and your next sortie banks ${Math.round(REST_BONUS * 100)}% more salvage. The keepsakes you pick up on the way end up on your shelf, the big moments on your wall. Oh, and Bolt lives here now.` };
   const YARD_LOCK = `The Shipyard is the frame at the station's rim: it opens at Overhaul rank ${YARD_RANK}.`;
   const YARD_INTRO = { icon: 'yard', kicker: 'New room aboard', title: 'Shipyard', text: 'The shipyard frame is up, and for the first time since the Fall the station can build its own ships. The crews have laid out the plans for the first: the Chimera, plated in the alien hulls you towed home. Fund her four stages here and watch her come together on the cradle. When she is done she joins your hangar.' };
+  const BEACON_LOCK = `The Beacon array lights every tip of the station: it opens at Overhaul rank ${BEACON_RANK}.`;
+  const BEACON_INTRO = { icon: 'beacon', kicker: 'New room aboard', title: 'Beacon array', text: 'The beacons are lit at every tip of the station, calling out into the Deep Void, and something out there is answering. From now on each Deep Void sector ends on a Void boss of its own: six of them, in turn. Beat each one for Blueprints; beat all six for the Lightkeeper paint. Their record is kept here, under the great beacon.' };
   const OBS_LOCK = `The Observatory is the glass dome under the hub: it opens at Overhaul rank ${OBSERVATORY_RANK}.`;
   const OBS_INTRO = { icon: 'observatory', kicker: 'New room aboard', title: 'Observatory', text: 'The dome under the hub is open to the stars again. Past wave 60 there are no charts: every depth of the Deep Void you reach waits here to be charted, and charting it lights its constellation in the dome and pays Blueprints, some of them a paint job found nowhere else.' };
   let outside = 'launch'; // the hangar tab the rooms lead back to
@@ -138,6 +142,9 @@ export function createHangar(hooks) {
     // The Observatory opens with the dome.
     if (id === 'observatory' && !observatoryOpen(G.state)) { if (!quiet) { playSfx('deny'); hooks.toast?.(OBS_LOCK, 'info'); } if (tab !== id) return; id = 'launch'; }
     if (id === 'observatory' && !G.state.seen.observatory) { G.state.seen.observatory = true; setTimeout(() => hooks.menuIntro?.(OBS_INTRO), 150); }
+    // The Beacon array opens with the beacons.
+    if (id === 'beacons' && !beaconsLit(G.state)) { if (!quiet) { playSfx('deny'); hooks.toast?.(BEACON_LOCK, 'info'); } if (tab !== id) return; id = 'launch'; }
+    if (id === 'beacons' && !G.state.seen.beacons) { G.state.seen.beacons = true; setTimeout(() => hooks.menuIntro?.(BEACON_INTRO), 150); }
     // The Shipyard opens with the shipyard frame.
     if (id === 'yard' && !yardOpen(G.state)) { if (!quiet) { playSfx('deny'); hooks.toast?.(YARD_LOCK, 'info'); } if (tab !== id) return; id = 'launch'; }
     if (id === 'yard' && !G.state.seen.shipyard) { G.state.seen.shipyard = true; setTimeout(() => hooks.menuIntro?.(YARD_INTRO), 150); }
@@ -157,7 +164,7 @@ export function createHangar(hooks) {
    *  on a list (Workshop upgrades) stay on the row under the finger; switching tabs starts at the top. */
   function render(top = false) {
     const y = $.body.scrollTop; clear($.body);
-    const view = { launch: launchView, missions: missionsView, workshop: workshopView, armory: armoryView, ships: shipsView, contracts: contractsView, records: recordsView, awards: awardsView, deck: () => roomView('deck'), control: () => roomView('control'), hall: () => roomView('hall'), comms: () => roomView('comms'), quarters: () => roomView('quarters'), observatory: () => roomView('observatory'), yard: () => roomView('yard'), gunner: () => gunnerView() }[tab]();
+    const view = { launch: launchView, missions: missionsView, workshop: workshopView, armory: armoryView, ships: shipsView, contracts: contractsView, records: recordsView, awards: awardsView, deck: () => roomView('deck'), control: () => roomView('control'), hall: () => roomView('hall'), comms: () => roomView('comms'), quarters: () => roomView('quarters'), observatory: () => roomView('observatory'), yard: () => roomView('yard'), beacons: () => roomView('beacons'), gunner: () => gunnerView() }[tab]();
     $.body.append(view); $.body.scrollTop = top ? 0 : y;
   }
 
@@ -351,8 +358,8 @@ export function createHangar(hooks) {
     }
     const paints = h('div.paints', PAINTS.map((pt) => {
       const owned = !!st.paints[pt.id], on = st.paint === pt.id;
-      const how = pt.source === 'void' ? `Reach wave ${pt.mark} and chart ${MARK_BY_WAVE[pt.mark]?.name} in the Observatory` : pt.source === 'counter' ? 'Clear Counterattack stage 6' : pt.source === 'mastery' ? `${SHIP_BY_ID[pt.ship].name} mastery 10` : pt.source === 'contract' ? `Contract: ${CONTRACTS.find((c) => c.unlock?.paint === pt.id)?.name}` : `Pilot rank ${paintRank(pt.id)}`;
-      const short = pt.source === 'void' ? `Void ${voidSector(pt.mark)}` : pt.source === 'counter' ? 'Stage 6' : pt.source === 'mastery' ? 'Mastery 10' : pt.source === 'contract' ? 'Contract' : 'Rank ' + paintRank(pt.id);
+      const how = pt.source === 'beacon' ? 'Beat all six Void bosses in the Deep Void' : pt.source === 'void' ? `Reach wave ${pt.mark} and chart ${MARK_BY_WAVE[pt.mark]?.name} in the Observatory` : pt.source === 'counter' ? 'Clear Counterattack stage 6' : pt.source === 'mastery' ? `${SHIP_BY_ID[pt.ship].name} mastery 10` : pt.source === 'contract' ? `Contract: ${CONTRACTS.find((c) => c.unlock?.paint === pt.id)?.name}` : `Pilot rank ${paintRank(pt.id)}`;
+      const short = pt.source === 'beacon' ? 'Void bosses' : pt.source === 'void' ? `Void ${voidSector(pt.mark)}` : pt.source === 'counter' ? 'Stage 6' : pt.source === 'mastery' ? 'Mastery 10' : pt.source === 'contract' ? 'Contract' : 'Rank ' + paintRank(pt.id);
       return h('button.paint' + (on ? '.on' : '') + (owned ? '' : '.locked'), { disabled: !owned, title: owned ? pt.name : `${pt.name}: ${how}`, onclick: () => { if (selectPaint(pt.id)) { playSfx('tab'); render(); } } }, swatch(pt.id), h('span', owned ? pt.name : short));
     }));
     const pick = (b) => {
@@ -588,12 +595,43 @@ export function createHangar(hooks) {
     const st = G.state;
     if (kind === 'exit') { show(outside); return; }
     if (kind === 'observatory') { show('observatory'); return; }
+    if (kind === 'beacons') { show('beacons'); return; }
     if (kind === 'ship' || kind === 'console') { yardPanel(); return; }
     if (kind === 'blueprint') { yardBlueprint(); return; }
     playSfx('tab');
     if (kind === 'fleet') { hooks.panel?.({ kicker: 'Shipyard', title: 'The fleet', body: [bayGrid(st), h('button.btn.ghost.small.d3-more', { onclick: () => { hooks.closeOverlays?.(); show('ships'); } }, 'Choose which one flies', uiIcon('chevron'))] }); return; }
     if (kind === 'crews') { hooks.say?.(yardDone(st) ? 'The crews keep her flying now, {n}, and whatever else you bring into the dock.' : yardStage(st) ? YARD_LINES[yardTalk++ % YARD_LINES.length] : 'The crews are waiting on the keel, {n}. Fund the first stage at the console and they start.'); return; }
     if (kind === 'window') hooks.say?.(yardDone(st) ? 'The slipway is clear. Every ship we build from now on leaves by it.' : 'When she is done she leaves by that slipway. I have been practising the countdown.');
+  }
+  // ------------------------------------------------------------ the Beacon array
+  const dayOf = (t) => new Date(t).toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+  /** What has answered the beacons: every Void boss, whether it has been met and beaten, and what it pays. */
+  function beaconsPanel() {
+    const st = G.state, beat = voidBeaten(st), met = st.seen?.bosses || {}, by = st.stats?.bossBy || {}; playSfx('tab');
+    hooks.panel?.({ kicker: 'Beacon array', title: 'What has answered', body: [
+      h('p.sub-note', 'The beacons are lit, and each Deep Void sector ends on a Void boss of its own instead of an old sector boss: these six, in turn, then round again, each time as strong as the depth.'),
+      h('div.sg-defs', VOID_BOSSES.map((id, i) => { const b = BOSSES[id], s = beat[id] ? 2 : met[id] ? 1 : 0;
+        return h('div.sg-def.s' + s, { style: s ? `--c:${hex(b.color)}` : null }, h('i.sg-dot'), h('div', h('b', s ? b.name : 'Unknown signal'), h('small', s ? VOID_LORE[id] : `It waits at the end of Deep Void ${i + 1}, past wave ${firstWaveOf(id) - 1}.`),
+          h('em', s === 2 ? `Beaten ×${by[id] || 1} · first on ${dayOf(beat[id])}` : `Wave ${firstWaveOf(id)} · +${VOID_BOSS_BP} Blueprints the first time you beat it`))); })),
+      h('p.sub-note', voidAllBeaten(st) ? 'All six beaten: the Lightkeeper paint is yours.' : 'Beat all six for the Lightkeeper paint.')] });
+  }
+  /** One Void boss: what it is, where it waits and how the hunt has gone. */
+  function answerPanel(n) {
+    const st = G.state, id = VOID_BOSSES[n - 1]; if (!id) return; const b = BOSSES[id], beat = voidBeaten(st), met = st.seen?.bosses?.[id], kills = st.stats?.bossBy?.[id] || 0; playSfx('tab');
+    hooks.panel?.({ kicker: 'Beacon array', title: met ? b.name : 'Unknown signal', body: [h('p.sub-note', met ? VOID_LORE[id] : 'Something out in the Deep Void is on this frequency. It has not answered yet: fly deeper.'),
+      h('div.deck-board', [['Waits at', `Wave ${firstWaveOf(id)}, then every 60`], ['Beaten', kills ? `${kills}×` : '—'], ['First beaten', beat[id] ? dayOf(beat[id]) : '—'], ['First kill pays', `+${VOID_BOSS_BP} Blueprints`]].map(([k, v]) => h('div.db-row', h('small', k), h('b', v))))] });
+  }
+  /** Tapping something in the Beacon array: the great beacon, a Void boss's pedestal, the signal log, the window, or a door. */
+  let beaconTalk = 0;
+  function beaconExhibit(kind) {
+    const st = G.state;
+    if (kind === 'exit') { show(outside); return; }
+    if (kind === 'yard') { show('yard'); return; }
+    if (kind === 'log') { beaconsPanel(); return; }
+    if (kind.startsWith('answer')) { answerPanel(+kind.slice(6)); return; }
+    playSfx('tab');
+    if (kind === 'beacon') { const met = VOID_BOSSES.filter((id) => st.seen?.bosses?.[id] && !voidBeaten(st)[id]); hooks.say?.(met.length ? `${BOSSES[met[0]].name} answered and is still out there, {n}. The beacon can hear it breathing.` : BEACON_LINES[beaconTalk++ % BEACON_LINES.length]); return; }
+    if (kind === 'window') hooks.say?.(VOID_BOSSES.some((id) => voidBeaten(st)[id]) ? 'Every light out there is something that answered, {n}, and that you beat. We leave the beacons burning for the rest.' : 'Watch the dark past the beam, {n}. When something answers, you will see it.');
   }
   // ------------------------------------------------------------ counterattack
   let counterHard = false;
@@ -736,8 +774,8 @@ export function createHangar(hooks) {
   function roomView(id) {
     // The room itself is 3D (rendering/deck.js and control.js, drawn while G.room is set); this is the touch layer over it.
     const p = G.state.pilot, hint = h('div.d3-hint', 'Drag to look around · Tap the floor to walk · Tap anything to inspect');
-    const el = h('div.deck3d' + (id === 'control' ? '.control' : id === 'hall' ? '.hall' : id === 'comms' ? '.comms' : id === 'quarters' ? '.quarters' : id === 'observatory' ? '.observatory' : id === 'yard' ? '.yard' : ''), { 'aria-label': `${ROOMS[id]}. Drag to look around, tap the floor to walk, tap an exhibit to inspect it.` },
-      h('div.d3-top', h('div.d3-title', h('small', ROOMS[id]), h('b', id === 'deck' || id === 'quarters' ? p.name || rankTitle(p.rank) : id === 'hall' ? `${caughtStages(G.state).length}/6 captured` : id === 'comms' ? `${(G.state.bounties?.list || []).filter((b) => b.done).length}/3 bounties done` : id === 'observatory' ? `${VOID_MARKS.filter((m) => isCharted(G.state, m)).length}/${VOID_MARKS.length} charted` : id === 'yard' ? (yardDone(G.state) ? `In dock: ${SHIP_BY_ID[G.state.ship]?.name}` : `Chimera · ${yardStage(G.state)}/${YARD_STAGES.length} built`) : G.state.stationName || 'Station defence')), h('button.btn.ghost.small.d3-exit', { onclick: () => show(outside) }, uiIcon('back'), 'Exit')), hint);
+    const el = h('div.deck3d' + (id === 'control' ? '.control' : id === 'hall' ? '.hall' : id === 'comms' ? '.comms' : id === 'quarters' ? '.quarters' : id === 'observatory' ? '.observatory' : id === 'yard' ? '.yard' : id === 'beacons' ? '.beacons' : ''), { 'aria-label': `${ROOMS[id]}. Drag to look around, tap the floor to walk, tap an exhibit to inspect it.` },
+      h('div.d3-top', h('div.d3-title', h('small', ROOMS[id]), h('b', id === 'deck' || id === 'quarters' ? p.name || rankTitle(p.rank) : id === 'hall' ? `${caughtStages(G.state).length}/6 captured` : id === 'comms' ? `${(G.state.bounties?.list || []).filter((b) => b.done).length}/3 bounties done` : id === 'observatory' ? `${VOID_MARKS.filter((m) => isCharted(G.state, m)).length}/${VOID_MARKS.length} charted` : id === 'yard' ? (yardDone(G.state) ? `In dock: ${SHIP_BY_ID[G.state.ship]?.name}` : `Chimera · ${yardStage(G.state)}/${YARD_STAGES.length} built`) : id === 'beacons' ? `${VOID_BOSSES.filter((b) => voidBeaten(G.state)[b]).length}/${VOID_BOSSES.length} beaten` : G.state.stationName || 'Station defence')), h('button.btn.ghost.small.d3-exit', { onclick: () => show(outside) }, uiIcon('back'), 'Exit')), hint);
     let down = null;
     if (watch && id === 'deck') { el.append(watch.el); el.classList.add('watching'); }
     el.addEventListener('pointerdown', (e) => { if (e.target.closest('button, input') || watch) return; down = { id: e.pointerId, x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, t: performance.now(), moved: false }; try { el.setPointerCapture(e.pointerId); } catch { /* not every pointer can be captured */ } });
@@ -750,7 +788,7 @@ export function createHangar(hooks) {
     const up = (e) => {
       if (!down || e.pointerId !== down.id) return; const tap = !down.moved && performance.now() - down.t < 450; down = null; hint.classList.add('off');
       if (!tap) return; const r = G.renderer.canvas.getBoundingClientRect(), res = G.renderer.room?.pick(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-      if (res?.exhibit) ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit, quarters: quartersExhibit, observatory: observatoryExhibit, yard: yardExhibit }[id] || exhibit)(res.exhibit); else if (res?.walk) playSfx('tab', 0.4);
+      if (res?.exhibit) ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit, quarters: quartersExhibit, observatory: observatoryExhibit, yard: yardExhibit, beacons: beaconExhibit }[id] || exhibit)(res.exhibit); else if (res?.walk) playSfx('tab', 0.4);
     };
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', () => { down = null; });
     return el;
@@ -1040,7 +1078,8 @@ export function createHangar(hooks) {
         commsOpen(st) ? h('button.btn.ghost.sc-comms', { onclick: () => { hooks.closeOverlays?.(); show('comms'); } }, 'Comms room') : null,
         quartersOpen(st) ? h('button.btn.ghost.sc-quarters', { onclick: () => { hooks.closeOverlays?.(); show('quarters'); } }, 'Quarters') : null,
         observatoryOpen(st) ? h('button.btn.ghost.sc-observatory', { onclick: () => { hooks.closeOverlays?.(); show('observatory'); } }, 'Observatory') : null,
-        yardOpen(st) ? h('button.btn.ghost.sc-yard', { onclick: () => { hooks.closeOverlays?.(); show('yard'); } }, 'Shipyard') : null)] });
+        yardOpen(st) ? h('button.btn.ghost.sc-yard', { onclick: () => { hooks.closeOverlays?.(); show('yard'); } }, 'Shipyard') : null,
+        beaconsLit(st) ? h('button.btn.ghost.sc-beacons', { onclick: () => { hooks.closeOverlays?.(); show('beacons'); } }, 'Beacon array') : null)] });
   }
 
   // W/A/S/D or the arrows walk the room aboard that is open.
@@ -1061,5 +1100,5 @@ export function createHangar(hooks) {
   bus.on('contract', () => { if (G.mode === 'hangar') render(); });
   bus.on('medal', () => { if (G.mode === 'hangar' && tab === 'awards') { G.state.seen.medals = medalTotal().earned; render(); } });
   layoutNav();
-  return { el, top, nav: $.nav, show, render, update, siege: (n) => launchSiege(n), tap: (kind) => ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit, quarters: quartersExhibit, observatory: observatoryExhibit, yard: yardExhibit }[G.room] || exhibit)(kind), get tab() { return tab; } };
+  return { el, top, nav: $.nav, show, render, update, siege: (n) => launchSiege(n), tap: (kind) => ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit, quarters: quartersExhibit, observatory: observatoryExhibit, yard: yardExhibit, beacons: beaconExhibit }[G.room] || exhibit)(kind), get tab() { return tab; } };
 }

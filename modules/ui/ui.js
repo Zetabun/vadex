@@ -110,7 +110,8 @@ export function initUI(app, hooks) {
     else if (e.k === 'sector') banner('Sector ' + (e.a + 1), e.b, e.c, 'var(--cyan)', 3200);
     else if (e.k === 'stationDown') flash('#ff4d7a');
     else if (e.k === 'bossIntro') banner(e.b, e.a, null, typeof e.c === 'number' ? '#' + e.c.toString(16).padStart(6, '0') : e.c, 2600);
-    else if (e.k === 'sectorClear') { banner('Sector cleared', e.b, 'Hull restored', 'var(--green)', 2400); flash('#6dffc8'); }
+    else if (e.k === 'sectorClear') { const vb = G.state.run?.voidBeaten?.at(-1), first = vb && !vb.told; if (first) vb.told = true; /* a Void boss beaten for the first time says so here, where it is seen */
+      banner('Sector cleared', e.b, first ? `${vb.name} beaten for the first time: +${vb.bp} Blueprints` : 'Hull restored', first ? '#c9b6ff' : 'var(--green)', first ? 3400 : 2400); flash(first ? '#b69cff' : '#6dffc8'); }
     else if (e.k === 'hurt') { $.vig.classList.add('on'); requestAnimationFrame(() => requestAnimationFrame(() => $.vig.classList.remove('on'))); }
   });
   bus.on('levelUp', () => { playSfx('milestone'); });

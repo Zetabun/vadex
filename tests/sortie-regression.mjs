@@ -620,6 +620,21 @@ assert.throws(() => parseSave('{"run":{},"cur":{}}'), /Not a Last Orbit v2 save/
   assert.ok(b.hp < 1 && (!b.alive || b.burnT > 0), 'The enemy beside it is hit and set alight'); assert.ok(far.hp === 1 && !(far.burnT > 0), 'One further off is not'); assert.equal(w.melts.length, 0);
   endSortie('abandoned'); }
 
+// ---- v2.17: the Beacon array and the Void bosses ----
+{ const D = await import('@last-orbit/data/beacons.js'), B = await import('@last-orbit/progression/beacons.js'); const { BOSSES } = await import('@last-orbit/data/bosses.js'); const { SHAPE_IDS } = await import('@last-orbit/rendering/geometry.js');
+  const KINDS = ['aimed', 'ring', 'spiral', 'rain', 'beam', 'shell', 'summon', 'well', 'teleport', 'hbeam', 'sweep', 'mines', 'wave', 'split', 'gapwall', 'veil', 'ambush'];
+  for (const id of D.VOID_BOSSES) { const b = BOSSES[id]; assert.ok(b && b.title === 'Void boss' && SHAPE_IDS.includes(b.shape), `${id} is a Void boss with a body`); for (const ph of b.phases) for (const a of ph.attacks) assert.ok(KINDS.includes(a.kind), `${id} attacks with ${a.kind}`); assert.ok(D.VOID_LORE[id], `${id} has its story`); }
+  assert.deepEqual([70, 80, 90, 100, 110, 120].map(D.voidBossAt), D.VOID_BOSSES, 'One ends each Deep Void sector, in turn'); assert.equal(D.voidBossAt(130), 'watcher', 'then round again'); assert.equal(D.voidBossAt(125), 'watcher');
+  const bossAt = (rank, wave, mode) => { fresh(); G.state.prestige.level = rank; launch(mode ? { mode } : {}); G.state.run.wave = wave; startWave(G.world); const id = G.world.wave.boss?.boss?.id; endSortie('abandoned'); return id; };
+  assert.equal(bossAt(7, 70), 'dreadnought', 'Before the beacons, the old sector bosses come round again'); assert.equal(bossAt(8, 70), 'watcher', 'Lit, something answers'); assert.equal(bossAt(8, 120), 'maw'); assert.equal(bossAt(8, 60), 'singularity', 'The Singularity still ends sector 6');
+  fresh(); G.state.prestige.level = D.BEACON_RANK; const bp0 = G.state.prestige.bp; const r1 = B.recordVoidKill(G.state, 'watcher');
+  assert.equal(r1.bp, D.VOID_BOSS_BP); assert.equal(G.state.prestige.bp - bp0, D.VOID_BOSS_BP, 'The first kill pays Blueprints'); assert.equal(B.recordVoidKill(G.state, 'watcher'), null, 'once'); assert.equal(B.recordVoidKill(G.state, 'bastion'), null, 'Only Void bosses count');
+  for (const id of D.VOID_BOSSES.slice(1, -1)) B.recordVoidKill(G.state, id); assert.ok(!G.state.paints[D.LIGHTKEEPER]); const last = B.recordVoidKill(G.state, 'maw');
+  assert.equal(last.paint, D.LIGHTKEEPER, 'The sixth pays the Lightkeeper paint'); assert.ok(G.state.paints[D.LIGHTKEEPER] && B.allBeaten(G.state));
+  // a Void boss falling in a sortie goes on the record and in the debrief
+  fresh(); G.state.prestige.level = D.BEACON_RANK; launch(); G.state.run.wave = 70; startWave(G.world); const boss = G.world.wave.boss; assert.equal(boss.boss.id, 'watcher');
+  killEnemy(G.world, boss, null, false, 0); assert.ok(B.beaten(G.state).watcher, 'Beaten'); const sum = endSortie('abandoned'); assert.equal(sum.voidBeaten?.[0]?.id, 'watcher', 'and said so in the debrief'); }
+
 // ---- v2.11: save backup codes ----
 { const S = await import('@last-orbit/save/save.js'); fresh(); G.state.pilot.name = 'Adam ✦'; G.state.salvage = 12345; G.state.stats.bestWave = 74; G.state.prestige.level = 3;
   const code = S.exportSave(); assert.ok(code.startsWith(S.BACKUP_TAG), 'A backup code is tagged so it can be recognised');

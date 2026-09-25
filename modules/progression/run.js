@@ -25,6 +25,7 @@ import { patchStation } from '@last-orbit/progression/siege.js';
 import { checkBounties } from '@last-orbit/progression/bounties.js';
 import { takeRest } from '@last-orbit/progression/quarters.js';
 import { newMarks } from '@last-orbit/progression/observatory.js';
+import '@last-orbit/progression/beacons.js'; /* the Void bosses' record: listens for them falling */
 import { REST_BONUS } from '@last-orbit/data/quarters.js';
 
 // ---------------------------------------------------------------- sortie lifecycle
@@ -103,6 +104,7 @@ export function endSortie(reason = 'destroyed') {
   summary.bounties = checkBounties(st, summary); // the daily bounties this sortie finished
   summary.rested = !!run.rested;
   summary.voidMarks = !run.mode ? newMarks(run.prevBest || 0, reached) : []; // Deep Void depths reached for the first time
+  summary.voidBeaten = run.voidBeaten || []; // Void bosses beaten for the first time
   if (!run.mode) st.history.unshift({ score: summary.score, wave: summary.wave, level: summary.level, ship: summary.ship, salvage: banked, time: summary.time, date: summary.date }); st.history.length = Math.min(st.history.length, 12);
   recalc(); bus.emit('sortieEnded', summary);
   return summary;

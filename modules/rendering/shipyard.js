@@ -5,13 +5,14 @@
 // The yard builds the Chimera (data/shipyard.js) in four stages, each showing on the ship: the plans as a hologram,
 // then her frame, her plating, her drive, and at last her colours, when the arms stand back and she lifts off the
 // cradle. After that the bay holds whichever ship you fly, in its paint. Doors lead back to the Observatory and out to
-// the hangar. Tapping anything names it (the UI shows the details).
+// the hangar, and (once they are lit) on to the Beacon array. Tapping anything names it (the UI shows the details).
 import { Room, canvas, tex, text, drawSign, drawArt } from '@last-orbit/rendering/room.js';
 import { playerParts, supportCraftGeometry, NOZZLES } from '@last-orbit/rendering/geometry.js';
 import { earthMaterial, nightAmount } from '@last-orbit/rendering/background.js';
 import { SHIPS, SHIP_BY_ID } from '@last-orbit/data/ships.js';
 import { PAINT_BY_ID } from '@last-orbit/data/career.js';
 import { YARD_STAGES, YARD_SHIP } from '@last-orbit/data/shipyard.js';
+import { BEACON_RANK } from '@last-orbit/data/beacons.js';
 import { yardStage, nextStage, stageBlock } from '@last-orbit/progression/shipyard.js';
 const T = () => window.THREE;
 
@@ -27,7 +28,7 @@ export class YardRoom extends Room {
     super({ w: W, front: FRONT, back: BACK, h: H, start: [0, 1.4, 0] });
     this.shell({ floor: '#1b1e24', wall: '#272c35', ceil: '#1c2028', stud: '#6a5a2a', tick: 'rgba(255,201,60,.2)', strip: YELLOW, cove: STEEL, frame: 0x363c48, rib: 0x2e343f,
       lamp: 0xfff0d0, lampI: 0.5, panel: 0xfff4e0, panelW: 2.6, hemi: 0.5, sky: 0xdfe8ff, sun: 0.55,
-      window: { hw: 4.7, y0: 0.3, y1: 4.5, struts: [] }, lamps: [-9, -5.4, -1.2], ribs: [-11.2, -7, -1.6, 2.4] });
+      window: { hw: 4.7, y0: 0.3, y1: 4.5, struts: [] }, lamps: [-9, -5.4, -1.2], ribs: [-11.6, -7, -1.6, 2.4] }); /* the first clear of the door to the beacons */
     this.nearFront = 1.2;
     this.furnish(); this.outside(); this.stageSeen = null;
     this.blocks.push({ x0: -2.45, x1: 2.45, z0: CRADLE.z - 3.6, z1: CRADLE.z + 3.6 }); // the cradle
@@ -144,8 +145,11 @@ export class YardRoom extends Room {
   // ---------------------------------------------------------------- what is on show (rebuilt when it changes)
   sync(state) {
     const stage = yardStage(state), done = stage >= YARD_STAGES.length, owned = SHIPS.map((s) => (state.unlocked.ships[s.id] ? 1 : 0)).join(''), mastery = SHIPS.map((s) => state.mastery?.[s.id]?.level || 0).join(',');
-    const sig = [stage, done ? state.ship : '', done ? state.paint : '', state.stationName, owned, mastery, state.ship, stageBlock(state)].join('|');
+    const lit = (state.prestige?.level || 0) >= BEACON_RANK, sig = [stage, done ? state.ship : '', done ? state.paint : '', state.stationName, owned, mastery, state.ship, stageBlock(state), lit].join('|');
     if (sig === this.sig) return; this.sig = sig;
+    // the way on to the Beacon array, at the front of the left wall by the bay doors
+    if (this.beaconDoor) { this.scene.remove(this.beaconDoor); this.untag(this.beaconDoor); } this.beaconDoor = new (T().Group)(); this.scene.add(this.beaconDoor);
+    this.door(this.beaconDoor, -W, -9.9, -Math.PI / 2, 'BEACON ARRAY  ›', 'beacons', { sealed: !lit, sign: '#f0e8ff', edge: 0xb69cff });
     if (this.stageSeen != null && stage > this.stageSeen) this.flourish(done); // a stage just built: sparks all over, and if she is done, she lifts off
     this.stageSeen = stage; this.stage = stage; this.done = done; if (done && this.liftT == null) this.liftT = 99;
     this.buildShip(state); this.drawSign(state); this.drawConsole(state); this.drawBlueprint(); this.drawFleet(state); this.drawPlaque(state); this.drawLog(state);

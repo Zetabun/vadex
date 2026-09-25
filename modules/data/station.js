@@ -69,7 +69,7 @@ export const STATION_CORE = [
   { at: 5, id: 'ring2', name: 'Outer ring', line: 'A second, wider ring, with your own quarters', say: 'The outer ring is sealed. There is room for everyone now, {n}.' },
   { at: 6, id: 'dome', name: 'Observatory', line: 'A glass dome beneath the hub: the Observatory', say: 'The observatory is open. Now we see them coming long before they arrive.' },
   { at: 7, id: 'yard', name: 'Shipyard', line: 'A frame for building ships, and a sixth to build', say: 'The shipyard frame is up. We build our own ships again.' },
-  { at: 8, id: 'beacons', name: 'Beacon array', line: 'Lights at every tip', say: 'Beacons lit. Anyone still out there will know we are here.' },
+  { at: 8, id: 'beacons', name: 'Beacon array', line: 'Lights at every tip, and something in the Void answers', say: 'Beacons lit. Anyone still out there will know we are here.' },
   { at: 9, id: 'halo', name: 'Halo ring', line: 'A holographic halo', say: 'The halo is up. The old station never looked this good.' },
   { at: 10, id: 'crown', name: 'Stellar crown', line: 'The crowning jewel', say: 'The crown is in place. The last orbit is whole again, {n}. Thank you.' },
 ];

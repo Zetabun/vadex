@@ -206,6 +206,19 @@ function runScene(scene, hooks, ui) {
     if (arg === 'tap') setTimeout(() => ui.tap?.(arg2 || 'ship'), 1500);
     if (arg === 'build') setTimeout(() => { ui.tap?.('ship'); setTimeout(() => document.querySelector('.yard-go')?.click(), 400); }, 1500);
     return; }
+  // beacons[:beaten[:met]] or beacons:<view>[:beaten] or beacons:tap:<exhibit>[:beaten]: the Beacon array at Overhaul rank 8,
+  // that many Void bosses beaten (default 2) and that many more met (default 1). view: lamp, left, right, log, window;
+  // intro (a first visit).
+  if (name === 'beacons') { const num = (v) => v != null && v !== '' && !isNaN(+v), won = num(arg) ? +arg : arg === 'tap' ? (num(arg3) ? +arg3 : 2) : num(arg2) ? +arg2 : 2, more = num(arg) && num(arg2) ? +arg2 : 1;
+    st.pilot.name = 'Adam'; st.seen.callsign = true; st.seen.beacons = arg !== 'intro'; st.prestige.level = 8; st.stationName = 'Halcyon'; st.stats.bestWave = 96; st.stats.bestSector = 9;
+    for (const l of LINES) st.seen.comms[l.id] = 1; st.seen.commsInit = true; st.beacons = { beaten: {} };
+    ['watcher', 'leviathan', 'choir', 'colossus', 'mirrorhost', 'maw'].forEach((id, i) => { if (i < won + more) st.seen.bosses[id] = 1; if (i < won) { st.beacons.beaten[id] = Date.now() - (won - i) * 86400000; st.stats.bossBy[id] = won - i + 1; } });
+    WORKSHOP.forEach((u, i) => { st.stationPeak[u.id] = u.max; st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.7 - (i % 5) * 0.12))); });
+    recalc(); hooks.toHangar('beacons');
+    const view = { lamp: [0, -1.4, 0, 0.12], left: [-0.6, -1.5, 1.2, 0.02], right: [0.6, -1.5, -1.2, 0.02], log: [0, 0.9, Math.PI, 0.05], window: [1.6, -6.4, 0.25, 0.1] }[arg];
+    if (view) { let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 60) setTimeout(place, 100); return; } r.pos.set(view[0], 0, view[1]); r.yaw = view[2]; r.pitch = view[3]; }; place(); }
+    if (arg === 'tap') setTimeout(() => ui.tap?.(arg2 || 'log'), 1500);
+    return; }
   // sgdamage[:tab]: a station left damaged by a lost siege (three systems out), seen from a tab or room (default Defence Control)
   if (name === 'sgdamage') { st.pilot.name = 'Adam'; st.seen.callsign = true; st.counter.unlocked = true; st.counter.stars[1] = 2; st.counter.stars[2] = 1; st.seen.control = true; st.seen.gunnerIntro = true; st.stationName = 'Halcyon';
     WORKSHOP.forEach((u, i) => { st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.6 - (i % 5) * 0.13))); }); st.siege.damage = { ids: ['w_shield', 'w_hull', 'w_dmg'], tier: 2, cost: 1400 }; st.seen.commsInit = true; for (const l of LINES) st.seen.comms[l.id] = 1; recalc(); hooks.toHangar(arg || 'control');
@@ -285,6 +298,10 @@ function runScene(scene, hooks, ui) {
   else if (name === 'anomaly') { const run = st.run; run.offer = null; run.pendingLevels = 0; run.wave = 71; run.anomalies = arg ? arg.split(',') : ['hardened']; run.pendingAnomaly = true; recalc(); ui.closeOverlays(); ui.nextChoice(); }
   else if (name === 'void') { const run = st.run; run.offer = null; run.pendingLevels = 0; ui.closeOverlays(); run.wave = +(arg2 || 62); run.anomalies = (arg || 'lances').split(','); for (const id of ['laser', 'tesla']) { run.order.push(id); run.weapons[id] = 6; } run.weapons.cannon = 7; recalc(); bus.emit('anomalyPicked'); debugSetWave(run.wave);
     setInterval(() => { const w = G.world; if (!w?.player || !st.run) return; if (st.run.offer || st.run.relicOffer) { st.run.offer = st.run.relicOffer = null; st.run.pendingLevels = st.run.pendingRelics = 0; ui.closeOverlays(); } w.player.hull = 1; const s = Math.sin(performance.now() / 1300); w.input.hold = s > 0.35 ? 1 : s < -0.35 ? -1 : 0; }, 100); }
+  // voidboss:<1-6>[:look]: the beacons lit and a sortie jumped to that Void boss's wave (the ship does not die; look: hold fire)
+  else if (name === 'voidboss') { const run = st.run, n = Math.max(1, Math.min(6, +arg || 1)); run.offer = null; run.pendingLevels = 0; ui.closeOverlays(); st.prestige.level = Math.max(8, st.prestige.level || 0);
+    for (const id of ['laser', 'tesla', 'missile']) { run.order.push(id); run.weapons[id] = 9; } run.weapons.cannon = 9; recalc(); debugSetWave(60 + n * 10);
+    setInterval(() => { const w = G.world; if (!w?.player || !st.run) return; if (st.run.offer || st.run.relicOffer || st.run.pendingAnomaly) { st.run.offer = st.run.relicOffer = null; st.run.pendingLevels = st.run.pendingRelics = 0; st.run.pendingAnomaly = false; ui.closeOverlays(); } w.player.hull = 1; if (arg2 === 'look') w.shots.length = 0; const s = Math.sin(performance.now() / 1300); w.input.hold = s > 0.35 ? 1 : s < -0.35 ? -1 : 0; }, 100); }
   // mainfoe:<type>[:wave]: a formation of one enemy type, to see it (the ship does not die)
   else if (name === 'mainfoe') { const run = st.run, def = ENEMIES[arg]; run.offer = null; run.pendingLevels = 0; ui.closeOverlays(); debugSetWave(+(arg2 || 24));
     setTimeout(() => { const w = G.world, list = w.enemies.filter((e) => e.alive && e.slot).sort((a, b) => a.slot.y - b.slot.y || a.slot.x - b.slot.x); for (const e of list) { e.def = def; e.type = arg; e.color = def.color; e.r = def.r; e.link = null; }

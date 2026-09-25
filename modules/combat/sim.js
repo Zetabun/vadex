@@ -14,6 +14,8 @@ import { genWave } from '@last-orbit/combat/waves.js';
 import { updateFormation, updateEnemies, updateRockets, updateBullets, updateHazards } from '@last-orbit/combat/enemies.js';
 import { updateWeapons } from '@last-orbit/combat/weapons.js';
 import { spawnBoss, updateBoss } from '@last-orbit/combat/bosses.js';
+import { beaconsLit, voidBossAt } from '@last-orbit/data/beacons.js';
+import { BOSSES } from '@last-orbit/data/bosses.js';
 import { updateDrones, syncDrones } from '@last-orbit/combat/drones.js';
 import { updateAbilities } from '@last-orbit/combat/abilities.js';
 import { updatePlayer } from '@last-orbit/combat/player.js';
@@ -117,6 +119,7 @@ function parade(w, dt) {
 export function startWave(w) {
   const st = G.state, run = st.run, ws = w.wave;
   const info = genWave(run.seed, run.wave), sec = info.sector;
+  if (info.kind === 'boss' && sec.endless && !run.mode && beaconsLit(st)) { info.boss = voidBossAt(run.wave); info.label = BOSSES[info.boss].name; } // the beacons are lit: something in the Deep Void answers
   const prevSector = ws.num ? sectorOf(ws.num).idx : -1;
   ws.num = run.wave; ws.info = info; ws.state = 'fighting'; ws.t = 0; ws.damaged = false; ws.bossDamaged = false; ws.kills = 0; ws.boss = null; ws.pending = []; ws.shotsFired = 0;
   setWaveBase(w, run.wave, sec.idx);

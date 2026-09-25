@@ -1,5 +1,6 @@
 // Headless balance probe: an autopilot bot flies sorties and reports where they end.
 // Usage: node --experimental-loader ./tests/loader.mjs ./tests/balance-sim.mjs [runs] [workshopLevel] [ship]
+// (env RANK sets the Overhaul rank: from 8 the Deep Void sectors end on Void bosses)
 import { G, recalc } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { newState } from '@last-orbit/core/state.js';
@@ -18,7 +19,7 @@ const score = (c) => c.kind === 'upgrade' ? 10 + (c.rank >= 4 ? 2 : 0) : c.kind 
 
 const results = [];
 for (let r = 0; r < runs; r++) {
-  G.state = newState(); G.state.ship = ship; G.state.unlocked.ships[ship] = 1;
+  G.state = newState(); G.state.ship = ship; G.state.unlocked.ships[ship] = 1; G.state.prestige.level = +(process.env.RANK || 0); /* RANK=8: the beacons lit, Void bosses in the Deep Void */
   if (unlock === 'all') { for (const id of WEAPON_ORDER) G.state.unlocked.weapons[id] = 1; for (const id of ABILITY_ORDER) G.state.unlocked.abilities[id] = 1; }
   else if (unlock === 'some') { for (const id of ['laser', 'missile', 'tesla']) G.state.unlocked.weapons[id] = 1; G.state.unlocked.abilities.emp = 1; }
   for (const u of WORKSHOP) if (u.id !== 'w_revive' && u.id !== 'w_choice') G.state.workshop[u.id] = Math.min(u.max, wl);

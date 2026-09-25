@@ -34,6 +34,7 @@ export function newState() {
     counter: { unlocked: false, stars: {}, hard: {}, best: {}, cores: 0, tech: {}, checkpoints: {} }, // checkpoints: '6' / '6h' → pilot level saved past the mini-boss
     observatory: { charted: {} }, // the Observatory: the Deep Void depths charted (wave → when)
     shipyard: { stage: 0 }, // the Shipyard: stages of the Chimera built (all four: she is in the hangar)
+    beacons: { beaten: {} }, // the Beacon array: Void bosses beaten (id → when first)
     quarters: { restDay: '', rested: false, mood: 'warm' }, // the Pilot's quarters: the day last rested, whether that rest is still to be flown on, the lights' mood
     bounties: { day: '', list: [], rerolled: false, bonus: false, done: 0, days: 0 }, // daily bounties (progression/bounties.js): today's three, and how many ever done
     siege: { stars: {}, best: {}, won: {}, wins: 0, kills: 0, damage: null }, // Station Siege: stars and best score per tier, tiers won, invaders downed, and the damage a lost one left ({ ids, tier, cost } until repaired)
@@ -48,7 +49,7 @@ export function newState() {
     stats: { kills: 0, bossKills: 0, bossBy: {}, sectorBosses: 0, bestWave: 0, bestSector: 1, sectorsCleared: 0, sorties: 0, maxLevel: 1, flawless: 0, maxRank: 1, maxDrones: 0, maxWeapons: 1, bestSalvage: 0, totalSalvage: 0, deaths: 0, cards: 0, threatClear: 0, dailies: 0, bestStreak: 0, maxMastery: 1, shipsOwned: 1,
       bestScore: 0, bestKills: 0, longestRun: 0, perfectSectors: 0, flawlessBosses: 0, soloWave: 0, maxedWeapons: 0, maxRelics: 0, fusions: 0, signatures: 0, counterStars: 0, counterBest: 0, counterHard: 0, overhauls: 0 },
     // menus: hangar menu id → 'new' (opened, explainer not yet shown) or true (seen); see data/menus.js
-    seen: { enemies: {}, bosses: {}, elites: {}, medals: 0, records: true, menus: {}, menusInit: false, callsign: false, stationDone: null, intro: false, comms: {}, commsInit: false, gunnerIntro: false, hall: false, commsRoom: false, quarters: false, observatory: false, shipyard: false }, // stationDone: Overhaul rank the finished station was last celebrated at
+    seen: { enemies: {}, bosses: {}, elites: {}, medals: 0, records: true, menus: {}, menusInit: false, callsign: false, stationDone: null, intro: false, comms: {}, commsInit: false, gunnerIntro: false, hall: false, commsRoom: false, quarters: false, observatory: false, shipyard: false, beacons: false }, // stationDone: Overhaul rank the finished station was last celebrated at
     // Records: the local top 10 sorties by score and each ship's best. Medals: achievement id → tiers earned.
     records: { top: [], ships: {} },
     medals: {},

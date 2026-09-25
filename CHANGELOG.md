@@ -1,5 +1,21 @@
 # Changelog
 
+## v2.17.0 — 2026-09-26
+
+- **Void bosses:** once the beacons are lit (Overhaul rank 8), each Deep Void sector ends on a Void boss of its own instead of an old sector boss come round again. There are six, met in turn and then round again, each as strong as the depth:
+  - **The Pale Watcher** (wave 70): a vast eye whose gaze sweeps the field like a searchlight, and blinks out of sight.
+  - **Umbra Leviathan** (wave 80): a serpent that throws walls of fire with one gap in them.
+  - **The Choir** (wave 90): a singing core, shielded while its four singers live. Silence them first.
+  - **Grave Colossus** (wave 100): armoured wreckage with gun turrets, artillery and laser beams across the screen. Its armour goes with its turrets.
+  - **The Mirror Host** (wave 110): it blinks across the field and sends its reflections at you from the sides.
+  - **The Maw** (wave 120): gravity wells, swarms and a four-phase finish.
+  - **The first time you beat each one pays 3 Blueprints.** The sector-cleared banner and the debrief say so. Beat all six for the new **Lightkeeper** paint.
+- **The Beacon array (new room aboard):** the signal room under the great beacon at the station's tip. It opens with the beacons, at Overhaul rank 8. Go on to it from the Shipyard (a new door by the bay doors), or from the station card.
+  - **The great beacon:** a crystal lens turning in a brass cage, sweeping its beam out into the Void.
+  - **What has answered:** six hologram pedestals, one for each Void boss. Each shows static until its boss answers, a flickering outline once you've met it, and a solid hologram in its own colour once you've beaten it, with a light of that colour out in the Void too. Tap one for what it is and how the hunt has gone.
+  - **The signal log** between the doors keeps the record.
+- The Overhaul roadmap's beacon card says what the beacons bring.
+
 ## v2.16.0 — 2026-09-25
 
 - **The Shipyard (new room aboard):** the dry dock at the station's rim. It opens with the shipyard frame, at Overhaul rank 7. Go through to it from the Observatory (a new door on its right wall), or from the station card.

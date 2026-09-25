@@ -86,6 +86,17 @@ const SHAPES = {
   bossOracle: () => [gem(0.75, 0.75, 0.75, 0, 0, 0, 0, 'ico'), ring(1.1), ring(0.9, 0, 0, 0, 0.45), ...[0, 1, 2].map((i) => gem(0.2, 0.45, 0.2, Math.cos(i * 2.094 + PI / 2) * 1.1, Math.sin(i * 2.094 + PI / 2) * 1.1))],
   bossSing: () => [gem(0.62, 0.62, 0.62, 0, 0, 0, 0, 'sph'), ring(1.05), ring(1.25, 0, 0, 0, 0.3), ...[0, 1, 2, 3, 4, 5, 6, 7].map((i) => spike(0.1, 0.5, Math.cos(i * PI / 4) * 1.35, Math.sin(i * PI / 4) * 1.35, i * PI / 4 - PI / 2))],
 };
+// ---- Void bosses (what answers the station's beacons)
+Object.assign(SHAPES, {
+  bossWatcher: () => [gem(0.78, 0.78, 0.78, 0, 0, 0, 0, 'sph'), ring(1.02), ...[0, 1, 2, 3, 4, 5, 6, 7].map((i) => spike(0.1, 0.55, Math.cos(i * PI / 4) * 1.3, Math.sin(i * PI / 4) * 1.3, i * PI / 4 - PI / 2)), gem(0.34, 0.34, 0.3, 0, 0, 0.62, 0, 'ico')],
+  bossEel: () => [gem(0.9, 1.2, 0.6, 0, 0.1, 0, 0, 'dodeca'), ...mirror((s) => spike(0.18, 0.9, s * 0.42, -1, PI + s * 0.22, 0, 'cone3')), ...mirror((s) => gem(0.9, 0.2, 0.1, s * 0.8, 0.35, 0, s * -0.6)), gem(0.25, 0.25, 0.3, 0, -0.35, 0.45, 0, 'ico')],
+  voidSeg: () => [gem(0.8, 0.8, 0.55, 0, 0, 0, 0, 'dodeca'), ...mirror((s) => gem(0.7, 0.14, 0.08, s * 0.8, 0, 0, s * -0.4))],
+  bossChoir: () => [gem(0.6, 0.6, 0.6, 0, 0, 0, 0, 'ico'), ring(0.85, 0, 0, 0, 0.5), ring(1.1, 0, 0, 0, 0.25), ...[0, 1, 2, 3, 4, 5].map((i) => gem(0.12, 0.4, 0.12, Math.cos(i * PI / 3) * 0.95, Math.sin(i * PI / 3) * 0.95, 0, i * PI / 3 - PI / 2))],
+  voidSinger: () => [gem(0.5, 0.8, 0.4, 0, 0, 0, 0, 'octa'), ring(0.6, 0, 0, 0, 0.4)],
+  bossColossus: () => [box(1.7, 1.3, 0.7, 0, 0.1), box(1, 0.7, 0.9, 0, 0.5), ...mirror((s) => box(0.5, 1.6, 0.6, s * 1.05, -0.1, 0, s * 0.12)), ...mirror((s) => spike(0.2, 0.8, s * 0.7, -1.05, PI + s * 0.2)), spike(0.35, 0.6, 0, -1.25, PI, 0, 'cone4'), gem(0.3, 0.3, 0.45, 0, 0.1, 0.45, 0, 'ico'), box(2.4, 0.2, 0.3, 0, 0.75)],
+  bossMirror: () => [gem(0.5, 1.2, 0.3, 0, 0, 0, 0, 'octa'), ...mirror((s) => gem(0.45, 1, 0.25, s * 0.75, 0.1, 0, s * 0.3, 'octa')), ...mirror((s) => gem(0.35, 0.7, 0.2, s * 1.3, 0.25, 0, s * 0.6, 'octa')), ring(0.7, 0, -0.1, 0.2, 0.35)],
+  bossMaw: () => [ring(1), ring(0.72, 0, 0, 0.12), gem(0.45, 0.45, 0.45, 0, 0, -0.1, 0, 'sph'), ...[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => spike(0.12, 0.55, Math.cos(i * PI / 5) * 0.8, Math.sin(i * PI / 5) * 0.8, i * PI / 5 + PI / 2)), ...[0, 1, 2, 3, 4, 5].map((i) => spike(0.18, 0.7, Math.cos(i * PI / 3) * 1.35, Math.sin(i * PI / 3) * 1.35, i * PI / 3 - PI / 2, 0, 'cone3'))],
+});
 SHAPES.aegis2 = SHAPES.aegis;
 export const SHAPE_IDS = Object.keys(SHAPES);
 const cache = {};
