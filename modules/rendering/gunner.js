@@ -11,7 +11,7 @@ import { Station } from '@last-orbit/rendering/station.js';
 import { shapeGeometry } from '@last-orbit/rendering/geometry.js';
 import { SIEGE_STARS } from '@last-orbit/data/siege.js';
 import { turretKit, turretStats, turretOffer, TURRET_MOD } from '@last-orbit/data/turret.js';
-import { playSfx, playSample, lockTone, whoosh } from '@last-orbit/audio/audio.js';
+import { playSfx, playSample, lockTone, whoosh, explosion } from '@last-orbit/audio/audio.js';
 import { haptic } from '@last-orbit/ui/haptics.js';
 const T = () => window.THREE;
 
@@ -35,6 +35,13 @@ const GROW = { fighter: 0.3, bomber: 0.12, gunship: 0.1, weak: 0.06 };
 const rnd = (a, b) => a + Math.random() * (b - a);
 const DEBRIS_MAX = 380, PIECES = { fighter: 10, bomber: 18, gunship: 20, torpedo: 4, weak: 12, capital: 44 };
 
+/** A thin bright ring on a clear middle: a missile's shock wave. */
+function ringTex() {
+  const THREE = T(), c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gr.addColorStop(0, 'rgba(255,200,140,0)'); gr.addColorStop(0.7, 'rgba(255,190,120,0)'); gr.addColorStop(0.86, 'rgba(255,240,210,.85)'); gr.addColorStop(0.94, 'rgba(255,160,80,.3)'); gr.addColorStop(1, 'rgba(255,120,40,0)');
+  g.fillStyle = gr; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c);
+}
+
 export class GunnerScene {
   constructor() {
     const THREE = T(); this.scene = new THREE.Scene(); const S = this.scene;
@@ -43,7 +50,8 @@ export class GunnerScene {
     this.station = new Station(S); this.station.group.visible = true; this.station.group.position.set(...HUB); this.station.group.rotation.set(0.35, 0.5, 0);
     this.hub = new THREE.Vector3(...HUB);
     this.fireTex = glowTex('rgba(255,236,170,.95)', 'rgba(255,120,40,.55)'); this.sparkTex = glowTex('rgba(255,200,220,.9)', 'rgba(255,60,106,.4)'); this.cyanTex = glowTex('rgba(200,250,255,.95)', 'rgba(94,230,255,.5)');
-    this.smokeTex = glowTex('rgba(200,200,210,.55)', 'rgba(120,120,135,.25)');
+    this.smokeTex = glowTex('rgba(200,200,210,.55)', 'rgba(120,120,135,.25)'); this.coreTex = glowTex('rgba(255,255,255,1)', 'rgba(255,214,150,.7)'); this.ringTex = ringTex();
+    this.boomLight = new THREE.PointLight(0xffb070, 0, 620, 2); S.add(this.boomLight); this.boomT = 0; this.punch = 0; /* a missile hit's flash lights the ships and the station near it */
     // the guns, fixed to the view: two barrels that kick back as they fire, a flash at each muzzle; the missile rack below
     const gun = (this.rig = new THREE.Group()); this.cam.add(gun); /* the guns and rack: they jolt with every round */ const Ph = (o) => new THREE.MeshPhongMaterial(o), metal = Ph({ color: 0x4a5468, specular: 0x8899bb, shininess: 60 }), dark = Ph({ color: 0x1c2230, shininess: 30 });
     const house = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.3, 0.7), dark); house.position.set(0, -0.98, -1.25); gun.add(house); // mostly below the view: the barrels are what shows
@@ -82,7 +90,7 @@ export class GunnerScene {
     this.station.sync(state); if (this.kit) return;
     this.kit = turretKit(state); this.st = turretStats(this.kit, this.picks); this.ms.ammo = this.st.missiles; this.gun.ammo = this.st.mag; this.picksDue = this.kit.freePicks; this.rerolls = this.kit.rerolls; this.beacon = this.kit.beacon;
   }
-  resize(w, h) { this.w = w; this.h = h; this.cam.aspect = w / Math.max(1, h); this.cam.fov = w < h ? 74 : 58; this.cam.updateProjectionMatrix(); }
+  resize(w, h) { this.w = w; this.h = h; this.cam.aspect = w / Math.max(1, h); this.cam.fov = this.fov0 = w < h ? 74 : 58; this.cam.updateProjectionMatrix(); }
   look(dx, dy) { if (this.pick) return; this.yaw = Math.max(-YAW_MAX, Math.min(YAW_MAX, this.yaw - dx * 0.0042)); this.pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, this.pitch - dy * 0.0042)); }
   /** Stop the seeker's tone (leaving the seat). */
   silence() { lockTone(false); }
@@ -172,9 +180,26 @@ export class GunnerScene {
   }
   /** Everything within r of a point takes n (a burst). */
   burst(at, r, n, skip, cannon = false) { for (const e of this.enemies) if (e !== skip && e.alive && e.kind !== 'capital' && e.pos.distanceTo(at) < r + e.k.r) this.damage(e, n, cannon); }
-  blast(pos, size, life, tex = this.fireTex) {
+  /** A flash, fireball or puff. o: delay (s before it shows), vel (it drifts), from and grow (its size over its life),
+   *  ease (grows fast, then slows), lin (fades evenly rather than holding and dropping). */
+  blast(pos, size, life, tex = this.fireTex, o = {}) {
     const THREE = T(), m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: tex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
-    m.position.copy(pos); this.scene.add(m); this.blasts.push({ m, t: 0, life, size });
+    m.position.copy(pos); m.visible = !o.delay; this.scene.add(m); this.blasts.push({ m, t: -(o.delay || 0), life, size, vel: o.vel, from: o.from ?? 0.4, grow: o.grow ?? 0.9, ease: o.ease, lin: o.lin });
+  }
+  sparks(p, n, speed, size) {
+    const THREE = T(); for (let i = 0; i < n; i++) { if (this.embers.length >= 300) this.embers.shift(); const d = new THREE.Vector3(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).normalize();
+      this.embers.push({ p: p.clone(), v: d.multiplyScalar(rnd(0.3, 1) * speed), t: 0, life: rnd(0.45, 1.2), s: rnd(0.5, 1) * size, c: new THREE.Color().setHSL(rnd(0.06, 0.14), 1, rnd(0.6, 0.85)) }); }
+  }
+  /** A missile hits: a white-hot flash, a fireball with smaller ones bursting round it, a shock wave, sparks, smoke that
+   *  hangs, and a flash of light on everything near; a heavy boom and a shake that fall off with distance. */
+  missileBoom(p, big = 0) {
+    const THREE = T(), s = 1 + big / 32, dir = () => new THREE.Vector3(rnd(-1, 1), rnd(-1, 1), rnd(-1, 1)).normalize();
+    this.blast(p, 38 * s, 0.16, this.coreTex, { from: 0.6, grow: 0.7 }); this.blast(p, (62 + big) * s, 0.9);
+    for (let i = 0; i < 7; i++) { const d = dir(); this.blast(this.v.copy(p).addScaledVector(d, rnd(6, 16) * s), rnd(18, 32) * s, rnd(0.5, 0.85), this.fireTex, { delay: rnd(0.02, 0.24), vel: d.multiplyScalar(rnd(14, 34)) }); }
+    this.blast(p, 140 * s, 0.5, this.ringTex, { from: 0.08, grow: 1, ease: true, lin: true });
+    for (let i = 0; i < 5; i++) { const d = dir(); this.blast(this.v.copy(p).addScaledVector(d, rnd(4, 12)), rnd(24, 36) * s, rnd(1.6, 2.4), this.smokeTex, { delay: rnd(0.1, 0.3), vel: d.multiplyScalar(rnd(5, 12)), from: 0.5, grow: 0.8 }); }
+    this.sparks(p, 48, 160 * s, 1.3); this.boomLight.position.copy(p); this.boomT = 1;
+    const near = Math.max(0, Math.min(1, 1 - (p.length() - 120) / 700)); this.shake = Math.max(this.shake, 0.6 + 1.1 * near); haptic('thud'); explosion(0.5 + 0.5 * near);
   }
   beam(m, a, b) { const THREE = T(), d = this.v.subVectors(b, a), len = d.length(); m.position.copy(a).addScaledVector(d, 0.5); m.scale.set(1, len, 1); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); m.visible = true; }
   /** Where a target will be when a round fired now reaches it. */
@@ -186,9 +211,9 @@ export class GunnerScene {
     if (!ms.locked || !ms.target?.alive || ms.ammo <= 0) { ms.noLock = 0.8; playSfx('deny', 0.6); return false; }
     const THREE = T(), g = new THREE.Group(), body = new THREE.Mesh(this.missileGeo, this.missileMat); g.add(body);
     const flame = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.fireTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); flame.scale.setScalar(4); flame.position.z = 2.2; g.add(flame);
-    const from = this.rack.getWorldPosition(new THREE.Vector3()), fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(this.cam.quaternion);
+    const from = this.rack.getWorldPosition(new THREE.Vector3()), fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(this.cam.quaternion); this.blast(from.clone().addScaledVector(fwd, 1.4), 0.7, 0.09, this.coreTex, { from: 0.7, grow: 0.5 });
     this.scene.add(g); this.missiles.push({ g, p: from, v: fwd.multiplyScalar(110), target: ms.target, life: 6, trailT: 0, t: 0 });
-    ms.ammo--; if (ms.ammo <= 0) ms.reloadT = this.st.reload; ms.locked = false; ms.lockT = 0; ms.target = null; lockTone(false); whoosh(1); this.shake = Math.max(this.shake, 1.5); this.recoil = Math.max(this.recoil, 0.07); this.roll = (Math.random() < 0.5 ? -1 : 1) * 0.035; this.jolt = 1.6; haptic('launch'); return true;
+    ms.ammo--; if (ms.ammo <= 0) ms.reloadT = this.st.reload; ms.locked = false; ms.lockT = 0; ms.target = null; lockTone(false); whoosh(1); this.shake = Math.max(this.shake, 2.4); this.recoil = Math.max(this.recoil, 0.12); this.roll = (Math.random() < 0.5 ? -1 : 1) * 0.06; this.jolt = 2.8; this.punch = 1; haptic('launch'); return true;
   }
   seek(dt, fwd, origin) {
     const ms = this.ms; if (ms.reloadT > 0) { ms.reloadT -= dt; if (ms.reloadT <= 0) { ms.reloadT = 0; ms.ammo = this.st.missiles; playSfx('dashReady', 0.6); } } // the whole rack at once
@@ -213,6 +238,7 @@ export class GunnerScene {
     const amp = on ? sk * sk * 0.011 : 0, tt = this.t, nx = Math.sin(tt * 61.3) + 0.6 * Math.sin(tt * 37.1 + 2), ny = Math.sin(tt * 53.7 + 1.3) + 0.6 * Math.sin(tt * 29.9);
     cam.position.set(0, 0, 0); cam.rotation.set(this.pitch + (on ? this.recoil : 0) + ny * amp, this.yaw + nx * amp, (on ? this.roll : 0) + nx * amp * 0.6); cam.updateMatrixWorld();
     const j = on ? this.jolt : 0; this.rig.position.set(nx * amp * 2, ny * amp * 2 - j * 0.025, j * 0.09); this.rig.rotation.x = j * 0.03;
+    this.punch *= Math.exp(-dt * 7); const fov = (this.fov0 || cam.fov) + (on ? this.punch * 7 : 0); if (Math.abs(cam.fov - fov) > 0.01) { cam.fov = fov; cam.updateProjectionMatrix(); } /* a launch punches the view wide */
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion), origin = cam.position;
     const fight = this.running && !this.pick, fdt = fight ? dt : 0; // an upgrade being chosen holds the fight
     // waves: when the sky is clear, any upgrades earned, then the next
@@ -267,7 +293,7 @@ export class GunnerScene {
     let target = null, best = this.st.cone;
     for (const e of this.enemies) { if (!e.alive || e.kind === 'capital') continue; const L = this.lead(e, origin), ang = fwd.angleTo(this.v.subVectors(L, origin)); if (ang < best) { best = ang; target = e; } }
     this.locked = target; this.fireT -= fdt; const gun = this.gun;
-    if (gun.reloadT > 0) { gun.reloadT -= fdt; if (gun.reloadT <= 0) { gun.reloadT = 0; gun.ammo = this.st.mag; if (!playSample('turretReady', 0.7)) playSfx('dashReady', 0.7); haptic('thud'); } }
+    if (gun.reloadT > 0) { gun.reloadT -= fdt; if (gun.reloadT <= 0) { gun.reloadT = 0; gun.ammo = this.st.mag; if (!playSample('turretReady', 0.22)) playSfx('dashReady', 0.5); haptic('thud'); } }
     if (target && fight && this.fireT <= 0 && !gun.reloadT && gun.ammo > 0) {
       this.fireT = this.st.fireEvery; gun.ammo--; this.recoil = Math.min(0.03, this.recoil + 0.014); this.shake = Math.max(this.shake, 0.6); this.jolt = 1; haptic('tick'); // a heavy round: kick, rumble, the rig jolts
       if (gun.ammo <= 0) { gun.reloadT = this.st.gunReload; playSfx('charge', 0.5); } const b = this.barrels[this.side = 1 - this.side]; b.kick = 1; b.flash.visible = true; b.flash.rotation.z = Math.random() * 6;
@@ -309,7 +335,7 @@ export class GunnerScene {
       m.p.addScaledVector(m.v, dt); m.g.position.copy(m.p); m.g.lookAt(this.v.copy(m.p).sub(m.v));
       m.trailT -= dt; if (m.trailT <= 0) { m.trailT = 0.03; this.blast(m.p, 3, 0.9, this.smokeTex); }
       if ((tg && m.p.distanceTo(tg.pos) < tg.k.r + 3) || m.life <= 0) {
-        if (tg) { this.damage(tg, this.st.missileDmg); if (this.st.missileBlast) this.burst(m.p, this.st.missileBlast, this.st.missileDmg * 0.5, tg); this.blast(m.p, 22 + this.st.missileBlast, 0.6); playSfx('boom', 1); }
+        if (tg) { this.damage(tg, this.st.missileDmg); if (this.st.missileBlast) this.burst(m.p, this.st.missileBlast, this.st.missileDmg * 0.5, tg); this.missileBoom(m.p, this.st.missileBlast); }
         this.scene.remove(m.g); this.missiles.splice(i, 1);
       }
     }
@@ -329,7 +355,9 @@ export class GunnerScene {
       let m = 0; for (let i = this.embers.length - 1; i >= 0; i--) { const b = this.embers[i]; b.t += dt; if (b.t >= b.life) { this.embers.splice(i, 1); continue; } b.p.addScaledVector(b.v, dt); b.v.multiplyScalar(1 - dt * 1.8);
         const k = 1 - b.t / b.life; d2.position.copy(b.p); d2.rotation.set(b.t * 9, b.t * 7, 0); d2.scale.setScalar(b.s * k); d2.updateMatrix(); this.emberMesh.setMatrixAt(m, d2.matrix); this.emberMesh.setColorAt(m, col.copy(b.c).multiplyScalar(0.6 + 0.4 * k)); m++; }
       this.emberMesh.count = m; this.emberMesh.instanceMatrix.needsUpdate = true; this.emberMesh.instanceColor.needsUpdate = true; }
-    for (let i = this.blasts.length - 1; i >= 0; i--) { const b = this.blasts[i]; b.t += dt; const q = b.t / b.life; if (q >= 1) { this.scene.remove(b.m); b.m.material.dispose(); b.m.geometry.dispose(); this.blasts.splice(i, 1); continue; } b.m.scale.setScalar(b.size * (0.4 + q * 0.9)); b.m.material.opacity = 1 - q * q; b.m.quaternion.copy(cam.quaternion); }
+    for (let i = this.blasts.length - 1; i >= 0; i--) { const b = this.blasts[i]; b.t += dt; if (b.t < 0) continue; b.m.visible = true; const q = b.t / b.life; if (q >= 1) { this.scene.remove(b.m); b.m.material.dispose(); b.m.geometry.dispose(); this.blasts.splice(i, 1); continue; }
+      if (b.vel) { b.m.position.addScaledVector(b.vel, dt); b.vel.multiplyScalar(Math.max(0, 1 - dt * 1.5)); } b.m.scale.setScalar(b.size * (b.from + (b.ease ? 1 - (1 - q) * (1 - q) : q) * b.grow)); b.m.material.opacity = b.lin ? 1 - q : 1 - q * q; b.m.quaternion.copy(cam.quaternion); }
+    this.boomT = Math.max(0, this.boomT - dt * 3); this.boomLight.intensity = this.boomT * this.boomT * 7;
     if (this.banner.t < 90) this.banner.t -= dt;
     // the world: Earth turning below, the station breathing
     this.station.animate(dt, 0.2); this.station.body.rotation.y = this.t * 0.05;

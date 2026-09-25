@@ -3,7 +3,7 @@
 // older iOS). Rate-limited, and off when the Vibration setting is.
 import { G } from '@last-orbit/core/game.js';
 
-const PATTERN = { tick: 7, thud: 24, launch: [30, 40, 18], hit: 45 };
+const PATTERN = { tick: 7, thud: 30, launch: [50, 30, 40], hit: 45 };
 let label = null, lastT = 0;
 const canVibrate = typeof navigator !== 'undefined' && typeof navigator.vibrate === 'function';
 
@@ -19,6 +19,6 @@ export function haptic(kind = 'tick') {
       input.type = 'checkbox'; input.setAttribute('switch', ''); input.id = 'lo-haptic'; input.tabIndex = -1; label = document.createElement('label'); label.htmlFor = 'lo-haptic';
       box.append(input, label); document.body.append(box);
     }
-    label.click();
+    label.click(); if (kind === 'launch') setTimeout(() => label?.click(), 70); /* a missile away is a double knock */
   } catch { /* no haptics on this device */ }
 }

@@ -101,6 +101,9 @@ function runScene(scene, hooks, ui) {
     // gunner:boom: a fighter and a bomber blow up right in front of the guns, every two seconds (for screenshots of the wreckage)
     if (arg === 'boom') setInterval(() => { const g = G.renderer?.room, T3 = window.THREE; if (!g?.shatter || G.room !== 'gunner') return; g.yaw = 0; g.pitch = 0; g.picksDue = 0; g.spawnQ = [];
       for (const [kind, x, z] of [['fighter', -14, -80], ['bomber', 18, -110]]) { const e = g.spawn(kind, new T3.Vector3(x, 4, z)); e.vel.set(x > 0 ? -12 : 12, 0, 20); g.kill(e); } }, 2000);
+    // gunner:missile: a bomber hangs in front of the guns and a missile goes into it, every 2.5 seconds (for shots of the blast)
+    if (arg === 'missile') setInterval(() => { const g = G.renderer?.room, T3 = window.THREE; if (!g?.fireMissile || G.room !== 'gunner') return; g.yaw = 0; g.pitch = 0; g.picksDue = 0; g.spawnQ = []; if (g.pick) g.choosePick(0);
+      const e = g.spawn('bomber', new T3.Vector3(14, 8, -170)); e.state = 'inbound'; e.goal = new T3.Vector3(14, 8, -3000); e.vel.set(0, 0, 0); Object.assign(g.ms, { target: e, locked: true, ammo: 2, reloadT: 0 }); g.fireMissile(); }, 2500);
     // gunner:auto: the sights follow the nearest target (for screenshots)
     if (arg === 'auto') setInterval(() => { const g = G.renderer?.room; if (!g?.enemies || G.room !== 'gunner') return; const cam = g.cam.position, t = g.enemies.filter((e) => e.alive && e.kind !== 'capital').sort((a, b) => a.pos.distanceTo(cam) - b.pos.distanceTo(cam))[0]; if (!t) return; const d = g.lead(t, cam).clone().sub(cam); g.yaw = Math.atan2(-d.x, -d.z); g.pitch = Math.atan2(d.y, Math.hypot(d.x, d.z)); if (g.pick) g.choosePick(0); }, 50);
     return; }

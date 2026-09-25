@@ -145,6 +145,17 @@ export function whoosh(vol = 1) {
   o.connect(lp); lp.connect(og); og.connect(g); o.start(now); o.stop(now + dur + 0.02);
   sendToReverb(g, 0.3); voices++; n.onended = () => { voices = Math.max(0, voices - 1); g.disconnect(); };
 }
+// A missile's blast (the gunner seat): a sharp crack, a roar of noise that darkens as it dies away, and a deep thump
+// under it, rung out through the reverb. vol falls off with distance.
+export function explosion(vol = 1) {
+  if (!ctx || ctx.state !== 'running' || voices >= MAX_VOICES) return; const now = ctx.currentTime, dur = 1.9;
+  const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(0.42 * vol, now + 0.01); g.gain.exponentialRampToValueAtTime(0.16 * vol, now + 0.3); g.gain.exponentialRampToValueAtTime(0.06 * vol, now + 1); g.gain.exponentialRampToValueAtTime(0.0001, now + dur); g.connect(sfxBus);
+  const n = ctx.createBufferSource(); n.buffer = noiseBuf; n.loop = true; n.playbackRate.value = 0.6; const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 0.8;
+  lp.frequency.setValueAtTime(5000, now); lp.frequency.exponentialRampToValueAtTime(1000, now + 0.12); lp.frequency.exponentialRampToValueAtTime(320, now + 1); lp.frequency.exponentialRampToValueAtTime(110, now + dur); n.connect(lp); lp.connect(g); n.start(now); n.stop(now + dur + 0.02);
+  const o = ctx.createOscillator(), og = ctx.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(130, now); o.frequency.exponentialRampToValueAtTime(32, now + 0.9); og.gain.setValueAtTime(0.9, now); og.gain.exponentialRampToValueAtTime(0.0001, now + 1);
+  o.connect(og); og.connect(g); o.start(now); o.stop(now + 1.02);
+  sendToReverb(g, 0.45); voices++; n.onended = () => { voices = Math.max(0, voices - 1); g.disconnect(); };
+}
 // A missile seeker's lock: a steady high tone while it holds (the gunner seat). on: true or false.
 let lock = null;
 export function lockTone(on) {
