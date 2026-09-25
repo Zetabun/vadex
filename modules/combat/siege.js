@@ -23,7 +23,7 @@ export function siegeWaveStart(w) {
   const s = w.siege; if (!s) return;
   s.shield = s.sys.w_shield || 0; s.raidT = s.tier.raidEvery * (0.5 + rand() * 0.4); s.bossT = 3;
   s.assault = w.wave.info?.boss ? 0 : s.tier.assault; s.bomberT = s.tier.bomberEvery * (0.3 + rand() * 0.4); // the boss wave lasts as long as the boss
-  s.gun = { dmg: w.base.hp.mul(0.35 * (1 + (s.sys.x_charts || 0))), critChance: 0.05, critMult: 2, bossMul: 0.5, id: 'station', color: 0x7fe8ff };
+  s.gun = { dmg: w.base.hp.mul(0.25 * (1 + (s.sys.x_charts || 0))), critChance: 0.05, critMult: 2, bossMul: 0.5, id: 'station', color: 0x7fe8ff };
   const cand = w.enemies.filter((e) => e.alive && e.slot && !e.boss && !e.parent && e.def.cost >= 1);
   for (let i = 0; i < s.tier.bombards && cand.length; i++) { const e = cand.splice(Math.floor(rand() * cand.length), 1)[0]; e.bombard = { t: s.tier.shellEvery * (0.25 + rand() * 0.4) }; }
   if (s.sys.w_barrier > 1) for (const b of w.barriers) b.hp = 1;

@@ -36,7 +36,7 @@ export const siegeUnlocked = (state) => siegeOpen(state, 1);
 export const SIEGE_SYSTEMS = [
   { id: 'w_dmg', name: 'Station cannon', at: [4, 2.8], desc: (v) => `Fires on the nearest attacker every ${v}s.` },
   { id: 'w_rate', name: 'Second cannon', at: [5, 3.4], desc: (v) => `A second gun, firing every ${v}s.` },
-  { id: 'w_crit', name: 'Point defence', at: [7, 5], desc: (v) => `Shoots down the lowest shell every ${v}s.` },
+  { id: 'w_crit', name: 'Point defence', at: [10, 7], desc: (v) => `Shoots down the lowest shell every ${v}s.` },
   { id: 'w_shield', name: 'Station shield', at: [0.15, 0.25], desc: (v) => `Soaks up ${pc(v)} of hull damage each wave.` },
   { id: 'w_hull', name: 'Armour', at: [0.15, 0.3], desc: (v) => `The station takes ${pc(1 - 1 / (1 + v))} less damage.` },
   { id: 'w_regen', name: 'Repair crews', at: [0.04, 0.08], desc: (v) => `Repair ${pc(v)} hull after every wave.` },
