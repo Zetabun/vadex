@@ -1,6 +1,6 @@
 # Changelog
 
-## v2.8.0 — unreleased
+## v2.8.0 — 2026-09-25
 
 - **Deep Void anomalies:** past wave 60, every Deep Void sector makes you take one of two anomalies, and they stack for the rest of the sortie. Each raises your salvage and score (+10% to +20%), so how many you can carry is the endless goal. Five bend the numbers (Hardened Hulls, Overdrive, Heavy Ordnance and Forced March stack up to three or two times; Elite Vanguard adds an elite to every wave) and five change the fight: **Serpent Fire** (enemy bolts weave), **Minefield** (the dead sometimes leave drifting mines), **Shrapnel** (the dead sometimes burst into bolts), **Void Lances** (a beam locks onto your lane every few seconds) and **Gravity Wells** (wells open on the defence line and drag you in). They show in the HUD, the pause loadout and the Deep Void sector title. Tuned with a new Deep Void probe over some 1,500 late-game runs: with anomalies, bot pilots fall about one wave sooner in the Deep Void but bring home 6–9% more Deep Void salvage, so a whole sortie pays about 3% more and Overhaul pacing is unchanged.
 - **Callsign:** new pilots pick a callsign at first launch (existing pilots are asked once). It sits on the rank card, the app greets you by name when it opens, and it can be changed in Settings.
