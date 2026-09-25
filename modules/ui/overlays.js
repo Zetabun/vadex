@@ -231,7 +231,7 @@ export function createOverlays(layer, hooks) {
     const el = h('div.modal.confirm.station-done', { role: 'dialog', 'aria-label': 'Every module built' },
       h('div.modal-head', h('div.kicker', 'Every module built'), h('h2', next ? 'Ready to Overhaul' : 'Station complete'),
         h('p', `Your Workshop is maxed. Overhaul to strip it back for Blueprints: every module stays built${next ? `, and the station gains its ${next.name}` : ''}.`)),
-      h('div.oh-plan.sd-plan', { html: stationBlueprint(rank, G.state.workshop, { peak: G.state.stationPeak, name: G.state.stationName }) }),
+      h('div.oh-plan.sd-plan', { html: stationBlueprint(rank, G.state.workshop, { peak: G.state.stationPeak, alien: G.state.counter?.tech, name: G.state.stationName }) }),
       h('div.modal-actions', h('button.btn.gold', { onclick: () => { close(); hooks.toHangar?.('workshop'); }, 'data-autofocus': '' }, 'Go to Overhaul'), h('button.btn.ghost', { onclick: close }, 'Later')));
     mount('station-done', el, (e) => { if (e.key === 'Escape') { close(); return true; } return false; });
     playSfx('milestone');

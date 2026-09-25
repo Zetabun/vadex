@@ -4,7 +4,7 @@
 // every menu open without explainers.
 export const ESTABLISHED = 4;
 export const MENUS = [
-  { id: 'workshop', sorties: 1, icon: 'workshop', title: 'Workshop', text: 'Spend the salvage you bring home on permanent upgrades. They apply to every ship on every sortie.' },
+  { id: 'workshop', sorties: 1, icon: 'workshop', title: 'Workshop', text: 'Spend the salvage you bring home on permanent upgrades. They apply to every ship on every sortie, and each one rebuilds a piece of your station.' },
   { id: 'armory', sorties: 2, icon: 'armory', title: 'Armory', text: 'Every weapon and ability that can turn up as a card. Open one to see how it evolves; contracts unlock the rest.' },
   { id: 'contracts', sorties: 2, icon: 'contracts', title: 'Career', text: 'Contracts are goals that unlock new weapons, abilities and ships. Pilot ranks pay out paint jobs and salvage.' },
   { id: 'ships', sorties: 3, icon: 'ships', title: 'Ships', text: 'New hulls with their own guns and abilities, plus the paint jobs, banners and trails you have earned.' },

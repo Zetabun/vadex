@@ -33,7 +33,7 @@ import { menuState, menuSeen, menuLockText } from '@last-orbit/progression/meta.
 import { MENU_BY_ID } from '@last-orbit/data/menus.js';
 import { techLevel, buyTech, powerRating, workshopMaxed, workshopProgress, overhaulReward, blueprintLevel, blueprintNext, buyBlueprint, blueprintLocked, escortSlots, escortTypes, toggleEscort, trailUnlocked, selectTrail } from '@last-orbit/progression/meta.js';
 import { BLUEPRINTS, TRAILS, BP_BASE, OVERHAUL_FX_CAP, OVERHAUL_COST_STEP } from '@last-orbit/data/prestige.js';
-import { STATION_CORE, rebuildPct } from '@last-orbit/data/station.js';
+import { STATION_CORE, MODULE_BY_ID, ALIEN_BY_ID, rebuildPct, stationSnapshot } from '@last-orbit/data/station.js';
 import { stationBlueprint, pieceThumb } from '@last-orbit/ui/stationArt.js';
 import { nightAmount } from '@last-orbit/rendering/background.js';
 import { DRONES } from '@last-orbit/data/drones.js';
@@ -96,7 +96,7 @@ export function createHangar(hooks) {
     if (menuState(id) === 'new') { menuSeen(id); setTimeout(() => hooks.menuIntro?.(MENU_BY_ID[id]), 150); }
     if (!quiet && id !== tab) playSfx('tab');
     if (shownTabs().join() !== navSig) layoutNav();
-    G.deckOpen = id === 'deck'; setClass($.stationHot, 'on', id === 'launch'); setClass($.callout, 'on', id === 'launch'); setClass($.coSvg, 'on', id === 'launch');
+    G.deckOpen = id === 'deck'; setClass($.stationHot, 'on', id === 'launch'); setClass($.callout, 'on', id === 'launch'); setClass($.coSvg, 'on', id === 'launch'); if (id === 'launch') stationNews();
     tab = id; if (pageOf(id) !== page) { page = pageOf(id); layoutNav(); }
     for (const k in navBtns) { setClass(navBtns[k], 'on', k === id); navBtns[k].setAttribute('aria-selected', String(k === id)); }
     if (id === 'awards') G.state.seen.medals = medalTotal().earned;
@@ -191,13 +191,13 @@ export function createHangar(hooks) {
     for (const u of WORKSHOP) {
       const lvl = workshopLevel(u.id), cost = workshopNext(u.id), pips = h('div.lvl-pips');
       for (let i = 0; i < u.max; i++) pips.append(h('i' + (i < lvl ? '.on' : '')));
-      const btn = h('button.buy', { disabled: cost == null || G.state.salvage < cost, onclick: () => { if (buyWorkshop(u.id)) { playSfx('buy'); render(); hooks.flash?.('#ffc857'); } else playSfx('deny'); } },
+      const btn = h('button.buy', { disabled: cost == null || G.state.salvage < cost, onclick: () => { const was = stationSnapshot(G.state); if (buyWorkshop(u.id)) { playSfx('buy'); stationNote(u.id, was); render(); hooks.flash?.('#ffc857'); } else playSfx('deny'); } },
         cost == null ? 'MAX' : [art('cur:salvage', 'cur-ico'), fmt(cost)]);
       list.append(h('div.row' + (cost == null ? '.maxed' : ''), art('ws:' + u.id, 'row-icon'), h('div.row-main', h('div.row-title', h('b', u.name), h('span.lv', `${lvl}/${u.max}`)), h('div.row-desc', u.per + ' per level'), pips), btn));
     }
     const c = G.state.counter, tech = c.unlocked ? h('div.rows', ALIEN_TECH.map((u) => {
       const lvl = techLevel(u.id), maxed = lvl >= u.max, pips = h('div.lvl-pips'); for (let i = 0; i < u.max; i++) pips.append(h('i' + (i < lvl ? '.on' : '')));
-      const btn = h('button.buy.tech', { disabled: maxed || c.cores < u.cost, onclick: () => { if (buyTech(u.id)) { playSfx('unlock'); render(); hooks.flash?.('#6dffc8'); } else playSfx('deny'); } }, maxed ? 'MAX' : [art('relic:r_quantum', 'cur-ico'), String(u.cost)]);
+      const btn = h('button.buy.tech', { disabled: maxed || c.cores < u.cost, onclick: () => { const was = stationSnapshot(G.state); if (buyTech(u.id)) { playSfx('unlock'); stationNote(u.id, was); render(); hooks.flash?.('#6dffc8'); } else playSfx('deny'); } }, maxed ? 'MAX' : [art('relic:r_quantum', 'cur-ico'), String(u.cost)]);
       return h('div.row.tech-row' + (maxed ? '.maxed' : ''), art(u.art, 'row-icon'), h('div.row-main', h('div.row-title', h('b', u.name), h('span.lv', `${lvl}/${u.max}`)), h('div.row-desc', u.per + ' per level'), pips), btn);
     })) : null;
     const pr = G.state.prestige, ready = workshopMaxed();
@@ -211,7 +211,7 @@ export function createHangar(hooks) {
   function overhaulPanel() {
     const pr = G.state.prestige, rank = pr.level || 0, ready = workshopMaxed(), prog = workshopProgress(), bp = overhaulReward();
     // The station blueprint: what the Workshop has built, and (dashed gold) what the next Overhaul adds to the core.
-    const plan = h('div.oh-plan', { html: stationBlueprint(rank, G.state.workshop, { peak: G.state.stationPeak, name: G.state.stationName, pct: rebuilt() }) },
+    const plan = h('div.oh-plan', { html: stationBlueprint(rank, G.state.workshop, { peak: G.state.stationPeak, alien: G.state.counter?.tech, name: G.state.stationName, pct: rebuilt() }) },
       h('div.oh-plan-tag', h('small', G.state.stationName || 'Your station'), h('b', ready ? 'Workshop complete' : `Workshop ${Math.round(prog.cur / prog.goal * 100)}%`)),
       rank < STATION_CORE.at(-1).at ? h('div.oh-plan-next', h('i'), `Next Overhaul adds: ${STATION_CORE.find((c) => c.at === rank + 1).name}`) : null);
     return h('section.panel.oh-panel' + (ready ? '.ready' : ''),
@@ -242,7 +242,7 @@ export function createHangar(hooks) {
     const pr = G.state.prestige, types = escortTypes(), slots = escortSlots();
     const row = (b) => {
       const lvl = blueprintLevel(b.id), cost = blueprintNext(b.id), maxed = cost == null, pips = h('div.lvl-pips'); for (let i = 0; i < b.max; i++) pips.append(h('i' + (i < lvl ? '.on' : '')));
-      const locked = blueprintLocked(b.id), btn = h('button.buy.bp', { disabled: maxed || locked || pr.bp < cost, onclick: () => { if (buyBlueprint(b.id)) { playSfx('unlock'); render(); hooks.flash?.('#ff9f43'); } else playSfx('deny'); } }, maxed ? (b.kind === 'escort' ? 'OWNED' : 'MAX') : locked ? 'NEEDS BAY' : [h('i.bp-ico'), String(cost)]);
+      const locked = blueprintLocked(b.id), btn = h('button.buy.bp' + (locked ? '.locked' : ''), { disabled: maxed || locked || pr.bp < cost, onclick: () => { if (buyBlueprint(b.id)) { playSfx('unlock'); render(); hooks.flash?.('#ff9f43'); } else playSfx('deny'); } }, maxed ? (b.kind === 'escort' ? 'OWNED' : 'MAX') : locked ? [uiIcon('lock'), 'Needs bay'] : [h('i.bp-ico'), String(cost)]);
       return h('div.row.bp-row' + (maxed ? '.maxed' : ''), art(b.art, 'row-icon'), h('div.row-main', h('div.row-title', h('b', b.name), b.max > 1 ? h('span.lv', `${lvl}/${b.max}`) : null), h('div.row-desc', b.per + (b.max > 1 && b.kind !== 'bay' ? ' per level' : '')), b.max > 1 ? pips : null), btn);
     };
     // The escort bays: tap a type to fly it (a full bay swaps out the oldest pick).
@@ -493,7 +493,7 @@ export function createHangar(hooks) {
     } else if (kind === 'trophies') {
       panel('Command Deck', 'Overhaul trophies', h('div.deck-trophies', Array.from({ length: Math.max(rank, 1) }, (_, i) => h('div.trophy' + (i < rank ? '' : '.empty'), h('b', ROMAN_N(i + 1)), h('small', STATION_CORE.find((c) => c.at === i + 1)?.name || 'Overhaul')))), roadmap(rank));
     } else if (kind === 'station') {
-      panel('Command Deck', 'Your station', h('div.oh-plan', { html: stationBlueprint(rank, st.workshop, { peak: st.stationPeak, name: st.stationName, pct: rebuilt() }) }), roadmap(rank));
+      panel('Command Deck', 'Your station', h('div.oh-plan', { html: stationBlueprint(rank, st.workshop, { peak: st.stationPeak, alien: st.counter?.tech, name: st.stationName, pct: rebuilt() }) }), roadmap(rank));
     }
   }
 
@@ -535,14 +535,30 @@ export function createHangar(hooks) {
   }
   function update() { setText($.salvage, fmtInt(G.state.salvage)); badges(); pilotId(); stationDone(); stationTag(); }
   /** Keep the label's text current, and its tap target over wherever the renderer drew it. */
+  /** A buy that changed the station says so: a module rebuilt for the first time, lit once maxed, alien hardware fitted. */
+  function stationNote(id, was) {
+    const a = was.parts[id] || 0, b = stationSnapshot(G.state).parts[id] || 0, m = MODULE_BY_ID[id] || ALIEN_BY_ID[id]; if (!m || b <= a) return;
+    hooks.toast?.(`Station: ${m.name} ` + (ALIEN_BY_ID[id] ? 'fitted' : b === 2 ? (a === 0 ? 'rebuilt and online' : 'online') : 'rebuilt'), 'station');
+  }
+  /** What changed on the station since the pilot last looked at it: those parts glow, and the rebuild figure counts up. */
+  let lastLook = null;
+  function stationNews() {
+    const now = stationSnapshot(G.state), was = lastLook; lastLook = now; if (!was) return;
+    const up = Object.keys(now.parts).filter((id) => now.parts[id] > (was.parts[id] || 0)); if (up.length) G.renderer?.station?.pulse(up);
+    if (now.pct > was.pct) { $.callout._pct = was.pct; $.callout._from = performance.now() + 900; }
+  }
   /** The callout's text, and its hairline from the text to wherever the renderer drew the station's hub. */
   function stationTag() {
     if (tab !== 'launch') return;
-    const st = G.state, pct = rebuilt(), deck = menuState('deck') !== 'locked';
-    const sig = (st.stationName || '') + '|' + pct + '|' + deck;
-    if ($.callout._sig !== sig) { $.callout._sig = sig; setText($.coName, st.stationName || 'Unnamed'); setClass($.callout, 'unnamed', !st.stationName); setText($.coSub, `${pct}% rebuilt` + (deck ? ' · Command Deck ›' : '')); }
+    const st = G.state, pct = rebuilt(), deck = menuState('deck') !== 'locked', c = $.callout, t = performance.now();
+    // a rise since the last look counts up, a point at a time
+    if (c._pct == null || c._pct > pct) c._pct = pct;
+    if (c._pct < pct && t > (c._from || 0) && t - (c._at || 0) > 90) { c._pct++; c._at = t; c._glow = t + 1400; }
+    setClass(c, 'up', c._pct < pct || t < (c._glow || 0));
+    const sig = (st.stationName || '') + '|' + c._pct + '|' + deck;
+    if (c._sig !== sig) { c._sig = sig; setText($.coName, st.stationName || 'Unnamed'); setClass(c, 'unnamed', !st.stationName); setText($.coSub, `${c._pct}% rebuilt` + (deck ? ' · Command Deck ›' : '')); }
     const p = G.renderer?.station?.hubNdc, box = el.getBoundingClientRect(); if (!p || !box.width) return;
-    const hx = (p.x + 1) / 2 * box.width, hy = (1 - p.y) / 2 * box.height, c = $.callout;
+    const hx = (p.x + 1) / 2 * box.width, hy = (1 - p.y) / 2 * box.height;
     c.style.top = Math.round(hy - c.offsetHeight / 2) + 'px';
     const ax = c.offsetLeft + c.offsetWidth + 6, ay = Math.round(hy);
     $.coLine.setAttribute('x1', ax); $.coLine.setAttribute('y1', ay); $.coLine.setAttribute('x2', Math.round(hx - 7)); $.coLine.setAttribute('y2', Math.round(hy)); $.coDot.setAttribute('cx', Math.round(hx)); $.coDot.setAttribute('cy', Math.round(hy));
@@ -553,7 +569,7 @@ export function createHangar(hooks) {
   function stationCard() {
     const st = G.state, rank = st.prestige?.level || 0, deck = menuState('deck') !== 'locked'; playSfx('tab');
     hooks.panel?.({ kicker: 'Your station', title: st.stationName || 'Unnamed station', body: [
-      h('div.oh-plan', { html: stationBlueprint(rank, st.workshop, { peak: st.stationPeak, name: st.stationName, pct: rebuilt() }) }),
+      h('div.oh-plan', { html: stationBlueprint(rank, st.workshop, { peak: st.stationPeak, alien: st.counter?.tech, name: st.stationName, pct: rebuilt() }) }),
       h('p.sub-note', 'The modules are half the rebuild: every Workshop upgrade restores one. The ten core pieces are the other half, one per Overhaul' + (deck ? '.' : ', starting with the Command Deck.')),
       h('div.sc-actions', h('button.btn.ghost', { onclick: () => hooks.nameStation?.() }, st.stationName ? 'Rename' : 'Name it'),
         deck ? h('button.btn.primary', { onclick: () => { hooks.closeOverlays?.(); show('deck'); } }, 'Board the Command Deck') : h('button.btn.ghost', { onclick: () => { hooks.closeOverlays?.(); show('workshop'); } }, 'Workshop'))] });

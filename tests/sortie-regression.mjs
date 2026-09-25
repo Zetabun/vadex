@@ -349,6 +349,18 @@ assert.ok(describeCard({ kind: 'fusion', id: 'fu_twinsuns' }).icon2); endSortie(
   assert.equal(pieceAt(0), null); assert.equal(pieceAt(1).id, 'deck'); assert.equal(pieceAt(CORE_PIECES + 1), null, 'No reel past the crown');
   assert.ok(STATION_CORE.filter((c) => c.at >= 2).every((c) => c.say && c.name), 'Every piece after the Deck has a station AI line'); }
 
+// ---- v2.9: station news (what a buy changed) and the alien hardware Alien Tech bolts on ----
+{ const { stationSnapshot, STATION_ALIEN, STATION_MODULES } = await import('@last-orbit/data/station.js'); const { ALIEN_TECH } = await import('@last-orbit/data/alientech.js');
+  assert.ok(STATION_MODULES.every((m) => m.name), 'Every module has a name for the station news');
+  assert.deepEqual(STATION_ALIEN.map((a) => a.id).sort(), ALIEN_TECH.map((u) => u.id).sort(), 'Every Alien Tech upgrade has a piece on the station');
+  assert.ok(STATION_ALIEN.every((a) => a.name && a.say && a.anchor), 'and a name, a strut and a station AI line');
+  const base = { workshop: { w_dmg: 0 }, stationPeak: {}, prestige: { level: 0 }, counter: { tech: {} } };
+  assert.equal(stationSnapshot(base).parts.w_dmg, 0, 'An unbought module is an outline');
+  assert.equal(stationSnapshot({ ...base, workshop: { w_dmg: 1 } }).parts.w_dmg, 1, 'Its first level builds it');
+  assert.equal(stationSnapshot({ ...base, workshop: { w_dmg: 10 } }).parts.w_dmg, 2, 'Maxed, it is lit');
+  assert.equal(stationSnapshot({ ...base, stationPeak: { w_dmg: 10 } }).parts.w_dmg, 1, 'After an Overhaul it stays built, lights out');
+  assert.equal(stationSnapshot({ ...base, counter: { tech: { x_alloy: 1 } } }).parts.x_alloy, 1, 'Alien Tech bolts its hardware on at level 1'); }
+
 // ---- v2.8: callsign ----
 { const { cleanCallsign, setCallsign, CALLSIGN_MAX } = await import('@last-orbit/progression/meta.js');
   assert.equal(cleanCallsign('  Ace<b>  Rimmer!! '), 'Aceb Rimmer'); assert.equal(cleanCallsign('Zoë-7'), 'Zoë-7'); assert.equal(cleanCallsign('x'.repeat(40)).length, CALLSIGN_MAX); assert.equal(cleanCallsign('!!!'), '');

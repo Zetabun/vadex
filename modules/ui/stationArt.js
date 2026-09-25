@@ -1,6 +1,6 @@
 // The orbital station as a blueprint: a schematic of the same layout the 3D model uses (data/station.js). Built modules
 // are filled, maxed ones glow, unbuilt ones are dashed outlines; the core piece the next Overhaul adds is marked in gold.
-import { STATION_MODULES, STATION_CORE, coreBuilt } from '@last-orbit/data/station.js';
+import { STATION_MODULES, STATION_CORE, STATION_ALIEN, coreBuilt } from '@last-orbit/data/station.js';
 import { WORKSHOP } from '@last-orbit/data/workshop.js';
 const MAX = Object.fromEntries(WORKSHOP.map((u) => [u.id, u.max]));
 
@@ -39,6 +39,14 @@ const CORE = {
   crown: '<path d="M0 -18.6L1.1 -17L0 -15.4L-1.1 -17Z"/>',
 };
 
+// Alien hardware outlines, in SVG coordinates (y down) round the piece's centre.
+const ALIEN_ART = {
+  shards: '<path d="M0 -1.7L0.6 0L0 1.7L-0.6 0Z"/><path d="M0.95 -0.8L1.35 0.45L0.95 1.4L0.55 0.45Z"/><path d="M0 -1.1V1.1"/>',
+  coil: '<circle r="1.25"/><circle r="0.5"/>',
+  spike: '<path d="M-0.5 0L0 -0.6L0.5 0L0 0.6Z"/><path d="M0.35 -0.2L1.15 -2.95L0.75 -0.05Z"/><circle cx="1.1" cy="-2.9" r="0.2"/>',
+  siphon: '<path d="M-1 -0.75H1L0 1.15Z"/><circle cx="0" cy="1.4" r="0.4"/>',
+};
+
 // How far each core piece reaches (x0, y0, x1, y1 in SVG coordinates, y down), so the blueprint can fit itself.
 const REACH = { spire: [-1, -15.8, 1, 0], crown: [-1.2, -18.8, 1.2, 0], solar: [-22.6, -3.2, 22.6, 3.2], halo: [-11.7, -3, 11.7, 3], dome: [-1.6, 0, 1.6, 12.4], ring2: [-7.8, -2, 7.8, 2.6] };
 const BASE = [-15.4, -10.6, 15.4, 10.2];
@@ -46,8 +54,8 @@ const fmt = (n) => +n.toFixed(2);
 
 /** SVG markup for the pilot's station, as a technical blueprint that fits the frame to what is drawn.
  *  rank: Overhaul rank; workshop: levels by id; peak: highest levels ever (modules stay built); next: mark the next piece;
- *  name, pct: for the title block. */
-export function stationBlueprint(rank, workshop, { next = true, peak = {}, name = '', pct = null } = {}) {
+ *  name, pct: for the title block; alien: Alien Tech levels (fitted hardware is drawn in violet). */
+export function stationBlueprint(rank, workshop, { next = true, peak = {}, name = '', pct = null, alien = {} } = {}) {
   const parts = [], box = [...BASE];
   const grow = (r) => { box[0] = Math.min(box[0], r[0]); box[1] = Math.min(box[1], r[1]); box[2] = Math.max(box[2], r[2]); box[3] = Math.max(box[3], r[3]); };
   // trusses, the hub and its windows
@@ -61,6 +69,7 @@ export function stationBlueprint(rank, workshop, { next = true, peak = {}, name 
     const lvl = workshop[m.id] || 0, st = Math.max(lvl, peak[m.id] || 0) <= 0 ? 'ghost' : lvl >= MAX[m.id] ? 'lit' : 'built';
     parts.push(`<g class="sb-mod ${st}" transform="translate(${m.x} ${-m.y})">${shapeOf(m, m.shape)}</g>`);
   }
+  for (const a of STATION_ALIEN) if ((alien?.[a.id] || 0) > 0) parts.push(`<path class="sb-strut" d="M${a.anchor[0]} ${-a.anchor[1]}L${a.x} ${-a.y}"/><g class="sb-alien" transform="translate(${a.x} ${-a.y})">${ALIEN_ART[a.shape]}</g>`);
   // the sheet: fit a 4:3 frame round the drawing, with room for the tag (top left) and the title block (bottom right)
   let [x0, y0, x1, y1] = [box[0] - 2.2, box[1] - 4.2, box[2] + 2.2, box[3] + 3.4], w = x1 - x0, h = y1 - y0;
   if (w / h < 4 / 3) { const nw = h * 4 / 3; x0 -= (nw - w) / 2; w = nw; } else { const nh = w * 3 / 4; y0 -= (nh - h) / 2; h = nh; }

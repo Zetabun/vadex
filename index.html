@@ -709,6 +709,17 @@ button.stat-row{width:100%;text-align:left}
 .co-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;display:none}.co-svg.on{display:block}
 .co-svg line{stroke:rgba(94,230,255,.5);stroke-width:1;stroke-dasharray:3 3}.co-svg circle{fill:none;stroke:#5ee6ff;stroke-width:1.5;filter:drop-shadow(0 0 3px #5ee6ff)}
 .sc-actions{display:flex;gap:8px;margin-top:10px}.sc-actions .btn{flex:1}
+/* Buy buttons that cannot be pressed read as dark, whatever their colour when they can; a locked one shows a lock and why. */
+.buy:disabled{color:var(--dim)}
+.buy.bp:disabled,.buy.tech:disabled{background:rgba(255,255,255,.05);box-shadow:none}
+.buy.bp:disabled{color:#e2b88f;border:1px solid rgba(255,159,67,.3)}.buy.tech:disabled{color:#9fdcf0;border:1px solid rgba(94,230,255,.28)}
+.buy.locked:disabled{gap:5px;font:700 10.5px var(--cond);letter-spacing:.12em;text-transform:uppercase;color:#c9d2ea;background:rgba(255,255,255,.03);border:1px dashed rgba(201,210,234,.32)}
+.buy.locked .ui-icon{width:14px;height:14px;opacity:.85}.buy.locked .ui-icon svg{width:100%;height:100%}
+.row.maxed .buy.bp,.row.maxed .buy.tech{background:none;color:var(--green);border:1px solid rgba(109,255,200,.3)}
+/* Station news: a toast when a buy changes the station, and the callout's figure glowing while it counts up. */
+.toast.station{border-color:rgba(94,230,255,.55)}
+.st-callout span{transition:color .3s,text-shadow .3s}.st-callout.up span{color:#aef4ff;text-shadow:0 0 10px rgba(94,230,255,.85),0 1px 6px #000}
+.oh-plan .sb-alien{stroke:#c9a0ff;fill:rgba(193,140,255,.2)}.oh-plan .sb-strut{stroke:rgba(193,140,255,.55);stroke-width:.16}
 </style>
 </head>
 <body>

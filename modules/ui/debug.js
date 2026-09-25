@@ -1,4 +1,5 @@
 // ?debug=1 test panel. It switches to a sandbox save slot first, so nothing here touches the real save.
+import { ALIEN_TECH } from '@last-orbit/data/alientech.js';
 import { G, recalc, toast } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { WEAPON_ORDER } from '@last-orbit/data/weapons.js';
@@ -39,14 +40,16 @@ function runScene(scene, hooks, ui) {
   st.stats.bestScore = 48210; st.stats.bestKills = 612; st.stats.longestRun = 402; st.stats.maxLevel = 22; st.stats.bestSalvage = 931; st.stats.flawless = 40; st.stats.bossKills = 7; st.stats.flawlessBosses = 1; st.medals = { a_kills: 1, a_wave: 1, a_boss: 1, a_flawless: 1, a_score: 1, f_cleanboss: 1 };
   st.records.top = [48210, 40555, 31204, 22950, 9120].map((score, i) => ({ score, wave: [28, 26, 23, 19, 11][i], ship: i === 1 ? 'striker' : 'vanguard', level: 24 - i * 3, kills: 600 - i * 90, threat: i === 0 ? 2 : 0, daily: i === 2, date: Date.now() - i * 86400000 }));
   st.records.ships = { vanguard: { score: 48210, wave: 28 }, striker: { score: 40555, wave: 26 } }; recalc();
-  const [name, arg, arg2, arg3] = scene.split(':');
+  const [name, arg, arg2, arg3, arg4] = scene.split(':');
   // Scenes play as an established pilot (every menu open), except newpilot:<sorties>, which shows the menus opening up.
   st.seen.menus = {}; st.seen.menusInit = false; refreshMenus();
-  // station:<overhaul rank>:<share of Workshop levels, 0-1>[:tab]
+  // station:<overhaul rank>:<share of Workshop levels, 0-1>[:tab[:alien]] (alien: every Alien Tech fitted)
   // intro[:seconds]: the opening, frozen at a moment (for screenshots) or playing from the start
   if (name === 'intro') { hooks.toHangar('launch'); setTimeout(() => { const sc = ui.intro({ tap: arg === 'title' }); if (arg === 'title') return; if (arg) { for (let k = 0; k < +arg / 0.05; k++) sc.update(0.05); G.introPaused = true; } }, 300); return; }
-  // rebuild:<rank>[:seconds]: the reel after an Overhaul to that rank (Workshop just reset, every module built), frozen or playing
-  if (name === 'rebuild') { st.prestige.level = +arg || 1; st.stationName = 'Halcyon'; for (const u of WORKSHOP) { st.stationPeak[u.id] = u.max; st.workshop[u.id] = 0; } recalc(); hooks.toHangar('launch'); setTimeout(() => { const sc = ui.intro({ rebuild: true }); if (arg2) { for (let k = 0; k < +arg2 / 0.05; k++) sc.update(0.05); G.introPaused = true; } }, 300); return; }
+  // rebuild:<rank>[:seconds[:alien]]: the reel after an Overhaul to that rank (Workshop just reset, every module built), frozen or playing
+  if (name === 'rebuild') { st.prestige.level = +arg || 1; st.stationName = 'Halcyon'; for (const u of WORKSHOP) { st.stationPeak[u.id] = u.max; st.workshop[u.id] = 0; } if (arg3) for (const a of ALIEN_TECH) st.counter.tech[a.id] = 1; recalc(); hooks.toHangar('launch'); setTimeout(() => { const sc = ui.intro({ rebuild: true }); if (arg2) { for (let k = 0; k < +arg2 / 0.05; k++) sc.update(0.05); G.introPaused = true; } }, 300); return; }
+  // news: station news, what a buy shows (a toast) and what Launch shows after (a glow over the changed parts, the figure counting up)
+  if (name === 'news') { st.prestige.level = 2; for (const u of WORKSHOP) { st.stationPeak[u.id] = u.max; st.workshop[u.id] = 2; } st.counter.unlocked = true; recalc(); hooks.toHangar('launch'); setTimeout(() => { st.workshop.w_dmg = 10; st.workshop.w_speed = 5; st.counter.tech.x_alloy = 1; st.counter.tech.x_phase = 1; st.prestige.level = 3; hooks.toHangar('workshop'); setTimeout(() => { hooks.toHangar('launch'); toast('Station: Weapon battery online', 'station'); }, 200); }, 400); return; }
   // comms:<line id>: the station AI saying one of its lines
   if (name === 'comms') { st.pilot.name = 'Adam'; st.seen.callsign = true; hooks.toHangar('launch'); setTimeout(() => { const l = LINES.find((x) => x.id === (arg || 'welcome')); if (l) ui.comms.say(l.text); }, 600); return; }
   if (name === 'deck') { st.prestige.level = +arg || 3; st.pilot.name = 'Adam'; st.seen.callsign = true; for (const id of ['signal', 'checker', 'ember', 'royal']) st.banners[id] = 1; st.unlocked.ships.bulwark = 1; st.stats.bestWave = 74; st.stats.maxAnomalies = 2; st.counter.stars = { 1: 3, 2: 2, 3: 1 }; refreshMenus(); st.seen.menus.deck = true; recalc(); hooks.toHangar('deck');
@@ -54,7 +57,7 @@ function runScene(scene, hooks, ui) {
     const V = { window: [0, 1.5, 0, -0.08], medals: [-1.2, -2.2, 1.35, 0], ships: [1.4, -2.2, -1.35, -0.1], back: [0, -1.5, Math.PI, -0.05], table: [0, 0.2, 0, -0.35] }[arg2];
     if (V) { let n = 0; const iv = setInterval(() => { const d = G.renderer?.deck; if (d) { d.pos.x = V[0]; d.pos.z = V[1]; d.yaw = V[2]; d.pitch = V[3]; } if (++n > 20) clearInterval(iv); }, 100); }
     return; }
-  if (name === 'station') { st.prestige.level = +arg || 0; const f = arg2 == null ? 0.5 : +arg2; WORKSHOP.forEach((u, i) => { st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, f * 1.6 - (i % 5) * 0.15))); }); recalc(); hooks.toHangar(arg3 || 'launch'); return; }
+  if (name === 'station') { st.prestige.level = +arg || 0; const f = arg2 == null ? 0.5 : +arg2; WORKSHOP.forEach((u, i) => { st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, f * 1.6 - (i % 5) * 0.15))); }); if (arg4) { st.counter.unlocked = true; for (const a of ALIEN_TECH) st.counter.tech[a.id] = 1; } recalc(); hooks.toHangar(arg3 || 'launch'); return; }
   if (name === 'callsign') { st.pilot.name = arg || ''; st.seen.callsign = !!arg; hooks.toHangar('launch'); setTimeout(() => (arg2 === 'greet' ? ui.greet() : ui.callsign({ first: !arg })), 400); return; }
   if (name === 'newpilot') { st.stats.sorties = +arg || 0; st.seen.menus = {}; st.seen.menusInit = true; refreshMenus(); hooks.toHangar('launch'); if (arg2) setTimeout(() => [...document.querySelectorAll('.nav-btn')].find((b) => b.textContent.toLowerCase().includes(arg2))?.click(), 500); return; }
   if (name === 'hull' || name === 'hullfly') { st.unlocked.ships[arg] = 1; st.ship = arg; st.banner = 'none'; recalc(); if (name === 'hull') { hooks.toHangar('launch'); return; } }
