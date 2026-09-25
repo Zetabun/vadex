@@ -29,6 +29,7 @@ export function newState() {
     warp: 1,        // sector to start sorties in (1 = the beginning)
     intel: {},      // boss id → times that boss has defeated the pilot (boss intel)
     // Counterattack: stars per stage (normal / hard), best scores, Alien Cores and the Alien Tech bought with them.
+    stationName: '', // what the pilot calls the station they are rebuilding
     stationPeak: {}, // the highest level each Workshop upgrade has ever reached: the station never un-builds a module
     counter: { unlocked: false, stars: {}, hard: {}, best: {}, cores: 0, tech: {}, checkpoints: {} }, // checkpoints: '6' / '6h' → pilot level saved past the mini-boss
     // Overhaul (prestige): rank, unspent Blueprints, blueprint levels, escorts flown, deepest wave since the last Overhaul.

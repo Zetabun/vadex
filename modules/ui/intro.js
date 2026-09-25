@@ -5,7 +5,7 @@ import { G } from '@last-orbit/core/game.js';
 import { h } from '@last-orbit/ui/dom.js';
 import { typeText } from '@last-orbit/ui/comms.js';
 
-const CAPTIONS = [[0.6, 'For a hundred years, the last orbit was our home.'], [3.9, 'Then they came.'], [9.8, 'The last orbit fell.'], [11.9, 'Rebuild it.']];
+const CAPTIONS = [[0.6, 'For a hundred years, the last orbit was our home.'], [3.9, 'Then they came.'], [9.8, 'The last orbit fell.'], [11.9, 'We must rebuild it.']];
 
 export function createIntro(app) {
   const cap = h('div.in-cap'), flash = h('div.in-flash'), fade = h('div.in-fade'), title = h('div.in-title', h('b', 'LAST ORBIT'), h('small', 'Orbital defence'), h('span', 'Tap to begin'));

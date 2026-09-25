@@ -137,7 +137,7 @@ export class DeckRoom {
   sync(state) {
     const earned = [...ACHIEVEMENTS, ...FEATS].filter((a) => state.medals[a.id]).length, banners = BANNERS.filter((b) => b.shape && state.banners[b.id]).map((b) => b.id);
     const ships = SHIPS.map((s) => (state.unlocked.ships[s.id] ? 1 : 0)).join(''), rank = state.prestige?.level || 0;
-    const sig = [earned, banners.join(), ships, state.ship, state.paint, rank, state.pilot.name, state.pilot.rank, state.stats.bestWave, state.stats.bestScore].join('|');
+    const sig = [earned, banners.join(), ships, state.ship, state.paint, rank, state.pilot.name, state.pilot.rank, state.stats.bestWave, state.stats.bestScore, state.stationName].join('|');
     this.station.sync(state);
     if (sig === this.sig) return; this.sig = sig;
     if (this.show) { this.scene.remove(this.show); this.untag(this.show); } const THREE = T(); this.show = new THREE.Group(); this.scene.add(this.show);
@@ -235,7 +235,7 @@ export class DeckRoom {
   }
   nameSign(state, rank) {
     const THREE = T(), c = canvas(768, 96), x = c.getContext('2d'), p = state.pilot;
-    text(x, `${(p.name || rankTitle(p.rank)).toUpperCase()}'S COMMAND DECK`, 384, 40, '800 40px sans-serif', '#e8fbff'); text(x, `${rankTitle(p.rank).toUpperCase()} · OVERHAUL RANK ${rank}`, 384, 80, '700 20px sans-serif', '#5ee6ff');
+    text(x, state.stationName ? `${state.stationName.toUpperCase()} · COMMAND DECK` : `${(p.name || rankTitle(p.rank)).toUpperCase()}'S COMMAND DECK`, 384, 40, '800 40px sans-serif', '#e8fbff'); text(x, `${(p.name || rankTitle(p.rank)).toUpperCase()} · ${rankTitle(p.rank).toUpperCase()} · OVERHAUL RANK ${rank}`, 384, 80, '700 20px sans-serif', '#5ee6ff');
     const m = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.3), new THREE.MeshBasicMaterial({ map: tex(c), transparent: true })); m.position.set(0, 3.225, FRONT + 0.17); this.show.add(m); /* fits the band between the window's top strip and the ceiling */
   }
   label(str, w, h, color) {

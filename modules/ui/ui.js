@@ -28,6 +28,8 @@ export function initUI(app, hooks) {
     menuIntro: (m) => overlays.showMenuIntro(m),
     replayIntro: () => { overlays.close(); intro.play({ tap: false }); },
     panel: (o) => overlays.showPanel(o),
+    nameStation: () => overlays.showStationName(),
+    stationNamed: () => { if (G.mode === 'hangar') hangar.render(); },
     closeOverlays: () => overlays.close(),
     stationComplete: () => overlays.showStationComplete(),
     callsignSet: (name, first) => { if (G.mode === 'hangar') hangar.render(); if (first) greet(true); },

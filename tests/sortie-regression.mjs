@@ -334,7 +334,8 @@ assert.ok(describeCard({ kind: 'fusion', id: 'fu_twinsuns' }).icon2); endSortie(
   fresh(); for (const u of WORKSHOP) G.state.workshop[u.id] = u.max; notePeaks(); overhaul();
   assert.ok(WORKSHOP.every((u) => G.state.stationPeak[u.id] === u.max), 'An Overhaul keeps every module the station had built');
   assert.ok(WORKSHOP.some((u) => (G.state.workshop[u.id] || 0) < u.max), 'while the Workshop itself resets');
-  assert.equal(G.state.seen.intro, false, 'A new save plays the intro'); }
+  assert.equal(G.state.seen.intro, false, 'A new save plays the intro');
+  const { setStationName } = await import('@last-orbit/progression/meta.js'); assert.equal(setStationName('  Halcyon <3 '), 'Halcyon 3'); assert.equal(G.state.stationName, 'Halcyon 3'); }
 
 // ---- v2.8: callsign ----
 { const { cleanCallsign, setCallsign, CALLSIGN_MAX } = await import('@last-orbit/progression/meta.js');

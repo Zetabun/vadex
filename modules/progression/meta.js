@@ -248,4 +248,8 @@ export const CALLSIGN_MAX = 16;
 /** Tidy a typed callsign: letters, digits, spaces and . _ ' - only, single spaces, at most CALLSIGN_MAX characters. */
 export function cleanCallsign(s) { return [...String(s || '').replace(/[^\p{L}\p{N} ._'-]/gu, '').replace(/\s+/g, ' ').trim()].slice(0, CALLSIGN_MAX).join('').trim(); }
 /** Set the callsign (an empty one clears it). The pilot has been asked either way. */
+export const STATION_NAME_MAX = 20;
+/** Tidy a station name (the same rules as a callsign, a little longer). */
+export function cleanStationName(s) { return [...String(s || '').replace(/[^\p{L}\p{N} ._'-]/gu, '').replace(/\s+/g, ' ').trim()].slice(0, STATION_NAME_MAX).join('').trim(); }
+export function setStationName(s) { G.state.stationName = cleanStationName(s); return G.state.stationName; }
 export function setCallsign(s) { G.state.pilot.name = cleanCallsign(s); G.state.seen.callsign = true; return G.state.pilot.name; }

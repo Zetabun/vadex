@@ -2,8 +2,9 @@
 
 ## v2.9.0 — unreleased
 
-- **The Fall (opening cinematic):** the game now opens on the story. The station in its golden age turns over Earth, shuttles tracing their orbits, until the invader fleet warps in, beams converge, explosions ripple through the modules and the core blows in a whiteout, tearing the rings away. When the smoke clears, your ship drifts in past the broken hub: "The last orbit fell. Rebuild it." It starts on a title card (tap to begin, so it has sound on phones), can be skipped, plays once for every pilot, and can be watched again from Settings (Story: Watch intro).
+- **The Fall (opening cinematic):** the game now opens on the story. The station in its golden age turns over Earth, shuttles tracing their orbits, until the invader fleet warps in, beams converge, explosions ripple through the modules and the core blows in a whiteout, tearing the rings away. When the smoke clears, your ship drifts in past the broken hub: "The last orbit fell. We must rebuild it." It starts on a title card (tap to begin, so it has sound on phones), can be skipped, plays once for every pilot, and can be watched again from Settings (Story: Watch intro).
 - **ORBIT, the station AI:** captions and messages are typed out in a soft blip voice. ORBIT greets you by callsign and speaks up at milestones (your first sortie, the first sector cleared, Counterattack, the Deep Void, your first Overhaul), each once. Pilots already past a milestone only hear the welcome.
+- **Name your station:** tap the name tag under the station on the home screen (or use Settings) to name the rebuild. The name shows on the tag, over the Command Deck's window and on the Overhaul blueprint. The tag now sits in the 3D scene, so your ship flies in front of it.
 - **Rebuilding the station:** the wreckage of the old station drifts round the new one and thins out as you rebuild it. Modules now stay built for good: after an Overhaul the Workshop resets, but the station only puts those modules' lights out until they are rebuilt, instead of turning them back into scaffolding.
 
 ## v2.8.0 — 2026-09-25

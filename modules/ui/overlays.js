@@ -19,7 +19,7 @@ import { FUSION_BY_ID } from '@last-orbit/data/fusions.js';
 import { sectorOf } from '@last-orbit/data/sectors.js';
 import { BOSSES } from '@last-orbit/data/bosses.js';
 import { BAL } from '@last-orbit/data/balance.js';
-import { unlockLabel, pilotProgress, medalDesc, overhaul, overhaulReward, blueprintLevel, setCallsign, cleanCallsign, CALLSIGN_MAX } from '@last-orbit/progression/meta.js';
+import { unlockLabel, pilotProgress, medalDesc, overhaul, overhaulReward, blueprintLevel, setCallsign, cleanCallsign, CALLSIGN_MAX, setStationName, cleanStationName, STATION_NAME_MAX } from '@last-orbit/progression/meta.js';
 import { TRAILS, OVERHAUL_COST_STEP } from '@last-orbit/data/prestige.js';
 import { PAINT_BY_ID, rankTitle } from '@last-orbit/data/career.js';
 import { THREATS } from '@last-orbit/data/threat.js';
@@ -129,6 +129,7 @@ export function createOverlays(layer, hooks) {
     const field = (label, control) => h('label.field', h('span', label), control);
     return h('div.settings',
       field('Story', h('button.btn.ghost.small.callsign-edit', { onclick: () => hooks.replayIntro?.() }, 'Watch intro', uiIcon('play'))),
+      field('Station name', h('button.btn.ghost.small.callsign-edit', { onclick: () => showStationName({ fromSettings: true }) }, G.state.stationName || 'Name it', uiIcon('chevron'))),
       field('Callsign', h('button.btn.ghost.small.callsign-edit', { onclick: () => showCallsign({ fromSettings: true }) }, G.state.pilot.name || 'Add callsign', uiIcon('chevron'))),
       field('Master volume', slider(() => s.master, set('master'), 0, 1, 0.05, 'Master volume')),
       field('Music', slider(() => s.music, set('music'), 0, 1, 0.05, 'Music volume')),
@@ -258,6 +259,21 @@ export function createOverlays(layer, hooks) {
     mount('callsign', el, (e) => { if (e.key === 'Enter') { done(true); return true; } if (e.key === 'Escape') { done(false); return true; } return false; });
   }
 
+  // ------------------------------------------------------------ naming the station
+  function showStationName({ fromSettings = false } = {}) {
+    const cur = G.state.stationName || '';
+    const input = h('input.callsign-input', { type: 'text', value: cur, maxLength: STATION_NAME_MAX, placeholder: 'e.g. Halcyon', autocomplete: 'off', autocapitalize: 'words', spellcheck: false, enterKeyHint: 'done', 'aria-label': 'Station name', 'data-autofocus': '' });
+    const ok = h('button.btn.primary', { onclick: () => done(true) }, 'Save');
+    const sync = () => { ok.disabled = !cleanStationName(input.value); }; input.addEventListener('input', sync); sync();
+    const back = () => (fromSettings ? showSettings(false) : close());
+    function done(save) { if (save && !cleanStationName(input.value)) return; if (save) { setStationName(input.value); playSfx('unlock', 0.6); } input.blur(); back(); hooks.stationNamed?.(); }
+    const el = h('div.modal.confirm.callsign', { role: 'dialog', 'aria-label': 'Station name' },
+      h('div.mi-icon', uiIcon('deck')),
+      h('div.modal-head', h('div.kicker', 'Station registry'), h('h2', cur ? 'Rename your station' : 'Name your station'), h('p', cur ? 'The name on your station and your Command Deck.' : 'Every rebuild needs a name. What will they call it?')),
+      input, h('div.modal-actions', ok, h('button.btn.ghost', { onclick: () => done(false) }, 'Cancel')));
+    mount('station-name', el, (e) => { if (e.key === 'Enter') { done(true); return true; } if (e.key === 'Escape') { done(false); return true; } return false; });
+  }
+
   // ------------------------------------------------------------ a menu opening for the first time
   function showMenuIntro(m) {
     if (!m || open) return;
@@ -353,7 +369,7 @@ export function createOverlays(layer, hooks) {
   };
 
   return {
-    showOffer, showRelics, showRoutes, showAnomalies, showPause, showSettings, showDebrief, showLoadout, showCounterIntro, showOverhaul, showMenuIntro, showCallsign, showStationComplete, showPanel, close,
+    showOffer, showRelics, showRoutes, showAnomalies, showPause, showSettings, showDebrief, showLoadout, showCounterIntro, showOverhaul, showMenuIntro, showCallsign, showStationComplete, showPanel, showStationName, close,
     get kind() { return open?.kind || null; },
     /** Combat freezes while any overlay is up. */
     blocking: () => !!open,

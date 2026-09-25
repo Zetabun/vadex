@@ -82,8 +82,10 @@ export function createHangar(hooks) {
   }
   function turn(d) { page = Math.max(0, Math.min(pages.length - 1, page + d)); playSfx('tab'); layoutNav(); badges(); }
   // The station in the home-screen sky is a way aboard: it sits over the spot the renderer draws it (rendering/station.js).
-  $.stationHot = h('button.station-hot', { 'aria-label': 'Your station', onclick: () => { if (menuState('deck') === 'locked') { playSfx('tab'); hooks.toast?.('Your orbital station. Every Workshop upgrade builds a module; your first Overhaul opens its Command Deck.', 'info'); } else show('deck'); } }, $.stationTag = h('span.st-tag'));
-  const el = h('div#hangar', top, $.body, $.stationHot, $.nav);
+  $.stationHot = h('button.station-hot', { 'aria-label': 'Your station', onclick: () => { if (menuState('deck') === 'locked') { playSfx('tab'); hooks.toast?.('Your orbital station. Every Workshop upgrade builds a module; your first Overhaul opens its Command Deck.', 'info'); } else show('deck'); } });
+  // The name tag under the station (drawn in the 3D scene) is tappable too: it names the station.
+  $.labelHot = h('button.label-hot', { 'aria-label': 'Name your station', onclick: () => { playSfx('tab'); hooks.nameStation?.(); } });
+  const el = h('div#hangar', top, $.body, $.stationHot, $.labelHot, $.nav);
 
   function show(id, quiet) {
     // A menu the pilot has not earned yet stays shut (with a note on when it opens); a newly opened one explains itself once.
@@ -91,7 +93,7 @@ export function createHangar(hooks) {
     if (menuState(id) === 'new') { menuSeen(id); setTimeout(() => hooks.menuIntro?.(MENU_BY_ID[id]), 150); }
     if (!quiet && id !== tab) playSfx('tab');
     if (shownTabs().join() !== navSig) layoutNav();
-    G.deckOpen = id === 'deck'; setClass($.stationHot, 'on', id === 'launch'); setText($.stationTag, menuState('deck') === 'locked' ? 'Your station' : 'Command Deck ›');
+    G.deckOpen = id === 'deck'; setClass($.stationHot, 'on', id === 'launch'); setClass($.labelHot, 'on', id === 'launch');
     tab = id; if (pageOf(id) !== page) { page = pageOf(id); layoutNav(); }
     for (const k in navBtns) { setClass(navBtns[k], 'on', k === id); navBtns[k].setAttribute('aria-selected', String(k === id)); }
     if (id === 'awards') G.state.seen.medals = medalTotal().earned;
@@ -207,7 +209,7 @@ export function createHangar(hooks) {
     const pr = G.state.prestige, rank = pr.level || 0, ready = workshopMaxed(), prog = workshopProgress(), bp = overhaulReward();
     // The station blueprint: what the Workshop has built, and (dashed gold) what the next Overhaul adds to the core.
     const plan = h('div.oh-plan', { html: stationBlueprint(rank, G.state.workshop, { peak: G.state.stationPeak }) },
-      h('div.oh-plan-tag', h('small', 'Your station'), h('b', ready ? 'Complete' : `${Math.round(prog.cur / prog.goal * 100)}% built`)),
+      h('div.oh-plan-tag', h('small', G.state.stationName || 'Your station'), h('b', ready ? 'Complete' : `${Math.round(prog.cur / prog.goal * 100)}% built`)),
       rank < STATION_CORE.at(-1).at ? h('div.oh-plan-next', h('i'), `Next Overhaul adds: ${STATION_CORE.find((c) => c.at === rank + 1).name}`) : null);
     return h('section.panel.oh-panel' + (ready ? '.ready' : ''),
       h('div.oh-head', h('div', h('div.kicker', rank ? `Overhaul · Rank ${rank}` : 'Overhaul'), h('h3', ready ? 'Station complete' : 'Build your station')), h('div.oh-rank', h('b', String(rank)), h('small', 'rank'))),
@@ -528,7 +530,13 @@ export function createHangar(hooks) {
     const hidden = (p) => (pages[p] || []).some((id) => navBtns[id].classList.contains('badged') || navBtns[id].classList.contains('fresh'));
     setClass($.next, 'badged', hidden(page + 1)); setClass($.prev, 'badged', page > 0 && hidden(page - 1));
   }
-  function update() { setText($.salvage, fmtInt(G.state.salvage)); badges(); pilotId(); stationDone(); }
+  function update() { setText($.salvage, fmtInt(G.state.salvage)); badges(); pilotId(); stationDone(); stationTag(); }
+  /** Keep the label's text current, and its tap target over wherever the renderer drew it. */
+  function stationTag() {
+    G.stationLabel = tab === 'launch' ? G.state.stationName || 'Name your station' : '';
+    const p = G.renderer?.station?.labelNdc; if (!p || tab !== 'launch') return; const x = ((p.x + 1) / 2 * 100).toFixed(1) + '%', y = ((1 - p.y) / 2 * 100).toFixed(1) + '%';
+    if ($.labelHot._x !== x || $.labelHot._y !== y) { $.labelHot._x = x; $.labelHot._y = y; $.labelHot.style.left = x; $.labelHot.style.top = y; }
+  }
   // W/A/S/D or the arrows walk the Command Deck.
   const DECK_KEYS = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', ArrowLeft: 'l', KeyD: 'r', ArrowRight: 'r' };
   for (const [type, on] of [['keydown', true], ['keyup', false]]) addEventListener(type, (e) => { const k = DECK_KEYS[e.code], d = G.renderer?.deck; if (!k || !d || !G.deckOpen || G.mode !== 'hangar' || (on && hooks.blocking?.())) return; d.keys[k] = on; e.preventDefault(); });
