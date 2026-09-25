@@ -40,7 +40,7 @@ const CORE = {
 };
 
 /** SVG markup for the pilot's station. rank: Overhaul rank; workshop: levels by id; next: highlight what the next rank adds. */
-export function stationBlueprint(rank, workshop, { next = true } = {}) {
+export function stationBlueprint(rank, workshop, { next = true, peak = {} } = {}) {
   const parts = [];
   // trusses and hub
   parts.push(`<g class="sb-core"><path d="M-13.6 0H13.6M0 -9.8V9.2"/><rect x="-1.8" y="-3" width="3.6" height="6" rx="0.6"/></g>`);
@@ -50,7 +50,7 @@ export function stationBlueprint(rank, workshop, { next = true } = {}) {
     else if (next && c.at === rank + 1) parts.push(`<g class="sb-next">${CORE[c.id]}</g>`);
   }
   for (const m of STATION_MODULES) {
-    const lvl = workshop[m.id] || 0, st = lvl <= 0 ? 'ghost' : lvl >= MAX[m.id] ? 'lit' : 'built';
+    const lvl = workshop[m.id] || 0, st = Math.max(lvl, peak[m.id] || 0) <= 0 ? 'ghost' : lvl >= MAX[m.id] ? 'lit' : 'built';
     parts.push(`<g class="sb-mod ${st}" transform="translate(${m.x} ${-m.y})">${shapeOf(m, m.shape)}</g>`);
   }
   return `<svg viewBox="-24 -20 48 33" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false">

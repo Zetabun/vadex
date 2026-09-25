@@ -206,7 +206,7 @@ export function createHangar(hooks) {
   function overhaulPanel() {
     const pr = G.state.prestige, rank = pr.level || 0, ready = workshopMaxed(), prog = workshopProgress(), bp = overhaulReward();
     // The station blueprint: what the Workshop has built, and (dashed gold) what the next Overhaul adds to the core.
-    const plan = h('div.oh-plan', { html: stationBlueprint(rank, G.state.workshop) },
+    const plan = h('div.oh-plan', { html: stationBlueprint(rank, G.state.workshop, { peak: G.state.stationPeak }) },
       h('div.oh-plan-tag', h('small', 'Your station'), h('b', ready ? 'Complete' : `${Math.round(prog.cur / prog.goal * 100)}% built`)),
       rank < STATION_CORE.at(-1).at ? h('div.oh-plan-next', h('i'), `Next Overhaul adds: ${STATION_CORE.find((c) => c.at === rank + 1).name}`) : null);
     return h('section.panel.oh-panel' + (ready ? '.ready' : ''),
@@ -488,7 +488,7 @@ export function createHangar(hooks) {
     } else if (kind === 'trophies') {
       panel('Command Deck', 'Overhaul trophies', h('div.deck-trophies', Array.from({ length: Math.max(rank, 1) }, (_, i) => h('div.trophy' + (i < rank ? '' : '.empty'), h('b', ROMAN_N(i + 1)), h('small', STATION_CORE.find((c) => c.at === i + 1)?.name || 'Overhaul')))), roadmap(rank));
     } else if (kind === 'station') {
-      panel('Command Deck', 'Your station', h('div.oh-plan', { html: stationBlueprint(rank, st.workshop) }), roadmap(rank));
+      panel('Command Deck', 'Your station', h('div.oh-plan', { html: stationBlueprint(rank, st.workshop, { peak: st.stationPeak }) }), roadmap(rank));
     }
   }
 

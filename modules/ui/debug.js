@@ -13,6 +13,7 @@ import { BANNERS, BANNER_BY_ID } from '@last-orbit/data/banners.js';
 import { WORKSHOP } from '@last-orbit/data/workshop.js';
 import { STAGE_BY_N } from '@last-orbit/data/counter.js';
 import { ENEMIES } from '@last-orbit/data/enemies.js';
+import { LINES } from '@last-orbit/ui/comms.js';
 import { powerRating, refreshMenus } from '@last-orbit/progression/meta.js';
 
 export async function initDebug(app, { hooks, ui } = {}) {
@@ -42,6 +43,10 @@ function runScene(scene, hooks, ui) {
   // Scenes play as an established pilot (every menu open), except newpilot:<sorties>, which shows the menus opening up.
   st.seen.menus = {}; st.seen.menusInit = false; refreshMenus();
   // station:<overhaul rank>:<share of Workshop levels, 0-1>[:tab]
+  // intro[:seconds]: the opening, frozen at a moment (for screenshots) or playing from the start
+  if (name === 'intro') { hooks.toHangar('launch'); setTimeout(() => { const sc = ui.intro({ tap: arg === 'title' }); if (arg === 'title') return; if (arg) { for (let k = 0; k < +arg / 0.05; k++) sc.update(0.05); G.introPaused = true; } }, 300); return; }
+  // comms:<line id>: the station AI saying one of its lines
+  if (name === 'comms') { st.pilot.name = 'Adam'; st.seen.callsign = true; hooks.toHangar('launch'); setTimeout(() => { const l = LINES.find((x) => x.id === (arg || 'welcome')); if (l) ui.comms.say(l.text); }, 600); return; }
   if (name === 'deck') { st.prestige.level = +arg || 3; st.pilot.name = 'Adam'; st.seen.callsign = true; for (const id of ['signal', 'checker', 'ember', 'royal']) st.banners[id] = 1; st.unlocked.ships.bulwark = 1; st.stats.bestWave = 74; st.stats.maxAnomalies = 2; st.counter.stars = { 1: 3, 2: 2, 3: 1 }; refreshMenus(); st.seen.menus.deck = true; recalc(); hooks.toHangar('deck');
     // deck:<rank>:<view>: stand somewhere and look at something (window, medals, ships, back, table)
     const V = { window: [0, 1.5, 0, -0.08], medals: [-1.2, -2.2, 1.35, 0], ships: [1.4, -2.2, -1.35, -0.1], back: [0, -1.5, Math.PI, -0.05], table: [0, 0.2, 0, -0.35] }[arg2];

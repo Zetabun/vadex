@@ -9,7 +9,7 @@ import { initWorld, advance } from '@last-orbit/combat/sim.js';
 import { useAbility } from '@last-orbit/combat/abilities.js';
 import { collectAll } from '@last-orbit/combat/pickups.js';
 import { startSortie, endSortie, nextOffer, nextRelic, nextRoute, nextAnomaly, recoverInterruptedRun } from '@last-orbit/progression/run.js';
-import { checkContracts, unlockCounter, refreshMenus } from '@last-orbit/progression/meta.js';
+import { checkContracts, unlockCounter, refreshMenus, notePeaks } from '@last-orbit/progression/meta.js';
 import { save, load, hardReset, legacyBestWave } from '@last-orbit/save/save.js';
 import { initAudio, applyVolumes, tickMusic, setMusicMode, suspendAudio } from '@last-orbit/audio/audio.js';
 import { Renderer } from '@last-orbit/rendering/renderer.js';
@@ -23,7 +23,7 @@ function adopt(state) {
   const recovered = recoverInterruptedRun(state);
   G.state = state;
   if (recovered > 0) setTimeout(() => toast(`Recovered ${recovered} salvage from your last sortie.`, 'good'), 600);
-  setNotation(state.settings.notation); recalc(); checkContracts({ silent: true }); unlockCounter({ silent: true }); refreshMenus(); initWorld(); applyVolumes();
+  setNotation(state.settings.notation); recalc(); checkContracts({ silent: true }); unlockCounter({ silent: true }); refreshMenus(); notePeaks(state); initWorld(); applyVolumes();
   if (renderer) { renderer.lastSector = -1; renderer.lookV = -1; renderer.setQuality(); }
 }
 
@@ -166,7 +166,9 @@ async function boot() {
     save('legacy');
   }
   // Callsign: asked once (new pilots, and existing ones the first time this version runs); after that, a greeting.
-  if (!/[?&]scene=/.test(location.search)) { if (!G.state.seen.callsign) setTimeout(() => ui.callsign({ first: true }), 700); else setTimeout(() => ui.greet(), 900); }
+  // The opening cinematic plays once (new pilots, and everyone the first time this version runs), then the callsign.
+  const afterIntro = () => { if (!G.state.seen.callsign) setTimeout(() => ui.callsign({ first: true }), 300); else setTimeout(() => ui.greet(), 400); };
+  if (!/[?&]scene=/.test(location.search)) { if (!G.state.seen.intro) ui.intro({ tap: true, done: () => { G.state.seen.intro = true; save('intro'); afterIntro(); } }); else afterIntro(); }
   wireInput();
   addEventListener('resize', () => { renderer.resize(); ui.measure(); }); new ResizeObserver(() => { renderer.resize(); ui.measure(); }).observe(app);
   document.addEventListener('visibilitychange', () => {

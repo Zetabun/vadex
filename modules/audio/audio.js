@@ -58,6 +58,26 @@ export function playSfx(id, vol = 1, pitch = 1) {
   if (nz) { const n = ctx.createBufferSource(); n.buffer = noiseBuf; n.playbackRate.value = 0.5 + Math.random(); const ng = ctx.createGain(), f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(Math.max(300, f0 * 4), now); f.frequency.exponentialRampToValueAtTime(120, now + dur); ng.gain.value = nz; n.connect(f); f.connect(ng); ng.connect(g); n.start(now, Math.random() * 0.5, dur + 0.02); }
 }
 
+// ------------------------------------------------------------------ the station AI's voice, and big explosions
+/** One soft chirp of the station AI's 'voice' for a typed letter: a short rising sine, vowels a little higher. */
+export function voiceBlip(ch, vol = 1) {
+  if (!ctx || ctx.state !== 'running' || !/[a-z0-9]/i.test(ch)) return;
+  const now = ctx.currentTime, base = 330 + ('aeiou'.includes(ch.toLowerCase()) ? 90 : 0) + (ch.charCodeAt(0) % 7) * 12;
+  const o = ctx.createOscillator(), g = ctx.createGain(), f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 2400;
+  o.type = 'sine'; o.frequency.setValueAtTime(base, now); o.frequency.exponentialRampToValueAtTime(base * 1.12, now + 0.05);
+  g.gain.setValueAtTime(0.0001, now); g.gain.linearRampToValueAtTime(0.1 * vol, now + 0.008); g.gain.exponentialRampToValueAtTime(0.0008, now + 0.07);
+  o.connect(g); g.connect(f); f.connect(sfxBus); o.start(now); o.stop(now + 0.09); o.onended = () => { g.disconnect(); f.disconnect(); };
+}
+/** A long, low explosion: filtered noise falling in pitch over a sinking sub tone. */
+export function rumble(dur = 2.5, vol = 1) {
+  if (!ctx || ctx.state !== 'running') return;
+  const now = ctx.currentTime, n = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain(); n.buffer = noiseBuf; n.loop = true; f.type = 'lowpass';
+  f.frequency.setValueAtTime(1400, now); f.frequency.exponentialRampToValueAtTime(70, now + dur); g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(0.7 * vol, now + 0.03); g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+  n.connect(f); f.connect(g); g.connect(sfxBus); n.start(now); n.stop(now + dur + 0.05);
+  const o = ctx.createOscillator(), og = ctx.createGain(); o.type = 'sine'; o.frequency.setValueAtTime(95, now); o.frequency.exponentialRampToValueAtTime(28, now + dur);
+  og.gain.setValueAtTime(0.0001, now); og.gain.exponentialRampToValueAtTime(0.5 * vol, now + 0.05); og.gain.exponentialRampToValueAtTime(0.0001, now + dur); o.connect(og); og.connect(sfxBus); o.start(now); o.stop(now + dur + 0.05);
+}
+
 // ------------------------------------------------------------------ thrusters
 // A soft engine hum that swells a little when the ship steers (level 0..1): two slightly detuned low tones and a
 // touch of low rumble, all under a low-pass filter, so it sits under the music rather than hissing over it.

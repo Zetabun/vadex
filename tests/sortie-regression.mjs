@@ -329,6 +329,13 @@ assert.ok(describeCard({ kind: 'fusion', id: 'fu_twinsuns' }).icon2); endSortie(
   fresh(); G.state.seen.menusInit = true; refreshMenus(); assert.equal(menuState('deck'), 'locked', 'The Command Deck waits for the first Overhaul');
   for (const u of WORKSHOP) G.state.workshop[u.id] = u.max; overhaul(); assert.equal(menuState('deck'), 'new', 'The first Overhaul opens the Command Deck'); }
 
+// ---- v2.9: the station never un-builds (Overhaul keeps each module's peak level) ----
+{ const { overhaul, notePeaks } = await import('@last-orbit/progression/meta.js');
+  fresh(); for (const u of WORKSHOP) G.state.workshop[u.id] = u.max; notePeaks(); overhaul();
+  assert.ok(WORKSHOP.every((u) => G.state.stationPeak[u.id] === u.max), 'An Overhaul keeps every module the station had built');
+  assert.ok(WORKSHOP.some((u) => (G.state.workshop[u.id] || 0) < u.max), 'while the Workshop itself resets');
+  assert.equal(G.state.seen.intro, false, 'A new save plays the intro'); }
+
 // ---- v2.8: callsign ----
 { const { cleanCallsign, setCallsign, CALLSIGN_MAX } = await import('@last-orbit/progression/meta.js');
   assert.equal(cleanCallsign('  Ace<b>  Rimmer!! '), 'Aceb Rimmer'); assert.equal(cleanCallsign('Zoë-7'), 'Zoë-7'); assert.equal(cleanCallsign('x'.repeat(40)).length, CALLSIGN_MAX); assert.equal(cleanCallsign('!!!'), '');

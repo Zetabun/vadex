@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.9.0 — unreleased
+
+- **The Fall (opening cinematic):** the game now opens on the story. The station in its golden age turns over Earth, shuttles tracing their orbits, until the invader fleet warps in, beams converge, explosions ripple through the modules and the core blows in a whiteout, tearing the rings away. When the smoke clears, your ship drifts in past the broken hub: "The last orbit fell. Rebuild it." It starts on a title card (tap to begin, so it has sound on phones), can be skipped, plays once for every pilot, and can be watched again from Settings (Story: Watch intro).
+- **ORBIT, the station AI:** captions and messages are typed out in a soft blip voice. ORBIT greets you by callsign and speaks up at milestones (your first sortie, the first sector cleared, Counterattack, the Deep Void, your first Overhaul), each once. Pilots already past a milestone only hear the welcome.
+- **Rebuilding the station:** the wreckage of the old station drifts round the new one and thins out as you rebuild it. Modules now stay built for good: after an Overhaul the Workshop resets, but the station only puts those modules' lights out until they are rebuilt, instead of turning them back into scaffolding.
+
 ## v2.8.0 — 2026-09-25
 
 - **Deep Void anomalies:** past wave 60, every Deep Void sector makes you take one of two anomalies, and they stack for the rest of the sortie. Each raises your salvage and score (+10% to +20%), so how many you can carry is the endless goal. Five bend the numbers (Hardened Hulls, Overdrive, Heavy Ordnance and Forced March stack up to three or two times; Elite Vanguard adds an elite to every wave) and five change the fight: **Serpent Fire** (enemy bolts weave), **Minefield** (the dead sometimes leave drifting mines), **Shrapnel** (the dead sometimes burst into bolts), **Void Lances** (a beam locks onto your lane every few seconds) and **Gravity Wells** (wells open on the defence line and drag you in). They show in the HUD, the pause loadout and the Deep Void sector title. Tuned with a new Deep Void probe over some 1,500 late-game runs: with anomalies, bot pilots fall about one wave sooner in the Deep Void but bring home 6–9% more Deep Void salvage, so a whole sortie pays about 3% more and Overhaul pacing is unchanged.

@@ -22,9 +22,11 @@ export const workshopLevel = (id) => G.state.workshop[id] || 0;
 export function workshopNext(id) { const d = WORKSHOP_BY_ID[id], l = workshopLevel(id); return l >= d.max ? null : Math.round(workshopCost(d, l) * workshopCostMult() / 5) * 5 || d.base; }
 /** Workshop price multiplier: dearer with each Overhaul rank, cheaper with Veteran Engineers. */
 export const workshopCostMult = () => (1 + OVERHAUL_COST_STEP * (G.state.prestige?.level || 0)) * (1 - ENGINEER_DISCOUNT * blueprintLevel('bp_engineers'));
+/** Remember the highest level each Workshop upgrade has reached, so the station keeps what it has built. */
+export function notePeaks(st = G.state) { const pk = (st.stationPeak ||= {}); for (const u of WORKSHOP) pk[u.id] = Math.max(pk[u.id] || 0, st.workshop[u.id] || 0); }
 export function buyWorkshop(id) {
   const cost = workshopNext(id); if (cost == null || G.state.salvage < cost) return false;
-  G.state.salvage -= cost; G.state.workshop[id] = workshopLevel(id) + 1; recalc(); checkAchievements(); bus.emit('bought', 'workshop', id); return true;
+  G.state.salvage -= cost; G.state.workshop[id] = workshopLevel(id) + 1; notePeaks(); recalc(); checkAchievements(); bus.emit('bought', 'workshop', id); return true;
 }
 
 // ---------------------------------------------------------------- ships
@@ -199,7 +201,7 @@ export const overhaulReward = () => overhaulBlueprints(G.state.prestige.cycleBes
 export function overhaul() {
   const st = G.state, pr = st.prestige; if (st.run || !workshopMaxed()) return 0;
   const bp = overhaulReward(), head = blueprintLevel('bp_head');
-  pr.level++; pr.bp += bp; pr.bpEarned = (pr.bpEarned || 0) + bp; pr.cycleBest = 0; st.stats.overhauls = pr.level;
+  notePeaks(st); pr.level++; pr.bp += bp; pr.bpEarned = (pr.bpEarned || 0) + bp; pr.cycleBest = 0; st.stats.overhauls = pr.level;
   for (const u of WORKSHOP) st.workshop[u.id] = HEAD_START_SKIP.includes(u.id) ? 0 : Math.min(u.max, head);
   recalc(); unlockBanners(); checkAchievements(); refreshMenus(); bus.emit('overhaul', pr.level); return bp;
 }

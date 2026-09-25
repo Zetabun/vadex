@@ -128,6 +128,7 @@ export function createOverlays(layer, hooks) {
     const s = G.state.settings, set = (k) => (v) => { s[k] = v; applyVolumes(); hooks.applySettings?.(); };
     const field = (label, control) => h('label.field', h('span', label), control);
     return h('div.settings',
+      field('Story', h('button.btn.ghost.small.callsign-edit', { onclick: () => hooks.replayIntro?.() }, 'Watch intro', uiIcon('play'))),
       field('Callsign', h('button.btn.ghost.small.callsign-edit', { onclick: () => showCallsign({ fromSettings: true }) }, G.state.pilot.name || 'Add callsign', uiIcon('chevron'))),
       field('Master volume', slider(() => s.master, set('master'), 0, 1, 0.05, 'Master volume')),
       field('Music', slider(() => s.music, set('music'), 0, 1, 0.05, 'Music volume')),
@@ -229,7 +230,7 @@ export function createOverlays(layer, hooks) {
     const el = h('div.modal.confirm.station-done', { role: 'dialog', 'aria-label': 'Station complete' },
       h('div.modal-head', h('div.kicker', 'Every module built'), h('h2', 'Station complete'),
         h('p', `Your Workshop is maxed. Overhaul to strip it back for Blueprints: the station keeps its core${next ? ` and grows its ${next.name}` : ''}.`)),
-      h('div.oh-plan.sd-plan', { html: stationBlueprint(rank, G.state.workshop) }),
+      h('div.oh-plan.sd-plan', { html: stationBlueprint(rank, G.state.workshop, { peak: G.state.stationPeak }) }),
       h('div.modal-actions', h('button.btn.gold', { onclick: () => { close(); hooks.toHangar?.('workshop'); }, 'data-autofocus': '' }, 'Go to Overhaul'), h('button.btn.ghost', { onclick: close }, 'Later')));
     mount('station-done', el, (e) => { if (e.key === 'Escape') { close(); return true; } return false; });
     playSfx('milestone');

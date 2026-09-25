@@ -8,6 +8,8 @@ import { createHud } from '@last-orbit/ui/hud.js';
 import { createHangar } from '@last-orbit/ui/hangar.js';
 import { createOverlays } from '@last-orbit/ui/overlays.js';
 import { art } from '@last-orbit/ui/art.js';
+import { createIntro } from '@last-orbit/ui/intro.js';
+import { createComms } from '@last-orbit/ui/comms.js';
 
 export function initUI(app, hooks) {
   const $ = {};
@@ -24,6 +26,7 @@ export function initUI(app, hooks) {
     counterIntro: (go) => overlays.showCounterIntro(go),
     confirmOverhaul: () => overlays.showOverhaul(),
     menuIntro: (m) => overlays.showMenuIntro(m),
+    replayIntro: () => { overlays.close(); intro.play({ tap: false }); },
     panel: (o) => overlays.showPanel(o),
     closeOverlays: () => overlays.close(),
     stationComplete: () => overlays.showStationComplete(),
@@ -35,6 +38,7 @@ export function initUI(app, hooks) {
     cardPicked: (c) => { if (c.kind === 'upgrade' && c.rank === 7) banner('Final evolution', null, null, 'var(--gold)', 1400); hooks.celebrate?.(c.kind === 'weapon' || c.kind === 'upgrade' ? '#5ee6ff' : '#6dffc8'); },
   };
   const hud = createHud(uiHooks), hangar = createHangar(uiHooks), overlays = createOverlays($.layer, uiHooks);
+  const intro = createIntro(app), comms = createComms(app); let commsT = 0;
   app.append($.scan, hud.el, hangar.el, $.vig, $.banner, $.toasts, $.layer, $.flash);
 
   // ------------------------------------------------------------ mode
@@ -108,12 +112,15 @@ export function initUI(app, hooks) {
 
   function update(dt) {
     if (G.mode === 'sortie') hud.update(dt); else hangar.update();
+    // The station AI speaks up at milestones, in the hangar, once the pilot has a callsign.
+    if (G.mode === 'hangar' && !G.introPlaying && G.state.seen.callsign && !overlays.blocking() && (commsT -= dt) <= 0) { commsT = 1.5; comms.check(); }
   }
   /** The greeting when the app opens (or right after a new pilot registers). */
   function greet(fresh) { const n = G.state.pilot.name; if (n) banner(fresh ? 'Welcome aboard' : 'Welcome back', n, null, 'var(--cyan)', 2600); }
   addEventListener('resize', () => setTimeout(measure, 50));
   return {
     update, setMode, measure, banner, nextChoice, greet,
+    intro: (o) => intro.play(o), comms,
     callsign: (o) => overlays.showCallsign(o),
     blocking: () => overlays.blocking(),
     showDebrief: (s) => { clear($.toasts); $.banner.classList.remove('on'); overlays.showDebrief(s); },

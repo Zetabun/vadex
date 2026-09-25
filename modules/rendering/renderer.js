@@ -13,6 +13,7 @@ import { SpriteBatch, Particles, Transients, makeTextures, rgb, css, jagged, WHI
 import { Background } from '@last-orbit/rendering/background.js';
 import { Station } from '@last-orbit/rendering/station.js';
 import { DeckRoom } from '@last-orbit/rendering/deck.js';
+import { IntroScene } from '@last-orbit/rendering/intro.js';
 import { Banner } from '@last-orbit/rendering/banner.js';
 import { Ground } from '@last-orbit/rendering/ground.js';
 import { counterProgress } from '@last-orbit/combat/counter.js';
@@ -112,6 +113,8 @@ export class Renderer {
     const o = this.overlay, opr = Math.min(window.devicePixelRatio || 1, 2); o.width = Math.round(w * opr); o.height = Math.round(h * opr); this.opr = opr;
     for (const s of this.bg.stars) s.material.uniforms.pr.value = this.pr;
   }
+  startIntro(ship) { this.intro = new IntroScene(ship); return this.intro; }
+  stopIntro() { this.intro = null; }
   /** 'field' during sorties, 'hangar' for the ship close-up. Transitions ease over ~0.6s. */
   setView(name) { this.viewTarget = VIEWS[name] || VIEWS.field; this.rails.visible = name !== 'hangar'; }
   setInsets(top, bottom) { if (Math.abs(this.insets.top - top) > 0.25 || Math.abs(this.insets.bottom - bottom) > 0.25) { this.insets.top = top; this.insets.bottom = bottom; } }
@@ -176,6 +179,8 @@ export class Renderer {
   // ------------------------------------------------------------------ frame
   render(dt, w, speedMul = 1) {
     const st = G.state, t0 = performance.now(); if (!w) return;
+    // The opening cinematic, while it plays (paused on its title card until the first tap).
+    if (G.introPlaying && this.intro) { const s = this.w + 'x' + this.h; if (this.intro.size !== s) { this.intro.size = s; this.intro.resize(this.w, this.h); } this.intro.render(this.gl, G.introPaused ? 0 : Math.min(dt, 0.05)); this.ctx2d.clearRect(0, 0, this.overlay.width, this.overlay.height); return; }
     // The Command Deck replaces the hangar view while it is open (built the first time it is visited).
     if (G.mode === 'hangar' && G.deckOpen) {
       const d = (this.deck ||= new DeckRoom()), size = this.w + 'x' + this.h; if (d.size !== size) { d.size = size; d.resize(this.w, this.h); }

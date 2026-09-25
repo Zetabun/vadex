@@ -58,11 +58,14 @@ export class Station {
   }
   /** Rebuild if the Workshop or Overhaul rank changed. */
   sync(state) {
-    const rank = state.prestige?.level || 0, sig = rank + ':' + STATION_MODULES.map((m) => state.workshop[m.id] || 0).join(',');
+    const rank = state.prestige?.level || 0, peak = (id) => Math.max(state.stationPeak?.[id] || 0, state.workshop[id] || 0);
+    const sig = rank + ':' + STATION_MODULES.map((m) => (state.workshop[m.id] || 0) + '/' + peak(m.id)).join(',');
     if (sig === this.sig) return; this.sig = sig;
     const b = this.body; while (b.children.length) b.remove(b.children[0]); this.blink = []; this.rings = []; this.nav = []; this.crown = null;
     this.core(rank);
-    for (const m of STATION_MODULES) { const lvl = state.workshop[m.id] || 0; this.module(m, lvl <= 0 ? 'ghost' : lvl >= MAX[m.id] ? 'lit' : 'built'); }
+    // never un-built: a module stays once it has been built; the Workshop reset after an Overhaul only puts its lights out
+    for (const m of STATION_MODULES) { const lvl = state.workshop[m.id] || 0; this.module(m, peak(m.id) <= 0 ? 'ghost' : lvl >= MAX[m.id] ? 'lit' : 'built'); }
+    this.wreckage(1 - STATION_MODULES.reduce((a, m) => a + Math.min(MAX[m.id], peak(m.id)), 0) / STATION_MODULES.reduce((a, m) => a + MAX[m.id], 0));
   }
   part(geo, mat, x, y, z, sx, sy, sz, rx = 0, ry = 0, rz = 0) {
     const THREE = T(); let m;
@@ -135,6 +138,15 @@ export class Station {
     }
     if (lit) this.blink.push(...L.filter(Boolean));
   }
+  /** Wreckage from the old station, drifting round the new one: share 0..1 of it still to clear. */
+  wreckage(share) {
+    const THREE = T();
+    if (!this.wreck) {
+      this.wreck = new THREE.InstancedMesh(this.geo.box, new THREE.MeshPhongMaterial({ color: 0x3a3f4c, emissive: 0x0c0806, specular: 0x444a58, shininess: 20 }), 36); this.wreck.frustumCulled = false; this.group.add(this.wreck);
+      this.wreckSeed = Array.from({ length: 36 }, (_, i) => ({ r: 13 + Math.random() * 13, a: (i / 36) * Math.PI * 2 + Math.random() * 0.3, y: (Math.random() - 0.5) * 16, sp: 0.02 + Math.random() * 0.05, s: [0.6 + Math.random() * 2.2, 0.12 + Math.random() * 0.3, 0.4 + Math.random() * 1.4], rot: [Math.random() * 6, Math.random() * 6, Math.random() * 6], spin: (Math.random() - 0.5) * 0.6 }));
+    }
+    this.wreck.count = Math.round(36 * Math.max(0, Math.min(1, share)));
+  }
   makeShuttle() {
     const THREE = T(), g = new THREE.Group(), M = this.M;
     const add = (geo, mat, p, s) => { const m = new THREE.Mesh(this.geo[geo], mat); m.position.set(...p); m.scale.set(...s); g.add(m); return m; };
@@ -150,6 +162,7 @@ export class Station {
     M.hull.emissiveIntensity = 0.55 + night * 0.7; M.red.color.setRGB(Math.sin(t * 3) > 0.3 ? 1 : 0.25, 0.2, 0.25);
     for (const [m, ph] of this.nav) m.visible = ((t * 0.9 + ph) % 1) < (m.material === M.strobe ? 0.12 : 0.55);
     M.scaffold.opacity = 0.28 + 0.12 * Math.sin(t * 1.6);
+    if (this.wreck?.count) { const d = (this._d ||= new (T().Object3D)()); for (let i = 0; i < this.wreck.count; i++) { const w = this.wreckSeed[i], a = w.a + t * w.sp; d.position.set(Math.cos(a) * w.r, w.y, Math.sin(a) * w.r * 0.6); d.rotation.set(w.rot[0] + t * w.spin, w.rot[1] + t * w.spin * 0.7, w.rot[2]); d.scale.set(...w.s); d.updateMatrix(); this.wreck.setMatrixAt(i, d.matrix); } this.wreck.instanceMatrix.needsUpdate = true; }
     // the shuttle: a slow loop around the station
     const s = this.shuttle, a = t * 0.35, R = 9.5, x = Math.cos(a) * R, y = 1.8 + Math.sin(a * 2) * 2.2, z = Math.sin(a) * R * 0.6;
     s.position.set(x, y, z); s.lookAt(x - Math.sin(a) * R, y + Math.cos(a * 2) * 4.4 * 0.35, z + Math.cos(a) * R * 0.6); s.rotateX(Math.PI / 2);
