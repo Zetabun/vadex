@@ -685,12 +685,12 @@ button.stat-row{width:100%;text-align:left}
 @keyframes inFlash{0%{opacity:0}6%{opacity:1}30%{opacity:.85}100%{opacity:0}}
 .in-fade{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .6s}.in-fade.on{opacity:1}
 /* The rebuild reel names the piece at the top: system number, name, then the station's progress once it lights. */
-.in-sys{position:absolute;left:0;right:0;top:calc(11% + 18px);display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;opacity:0;transform:translateY(-6px);transition:opacity .8s,transform .8s;pointer-events:none}
+.in-sys{position:absolute;left:0;right:0;top:max(calc(11% + 18px),calc(var(--st) + 76px));display:flex;flex-direction:column;align-items:center;gap:4px;text-align:center;opacity:0;transform:translateY(-6px);transition:opacity .8s,transform .8s;pointer-events:none}
 .in-sys.on{opacity:1;transform:none}.in-sys:empty,.in-sys b:empty{display:none}
 .in-sys small{font:700 10px var(--cond);letter-spacing:.34em;margin-right:-.34em;text-transform:uppercase;color:var(--cyan);text-shadow:0 0 10px rgba(94,230,255,.6),0 1px 6px #000}
 .in-sys b{font:700 24px var(--disp);letter-spacing:.22em;margin-right:-.22em;text-transform:uppercase;color:#e8f1ff;text-shadow:0 0 22px rgba(94,230,255,.55),0 2px 10px #000}
 .in-sys span{font:600 12px var(--body);color:#cfe8ff;letter-spacing:.06em;text-shadow:0 1px 8px #000;opacity:0;transition:opacity .8s .6s}.in-sys.done span{opacity:1}
-.in-skip{position:absolute;right:14px;top:max(12px,calc(env(safe-area-inset-top,0px) + 8px));padding:8px 14px;border-radius:99px;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.25);color:#cfd8ea;font:700 11px var(--cond);letter-spacing:.2em;text-transform:uppercase;cursor:pointer}
+.in-skip{position:absolute;right:max(18px,calc(env(safe-area-inset-right,0px) + 12px));top:calc(max(var(--st),20px) + 22px);padding:8px 14px;border-radius:99px;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.25);color:#cfd8ea;font:700 11px var(--cond);letter-spacing:.2em;text-transform:uppercase;cursor:pointer}
 #intro.titled .in-skip{display:none}
 /* The station AI's comms panel. */
 #comms{position:absolute;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 78px);z-index:40;display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:14px;background:rgba(6,12,30,.92);border:1px solid rgba(94,230,255,.35);box-shadow:0 8px 30px rgba(0,0,0,.45),0 0 20px rgba(94,230,255,.12);transform:translateY(-12px);opacity:0;pointer-events:none;transition:opacity .35s,transform .35s}
