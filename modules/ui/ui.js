@@ -107,8 +107,6 @@ export function initUI(app, hooks) {
     if (G.mode !== 'sortie') return;
     if (e.k === 'wave') { const kind = e.c; if (kind === 'elite') banner('Wave ' + e.a, 'Elite wave', 'Glowing enemies are tougher and drop more loot', 'var(--violet)', 1800); else if (kind === 'challenge') banner('Wave ' + e.a, e.b, G.world.wave.info.mod?.desc, 'var(--amber)', 2000); else if (kind === 'resource') banner('Wave ' + e.a, 'Salvage convoy', 'Shoot the haulers before they escape', 'var(--gold)', 1900); else if (kind === 'swarm') banner('Wave ' + e.a, 'Swarm', null, '#ff9bd2', 1400); }
     else if (e.k === 'sector') banner('Sector ' + (e.a + 1), e.b, e.c, 'var(--cyan)', 3200);
-    else if (e.k === 'siegeStart') banner('Station Siege', e.b, 'Shoot down whatever is falling on your station', 'var(--amber)', 3400);
-    else if (e.k === 'siegeWon') { banner('Station held', 'The siege is broken', null, 'var(--green)', 2600); flash('#6dffc8'); }
     else if (e.k === 'stationDown') flash('#ff4d7a');
     else if (e.k === 'bossIntro') banner(e.b, e.a, null, typeof e.c === 'number' ? '#' + e.c.toString(16).padStart(6, '0') : e.c, 2600);
     else if (e.k === 'sectorClear') { banner('Sector cleared', e.b, 'Hull restored', 'var(--green)', 2400); flash('#6dffc8'); }

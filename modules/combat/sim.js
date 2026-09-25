@@ -27,16 +27,14 @@ import { SHIP_BY_ID } from '@last-orbit/data/ships.js';
 import { updatePassives } from '@last-orbit/combat/passives.js';
 import { initCounter, counterStep } from '@last-orbit/combat/counter.js';
 import { stepAnomalies } from '@last-orbit/combat/anomalies.js';
-import { initSiege, siegeWaveStart, stepSiege, siegeWaveCleared, siegeWon, siegeOver } from '@last-orbit/combat/siege.js';
 import { ANOMALY_BY_ID } from '@last-orbit/data/anomalies.js';
 
 const BARRIER_X = [-34, -11.5, 11.5, 34];
 
 export function initWorld() {
   const w = (G.world = createWorld());
-  const counter = G.state.run?.mode === 'counter', siege = G.state.run?.mode === 'siege';
-  if (siege) initSiege(w); // a siege has bunkers only if the station has built them
-  if (G.state.run && !counter && (!siege || w.siege.sys.w_barrier)) for (const x of BARRIER_X) w.barriers.push({ x, w: 13, hp: 1, flash: 0 });
+  const counter = G.state.run?.mode === 'counter';
+  if (G.state.run && !counter) for (const x of BARRIER_X) w.barriers.push({ x, w: 13, hp: 1, flash: 0 });
   applyRunMods(w);
   w.passive = SHIP_BY_ID[G.state.run?.ship]?.passive?.id || null; w.staticN = 0;
   w.dps = Big.ZERO; w.dpsT = 0;
@@ -89,12 +87,11 @@ export function step(dt) {
       rebuildBuckets(w);
       updateFormation(w, dt); updateEnemies(w, dt); updateBoss(w, dt); updateRockets(w, dt);
       updateWeapons(w, dt); updateDrones(w, dt); updateBullets(w, dt); updateHazards(w, dt); updatePickups(w, dt); stepAnomalies(w, dt);
-      if (w.siege) { stepSiege(w, dt); if (ws.state !== 'fighting') break; }
       if (!w.player.alive) break;
       let live = 0; for (let i = 0; i < w.enemies.length; i++) { const e = w.enemies[i]; if (e.alive && !e.def.projectile && !(e.def.cruiser && ws.info.kind !== 'resource')) live++; }
-      if (live === 0 && !ws.pending.length && ws.t > 0.5 && !(w.siege?.assault > 0)) clearWave(w); // a siege wave holds until its assault is over
+      if (live === 0 && !ws.pending.length && ws.t > 0.5) clearWave(w);
       break; }
-    case 'cleared': updateWeapons(w, dt); updateDrones(w, dt); updateBullets(w, dt); updateEnemies(w, dt); updatePickups(w, dt); ws.timer -= dt; if (ws.timer <= 0 && !w.pickups.length) { if (w.siege?.won) siegeOver(w); else startWave(w); } break;
+    case 'cleared': updateWeapons(w, dt); updateDrones(w, dt); updateBullets(w, dt); updateEnemies(w, dt); updatePickups(w, dt); ws.timer -= dt; if (ws.timer <= 0 && !w.pickups.length) startWave(w); break;
     case 'dead': updateBullets(w, dt); updateEnemies(w, dt); ws.timer -= dt; if (ws.timer <= 0) afterDeath(w); break;
   }
   for (const b of w.barriers) { if (b.flash > 0) b.flash -= dt; const r = G.sheet.n('barrierRegen'); if (r && b.hp > 0 && b.hp < 1) b.hp = Math.min(1, b.hp + r * dt); }
@@ -123,9 +120,8 @@ export function startWave(w) {
   const prevSector = ws.num ? sectorOf(ws.num).idx : -1;
   ws.num = run.wave; ws.info = info; ws.state = 'fighting'; ws.t = 0; ws.damaged = false; ws.bossDamaged = false; ws.kills = 0; ws.boss = null; ws.pending = []; ws.shotsFired = 0;
   setWaveBase(w, run.wave, sec.idx);
-  if (w.siege && run.siegeTough > 1) w.base.hp = w.base.hp.mul(run.siegeTough); // the invaders adapt to the pilot (set at launch)
   const ep = sec.idx === 0 ? earlyPressure(run.wave) : 0; ws.fire = 1 + BAL.earlyPressure.fire * ep; ws.march = 1 + BAL.earlyPressure.march * ep; // the opening waves press harder
-  if (!w.siege) { maxStat('bestWave', run.wave); maxStat('bestSector', sec.idx + 1); if (run.order.length === 1) maxStat('soloWave', run.wave); } // a siege's waves are not a run's depth
+  maxStat('bestWave', run.wave); maxStat('bestSector', sec.idx + 1); if (run.order.length === 1) maxStat('soloWave', run.wave);
   w.enemies = w.enemies.filter((e) => e.alive && e.def.cruiser); w.ebullets.length = 0; w.hazards = w.hazards.filter((h) => h.kind === 'pool');
   const p = w.player; p.lastStand = true;
   const newSector = sec.idx !== prevSector;
@@ -148,9 +144,8 @@ export function startWave(w) {
     for (let i = 0; i < elites && placed.length; i++) { const cand = placed.filter((e) => !e.elite && !e.def.aura && e.def.cost >= 1); if (!cand.length) break; makeElite(w, cand[Math.floor(rng() * cand.length)], ELITE_MODS[Math.floor(rng() * ELITE_MODS.length)]); }
     for (let i = 0; i < info.haulers; i++) ws.pending.push({ t: 1.5 + i * 2.2, type: 'treasure' });
   }
-  if (newSector && !w.siege) fx(w, 'sector', sec.idx, sec.def.name, sec.def.intro);
+  if (newSector) fx(w, 'sector', sec.idx, sec.def.name, sec.def.intro);
   fx(w, 'wave', run.wave, info.label, info.kind);
-  if (w.siege) siegeWaveStart(w);
   bus.emit('waveStart', w, info);
 }
 
@@ -175,8 +170,6 @@ function clearWave(w) {
   score(w, waveScore(run.wave, !ws.damaged) * clearMul);
   if (route?.repair) p.hull = Math.min(1, p.hull + route.repair);
   p.hull = Math.min(1, p.hull + 0.06);
-  // A siege ends with its sector's boss: the station is held (no sector records, relics or routes).
-  if (w.siege) { siegeWaveCleared(w); if (bossWave) { run.wave++; siegeWon(w); checkContracts(); bus.emit('waveCleared', w, info); return; } }
   if (sec.n === sec.len) {
     maxStat('sectorsCleared', sec.idx + 1);
     if (!ws.damaged) count('flawlessBosses');

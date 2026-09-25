@@ -174,11 +174,6 @@ export class Renderer {
         case 'shieldhit': this.trans.add({ k: 'ring', x: e.a, y: e.b, r: 6, c: CYAN, t: 0, life: 0.3 }); P.burst(e.a, e.b, 6, CYAN, 22, 1.6, 0.3); break;
         case 'hurt': P.burst(e.a, e.b, 14, RED, 34, 2.2, 0.5); this.trans.add({ k: 'flash', x: e.a, y: e.b, r: 12, c: RED, a: 0.8, t: 0, life: 0.3 }); bus.emit('fx', e); break;
         case 'paint': this.trans.add({ k: 'ring', x: e.a, y: e.b, r: (e.c || 4) * 2.2, c: AMBER, t: 0, life: 0.3 }); bus.emit('fx', e); break;
-        // Station Siege: hits on the station at the defence line, its shield taking them, its fall, the phase coil's pulse
-        case 'stationHit': { const y = FIELD.LAND_Y - 4; P.burst(e.a, y, 18, RED, 38, 2.4, 0.55); P.burst(e.a, y, 10, AMBER, 26, 1.8, 0.45); this.trans.add({ k: 'ring', x: e.a, y, r: 10, c: AMBER, t: 0, life: 0.45 }); this.trans.add({ k: 'flash', x: e.a, y, r: 16, c: RED, a: 0.8, t: 0, life: 0.35 }); this.station.flash = 1; bus.emit('fx', e); break; }
-        case 'stationShield': this.trans.add({ k: 'ring', x: e.a, y: FIELD.LAND_Y - 2, r: 8, c: CYAN, t: 0, life: 0.35 }); P.burst(e.a, FIELD.LAND_Y - 2, 8, CYAN, 22, 1.6, 0.3); break;
-        case 'stationDown': for (let j = 0; j < 7; j++) { const x = -42 + j * 14; this.trans.add({ k: 'ring', x, y: FIELD.LAND_Y - 6, r: 14 + j % 3 * 4, c: j % 2 ? RED : AMBER, t: 0, life: 0.7 }); P.burst(x, FIELD.LAND_Y - 6, 20, j % 2 ? RED : AMBER, 44, 2.6, 0.8); } this.station.flash = 2; bus.emit('fx', e); break;
-        case 'siegePulse': this.trans.add({ k: 'ring', x: 0, y: 12, r: 90, c: VIOLET, t: 0, life: 0.6 }); this.trans.add({ k: 'flash', x: 0, y: 12, r: 70, c: VIOLET, a: 0.35, t: 0, life: 0.4 }); break;
         default: bus.emit('fx', e);
       }
     }
@@ -203,7 +198,7 @@ export class Renderer {
     this.lerpIn(w, renderAlpha());
     if (this.supportWorld !== w) { this.supportWorld = w; this.salvageDrops.length = 0; this.salvageCraft = null; this.repairCraft = null; this.repairBeamT = 0; }
     this.fitCamera(dt); if (this.shake > 0) this.shake = Math.max(0, this.shake - dt * 2.2);
-    const secIdx = w.siege ? 0 : w.base.sectorIdx % 6; /* a siege is fought at home, over Earth */ if (secIdx !== this.lastSector) { this.bg.setSector(secIdx, this.lastSector < 0); this.lastSector = secIdx; this.rails.material.color.set(this.bg.target.mistCol); }
+    const secIdx = w.base.sectorIdx % 6; if (secIdx !== this.lastSector) { this.bg.setSector(secIdx, this.lastSector < 0); this.lastSector = secIdx; this.rails.material.color.set(this.bg.target.mistCol); }
     // Counterattack flies away from the home planet: no horizon, and the starfield rushes past.
     // Event Horizon draws its own singularity in the field, so the backdrop's black hole steps aside.
     const ownHole = w.set?.kind === 'horizon';
@@ -213,7 +208,7 @@ export class Renderer {
     if (gs && this.groundWorld !== w) { this.groundWorld = w; this.ground.reset(); } // each attempt starts back at the spaceport
     this.ground.update(gs > 0, fade, dt * Math.min(3, speedMul), gs ? w.enemies.filter((e) => e.alive && e.def.ground) : []); for (const s of this.bg.stars) s.visible = fade < 0.6;
     this.overGround = fade > 0.05; // enemy fire gets a dark backing while the busy city is underneath
-    this.bg.battle = G.mode === 'sortie'; this.bg.sink = !!w.siege; this.bg.update(dt * (w.counter ? 3.2 : 1), speedMul); this.drain(w);
+    this.bg.battle = G.mode === 'sortie'; this.bg.update(dt * (w.counter ? 3.2 : 1), speedMul); this.drain(w);
     const fdt = dt * Math.min(3, speedMul); this.parts.update(fdt); this.trans.update(fdt);
     const B = this.B; for (const k in B) B[k].begin();
     this.sets.update(w, fdt, B);
@@ -222,7 +217,7 @@ export class Renderer {
     for (const k in B) B[k].end();
     // The station fits between the hangar's header (measured by hangar.js) and the ship's nose.
     const nose = this.worldToScreen(0, w.player.y + 6, (this._nose ||= [0, 0]));
-    this.station.sync(G.state); this.station.update(dt, this.camera, (G.mode === 'hangar' && !!this.bg.planet.visible) || !!w.siege, this.bg.earthMat.uniforms.night.value, this.w, this.h, w.siege ? 'siege' : { top: G.hangarTop ?? this.h * 0.13, low: nose[1] });
+    this.station.sync(G.state); this.station.update(dt, this.camera, G.mode === 'hangar' && !!this.bg.planet.visible, this.bg.earthMat.uniforms.night.value, this.w, this.h, { top: G.hangarTop ?? this.h * 0.13, low: nose[1] });
     this.gl.render(this.scene, this.camera);
     this.drawOverlay(w, dt);
     this.lerpOut();
@@ -265,9 +260,6 @@ export class Renderer {
       if (e.path?.kind === 'lunge' && e.path.t >= 0 && e.path.t < e.path.wait) { const k = e.path.t / e.path.wait; B.streak.line(-50, e.path.y0, 50, e.path.y0, 1.2 + k * 2.2, rgb(0xff5fd2), 0.45 + 0.75 * k * (0.6 + 0.4 * Math.sin(t * 30))); B.soft.add(e.x, e.y, e.r * 4, e.r * 4, 0, rgb(0xff5fd2), 0.5 + k); }
       if (e.boss?.enraged) B.soft.add(e.x, e.y, e.r * 5, e.r * 5, 0, RED, 0.25 + 0.15 * Math.sin(t * 9));
       if (e.mined) B.ring.add(e.x, e.y, e.r * 3.1, e.r * 3.1, t * 0.7, rgb(0xffca65), 0.75);
-      // Station Siege: what is falling on the station trails a warning line down to where it will land; bombards glow as they load
-      if (e.state === 'raid') { const wc = e.siegeKind === 'raider' ? RED : AMBER; B.streak.line(e.x, e.y - e.r, e.landX ?? e.x, FIELD.LAND_Y, 0.6, wc, 0.14 + 0.1 * Math.sin(t * 10 + e.id)); B.ring.add(e.landX ?? e.x, FIELD.LAND_Y, 5, 2.2, 0, wc, 0.5 + 0.3 * Math.sin(t * 12 + e.id)); B.soft.add(e.x, e.y, e.r * 3.2, e.r * 3.2, 0, wc, 0.55); }
-      if (e.bombard) { const k = Math.max(0, 1 - e.bombard.t / 1.2); B.ring.add(e.x, e.y, e.r * 3, e.r * 3, t * 2, AMBER, 0.4 + 0.45 * k); if (k > 0) B.soft.add(e.x, e.y - e.r, e.r * (1.4 + k * 2.2), e.r * (1.4 + k * 2.2), 0, AMBER, 0.35 + 0.65 * k); }
       if (e.droneMarkT > 0 && e !== w.painted) B.reticle.add(e.x, e.y, e.r * 3.5, e.r * 3.5, t * 2, rgb(0xf077b5), 0.9);
       if (e === w.painted) B.reticle.add(e.x, e.y, e.r * 3.6, e.r * 3.6, -t * 3, AMBER, 1);
       if (e.def.projectile && Math.random() < 0.5) this.parts.emit(e.x, e.y + e.r, 0, 8, 0.3, 1.6, AMBER, 1);

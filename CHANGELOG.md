@@ -1,5 +1,24 @@
 # Changelog
 
+## v2.14.0 — 2026-09-25
+
+- **The Station Siege is now fought from the station's guns.** The gunner seat is no longer a prototype. It is the siege, and it replaces the old 2D one. Launch a siege from Missions, from Defence Control's threat board or its window, and it puts you straight in the seat.
+- **Six tiers, each its own fight:** First Reprisal, Scrap Storm, Red Tide, Iron Fist, Swarm Front and The Unmaking. Each is a run of waves ending on a capital ship with more weak points tier by tier; The Unmaking sends two. The invaders get tougher and fiercer tier by tier: more shots per strafing run, more torpedoes in each drop, faster gunship beams.
+- **Your whole station arms the guns.** Every module you've built is a system in the seat: harder rounds, a faster cycler, point defence against torpedoes, sentry guns on the hull, a shield, armour, repairs, bunkers that take the first heavy hits of a wave, faster reloads, rerolls and a free upgrade to start. Alien hardware joins in too: the phase coil wipes every torpedo in the sky, and the core siphon repairs the hull with every armoured kill. Maxed modules work harder.
+- **Winning pays:**
+  - Stars for the hull you keep, with an Alien Core for each new one.
+  - Salvage every time, more the less damage the station took, and double for your first hold of a tier.
+  - Your first hold of each tier also pays 2 Blueprints, and the armoury fits the guns with an upgrade they keep for every siege after: an extra missile, a bigger magazine, explosive rounds, armour-piercing rounds, a sentry gun, heavy warheads.
+  - The siege's debrief stamps the stars in, counts the salvage up, shows the new gear, and ORBIT has a word.
+- **Losing costs you, without setting you back:**
+  - A lost siege knocks 2 or 3 of the station's systems offline (never the cargo hold), and the guns go without them until they're repaired.
+  - The station shows it: smoke, sparks and fires on the broken modules, lights half out, and Defence Control on red alert with the damaged systems flashing on its consoles.
+  - Repair it for salvage at the tactical table (Defence Control), or fly any sortie of a minute or more and the crews patch everything for free while you're out. Holding a siege repairs it too.
+  - Your Workshop is never touched.
+- **Leaving mid-siege** asks first, and counts as a loss.
+- **Defence Control:** the threat board counts the invaders you've downed. Every system's description now says what it does in the seat, and the station card and the Missions panel warn you while the station is damaged.
+- **Replay TV:** sieges are no longer recorded (the seat isn't a sortie); it keeps your last sortie.
+
 ## v2.13.0 — 2026-09-25
 
 - **Man the guns (prototype, Defence Control):** tap Defence Control's window and choose "Man the guns" to take the station's own twin cannons in 3D. Drag to aim; the cannons fire on their own at whatever is in the sights. Hold off five waves: fighters, bombers that drop torpedoes on the station, gunships that hover and beam it, and finally a capital ship whose weak points you shoot out. It's a first version to try out: no rewards yet, and damage to the station doesn't carry over.

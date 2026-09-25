@@ -65,7 +65,8 @@ export class Station {
   sync(state) {
     // damage from a lost siege (no rebuild: it only smokes)
     const dmg = state.siege?.damage?.ids || [], dsig = dmg.join();
-    if (dsig !== this.dmgSig) { this.dmgSig = dsig; this.dmgAt = dmg.map((id) => MODULE_BY_ID[id] || ALIEN_BY_ID[id]).filter(Boolean).map((m) => ({ x: m.x, y: m.y, t: Math.random() * 0.3 })); }
+    if (dsig !== this.dmgSig) { this.dmgSig = dsig; for (const d of this.dmgAt) { d.fire.parent?.remove(d.fire); d.fire.material.dispose(); }
+      this.dmgAt = dmg.map((id) => MODULE_BY_ID[id] || ALIEN_BY_ID[id]).filter(Boolean).map((m) => ({ x: m.x, y: m.y, t: Math.random() * 0.3, fire: this.fire(m.x, m.y), ph: Math.random() * 6 })); }
     const rank = state.prestige?.level || 0, peak = (id) => Math.max(state.stationPeak?.[id] || 0, state.workshop[id] || 0), tech = state.counter?.tech || {};
     const alien = STATION_ALIEN.filter((a) => (tech[a.id] || 0) > 0), caught = STATION_TROPHIES.filter((t) => trophyWon(state, t.stage));
     const sig = rank + ':' + STATION_MODULES.map((m) => (state.workshop[m.id] || 0) + '/' + peak(m.id)).join(',') + '|' + alien.map((a) => a.id).join(',') + '|' + caught.map((t) => t.stage).join('');
@@ -77,6 +78,7 @@ export class Station {
     for (const a of alien) this.alien(a);
     for (const t of caught) this.trophy(t);
     this.wreckage(1 - STATION_MODULES.reduce((a, m) => a + Math.min(MAX[m.id], peak(m.id)), 0) / STATION_MODULES.reduce((a, m) => a + MAX[m.id], 0));
+    for (const d of this.dmgAt) this.body.add(d.fire); /* the rebuild cleared the body: the fires burn on */
   }
   part(geo, mat, x, y, z, sx, sy, sz, rx = 0, ry = 0, rz = 0) {
     const THREE = T(); let m;
@@ -193,23 +195,28 @@ export class Station {
     add('cone', M.plain, [0, 0.9, 0], [0.45, 1.1, 0.35]); add('box', M.plain, [0, -0.1, 0], [0.8, 1.1, 0.5]); add('box', M.dark, [0, -0.2, 0], [1.8, 0.35, 0.12]);
     this.flame = add('sph', M.engine, [0, -0.85, 0], [0.22, 0.5, 0.22]); return g;
   }
+  /** A fire burning on a damaged system: a flickering orange glow that stays until it is repaired. */
+  fire(x, y) {
+    const THREE = T(); this.sparkTex ||= canvasTex(32, 32, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,230,1)'); gr.addColorStop(0.35, 'rgba(255,170,70,.8)'); gr.addColorStop(1, 'rgba(255,90,30,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
+    const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.sparkTex, color: 0xff9a4a, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); s.position.set(x, y, 1.3); s.scale.setScalar(3); this.body.add(s); return s;
+  }
   /** A puff of smoke (or now and then a spark) off a damaged system, drifting out from the station. */
   puff(d) {
-    const THREE = T(); this.smokeTex ||= canvasTex(64, 64, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(96,98,108,.9)'); gr.addColorStop(0.55, 'rgba(62,64,74,.45)'); gr.addColorStop(1, 'rgba(40,40,48,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
+    const THREE = T(); this.smokeTex ||= canvasTex(64, 64, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(176,178,188,.95)'); gr.addColorStop(0.5, 'rgba(120,122,134,.55)'); gr.addColorStop(1, 'rgba(80,80,92,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
     this.sparkTex ||= canvasTex(32, 32, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,230,1)'); gr.addColorStop(0.35, 'rgba(255,170,70,.8)'); gr.addColorStop(1, 'rgba(255,90,30,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
     const spark = Math.random() < 0.2, s = new THREE.Sprite(new THREE.SpriteMaterial({ map: spark ? this.sparkTex : this.smokeTex, transparent: true, depthWrite: false, blending: spark ? THREE.AdditiveBlending : THREE.NormalBlending, opacity: 0 }));
     const out = new THREE.Vector3(d.x, d.y, 0); if (out.lengthSq() < 1) out.set(0, 1, 0); out.normalize();
     s.position.set(d.x + (Math.random() - 0.5) * 1.2, d.y + (Math.random() - 0.5) * 1.2, 1.1); this.body.add(s);
-    this.smoke.push({ s, t: 0, spark, life: spark ? 0.3 : 2.2 + Math.random() * 0.8, v: out.multiplyScalar(spark ? 3.5 : 1.1).add(new THREE.Vector3((Math.random() - 0.5) * 0.6, 0.5, 0.6)), size: spark ? 0.7 + Math.random() * 0.5 : 1.2 + Math.random() * 0.8 });
+    this.smoke.push({ s, t: 0, spark, life: spark ? 0.35 : 2.4 + Math.random() * 0.8, v: out.multiplyScalar(spark ? 4 : 1.4).add(new THREE.Vector3((Math.random() - 0.5) * 0.6, 0.6, 0.6)), size: spark ? 1 + Math.random() * 0.6 : 1.8 + Math.random() * 0.9 });
   }
   /** Lights, rings, the shuttle; smoke off anything damaged. */
   animate(dt, night) {
     this.t += dt; const t = this.t, M = this.M;
     // damaged in a lost siege: smoke and sparks off the broken systems, the lights half out and flickering
     const hurt = this.dmgAt.length > 0, flick = hurt ? 0.3 + 0.25 * (Math.sin(t * 13.7) > 0.55 ? 1 : 0) : 1;
-    if (hurt) for (const d of this.dmgAt) { d.t -= dt; if (d.t <= 0) { d.t = 0.16 + Math.random() * 0.22; this.puff(d); } }
+    if (hurt) for (const d of this.dmgAt) { d.t -= dt; if (d.t <= 0) { d.t = 0.12 + Math.random() * 0.18; this.puff(d); } const f = 0.7 + 0.3 * Math.sin(t * 17 + d.ph) * Math.sin(t * 7.3 + d.ph * 2); d.fire.material.opacity = f; d.fire.scale.setScalar(2.4 + f * 1.4); }
     for (let i = this.smoke.length - 1; i >= 0; i--) { const p = this.smoke[i]; p.t += dt; const k = p.t / p.life; if (k >= 1) { p.s.parent?.remove(p.s); p.s.material.dispose(); this.smoke.splice(i, 1); continue; }
-      p.s.position.addScaledVector(p.v, dt); p.s.scale.setScalar(p.size * (p.spark ? 1 - k : 1 + k * 2.2)); p.s.material.opacity = p.spark ? 1 - k : Math.min(1, k * 6) * (1 - k) * 0.85; }
+      p.s.position.addScaledVector(p.v, dt); p.s.scale.setScalar(p.size * (p.spark ? 1 - k : 1 + k * 3)); p.s.material.opacity = p.spark ? 1 - k : Math.min(1, k * 6) * (1 - k) * 0.95; }
     for (const r of this.rings) r.rotation.y = t * 0.2;
     if (this.crown) this.crown.rotation.y = t * 0.8;
     const k = (0.8 + 0.2 * Math.sin(t * 2.2) + night * 0.25) * (hurt ? 0.3 + flick * 0.4 : 1); M.light.color.setRGB(0.62 * k, 0.94 * k, k); M.warm.color.setRGB(k, 0.82 * k, 0.48 * k);
@@ -231,25 +238,20 @@ export class Station {
   /** Place it in the sky, upper right, at a distance behind everything: in the room between the hangar's header and the
    *  ship (room.top, room.low: screen pixels), as big as fits there and at most 260px wide. */
   update(dt, camera, show, night, w, h, room = null) {
-    const siege = room === 'siege'; if (siege) room = null;
     const THREE = T(); this.fade += ((show ? 1 : 0) - this.fade) * Math.min(1, dt * 3);
     const g = this.group; g.visible = this.fade > 0.02; if (!g.visible) return;
     this.animate(dt, night);
     // px: on-screen width of the station at full size (46 units with its solar wings); it stands about 27 units tall, 16 of
     // them above the hub, so the hub sits that far below the header.
-    // In a Station Siege it is the thing being defended: big, behind the defence line at the foot of the field.
-    const top = room?.top ?? h * 0.13, low = room?.low ?? h * 0.33, px = siege ? Math.min(w * 1.3, 820) : Math.max(110, Math.min(w * 0.5, 260, ((low - top - 12) / 27) * 46)), hubY = siege ? h * 0.97 : top + 8 + (16 * px) / 46;
-    const D = 420, v = (this._v ||= new THREE.Vector3()).set(siege ? 0 : 0.47, 1 - (2 * hubY) / Math.max(1, h), 0.5).unproject(camera).sub(camera.position).normalize();
-    if (!siege) g.position.copy(camera.position).addScaledVector(v, D); this.screenPx = px;
+    const top = room?.top ?? h * 0.13, low = room?.low ?? h * 0.33, px = Math.max(110, Math.min(w * 0.5, 260, ((low - top - 12) / 27) * 46)), hubY = top + 8 + (16 * px) / 46;
+    const D = 420, v = (this._v ||= new THREE.Vector3()).set(0.47, 1 - (2 * hubY) / Math.max(1, h), 0.5).unproject(camera).sub(camera.position).normalize();
+    g.position.copy(camera.position).addScaledVector(v, D); this.screenPx = px;
     const perPx = 2 * D * Math.tan((camera.fov * Math.PI) / 360) / Math.max(1, h);
-    // in a siege the captured bosses and the old wreckage stay out of the fight's way (they read as enemies there)
-    for (const m of this.trophies) m.visible = !siege; this.M.field.visible = !siege; if (this.wreck) this.wreck.visible = !siege;
-    if (siege) { g.position.set(0, -7, -50); g.scale.setScalar(2.3 * (0.85 + 0.15 * this.fade)); } // just behind the defence line, in front of the Earth
-    if (!siege) g.scale.setScalar((px * perPx / 46) * (0.85 + 0.15 * this.fade));
+    g.scale.setScalar((px * perPx / 46) * (0.85 + 0.15 * this.fade));
     g.quaternion.copy(camera.quaternion); // face the camera, then turn a little to show depth
     // where the hub is on screen (the hangar's callout points at it)
     g.updateMatrixWorld(true); this.hubNdc = (this._hn ||= new THREE.Vector3()); this.body.getWorldPosition(this.hubNdc).project(camera);
-    this.body.rotation.set(siege ? 0.5 : 0.32, Math.sin(this.t * 0.12) * (siege ? 0.2 : 0.5) + (siege ? 0 : 0.2), Math.sin(this.t * 0.07) * 0.05);
+    this.body.rotation.set(0.32, Math.sin(this.t * 0.12) * 0.5 + 0.2, Math.sin(this.t * 0.07) * 0.05);
     // struck: the hull's lights and plating flash red and fade
     this.flash = Math.max(0, (this.flash || 0) - dt * 2.2); const f = Math.min(1, this.flash); this.M.hull.emissive.setRGB(1, 0.83 - 0.6 * f, 0.6 - 0.5 * f); this.M.plain.emissive.setRGB(0.55 * f, 0.06 * f, 0.04 * f);
   }

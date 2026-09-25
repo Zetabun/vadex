@@ -12,7 +12,7 @@ import { CONTRACT_BY_ID } from '@last-orbit/data/contracts.js';
 import { describeCard, pickCard, reroll, pickRelic, pickRoute, pickAnomaly, autoPickIndex } from '@last-orbit/progression/run.js';
 import { ANOMALY_BY_ID, anomalyCounts, anomalyPay, anomalyName } from '@last-orbit/data/anomalies.js';
 import { STATION_CORE, TROPHY_BY_ID, caughtStages } from '@last-orbit/data/station.js';
-import { TIER_BY_N, SIEGE_STARS, SIEGE_BLUEPRINTS, SYSTEM_BY_ID, siegeOpen, listNames } from '@last-orbit/data/siege.js';
+import { TIER_BY_N, SIEGE_STARS, SIEGE_BLUEPRINTS, SYSTEM_BY_ID, listNames } from '@last-orbit/data/siege.js';
 import { TURRET_MOD } from '@last-orbit/data/turret.js';
 import { stationBlueprint } from '@last-orbit/ui/stationArt.js';
 import { SYNERGIES, synergyOf, synergyCount, activeTiers } from '@last-orbit/data/synergies.js';
@@ -399,21 +399,18 @@ export function createOverlays(layer, hooks) {
 
   // ------------------------------------------------------------ debrief
   function showDebrief(s) {
-    const ship = SHIP_BY_ID[s.ship], ca = s.counter, sg = s.siege, win = sg?.won ? 'Station held' : sg?.lost ? 'Station lost' : ca?.cleared ? 'Stage cleared' : s.reason === 'abandoned' ? 'Sortie abandoned' : 'Signal lost';
+    const ship = SHIP_BY_ID[s.ship], ca = s.counter, win = ca?.cleared ? 'Stage cleared' : s.reason === 'abandoned' ? 'Sortie abandoned' : 'Signal lost';
     const salvageEl = h('b.count', '0');
     const done = s.contracts.map((id) => CONTRACT_BY_ID[id]);
     const el = h('div.modal.debrief', { role: 'dialog', 'aria-label': 'Sortie debrief' },
-      h('div.modal-head' + (ca?.cleared || sg?.won ? '.won' : ''), h('div.kicker', sg ? `${ship.name} · Station Siege · ${TIER_BY_N[sg.tier].name}` : ca ? `${ship.name} · Counterattack · Stage ${ca.stage}${ca.hard ? ' · Hard' : ''}` : `${ship.name} · Sector ${s.sector} · ${s.sectorName}` + (s.threat ? ` · Threat ${THREATS[s.threat].roman}` : '') + (s.mutator ? ` · Daily: ${MUTATOR_BY_ID[s.mutator].name}` : '') + (s.warp > 1 ? ` · Warp S${s.warp}` : '')), h('h2', win), h('div.pbs', s.highScore ? h('div.pb', 'New high score') : null, s.best && s.wave > 1 ? h('div.pb', 'New best wave') : null)),
-      sg ? h('div.stars-row', [1, 2, 3].map((i) => h('span.star-big' + (i <= sg.stars ? '.on' : '') + (i > sg.stars - sg.gained && i <= sg.stars ? '.new' : ''), { style: `--d:${i * 180}ms` }, '★')),
-        h('div.star-notes', SIEGE_STARS.map(([label, need], i) => h('small', (sg.won && sg.hull >= need ? '✓' : '·') + ' ' + label + (i ? ` (${Math.round(sg.hull * 100)}%)` : '')))),
-        sg.cores ? h('div.pilot-row.cores-row', h('span', 'Alien Cores'), h('b', '+' + sg.cores)) : null, sg.bp ? h('div.pilot-row.bp-row', h('span', 'First win at this tier'), h('b', `+${sg.bp} Blueprints`)) : null) :
+      h('div.modal-head' + (ca?.cleared ? '.won' : ''), h('div.kicker', ca ? `${ship.name} · Counterattack · Stage ${ca.stage}${ca.hard ? ' · Hard' : ''}` : `${ship.name} · Sector ${s.sector} · ${s.sectorName}` + (s.threat ? ` · Threat ${THREATS[s.threat].roman}` : '') + (s.mutator ? ` · Daily: ${MUTATOR_BY_ID[s.mutator].name}` : '') + (s.warp > 1 ? ` · Warp S${s.warp}` : '')), h('h2', win), h('div.pbs', s.highScore ? h('div.pb', 'New high score') : null, s.best && s.wave > 1 ? h('div.pb', 'New best wave') : null)),
       ca ? h('div.stars-row', [1, 2, 3].map((i) => h('span.star-big' + (i <= ca.stars ? '.on' : '') + (i > ca.stars - ca.gained && i <= ca.stars ? '.new' : ''), { style: `--d:${i * 180}ms` }, '★')),
         h('div.star-notes', h('small', (ca.cleared ? '✓' : '·') + ' Clear the stage'), h('small', (ca.hits <= 5 && ca.cleared ? '✓' : '·') + ` Take 5 hits or fewer (${ca.hits})`), h('small', (ca.killed >= 0.8 && ca.cleared ? '✓' : '·') + ` Destroy 80% of the assault (${Math.round(ca.killed * 100)}%)`)),
         ca.cores ? h('div.pilot-row.cores-row', h('span', 'Alien Cores'), h('b', '+' + ca.cores)) : null, ca.bounty ? h('div.pilot-row', h('span', 'First-clear bounty'), h('b', '+' + fmtInt(ca.bounty) + ' salvage')) : null,
         ca.trophy ? h('div.pilot-row.trophy-row', h('span', `${TROPHY_BY_ID['trophy' + ca.trophy]?.name} captured`), h('b', 'Towed to your station')) : null,
         ca.siegeUnlocked ? h('div.pilot-row.siege-row', h('span', 'They will retaliate'), h('b', 'Station Siege unlocked')) : null,
         ca.checkpoint ? h('div.pilot-row', h('span', 'Checkpoint saved'), h('b', 'Past the mini-boss')) : null, ca.resumed ? h('small.cp-note', 'Checkpoint run: the clear star only. Fly the whole stage for the other two.') : null) : null,
-      h('div.hero-row', sg ? h('div.big-wave', h('small', 'Station'), h('b', Math.round(sg.hull * 100) + '%')) : ca ? h('div.big-wave', h('small', 'Stage'), h('b', String(ca.stage))) : h('div.big-wave', h('small', 'Wave'), h('b', String(s.wave))), h('div.earned', h('small', 'Salvage banked'), h('div', art('cur:salvage', 'cur-ico'), salvageEl))),
+      h('div.hero-row', ca ? h('div.big-wave', h('small', 'Stage'), h('b', String(ca.stage))) : h('div.big-wave', h('small', 'Wave'), h('b', String(s.wave))), h('div.earned', h('small', 'Salvage banked'), h('div', art('cur:salvage', 'cur-ico'), salvageEl))),
       h('div.score-row', h('small', 'Score'), h('b', fmtInt(s.score || 0)), s.place ? h('span', `#${s.place} of your top 10`) : s.prevScore ? h('span', `Best ${fmtInt(s.prevScore)}`) : null),
       h('div.stat-grid', stat('Level', s.level), stat('Kills', fmtInt(s.kills)), stat('Bosses', s.bosses), stat('Time', fmtTime(s.time))),
       s.daily ? h('div.earned.daily-earned', h('small', `Daily bonus · ${s.daily.streak}-day streak`), h('div', art('cur:salvage', 'cur-ico'), '+' + fmtInt(s.daily.bonus))) : null,
@@ -431,9 +428,6 @@ export function createOverlays(layer, hooks) {
       done.length ? h('div.unlocks', h('div.kicker', `Contracts complete (${done.length})`), done.map((c) => h('div.unlock', uiIcon('check'), h('b', c.name), h('small', `+${c.salvage} salvage` + (c.unlock ? ' · ' + unlockLabel(c.unlock) : ''))))) : null,
       h('div.build', s.weapons.map(([id, r]) => h('div.build-item', { style: `--c:#${WEAPONS[id].color.toString(16).padStart(6, '0')}` }, art('weapon:' + id, 'build-icon'), h('span', WEAPONS[id].name), h('b', 'R' + r))), s.relics.map((id) => h('div.build-item.relic', art('relic:' + id, 'build-icon'), h('span', RELIC_BY_ID[id].name)))),
       s.daily ? h('button.btn.gold.share-btn.wide', { onclick: async () => { const r = await shareText(dailyShareText({ key: G.state.daily.lastDay, mutator: MUTATOR_BY_ID[s.mutator]?.name, wave: s.wave, score: s.score, streak: s.daily.streak })); if (r === 'copied') hooks.toast?.('Result copied. Paste it to a friend!'); else if (r === 'failed') hooks.toast?.('Could not share from this browser.'); } }, uiIcon('share'), 'Share daily result') : null,
-      sg ? h('div.modal-actions', h('button.btn.primary', { onclick: () => { close(); hooks.relaunch(false); }, 'data-autofocus': '' }, uiIcon('reroll'), sg.won ? 'Fly it again' : 'Retry the siege'),
-          sg.won && TIER_BY_N[sg.tier + 1] && siegeOpen(G.state, sg.tier + 1) ? h('button.btn.gold', { onclick: () => { close(); hooks.relaunch(true); } }, uiIcon('launch'), 'Next siege') : null,
-          h('button.btn.ghost.wide', { onclick: () => { close(); hooks.toHangar('control'); } }, uiIcon('control'), 'Defence Control')) :
       ca ? h('div.modal-actions', h('button.btn.primary', { onclick: () => { close(); hooks.relaunch(false); }, 'data-autofocus': '' }, uiIcon('reroll'), 'Retry stage'),
           ca.checkpoint ? h('button.btn.gold', { onclick: () => { close(); hooks.relaunch(false, { checkpoint: true }); } }, uiIcon('launch'), 'From checkpoint') : null,
           ca.cleared && ca.stage < 6 && !ca.hard ? h('button.btn.gold', { onclick: () => { close(); hooks.relaunch(true); } }, uiIcon('launch'), 'Next stage') : null,
@@ -459,12 +453,12 @@ export function createOverlays(layer, hooks) {
   function showSiegeDebrief(r, acts = {}) {
     const t = TIER_BY_N[r.tier], won = r.won, salvageEl = h('b.count', '0'), m = r.gun ? TURRET_MOD[r.gun] : null, sys = (id) => SYSTEM_BY_ID[id];
     const broke = r.broke || [], names = listNames(broke.map((id) => sys(id)?.name.toLowerCase() || id));
-    const say = won ? (m ? `Siege broken, {n}! The armoury has fitted our guns with ${m.name.toLowerCase()}, for good.` : r.stars === 3 ? 'Not a scratch on us, {n}. They will think twice next time.' : 'They broke on our guns, {n}. Well held.') + (r.repaired?.length ? ' And the crews have us patched up.' : '')
+    const say = won ? (m ? `Siege broken, {n}! The armoury has fitted the guns for good: ${m.name}.` : r.stars === 3 ? 'Not a scratch on us, {n}. They will think twice next time.' : 'They broke on our guns, {n}. Well held.') + (r.repaired?.length ? ' And the crews have us patched up.' : '')
       : broke.length ? `${r.abandoned ? 'You left the guns, {n}, and they' : 'They'} got through. We lost our ${names}. Fly a sortie and the crews will patch us up, or repair us here.` : 'They got through, {n}, but there was nothing online left for them to break.';
     const orbit = say.replace(/\{n\}/g, G.state.pilot.name || 'pilot');
     const el = h('div.modal.debrief.sg-debrief', { role: 'dialog', 'aria-label': 'Siege debrief' },
       h('div.modal-head' + (won ? '.won' : '.lost'), h('div.kicker', `Station Siege · Tier ${t.n} · ${t.name}`), h('h2', won ? 'Station held' : r.abandoned ? 'Siege abandoned' : 'Station lost'),
-        h('div.pbs', won && r.first ? h('div.pb', 'First hold') : null, r.newBest ? h('div.pb', 'New best score') : null)),
+        h('div.pbs', won && r.first ? h('div.pb', 'First hold') : null, won && r.newBest ? h('div.pb', 'New best score') : null)),
       h('div.stars-row', [1, 2, 3].map((i) => h('span.star-big' + (i <= r.stars ? '.on' : '') + (i > r.stars - (r.gained || 0) && i <= r.stars ? '.new' : ''), { style: `--d:${i * 260}ms` }, '★')),
         h('div.star-notes', SIEGE_STARS.map(([label, need], i) => h('small', (won && r.hull >= need ? '✓' : '·') + ' ' + label + (i ? ` (${Math.round(r.hull * 100)}%)` : '')))),
         r.cores ? h('div.pilot-row.cores-row', h('span', 'Alien Cores'), h('b', '+' + r.cores)) : null,

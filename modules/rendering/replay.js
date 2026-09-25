@@ -15,7 +15,7 @@ function glowTex(inner = 0.25) {
   g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(inner, 'rgba(255,255,255,.7)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c);
 }
 
-/** What a replay is of: its title and the line under it (ship, sector or siege tier). */
+/** What a replay is of: its title and the line under it (ship, sector, or the tier of a 2D siege recorded before v2.14). */
 export function replayTitle(rep) {
   const m = rep.meta || {}, ship = (SHIP_BY_ID[m.ship]?.name || '').toUpperCase();
   return { title: m.mode === 'siege' ? 'LAST SIEGE' : m.daily ? 'LAST DAILY SORTIE' : 'LAST SORTIE', sub: [ship, (m.tier || m.sector || '').toUpperCase()].filter(Boolean).join(' · ') };

@@ -18,7 +18,7 @@ const BULLET = { heavy: 1, orb: 2, snipe: 3 }; // anything else is a plain bolt 
 let rec = null, last = null, kills = [], loading = null, stamp = 0;
 const index = (list, key) => { let i = list.indexOf(key); if (i < 0) { i = list.length; list.push(key); } return i; };
 
-/** Start a new recording. meta: what the replay TV shows beside the fight (ship, mode, siege tier). */
+/** Start a new recording. meta: what the replay TV shows beside the fight (ship, mode). */
 export function recStart(meta = {}) { rec = meta.mode === 'counter' ? null : { meta, shapes: [], colors: [], frames: [], acc: 1 / HZ, t: 0 }; kills = []; }
 /** Call as the fight advances (dt: game seconds); takes a frame every 1/HZ seconds, keeping the last KEEP seconds. */
 export function recTick(w, dt) {

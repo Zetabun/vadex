@@ -25,15 +25,13 @@ export function createHud(hooks) {
   $.sector = h('div.sector-name'); $.waveN = h('b'); $.pips = h('div.pips', { 'aria-hidden': 'true' });
   $.salvage = h('span');
   $.level = h('b'); $.xp = h('i'); $.score = h('b');
-  // Station Siege: the station's hull (and its shield, a thin line over it) under the boss bar.
-  $.stnHull = h('i'); $.stnShield = h('b'); $.stnTxt = h('span.val'); $.stnHold = h('span.stn-hold'); $.stn = h('div.stn-bar', { hidden: true }, h('span.stn-lbl', 'STATION'), h('div.meter.stn', $.stnHull, $.stnShield), $.stnTxt, $.stnHold);
   $.bossName = h('span'); $.bossHp = h('i'); $.boss = h('div.bossbar', { hidden: true }, h('div.boss-label', art('relic:r_giant', 'boss-ico'), $.bossName), h('div.meter.boss', $.bossHp));
   const top = h('div#hud',
     h('div.hud-top', $.pause,
       h('div.wave-block', $.sector, h('div.wave-line', $.waveLbl = h('small', 'WAVE'), $.waveN, $.pips)),
       h('div.chip.salvage', { title: 'Salvage collected this sortie' }, art('cur:salvage', 'cur-ico'), $.salvage)),
     h('div.xp-row', h('div.lv', h('small', 'LV'), $.level), h('div.meter.xp', $.xp), h('div.hud-score', h('small', 'SCORE'), $.score)),
-    $.boss, $.stn);
+    $.boss);
 
   $.loadout = h('div.loadout');
   $.hullTxt = h('span.val'); $.hull = h('i'); $.shield = h('i'); $.shieldTxt = h('span.val');
@@ -82,9 +80,6 @@ export function createHud(hooks) {
       setText($.waveN, Math.round(counterProgress(w) * 100) + '%'); setText($.waveLbl, 'STAGE'); $.pips.hidden = true;
     } else { $.pips.hidden = false; setText($.waveLbl, 'WAVE'); buildPips(waveShown); }
     if (!w.counter) setText($.sector, (sec.endless ? sec.def.name : `Sector ${sec.idx + 1} · ${sec.def.name}`) + (run.mutator ? ' · Daily' : run.threat ? ` · Threat ${THREATS[run.threat].roman}` : '') + (run.route ? ' · ' + ROUTE_BY_ID[run.route].name : '') + (run.anomalies?.length ? ` · ${run.anomalies.length} anomal${run.anomalies.length > 1 ? 'ies' : 'y'}` : '')); if (!w.counter) setText($.waveN, `${sec.n}/${sec.len}`);
-    if (w.siege) { const t = w.siege.tier; setText($.sector, 'Station Siege · ' + t.name); $.pips.style.display = 'none'; setText($.waveN, `${Math.max(1, Math.min(t.waves, waveShown - t.first + 1))}/${t.waves}`); }
-    if (!w.siege) $.pips.style.display = ''; $.stn.hidden = !w.siege;
-    if (w.siege) { const s = w.siege, max = s.sys.w_shield || 0; setWidth($.stnHull, Math.max(0, s.hull)); setWidth($.stnShield, max ? s.shield / max : 0); setText($.stnTxt, Math.max(0, Math.round(s.hull * 100)) + '%'); setClass($.stn, 'low', s.hull < 0.3); setText($.stnHold, s.assault > 0 ? `HOLD ${Math.ceil(s.assault)}s` : ''); }
     const cur = sec.n - 1, cleared = w.wave.state === 'cleared';
     const pips = $.pips.children; for (let i = 0; i < pips.length; i++) { setClass(pips[i], 'done', i < cur || (i === cur && cleared)); setClass(pips[i], 'now', i === cur && !cleared); }
     setText($.salvage, fmt(Math.floor(run.salvage)));

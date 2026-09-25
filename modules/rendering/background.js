@@ -117,8 +117,7 @@ export class Background {
     const H = this.halo; H.begin(); if (this.decor === 'none') H.add(-40, -5, 420, 90, 0, rgb(0x5aa8ff), 0.26 - 0.14 * this.earthMat.uniforms.night.value); if (this.decor === 'rings') { H.add(30, 200, 150, 150, 0, rgb(0xffb060), 0.3); this.disc.rotation.z = this.t * 0.2; } H.end();
     if (this.rocks.visible) { const d = this.dummy; for (let i = 0; i < 14; i++) { const r = this.rockSeed[i]; d.position.set(r[0], ((r[1] - this.t * r[5]) % 300 + 300) % 300 - 80, r[2]); d.rotation.set(this.t * 0.1 + r[4], this.t * 0.13 * r[5] * 0.3, r[4]); d.scale.setScalar(r[3]); d.updateMatrix(); this.rocks.setMatrixAt(i, d.matrix); } this.rocks.instanceMatrix.needsUpdate = true; }
     if (this.grid.visible) this.grid.position.y = -((this.t * 6) % 20);
-    // In a Station Siege the Earth sinks a little so the station can stand at the foot of the field in front of it.
-    this.sinkK = (this.sinkK || 0) + ((this.sink ? 1 : 0) - (this.sinkK || 0)) * Math.min(1, dt * 2); if (this.decor === 'none') this.planet.position.y = -235 - 80 * this.sinkK;
+    if (this.decor === 'none') this.planet.position.y = -235;
     if (this.planet.visible && this.decor === 'none') { this.planet.rotation.y = this.t * 0.004; const u = this.earthMat.uniforms; u.time.value = this.t; u.dim.value += ((this.battle ? 0.62 : 1) - u.dim.value) * Math.min(1, dt * 2); if ((this.nightT -= dt) <= 0) { this.nightT = 20; u.night.value = nightAmount(); } }
   }
 }

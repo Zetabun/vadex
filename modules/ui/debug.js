@@ -86,12 +86,6 @@ function runScene(scene, hooks, ui) {
   if (name === 'rebuild') { st.prestige.level = +arg || 1; st.stationName = 'Halcyon'; for (const u of WORKSHOP) { st.stationPeak[u.id] = u.max; st.workshop[u.id] = 0; } if (arg3) for (const a of ALIEN_TECH) st.counter.tech[a.id] = 1; recalc(); hooks.toHangar('launch'); setTimeout(() => { const sc = ui.intro({ rebuild: true }); if (arg2) { for (let k = 0; k < +arg2 / 0.05; k++) sc.update(0.05); G.introPaused = true; } }, 300); return; }
   // news: station news, what a buy shows (a toast) and what Launch shows after (a glow over the changed parts, the figure counting up)
   if (name === 'news') { st.prestige.level = 2; for (const u of WORKSHOP) { st.stationPeak[u.id] = u.max; st.workshop[u.id] = 2; } st.counter.unlocked = true; recalc(); hooks.toHangar('launch'); setTimeout(() => { st.workshop.w_dmg = 10; st.workshop.w_speed = 5; st.counter.tech.x_alloy = 1; st.counter.tech.x_phase = 1; st.prestige.level = 3; hooks.toHangar('workshop'); setTimeout(() => { hooks.toHangar('launch'); toast('Station: Weapon battery online', 'station'); }, 200); }, 400); return; }
-  // siege:<tier>[:waves in[:workshop share 0-1]]: a Station Siege, optionally jumped ahead, with that much of the Workshop built
-  if (name === 'siege') { const n = +arg || 1, f = arg3 == null || isNaN(+arg3) || arg2 === 'won' || arg2 === 'lost' ? 0.6 : +arg3; st.counter.unlocked = true; st.seen.siegeIntro = true; for (let k = 1; k <= n; k++) st.counter.stars[k] = st.counter.stars[k] || 1; WORKSHOP.forEach((u, i) => { st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, f * 1.6 - (i % 5) * 0.15))); }); recalc();
-    hooks.launch({ siege: n }); for (let g = 0; g < 80 && (nextRelic() || nextOffer()); g++) { if (st.run.relicOffer) pickRelic(0); else pickCard(autoPickIndex(st.run)); } ui.closeOverlays();
-    // siege:<tier>:won:<hull> / siege:<tier>:lost: straight to the debrief
-    if (arg2 === 'won' || arg2 === 'lost') { st.run.score = 41250; if (arg2 === 'won') { st.run.siegeWon = true; st.run.siegeHull = arg3 == null ? 0.72 : +arg3; } else st.run.siegeHull = 0; G.world.wave.state = 'over'; bus.emit('sortieOver', arg2 === 'won' ? 'cleared' : 'stationLost'); return; }
-    if (arg2) debugSetWave(st.run.wave + +arg2); return; }
   // comms:<line id>: the station AI saying one of its lines
   if (name === 'comms') { st.pilot.name = 'Adam'; st.seen.callsign = true; hooks.toHangar('launch'); setTimeout(() => { const l = LINES.find((x) => x.id === (arg || 'welcome')); if (l) ui.comms.say(l.text); }, 600); return; }
   if (name === 'deck') { st.prestige.level = +arg || 3; st.pilot.name = 'Adam'; st.seen.callsign = true; for (const id of ['signal', 'checker', 'ember', 'royal']) st.banners[id] = 1; st.unlocked.ships.bulwark = 1; st.stats.bestWave = 74; st.stats.maxAnomalies = 2; st.counter.stars = { 1: 3, 2: 2, 3: 1 }; refreshMenus(); st.seen.menus.deck = true; recalc(); hooks.toHangar('deck');
@@ -135,6 +129,9 @@ function runScene(scene, hooks, ui) {
     WORKSHOP.forEach((u, i) => { st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.6 - (i % 5) * 0.13))); }); st.seen.control = true; recalc(); hooks.toSiege(tier);
     if (mode === 'won' || mode === 'lost') setTimeout(() => { const g = G.renderer?.room; if (!g?.win) return; g.wave = mode === 'won' ? g.tier.plan.length - 1 : 1; g.score = 18450; g.kills = 57;
       if (mode === 'won') { g.hull = extra == null ? 0.72 : +extra; g.win(); } else { g.hull = 0; g.over = true; g.running = false; g.banner = { text: 'Station lost', t: 99 }; } }, 700);
+    // exit / abandon: a wave under way, then Exit pressed (the confirm), and for abandon, Abandon pressed (the debrief)
+    if (mode === 'exit' || mode === 'abandon') setTimeout(() => { const g = G.renderer?.room; if (g) { g.wave = 1; g.hull = 0.64; g.score = 6200; g.kills = 21; } document.querySelector('.gunner .d3-exit')?.click();
+      if (mode === 'abandon') setTimeout(() => document.querySelector('.modal.confirm .btn.danger')?.click(), 400); }, 1500);
     if (mode === 'boom') setInterval(() => { const g = G.renderer?.room, T3 = window.THREE; if (!g?.shatter || G.room !== 'gunner') return; g.yaw = 0; g.pitch = 0; g.picksDue = 0; g.spawnQ = [];
       for (const [kind, x, z] of [['fighter', -14, -80], ['bomber', 18, -110]]) { const e = g.spawn(kind, new T3.Vector3(x, 4, z)); e.vel.set(x > 0 ? -12 : 12, 0, 20); g.kill(e); } }, 2000);
     if (mode === 'missile') setInterval(() => { const g = G.renderer?.room, T3 = window.THREE; if (!g?.fireMissile || G.room !== 'gunner') return; g.yaw = 0; g.pitch = 0; g.picksDue = 0; g.spawnQ = []; if (g.pick) g.choosePick(0);
@@ -143,7 +140,10 @@ function runScene(scene, hooks, ui) {
     return; }
   // sgdamage[:tab]: a station left damaged by a lost siege (three systems out), seen from a tab or room (default Defence Control)
   if (name === 'sgdamage') { st.pilot.name = 'Adam'; st.seen.callsign = true; st.counter.unlocked = true; st.counter.stars[1] = 2; st.counter.stars[2] = 1; st.seen.control = true; st.seen.gunnerIntro = true; st.stationName = 'Halcyon';
-    WORKSHOP.forEach((u, i) => { st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.6 - (i % 5) * 0.13))); }); st.siege.damage = { ids: ['w_shield', 'w_crit', 'w_dmg'], tier: 2, cost: 1400 }; recalc(); hooks.toHangar(arg || 'control'); return; }
+    WORKSHOP.forEach((u, i) => { st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.6 - (i % 5) * 0.13))); }); st.siege.damage = { ids: ['w_shield', 'w_hull', 'w_dmg'], tier: 2, cost: 1400 }; st.seen.commsInit = true; for (const l of LINES) st.seen.comms[l.id] = 1; recalc(); hooks.toHangar(arg || 'control');
+    if (arg === 'missions') setTimeout(() => document.querySelector('.sg-panel')?.scrollIntoView({ block: 'start' }), 900); /* down to the siege panel */
+    if (arg2 === 'repair') setTimeout(() => document.querySelector('.sg-damage .btn')?.click(), 1200); /* and its repair panel */
+    return; }
   // backup[:restore]: Settings, then the save backup screen (restore: with a code pasted and the confirm open)
   if (name === 'backup') { st.pilot.name = 'Adam'; st.seen.callsign = true; hooks.toHangar('launch'); setTimeout(() => { document.querySelector('.hg-top .icon-btn')?.click(); setTimeout(() => { [...document.querySelectorAll('.settings .field')].find((f) => f.textContent.includes('Save backup'))?.querySelector('button')?.click();
     if (arg === 'restore') setTimeout(() => { const i = document.querySelector('.bk-input'); i.value = exportSave(); i.dispatchEvent(new Event('input')); document.querySelector('.modal.backup .btn.ghost.wide')?.click(); }, 300); }, 300); }, 500); return; }

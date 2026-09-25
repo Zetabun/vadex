@@ -7,7 +7,6 @@
 // repaired (progression/siege.js).
 import { STAGES } from '@last-orbit/data/counter.js';
 import { STATION_MODULES, STATION_ALIEN, stationSnapshot, trophyWon } from '@last-orbit/data/station.js';
-import { BAL } from '@last-orbit/data/balance.js';
 import { WORKSHOP } from '@last-orbit/data/workshop.js';
 import { ALIEN_TECH } from '@last-orbit/data/alientech.js';
 
@@ -28,24 +27,14 @@ const PLANS = [
   { hp: 2, dmg: 2.05, shots: 5, torps: 4, beamEvery: 2.8, salvage: 6500, repair: 11000, breaks: 3, gun: 't_sentry', plan: [{ f: 12 }, { f: 13, b: 1 }, { f: 14, b: 2, g: 1 }, { f: 15, b: 2, g: 2 }, { f: 16, b: 2, g: 2 }, { cap: 4, f: 6, b: 1 }] },
   { hp: 2.15, dmg: 2.05, shots: 5, torps: 4, beamEvery: 2.6, salvage: 11000, repair: 14000, breaks: 3, gun: 't_warhead', plan: [{ f: 10, b: 2, g: 1 }, { f: 12, b: 2, g: 2 }, { cap: 3, f: 5 }, { f: 14, b: 3, g: 2 }, { f: 16, b: 3, g: 3 }, { f: 16, b: 4, g: 3 }, { cap: 5, f: 8, b: 2, g: 1 }] },
 ];
-/** One tier per Counterattack stage. (sector, first, last and the rest describe the old 2D siege, still read by its
- *  combat code until that is removed.) */
-export const SIEGE_TIERS = STAGES.map((sg) => {
-  const sector = sg.n, first = sector * BAL.sectorWaves + 3, last = (sector + 1) * BAL.sectorWaves;
-  return { n: sg.n, name: NAMES[sg.n - 1], ...PLANS[sg.n - 1], sector, first, last, waves: last - first + 1,
-    bombards: 3 + Math.floor(sg.n / 2), shellEvery: (3 + Math.floor(sg.n / 2)) / (0.4 + sg.n * 0.07), raidEvery: 5.6 - sg.n * 0.4, wing: 1 + Math.floor((sg.n + 1) / 3),
-    assault: 20 + sg.n * 2, bomberEvery: 11 - sg.n * 0.8, bomberDrop: 2.4 - sg.n * 0.15, barrage: 3 + Math.ceil(sg.n / 2) };
-});
+/** One tier per Counterattack stage. */
+export const SIEGE_TIERS = STAGES.map((sg) => ({ n: sg.n, name: NAMES[sg.n - 1], ...PLANS[sg.n - 1] }));
 export const TIER_BY_N = Object.fromEntries(SIEGE_TIERS.map((t) => [t.n, t]));
 /** A tier's fight in a few words, for the lists. */
 export function tierSummary(t) { const caps = t.plan.filter((w) => w.cap).length; return `${t.plan.length} waves · ${caps > 1 ? 'two capital ships' : 'capital ship'}`; }
 /** The same, as words: "4 waves and a capital ship". */
 export function tierPhrase(t) { const caps = t.plan.filter((w) => w.cap).length; return caps > 1 ? `${t.plan.length} waves with two capital ships` : `${t.plan.length} waves and a capital ship`; }
 
-// The old 2D siege's scaling (its combat code still reads these until it is removed).
-export const SIEGE_EXPECT = [28, 48, 72, 92, 106, 116], SIEGE_TOUGH = 1.035;
-export const siegeToughness = (power, n) => Math.max(1, Math.pow(SIEGE_TOUGH, power - SIEGE_EXPECT[n - 1]));
-export const SIEGE_DMG = { shell: 0.06, raider: 0.08, breach: 0.1, bossShell: 0.07 };
 /** Stars: hold the station, keep it above half, keep it nearly untouched. */
 export const SIEGE_STARS = [['Hold the station', 0], ['Station above 50%', 0.5], ['Station above 85%', 0.85]];
 /** Rewards beyond the salvage: Blueprints on a tier's first win, an Alien Core for each new star. */
@@ -99,8 +88,12 @@ export function siegeSystems(state) {
 export const systemPart = (id) => STATION_MODULES.find((m) => m.id === id) || STATION_ALIEN.find((a) => a.id === id);
 /** The turret upgrades the guns carry into every siege for good: one for each tier held. { id: times } */
 export function siegeGuns(state) { const out = {}; for (const t of SIEGE_TIERS) if (state.siege?.won?.[t.n]) out[t.gun] = (out[t.gun] || 0) + 1; return out; }
-/** The damage a lost siege left, or null: { ids, tier, cost }. */
-export const siegeDamage = (state) => (state.siege?.damage?.ids?.length ? state.siege.damage : null);
+/** The damage a lost siege left, or null: { ids, tier, cost }, counting only systems still built (an Overhaul can take
+ *  one down to nothing). */
+export function siegeDamage(state) {
+  const d = state.siege?.damage; if (!d?.ids?.length) return null;
+  const parts = stationSnapshot(state).parts, ids = d.ids.filter((id) => (parts[id] || 0) > 0); return ids.length ? { ...d, ids } : null;
+}
 
 /** Defence Control's four consoles, two down each side wall, and which systems each one runs. */
 export const SIEGE_CONSOLES = [

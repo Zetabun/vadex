@@ -6,7 +6,6 @@ import { ENEMIES } from '@last-orbit/data/enemies.js';
 import { fx, sfx, spawnEnemy, spawnBullet, hurtPlayer, hitEnemy, killEnemy } from '@last-orbit/combat/world.js';
 import { movePath } from '@last-orbit/combat/paths.js';
 import { weave } from '@last-orbit/combat/anomalies.js';
-import { raidSpeed, stationHit } from '@last-orbit/combat/siege.js';
 
 const HALF = FIELD.W / 2;
 
@@ -59,9 +58,6 @@ export function updateEnemies(w, dt) {
         if (e.y < -8) { if (def.kamikaze) { e.rewardMul = 0; e.alive = false; continue; } e.y = FIELD.H + 10; e.state = 'form'; }
       } else if (e.state === 'path') { // Counterattack squads fly scripted lines and simply leave at the end
         if (!movePath(e, edt, p)) { e.rewardMul = 0; e.alive = false; continue; } alive++;
-      } else if (e.state === 'raid') { // Station Siege: shells and raiders heading for the station (combat/siege.js)
-        const k = raidSpeed(w, e); e.y += e.vy * k * edt; e.x += e.vx * k * edt + (e.siegeKind === 'raider' ? Math.sin(e.t * 2.6 + e.id) * 9 * edt : 0);
-        if (e.x < -HALF + 3) e.x = -HALF + 3; if (e.x > HALF - 3) e.x = HALF - 3; alive++;
       } else { // free: swarmlings, split spawn, cruisers
         if (def.cruiser) { e.x += e.vx * edt; e.y += Math.sin(e.t * 2) * 3 * edt; if (Math.abs(e.x) > HALF + 14) { e.rewardMul = 0; e.alive = false; continue; } alive++; }
         else {
@@ -77,7 +73,7 @@ export function updateEnemies(w, dt) {
         if (p.alive && Math.abs(e.x - p.x) < e.r + p.r && Math.abs(e.y - p.y) < e.r + p.r && Math.hypot(e.x - p.x, e.y - p.y) < e.r * e.scale + p.r * 0.8) {
           hurtPlayer(w, 1, e); if (!e.elite) { killEnemy(w, e, null, false, 0); continue; }
         }
-      } else if (e.y < FIELD.LAND_Y && e.state !== 'dive' && !def.cruiser) { if (w.siege) stationHit(w, e); else { hurtPlayer(w, 0, e); landed(w, e); } continue; } // in a siege the station takes it
+      } else if (e.y < FIELD.LAND_Y && e.state !== 'dive' && !def.cruiser) { hurtPlayer(w, 0, e); landed(w, e); continue; }
       if (def.fire && f.enter <= 0 && e.spawnT <= 0 && !(def.fire.onlyDiving && e.state !== 'dive') && !(w.counter && (e.y > FIELD.H - 2 || (e.y < p.y + 6 && !def.ground && def.fire.kind !== 'side')))) {
         e.fireT -= edt * w.sim.fireRate * (w.wave.fire || 1) * (w.wave.info?.mod?.fireRate || 1) * (e.buffed ? 1.6 : 1) * (e.elite?.fireRate || 1) * (e.overcharged ? 2 : 1);
         // aligned: hold fire until level with the ship (broadside gunships)
