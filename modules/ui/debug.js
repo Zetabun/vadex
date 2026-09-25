@@ -190,6 +190,22 @@ function runScene(scene, hooks, ui) {
     if (arg === 'tap') setTimeout(() => ui.tap?.(arg2 && isNaN(+arg2) ? arg2 : 'telescope'), 1500);
     if (arg === 'charting') setTimeout(() => { ui.tap?.('chart'); setTimeout(() => document.querySelector('.obs-go')?.click(), 400); }, 1500); /* chart the next depth: the view turns up to it */
     return; }
+  // yard[:stage] or yard:<view>[:stage] or yard:tap:<exhibit>[:stage]: the Shipyard at Overhaul rank 7 with that many of
+  // the Chimera's four stages built (default 1), the pay for the next to hand, and three other ships in the hangar.
+  // view: console, blueprint, fleet, side, front, doors, window; build (the next stage built as you watch: at 3, she is
+  // commissioned) or intro (a first visit).
+  if (name === 'yard') { const num = (v) => v != null && v !== '' && !isNaN(+v), stage = Math.min(4, num(arg) ? +arg : arg === 'tap' ? (num(arg3) ? +arg3 : 1) : num(arg2) ? +arg2 : 1);
+    st.pilot.name = 'Adam'; st.seen.callsign = true; st.seen.shipyard = arg !== 'intro'; st.prestige.level = 7; st.stationName = 'Halcyon'; st.salvage = 400000; st.counter.unlocked = true; st.counter.cores = 6; st.prestige.bp = 5;
+    for (const l of LINES) st.seen.comms[l.id] = 1; st.seen.commsInit = true; st.shipyard = { stage, at: Array.from({ length: stage }, (_, i) => Date.now() - (stage - i) * 86400000) }; /* a stage a day */
+    for (const id of ['striker', 'bulwark', 'tempest']) st.unlocked.ships[id] = 1; st.mastery = { vanguard: { level: 6, xp: 0 }, striker: { level: 3, xp: 0 }, bulwark: { level: 2, xp: 0 }, tempest: { level: 4, xp: 0 } };
+    if (stage >= 4) { st.unlocked.ships.chimera = Date.now(); st.ship = 'chimera'; }
+    WORKSHOP.forEach((u, i) => { st.stationPeak[u.id] = u.max; st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.7 - (i % 5) * 0.12))); });
+    recalc(); hooks.toHangar('yard');
+    const view = { console: [-2.0, 0.43, 0.6, -0.25], blueprint: [-1.8, 0.3, 1.5708, 0.08], fleet: [1.8, 0.3, -1.5708, 0.08], side: [4.6, -1.8, 0.88, -0.02], front: [2.0, -10.3, 2.74, 0], doors: [0, -1.5, Math.PI, 0.05], window: [0, -9.4, 0, 0.1] }[arg];
+    if (view) { let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 60) setTimeout(place, 100); return; } r.pos.set(view[0], 0, view[1]); r.yaw = view[2]; r.pitch = view[3]; }; place(); }
+    if (arg === 'tap') setTimeout(() => ui.tap?.(arg2 || 'ship'), 1500);
+    if (arg === 'build') setTimeout(() => { ui.tap?.('ship'); setTimeout(() => document.querySelector('.yard-go')?.click(), 400); }, 1500);
+    return; }
   // sgdamage[:tab]: a station left damaged by a lost siege (three systems out), seen from a tab or room (default Defence Control)
   if (name === 'sgdamage') { st.pilot.name = 'Adam'; st.seen.callsign = true; st.counter.unlocked = true; st.counter.stars[1] = 2; st.counter.stars[2] = 1; st.seen.control = true; st.seen.gunnerIntro = true; st.stationName = 'Halcyon';
     WORKSHOP.forEach((u, i) => { st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.6 - (i % 5) * 0.13))); }); st.siege.damage = { ids: ['w_shield', 'w_hull', 'w_dmg'], tier: 2, cost: 1400 }; st.seen.commsInit = true; for (const l of LINES) st.seen.comms[l.id] = 1; recalc(); hooks.toHangar(arg || 'control');

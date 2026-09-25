@@ -1,5 +1,22 @@
 # Changelog
 
+## v2.16.0 — 2026-09-25
+
+- **The Shipyard (new room aboard):** the dry dock at the station's rim. It opens with the shipyard frame, at Overhaul rank 7. Go through to it from the Observatory (a new door on its right wall), or from the station card.
+  - **A tall bay open to space** through force-field doors onto the slipway, with the Earth below and the yard's gold frame outside. Gantries run down both sides with welding arms that work on the ship while she is built, sparks and all, and a crane brings in hull plates.
+  - **Build the Chimera,** the first ship built aboard since the Fall. She stands in her jig in the middle of the bay, and you fund her in four stages: her keel and frame, alien plating, her plasma drive, then her weapon and colours.
+  - **Each stage shows on the ship:** the plans as a hologram, then a bare frame, grey primer plating, her drive and glass, and at last her colours. The last stage commissions her: the arms stand back, she lifts off the cradle, and she joins your hangar.
+  - **The price:** salvage (about a sortie or two a stage, rising with your Overhaul rank like the Workshop's), plus 3 Alien Cores for the plating and 2 Blueprints for the drive.
+  - **In the room:** the build console shows what the next stage needs, her blueprint is on one wall, and the fleet board on the other shows every ship and its mastery. A build log between the doors records the day each stage was built.
+  - **Once she is built,** the bay holds whichever ship you fly. Try your paint jobs on it there.
+- **The Chimera, a sixth ship:** Demolition. Built in your own yard and plated in the alien hulls you towed home.
+  - **Plasma Mortar and Black Hole:** burning plasma orbs with a wide blast, and a black hole to drag them all together first. +25% blast radius, abilities recharge 15% faster, 8% slower.
+  - **Trait, Meltdown:** enemies that die burning burst into plasma, hitting everything close and setting it alight, so the fire runs on through a formation.
+  - **Signature, Starforge** (mastery 5): every blast scatters 3 bomblets, and its burn is doubled.
+  - Her own mastery paint, **Chimera Prime**, at mastery 10.
+- **The Command Deck** has six ship pedestals now. The Chimera shows as an outline until she is built.
+- **The Overhaul roadmap** names the room each core piece opens.
+
 ## v2.15.0 — 2026-09-25
 
 - **The Trophy Hall (new room aboard):** a gallery in the station's Habitat ring. It opens with the ring, at Overhaul rank 2. Walk in from the Command Deck (a new door on its left wall), from the station card, or from the Counterattack panel in Missions.

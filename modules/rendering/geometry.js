@@ -115,9 +115,10 @@ export const NOZZLES = {
   bulwark: [[-.95, -1.28], [-.36, -1.17], [.36, -1.17], [.95, -1.28]],
   tempest: [[-.32, -1.2], [.32, -1.2]],
   revenant: [[-.3, -1.2], [.3, -1.2]],
+  chimera: [[-.42, -1.3], [.42, -1.3]],
 };
 /** Where the cosmetic banner is pinned on each hull. */
-export const BANNER_PIN = { vanguard: -1.05, striker: -1.2, bulwark: -1.1, tempest: -1.12, revenant: -1.1 };
+export const BANNER_PIN = { vanguard: -1.05, striker: -1.2, bulwark: -1.1, tempest: -1.12, revenant: -1.1, chimera: -1.12 };
 
 const HULLS = {
   // All-rounder: a clean arrowhead with swept wings, intakes and a dorsal spine.
@@ -169,6 +170,17 @@ const HULLS = {
     markings: [...mirror(s => box(.3, .05, .02, s * .7, -.44, .16, s * -.58)), box(.05, .5, .02, 0, -.55, .24)],
     lights: [box(.07, 1.75, .05, 0, .82, .04), ...mirror(s => box(.06, .06, .06, s * .22, 1.82, .1)), ...mirror(s => box(.05, .14, .04, s * 1.5, -.9, .08))],
     engine: mirror(s => box(.2, .1, .2, s * .3, -1.14)),
+  }),
+  // Demolition, built aboard from alien hull: a human spine between two forward mandibles, back-swept claw wings, the
+  // plasma core glowing in a gold ring amidships and the mortar's short barrel along the nose.
+  chimera: () => ({
+    hull: [gem(.36, 1.45, .26, 0, .3), box(.72, .75, .3, 0, -.62), ...mirror(s => gem(.95, .34, .12, s * .8, -.4, 0, s * -.5)), ...mirror(s => spike(.11, .9, s * .6, .78, s * .22)), spike(.06, .45, 0, 1.95, 0)],
+    deck: [gem(.2, .9, .1, 0, .55, .18), ...mirror(s => gem(.7, .2, .07, s * .8, -.4, .08, s * -.5)), box(.46, .4, .08, 0, -.78, .17)],
+    cockpit: [gem(.17, .42, .16, 0, .6, .27)],
+    chassis: [box(.8, .5, .18, 0, -.72, -.16), part(P().cyl, 0, 1.2, .2, .1, .6, .1), ...mirror(s => box(.26, .42, .3, s * .42, -1.02)), ...mirror(s => box(.1, .5, .14, s * 1.25, -.66, .02, s * -.5)), ...mirror(s => box(.14, .3, .2, s * .6, .3, .05))],
+    markings: [ring(.34, 0, -.3, .2), ...mirror(s => box(.05, .5, .02, s * .2, .2, .27)), ...mirror(s => box(.3, .05, .02, s * .8, -.36, .15, s * -.5))],
+    lights: [gem(.19, .19, .19, 0, -.3, .2, 0, 'ico'), ...mirror(s => box(.06, .06, .06, s * .7, 1.2, .05)), ...mirror(s => box(.07, .16, .04, s * 1.45, -.68, .06))],
+    engine: mirror(s => box(.2, .1, .22, s * .42, -1.25)),
   }),
 };
 export function unitBox() { return new (T().BoxGeometry)(1, 1, 1); }

@@ -21,7 +21,7 @@ const T = () => window.THREE;
 
 // Room: x -5..5, z -8 (window) .. 4 (back wall), height 3.4. The pilot's eyes are at 1.6.
 const W = 5, FRONT = -8, BACK = 4, H = 3.4;
-const TABLE = { x: 0, z: -3, r: 1.3 }, PEDESTAL_X = 4.1, PEDESTAL_Z = [-6.3, -4.7, -3.1, -1.5, 0.1];
+const TABLE = { x: 0, z: -3, r: 1.3 }, PEDESTAL_X = 4.1, PEDESTAL_Z = [-6.5, -5.1, -3.7, -2.3, -0.9, 0.5];
 const TIER_COL = ['#d08a4e', '#cfd8e8', '#ffc857'], FEAT_COL = '#b69cff';
 /** Where Defence Control's door stands, on the right wall behind the ships; the Trophy Hall's on the left, between the
  *  medal wall and the lounge. */

@@ -41,6 +41,8 @@ import { QUARTERS_RANK, REST_BONUS, KEEPSAKES, PHOTOS, BOLT_LINES, quartersOpen 
 import { rest, nextMood } from '@last-orbit/progression/quarters.js';
 import { OBSERVATORY_RANK, VOID_MARKS, MARK_BY_WAVE, SKY_LINES, observatoryOpen, voidSector } from '@last-orbit/data/observatory.js';
 import { chartable, chartMark, isCharted } from '@last-orbit/progression/observatory.js';
+import { YARD_RANK, YARD_STAGES, YARD_SHIP, YARD_LINES, yardOpen, stageSalvage } from '@last-orbit/data/shipyard.js';
+import { yardStage, yardDone, nextStage, stageBlock, buildStage } from '@last-orbit/progression/shipyard.js';
 import { BOSSES } from '@last-orbit/data/bosses.js';
 import { STATION_CORE, MODULE_BY_ID, ALIEN_BY_ID, TROPHY_BY_ID, REBUILD_PARTS, rebuildPct, rebuildParts, stationSnapshot, caughtStages, hallOpen, STATION_TROPHIES, trophyWon, HUNTED } from '@last-orbit/data/station.js';
 import { stationBlueprint, pieceThumb } from '@last-orbit/ui/stationArt.js';
@@ -104,7 +106,7 @@ export function createHangar(hooks) {
   const el = h('div#hangar', top, $.body, $.coSvg, $.stationHot, $.callout, $.nav);
 
   // The rooms aboard the station: 3D spaces to walk round, each reached from the hangar and left the way you came.
-  const ROOMS = { deck: 'Command Deck', control: 'Defence Control', gunner: 'Gunner seat', hall: 'Trophy Hall', comms: 'Comms room', quarters: 'Pilot\'s quarters', observatory: 'Observatory' };
+  const ROOMS = { deck: 'Command Deck', control: 'Defence Control', gunner: 'Gunner seat', hall: 'Trophy Hall', comms: 'Comms room', quarters: 'Pilot\'s quarters', observatory: 'Observatory', yard: 'Shipyard' };
   const CONTROL_LOCK = 'Defence Control opens when the invaders strike back: clear Counterattack stage 1.';
   const CONTROL_INTRO = { icon: 'control', kicker: 'New room aboard', title: 'Defence Control', text: 'The station\'s war room. Its consoles run every defence you have built, the tactical table adds them up, and the threat board is where you launch a siege. Tap ORBIT\'s terminal for advice.' };
   const HALL_LOCK = 'The Trophy Hall is in the Habitat ring: it opens at Overhaul rank 2.';
@@ -113,6 +115,8 @@ export function createHangar(hooks) {
   const COMMS_INTRO = { icon: 'comms', kicker: 'New room aboard', title: 'Comms room', text: 'The Comms spire is back, and with it the radio room at the top. ORBIT listens on every frequency: each day the miners and trawlers post three bounties, one easy, one harder, one hard, sized to how you fly. Finish them for salvage, and all three in a day for a Blueprint. They are in Missions too.' };
   const QUARTERS_LOCK = `Your quarters are in the Outer ring: they open at Overhaul rank ${QUARTERS_RANK}.`;
   const QUARTERS_INTRO = { icon: 'home', kicker: 'New room aboard', title: 'Pilot\'s quarters', text: `The Outer ring is sealed, and there is a room in it with your name on the door. Rest in your bunk once a day and your next sortie banks ${Math.round(REST_BONUS * 100)}% more salvage. The keepsakes you pick up on the way end up on your shelf, the big moments on your wall. Oh, and Bolt lives here now.` };
+  const YARD_LOCK = `The Shipyard is the frame at the station's rim: it opens at Overhaul rank ${YARD_RANK}.`;
+  const YARD_INTRO = { icon: 'yard', kicker: 'New room aboard', title: 'Shipyard', text: 'The shipyard frame is up, and for the first time since the Fall the station can build its own ships. The crews have laid out the plans for the first: the Chimera, plated in the alien hulls you towed home. Fund her four stages here and watch her come together on the cradle. When she is done she joins your hangar.' };
   const OBS_LOCK = `The Observatory is the glass dome under the hub: it opens at Overhaul rank ${OBSERVATORY_RANK}.`;
   const OBS_INTRO = { icon: 'observatory', kicker: 'New room aboard', title: 'Observatory', text: 'The dome under the hub is open to the stars again. Past wave 60 there are no charts: every depth of the Deep Void you reach waits here to be charted, and charting it lights its constellation in the dome and pays Blueprints, some of them a paint job found nowhere else.' };
   let outside = 'launch'; // the hangar tab the rooms lead back to
@@ -134,6 +138,9 @@ export function createHangar(hooks) {
     // The Observatory opens with the dome.
     if (id === 'observatory' && !observatoryOpen(G.state)) { if (!quiet) { playSfx('deny'); hooks.toast?.(OBS_LOCK, 'info'); } if (tab !== id) return; id = 'launch'; }
     if (id === 'observatory' && !G.state.seen.observatory) { G.state.seen.observatory = true; setTimeout(() => hooks.menuIntro?.(OBS_INTRO), 150); }
+    // The Shipyard opens with the shipyard frame.
+    if (id === 'yard' && !yardOpen(G.state)) { if (!quiet) { playSfx('deny'); hooks.toast?.(YARD_LOCK, 'info'); } if (tab !== id) return; id = 'launch'; }
+    if (id === 'yard' && !G.state.seen.shipyard) { G.state.seen.shipyard = true; setTimeout(() => hooks.menuIntro?.(YARD_INTRO), 150); }
     // A menu the pilot has not earned yet stays shut (with a note on when it opens); a newly opened one explains itself once.
     if (menuState(id) === 'locked') { if (!quiet) { playSfx('deny'); hooks.toast?.(menuLockText(id), 'info'); } if (tab !== id) return; id = 'launch'; }
     if (menuState(id) === 'new') { menuSeen(id); setTimeout(() => hooks.menuIntro?.(MENU_BY_ID[id]), 150); }
@@ -150,7 +157,7 @@ export function createHangar(hooks) {
    *  on a list (Workshop upgrades) stay on the row under the finger; switching tabs starts at the top. */
   function render(top = false) {
     const y = $.body.scrollTop; clear($.body);
-    const view = { launch: launchView, missions: missionsView, workshop: workshopView, armory: armoryView, ships: shipsView, contracts: contractsView, records: recordsView, awards: awardsView, deck: () => roomView('deck'), control: () => roomView('control'), hall: () => roomView('hall'), comms: () => roomView('comms'), quarters: () => roomView('quarters'), observatory: () => roomView('observatory'), gunner: () => gunnerView() }[tab]();
+    const view = { launch: launchView, missions: missionsView, workshop: workshopView, armory: armoryView, ships: shipsView, contracts: contractsView, records: recordsView, awards: awardsView, deck: () => roomView('deck'), control: () => roomView('control'), hall: () => roomView('hall'), comms: () => roomView('comms'), quarters: () => roomView('quarters'), observatory: () => roomView('observatory'), yard: () => roomView('yard'), gunner: () => gunnerView() }[tab]();
     $.body.append(view); $.body.scrollTop = top ? 0 : y;
   }
 
@@ -331,8 +338,9 @@ export function createHangar(hooks) {
       let action;
       if (status === 'owned') action = h('button.btn' + (sel ? '.ghost' : '.primary'), { disabled: sel, onclick: () => { selectShip(s.id); playSfx('tab'); render(); } }, sel ? 'Selected' : 'Select');
       else if (status === 'buyable') action = h('button.btn.gold', { disabled: st.salvage < s.cost, onclick: () => { if (buyShip(s.id)) { playSfx('unlock'); hooks.flash?.(hex(s.trim)); render(); } else playSfx('deny'); } }, art('cur:salvage', 'cur-ico'), fmt(s.cost));
+      else if (status === 'yard') action = yardOpen(st) ? h('button.btn.gold', { onclick: () => show('yard') }, `Build her in the Shipyard · ${yardStage(st)}/${YARD_STAGES.length}`) : h('div.lock-note', uiIcon('lock'), h('span', `Built in the Shipyard, which opens at Overhaul rank ${YARD_RANK}`));
       else action = h('div.lock-note', uiIcon('lock'), h('span', c ? `Contract “${c.name}”: ${c.desc} (${contractProgress(c).cur}/${c.goal})` : 'Locked'));
-      list.append(h('article.ship' + (sel ? '.sel' : '') + (status === 'locked' ? '.locked' : ''), { style: `--c:${hex(s.trim)}` },
+      list.append(h('article.ship' + (sel ? '.sel' : '') + (status === 'locked' || (status === 'yard' && !yardOpen(st)) ? '.locked' : ''), { style: `--c:${hex(s.trim)}` },
         h('div.ship-top', h('div', h('div.kicker', s.role), h('h3', s.name)), art('ship:' + s.id, 'ship-icon')),
         h('p', s.desc),
         status === 'owned' ? masteryLine(s.id) : null,
@@ -518,6 +526,7 @@ export function createHangar(hooks) {
     const st = G.state;
     if (kind === 'exit') { show(outside); return; }
     if (kind === 'quarters') { show('quarters'); return; }
+    if (kind === 'yard') { show('yard'); return; }
     if (kind === 'chart') { chartPanel(); return; }
     playSfx('tab');
     if (kind === 'telescope') { const ready = chartable(st); if (ready.length) { chartPanel(); hooks.say?.(`${ready.length > 1 ? `${ready.length} depths are` : `${ready[0].name} is`} waiting to be charted, {n}. The chart is ready when you are.`); return; } hooks.say?.(SKY_LINES[skyTalk++ % SKY_LINES.length]); return; }
@@ -525,6 +534,66 @@ export function createHangar(hooks) {
     if (kind === 'orrery') { const s = st.stats, deep = Math.max(0, (s.bestWave || 0) - 60);
       hooks.panel?.({ kicker: 'Observatory', title: 'The orrery', body: [h('div.deck-board', [['Furthest wave', s.bestWave || '—'], ['Into the Deep Void', deep ? `+${deep} waves` : '—'], ['Deepest sector', deep ? `Void ${voidSector(s.bestWave)}` : '—'], ['Depths charted', `${VOID_MARKS.filter((m) => isCharted(st, m)).length}/${VOID_MARKS.length}`]].map(([k, v]) => h('div.db-row', h('small', k), h('b', String(v))))),
         h('p.sub-note', 'Its rings are the six sectors and the Void beyond; the light rides the deepest you have flown.')] }); }
+  }
+  // ------------------------------------------------------------ the Shipyard
+  const costLine = (c) => [`${fmtInt(c.salvage)} salvage`, c.cores ? `${c.cores} Alien Core${c.cores > 1 ? 's' : ''}` : '', c.bp ? `${c.bp} Blueprint${c.bp > 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ');
+  /** Every ship in a grid: its name and mastery once in the hangar, the Shipyard's ship with how far the yard has got. */
+  function bayGrid(st) {
+    const paint = PAINTS.find((x) => x.id === st.paint);
+    return h('div.deck-bay', SHIPS.map((sh) => {
+      const owned = !!st.unlocked.ships[sh.id], known = owned || (sh.yard && yardOpen(st)), icon = art('ship:' + sh.id, 'bay-ship');
+      if (sh.id === st.ship && paint && paint.id !== 'factory') { const svg = icon.querySelector('svg'); svg.style.setProperty('--ic-a', hex(paint.trim ?? sh.trim)); svg.style.setProperty('--ic-b', hex(paint.hull ?? 0x718996)); }
+      return h('div.bay-stand' + (sh.id === st.ship ? '.active' : '') + (owned ? '' : '.locked'), { style: `--c:${hex(sh.trim)}` }, icon, h('b', known ? sh.name : '???'),
+        h('small', owned ? `Mastery ${masteryOf(sh.id).level}` : sh.yard ? (yardOpen(st) ? `In the Shipyard · ${yardStage(st)}/${YARD_STAGES.length}` : `Shipyard · rank ${YARD_RANK}`) : 'Not owned yet'));
+    }));
+  }
+  /** The build: her four stages, those built, and the next with what it costs and the button to build it (or what is
+   *  short). Once she is done, the ship in the dock instead. */
+  function yardPanel() {
+    const st = G.state; playSfx('tab'); if (yardDone(st)) { dockPanel(); return; }
+    const n = nextStage(st), block = stageBlock(st), at = yardStage(st), rank = st.prestige?.level || 0, cores = st.counter?.cores || 0, bp = st.prestige?.bp || 0;
+    const short = { salvage: `You need ${fmtInt(n.cost.salvage - (st.salvage || 0))} more salvage.`, cores: `You need ${n.cost.cores - cores} more Alien Core${n.cost.cores - cores > 1 ? 's' : ''}: stars in the Counterattack or a Station Siege pay them.`, bp: `You need ${n.cost.bp - bp} more Blueprint${n.cost.bp - bp > 1 ? 's' : ''}: an Overhaul, charting the Deep Void or a full day of bounties pays them.` }[block];
+    hooks.panel?.({ kicker: 'Shipyard', title: 'Building the Chimera', body: [
+      h('p.sub-note', 'The first ship built aboard since the Fall, plated in the alien hulls you towed home. Fund each stage and the crews build it on the cradle; the last one hands her over to your hangar.'),
+      h('div.sg-defs', YARD_STAGES.map((s, i) => h('div.sg-def' + (i < at ? '.s2' : i === at ? '.s1' : '.s0'), h('i.sg-dot'), h('div', h('b', `${i + 1}. ${s.name}`), h('small', s.desc),
+        h('em', i < at ? 'Built' : costLine({ salvage: stageSalvage(s, rank), cores: s.cores || 0, bp: s.bp || 0 })))))),
+      h('button.btn.gold.wide.yard-go', { disabled: !!block, onclick: () => buildYard() }, n.n === YARD_STAGES.length ? 'Commission her' : `Build: ${n.name}`),
+      block ? h('p.sub-note', short) : null] });
+  }
+  function buildYard() {
+    const n = buildStage(G.state); if (!n) { playSfx('deny'); return; }
+    hooks.saveNow?.('yard'); hooks.closeOverlays?.(); render();
+    if (n.n >= YARD_STAGES.length) { playSfx('unlock'); hooks.flash?.('#6dff8e'); hooks.toast?.('The Chimera is commissioned: she joins your hangar, ready to fly.', 'unlock'); setTimeout(() => hooks.say?.('She is yours, {n}. The first ship this station has built for itself since the Fall.'), 2200); }
+    else { playSfx('buy'); hooks.toast?.(`${n.name} done: stage ${n.n} of ${YARD_STAGES.length}.`, 'good'); }
+  }
+  /** She is done: whichever ship is flown sits in the dock, and its paints can be tried on her there. */
+  function dockPanel() {
+    const st = G.state, body = h('div');
+    const draw = () => clear(body).append(h('div.paints.yard-paints', PAINTS.filter((pt) => st.paints[pt.id]).map((pt) => h('button.paint' + (st.paint === pt.id ? '.on' : ''), { onclick: () => { if (selectPaint(pt.id)) { playSfx('tab'); draw(); } } }, swatch(pt.id), h('span', pt.name)))));
+    draw(); hooks.panel?.({ kicker: 'Shipyard', title: `In the dock: ${SHIP_BY_ID[st.ship]?.name}`, body: [h('p.sub-note', 'Whichever ship you fly comes into the dock. Try her paint jobs on here: the crews repaint her as you pick.'), body,
+      h('button.btn.ghost.wide', { onclick: () => { hooks.closeOverlays?.(); show('ships'); } }, 'Change ship', uiIcon('chevron'))] });
+  }
+  /** Her blueprint: what she is and what she carries. */
+  function yardBlueprint() {
+    const s = SHIP_BY_ID[YARD_SHIP], st = G.state; playSfx('tab');
+    hooks.panel?.({ kicker: 'Shipyard', title: `The ${s.name}`, body: [h('p.sub-note', s.desc),
+      h('div.deck-board', [['Role', s.role], ['Weapon', WEAPONS[s.weapon].name], ['Ability', ABILITIES[s.ability].name], ['Hull', yardDone(st) ? 'In the hangar' : `Stage ${yardStage(st)}/${YARD_STAGES.length}`]].map(([k, v]) => h('div.db-row', h('small', k), h('b', v)))),
+      h('ul.perks', s.perks.map((p) => h('li' + (p.startsWith('−') ? '.neg' : ''), p))),
+      h('div.traits', h('div.trait', h('small', 'Trait'), h('b', s.passive.name), h('span', s.passive.desc)), h('div.trait', h('small', 'Signature · mastery 5'), h('b', s.signature.name), h('span', `${WEAPONS[s.weapon].name} at rank 7: ${s.signature.desc}.`)))] });
+  }
+  /** Tapping something in the Shipyard: the ship (or the console), her blueprint, the fleet board, the crews on the
+   *  gantries, the bay doors, or a door. */
+  let yardTalk = 0;
+  function yardExhibit(kind) {
+    const st = G.state;
+    if (kind === 'exit') { show(outside); return; }
+    if (kind === 'observatory') { show('observatory'); return; }
+    if (kind === 'ship' || kind === 'console') { yardPanel(); return; }
+    if (kind === 'blueprint') { yardBlueprint(); return; }
+    playSfx('tab');
+    if (kind === 'fleet') { hooks.panel?.({ kicker: 'Shipyard', title: 'The fleet', body: [bayGrid(st), h('button.btn.ghost.small.d3-more', { onclick: () => { hooks.closeOverlays?.(); show('ships'); } }, 'Choose which one flies', uiIcon('chevron'))] }); return; }
+    if (kind === 'crews') { hooks.say?.(yardDone(st) ? 'The crews keep her flying now, {n}, and whatever else you bring into the dock.' : yardStage(st) ? YARD_LINES[yardTalk++ % YARD_LINES.length] : 'The crews are waiting on the keel, {n}. Fund the first stage at the console and they start.'); return; }
+    if (kind === 'window') hooks.say?.(yardDone(st) ? 'The slipway is clear. Every ship we build from now on leaves by it.' : 'When she is done she leaves by that slipway. I have been practising the countdown.');
   }
   // ------------------------------------------------------------ counterattack
   let counterHard = false;
@@ -667,8 +736,8 @@ export function createHangar(hooks) {
   function roomView(id) {
     // The room itself is 3D (rendering/deck.js and control.js, drawn while G.room is set); this is the touch layer over it.
     const p = G.state.pilot, hint = h('div.d3-hint', 'Drag to look around · Tap the floor to walk · Tap anything to inspect');
-    const el = h('div.deck3d' + (id === 'control' ? '.control' : id === 'hall' ? '.hall' : id === 'comms' ? '.comms' : id === 'quarters' ? '.quarters' : id === 'observatory' ? '.observatory' : ''), { 'aria-label': `${ROOMS[id]}. Drag to look around, tap the floor to walk, tap an exhibit to inspect it.` },
-      h('div.d3-top', h('div.d3-title', h('small', ROOMS[id]), h('b', id === 'deck' || id === 'quarters' ? p.name || rankTitle(p.rank) : id === 'hall' ? `${caughtStages(G.state).length}/6 captured` : id === 'comms' ? `${(G.state.bounties?.list || []).filter((b) => b.done).length}/3 bounties done` : id === 'observatory' ? `${VOID_MARKS.filter((m) => isCharted(G.state, m)).length}/${VOID_MARKS.length} charted` : G.state.stationName || 'Station defence')), h('button.btn.ghost.small.d3-exit', { onclick: () => show(outside) }, uiIcon('back'), 'Exit')), hint);
+    const el = h('div.deck3d' + (id === 'control' ? '.control' : id === 'hall' ? '.hall' : id === 'comms' ? '.comms' : id === 'quarters' ? '.quarters' : id === 'observatory' ? '.observatory' : id === 'yard' ? '.yard' : ''), { 'aria-label': `${ROOMS[id]}. Drag to look around, tap the floor to walk, tap an exhibit to inspect it.` },
+      h('div.d3-top', h('div.d3-title', h('small', ROOMS[id]), h('b', id === 'deck' || id === 'quarters' ? p.name || rankTitle(p.rank) : id === 'hall' ? `${caughtStages(G.state).length}/6 captured` : id === 'comms' ? `${(G.state.bounties?.list || []).filter((b) => b.done).length}/3 bounties done` : id === 'observatory' ? `${VOID_MARKS.filter((m) => isCharted(G.state, m)).length}/${VOID_MARKS.length} charted` : id === 'yard' ? (yardDone(G.state) ? `In dock: ${SHIP_BY_ID[G.state.ship]?.name}` : `Chimera · ${yardStage(G.state)}/${YARD_STAGES.length} built`) : G.state.stationName || 'Station defence')), h('button.btn.ghost.small.d3-exit', { onclick: () => show(outside) }, uiIcon('back'), 'Exit')), hint);
     let down = null;
     if (watch && id === 'deck') { el.append(watch.el); el.classList.add('watching'); }
     el.addEventListener('pointerdown', (e) => { if (e.target.closest('button, input') || watch) return; down = { id: e.pointerId, x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, t: performance.now(), moved: false }; try { el.setPointerCapture(e.pointerId); } catch { /* not every pointer can be captured */ } });
@@ -681,7 +750,7 @@ export function createHangar(hooks) {
     const up = (e) => {
       if (!down || e.pointerId !== down.id) return; const tap = !down.moved && performance.now() - down.t < 450; down = null; hint.classList.add('off');
       if (!tap) return; const r = G.renderer.canvas.getBoundingClientRect(), res = G.renderer.room?.pick(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-      if (res?.exhibit) ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit, quarters: quartersExhibit, observatory: observatoryExhibit }[id] || exhibit)(res.exhibit); else if (res?.walk) playSfx('tab', 0.4);
+      if (res?.exhibit) ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit, quarters: quartersExhibit, observatory: observatoryExhibit, yard: yardExhibit }[id] || exhibit)(res.exhibit); else if (res?.walk) playSfx('tab', 0.4);
     };
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', () => { down = null; });
     return el;
@@ -693,6 +762,7 @@ export function createHangar(hooks) {
     const st = G.state;
     if (kind === 'exit') { show(outside); return; }
     if (kind === 'deck') { show('deck'); return; }
+    if (kind === 'yard') { show('yard'); return; }
     playSfx('tab');
     if (kind === 'orbit') { hooks.say?.(siegeAdvice(st, orbitTalk++)); return; }
     if (kind === 'table') { defences(); return; }
@@ -865,12 +935,7 @@ export function createHangar(hooks) {
       panel('Command Deck', `Banners · ${owned.length}/${BANNERS.filter((b) => b.shape).length}`, h('div.deck-rack', owned.map((b) => h('div.rack-slot' + (st.banner === b.id ? '.flying' : ''), h('i.rack-rod'), bannerThumb(b, 'rack-thumb'), h('small', b.name)))),
         h('button.btn.ghost.small.d3-more', { onclick: () => { hooks.closeOverlays?.(); show('ships'); } }, 'Choose which one flies', uiIcon('chevron')));
     } else if (kind === 'ships') {
-      const paint = PAINTS.find((x) => x.id === st.paint);
-      panel('Command Deck', 'Hangar bay', h('div.deck-bay', SHIPS.map((sh) => {
-        const owned = !!st.unlocked.ships[sh.id], icon = art('ship:' + sh.id, 'bay-ship');
-        if (sh.id === st.ship && paint && paint.id !== 'factory') { const svg = icon.querySelector('svg'); svg.style.setProperty('--ic-a', hex(paint.trim ?? sh.trim)); svg.style.setProperty('--ic-b', hex(paint.hull ?? 0x718996)); }
-        return h('div.bay-stand' + (sh.id === st.ship ? '.active' : '') + (owned ? '' : '.locked'), { style: `--c:${hex(sh.trim)}` }, icon, h('b', owned ? sh.name : '???'), h('small', owned ? `Mastery ${masteryOf(sh.id).level}` : 'Not owned yet'));
-      })));
+      panel('Command Deck', 'Hangar bay', bayGrid(st));
     } else if (kind === 'trophies') {
       panel('Command Deck', 'Overhaul trophies', h('div.deck-trophies', Array.from({ length: Math.max(rank, 1) }, (_, i) => h('div.trophy' + (i < rank ? '' : '.empty'), h('b', ROMAN_N(i + 1)), h('small', STATION_CORE.find((c) => c.at === i + 1)?.name || 'Overhaul')))), roadmap(rank));
     } else if (kind === 'station') {
@@ -974,7 +1039,8 @@ export function createHangar(hooks) {
         hallOpen(st) ? h('button.btn.ghost.sc-hall', { onclick: () => { hooks.closeOverlays?.(); show('hall'); } }, 'Trophy Hall') : null,
         commsOpen(st) ? h('button.btn.ghost.sc-comms', { onclick: () => { hooks.closeOverlays?.(); show('comms'); } }, 'Comms room') : null,
         quartersOpen(st) ? h('button.btn.ghost.sc-quarters', { onclick: () => { hooks.closeOverlays?.(); show('quarters'); } }, 'Quarters') : null,
-        observatoryOpen(st) ? h('button.btn.ghost.sc-observatory', { onclick: () => { hooks.closeOverlays?.(); show('observatory'); } }, 'Observatory') : null)] });
+        observatoryOpen(st) ? h('button.btn.ghost.sc-observatory', { onclick: () => { hooks.closeOverlays?.(); show('observatory'); } }, 'Observatory') : null,
+        yardOpen(st) ? h('button.btn.ghost.sc-yard', { onclick: () => { hooks.closeOverlays?.(); show('yard'); } }, 'Shipyard') : null)] });
   }
 
   // W/A/S/D or the arrows walk the room aboard that is open.
@@ -995,5 +1061,5 @@ export function createHangar(hooks) {
   bus.on('contract', () => { if (G.mode === 'hangar') render(); });
   bus.on('medal', () => { if (G.mode === 'hangar' && tab === 'awards') { G.state.seen.medals = medalTotal().earned; render(); } });
   layoutNav();
-  return { el, top, nav: $.nav, show, render, update, siege: (n) => launchSiege(n), tap: (kind) => ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit, quarters: quartersExhibit, observatory: observatoryExhibit }[G.room] || exhibit)(kind), get tab() { return tab; } };
+  return { el, top, nav: $.nav, show, render, update, siege: (n) => launchSiege(n), tap: (kind) => ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit, quarters: quartersExhibit, observatory: observatoryExhibit, yard: yardExhibit }[G.room] || exhibit)(kind), get tab() { return tab; } };
 }

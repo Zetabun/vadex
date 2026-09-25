@@ -30,12 +30,13 @@ export function buyWorkshop(id) {
 }
 
 // ---------------------------------------------------------------- ships
-/** 'owned' | 'buyable' | 'locked' */
+/** 'owned' | 'buyable' | 'locked' | 'yard' (built in the Shipyard, never bought) */
 /** The contract that makes a ship available for purchase (none for the starter). */
 export const shipContract = (id) => CONTRACTS.find((c) => c.unlock?.ship === id) || null;
 export function shipStatus(id) {
   const st = G.state, c = shipContract(id);
   if (st.unlocked.ships[id]) return 'owned';
+  if (SHIP_BY_ID[id]?.yard) return 'yard';
   if (!c || st.contracts[c.id]) return 'buyable';
   return 'locked';
 }

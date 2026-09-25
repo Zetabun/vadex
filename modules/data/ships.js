@@ -1,5 +1,6 @@
 // Hulls. Each ship starts a sortie with its own gun and signature ability and bends a few stats.
 // cost: Salvage. The contract that makes a ship available is declared in data/contracts.js (unlock: { ship }).
+// yard: never bought: built in the Shipyard instead (data/shipyard.js).
 // look: tint for the 3D model (trim colour) and which optional parts are shown.
 // passive: the hull's unique trait (combat/passives.js). signature: a special evolution of the ship's own weapon, offered as
 // a card once that weapon is fully evolved and the ship has reached mastery 5 (fx merged like weapon evolution fx).
@@ -29,5 +30,10 @@ export const SHIPS = [
     fx: [['damage', 'pow', 1.5], ['bossDmg', 'pow', 1.3], ['hull', 'pow', 0.65]], perks: ['Railgun', '×1.5 damage, +30% boss damage', '−35% hull'],
     passive: { id: 'execute', name: 'Executioner', desc: '+60% damage to enemies below 30% health, bosses included.' },
     signature: { name: 'Planetcracker', desc: 'Slugs twice as wide, ×2.5 damage', fx: { widthMul: 2, dmgMul: 2.5 } } },
+  { id: 'chimera', name: 'Chimera', role: 'Demolition', weapon: 'plasma', ability: 'hole', cost: 0, yard: true,
+    trim: 0x6dff8e, desc: 'Built in your own shipyard and plated in the alien hulls you towed home. Burning plasma, and a black hole to pull them into it.',
+    fx: [['blast', 'pow', 1.25], ['abilityCd', 'pow', 0.85], ['moveSpeed', 'pow', 0.92]], perks: ['Plasma Mortar', '+25% blast radius, abilities recharge 15% faster', '−8% speed'],
+    passive: { id: 'meltdown', name: 'Meltdown', desc: 'Enemies that die burning burst into plasma, hitting everything close and setting it alight.' },
+    signature: { name: 'Starforge', desc: 'Every blast scatters 3 bomblets, and its burn is doubled', fx: { split: 3, burn: 0.4 } } },
 ];
 export const SHIP_BY_ID = Object.fromEntries(SHIPS.map((s) => [s.id, s]));

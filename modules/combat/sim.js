@@ -36,7 +36,7 @@ export function initWorld() {
   const counter = G.state.run?.mode === 'counter';
   if (G.state.run && !counter) for (const x of BARRIER_X) w.barriers.push({ x, w: 13, hp: 1, flash: 0 });
   applyRunMods(w);
-  w.passive = SHIP_BY_ID[G.state.run?.ship]?.passive?.id || null; w.staticN = 0;
+  w.passive = SHIP_BY_ID[G.state.run?.ship]?.passive?.id || null; w.staticN = 0; w.melts = []; w.meltSfx = 0;
   w.dps = Big.ZERO; w.dpsT = 0;
   syncDrones(w); w.wave.state = 'idle'; w.wave.timer = 1.4;
   if (counter) initCounter(w);

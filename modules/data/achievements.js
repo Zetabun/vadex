@@ -44,7 +44,7 @@ export const FEATS = [
   { id: 'f_arms', name: 'Arms Race', desc: 'Fully evolve three weapons in one sortie', get: S('maxedWeapons'), goal: 3, art: 'weapon:prism' },
   { id: 'f_relics', name: 'Hoarder', desc: 'Hold five relics in one sortie', get: S('maxRelics'), goal: 5, art: 'relic:r_midas' },
   { id: 'f_daily30', name: 'Daily Champion', desc: 'Reach wave 30 on a Daily Sortie', get: (st) => st.daily?.best || 0, goal: 30, art: 'ach:calendar' },
-  { id: 'f_fleet', name: 'Old Hands', desc: 'Reach mastery 5 with all five ships', get: (st) => Math.min(...SHIPS.map((s) => st.mastery?.[s.id]?.level || 0)), goal: 5, art: 'ship:revenant' },
+  { id: 'f_fleet', name: 'Old Hands', desc: 'Reach mastery 5 with all five ships', get: (st) => Math.min(...SHIPS.filter((s) => !s.yard).map((s) => st.mastery?.[s.id]?.level || 0)), goal: 5, art: 'ship:revenant' }, /* the five from the contracts (the Shipyard's ship comes later) */
   { id: 'f_fusion', name: 'Fusion Reactor', desc: 'Fuse two fully evolved weapons', get: S('fusions'), goal: 1, art: 'weapon:plasma' },
   { id: 'f_signature', name: 'Signature Move', desc: 'Unleash a ship\u2019s signature evolution', get: S('signatures'), goal: 1, art: 'ship:vanguard' },
   { id: 'f_counter', name: 'Counterattack', desc: 'Clear a Counterattack stage', get: S('counterBest'), goal: 1, art: 'ship:striker' },

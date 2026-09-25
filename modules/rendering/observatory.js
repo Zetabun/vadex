@@ -3,11 +3,13 @@
 // constellations of the Deep Void (data/observatory.js), one for each depth charted, gold once charted, a faint pulse
 // where a depth reached waits to be. The telescope in the middle turns to track them. The chart on the left wall lists
 // every depth, what it pays and whether it is charted; the orrery on the right rings the sectors out to the Void, a light
-// on your deepest. Through the window, the Void itself. Doors lead back to your quarters and out to the hangar.
+// on your deepest. Through the window, the Void itself. Doors lead back to your quarters and out to the hangar, and
+// (once it is back) on through to the Shipyard.
 import { Room, canvas, tex, text } from '@last-orbit/rendering/room.js';
 import { VOID_MARKS, voidSector } from '@last-orbit/data/observatory.js';
 import { isCharted } from '@last-orbit/progression/observatory.js';
 import { PAINT_BY_ID } from '@last-orbit/data/career.js';
+import { YARD_RANK } from '@last-orbit/data/shipyard.js';
 const T = () => window.THREE;
 
 // Room: x -4..4, z -6 (window) .. 3 (back wall, the doors), walls 3 high, the dome over the middle.
@@ -100,8 +102,11 @@ export class ObservatoryRoom extends Room {
   }
   // ---------------------------------------------------------------- what is on display
   sync(state) {
-    const best = state.stats.bestWave || 0, sig = [best, VOID_MARKS.map((m) => (isCharted(state, m) ? 2 : best >= m.wave ? 1 : 0)).join('')].join('|');
+    const best = state.stats.bestWave || 0, yard = (state.prestige?.level || 0) >= YARD_RANK, sig = [best, VOID_MARKS.map((m) => (isCharted(state, m) ? 2 : best >= m.wave ? 1 : 0)).join(''), yard].join('|');
     if (sig === this.sig) return; const was = this.charted || {}; this.sig = sig; this.best = best;
+    // the way through to the Shipyard, on the right wall by the doors
+    if (this.yardDoor) { this.scene.remove(this.yardDoor); this.untag(this.yardDoor); } this.yardDoor = new (T().Group)(); this.scene.add(this.yardDoor);
+    this.door(this.yardDoor, W, 0.6, Math.PI / 2, 'SHIPYARD  ›', 'yard', { sealed: !yard, sign: '#fff0c8', edge: 0xffc93c });
     this.charted = Object.fromEntries(VOID_MARKS.map((m) => [m.wave, isCharted(state, m)]));
     // a depth charted just now draws itself in
     for (const m of VOID_MARKS) if (this.charted[m.wave] && this.built && !was[m.wave]) { this.flash = { wave: m.wave, t: 0 }; this.aim = m; }

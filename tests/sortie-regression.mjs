@@ -112,7 +112,7 @@ endSortie('abandoned');
 
 // ---- ships: contract-gated, bought with salvage, change the loadout ----
 fresh(); G.state.salvage = 1e6;
-for (const s of SHIPS.slice(1)) { assert.ok(shipContract(s.id), s.id + ' has an unlocking contract'); assert.equal(shipStatus(s.id), 'locked'); }
+for (const s of SHIPS.slice(1).filter((x) => !x.yard)) { assert.ok(shipContract(s.id), s.id + ' has an unlocking contract'); assert.equal(shipStatus(s.id), 'locked'); } /* the Shipyard's ship is built, not bought (v2.16 block) */
 assert.equal(buyShip('striker'), false);
 G.state.stats.bestWave = 15; checkContracts();
 assert.equal(shipStatus('striker'), 'buyable'); assert.ok(buyShip('striker')); assert.equal(G.state.ship, 'striker');
@@ -596,6 +596,29 @@ assert.throws(() => parseSave('{"run":{},"cur":{}}'), /Not a Last Orbit v2 save/
   assert.equal(O.chartMark(G.state, 91), null, 'A depth not reached cannot be charted'); assert.deepEqual(O.chartable(G.state).map((m) => m.wave), [71, 81]);
   launch(); G.state.run.prevBest = 30; G.state.run.wave = 31; G.world.fx.length = 0; startWave(G.world); assert.ok(G.world.fx.some((f) => f.k === 'newBest'), 'Passing your best says so as it happens');
   G.world.fx.length = 0; G.state.run.wave = 33; startWave(G.world); assert.ok(!G.world.fx.some((f) => f.k === 'newBest'), 'once'); endSortie('abandoned'); }
+
+// ---- v2.16: the Shipyard builds the Chimera ----
+{ const Y = await import('@last-orbit/progression/shipyard.js'), D = await import('@last-orbit/data/shipyard.js'), P = await import('@last-orbit/combat/passives.js'); const { spawnEnemy } = await import('@last-orbit/combat/world.js');
+  fresh(); assert.ok(SHIPS.find((s) => s.id === D.YARD_SHIP)?.yard, 'The Shipyard builds a ship of its own');
+  G.state.salvage = 1e9; assert.equal(shipStatus(D.YARD_SHIP), 'yard'); assert.equal(buyShip(D.YARD_SHIP), false, 'She is built, never bought');
+  assert.equal(Y.stageBlock(G.state), 'closed', 'The yard waits for its frame'); assert.equal(Y.buildStage(G.state), null);
+  G.state.prestige.level = D.YARD_RANK; G.state.salvage = 0; G.state.counter.cores = 0; G.state.prestige.bp = 0;
+  assert.equal(Y.nextStage(G.state).cost.salvage, D.stageSalvage(D.YARD_STAGES[0], D.YARD_RANK)); assert.equal(Y.stageBlock(G.state), 'salvage');
+  assert.ok(D.stageSalvage(D.YARD_STAGES[0], 9) > D.stageSalvage(D.YARD_STAGES[0], 7), "The yard's prices rise with the Overhaul rank, like the Workshop's");
+  G.state.salvage = 1e7; assert.ok(Y.buildStage(G.state), 'The keel is laid'); assert.equal(Y.yardStage(G.state), 1); assert.ok(G.state.shipyard.at[0] > 0, 'and the day logged');
+  assert.equal(Y.stageBlock(G.state), 'cores', 'The plating needs Alien Cores'); G.state.counter.cores = 3; const s0 = G.state.salvage; Y.buildStage(G.state);
+  assert.equal(G.state.counter.cores, 0); assert.equal(s0 - G.state.salvage, D.stageSalvage(D.YARD_STAGES[1], D.YARD_RANK));
+  assert.equal(Y.stageBlock(G.state), 'bp', 'The drive needs Blueprints'); G.state.prestige.bp = 2; Y.buildStage(G.state); assert.equal(G.state.unlocked.ships[D.YARD_SHIP], undefined, 'Not hers until the last stage');
+  const owned0 = Object.keys(G.state.unlocked.ships).length; Y.buildStage(G.state);
+  assert.ok(G.state.unlocked.ships[D.YARD_SHIP], 'Commissioned: she is in the hangar'); assert.equal(G.state.ship, D.YARD_SHIP, 'and flown next'); assert.equal(G.state.stats.shipsOwned, owned0 + 1); assert.equal(shipStatus(D.YARD_SHIP), 'owned');
+  assert.ok(Y.yardDone(G.state)); assert.equal(Y.nextStage(G.state), null); assert.equal(Y.stageBlock(G.state), 'done'); assert.equal(Y.buildStage(G.state), null, 'Built once');
+  // Meltdown: an enemy that dies burning bursts, hitting and lighting what is close; one that dies cold does not
+  launch(); const w = G.world; assert.equal(w.passive, 'meltdown', 'She flies with Meltdown'); w.enemies.length = 0;
+  const a = spawnEnemy(w, 'grunt', 0, 100, { slot: { x: 0, y: 0 } }), b = spawnEnemy(w, 'grunt', 4, 100, { slot: { x: 4, y: 0 } }), far = spawnEnemy(w, 'grunt', 40, 100, { slot: { x: 40, y: 0 } });
+  const c = spawnEnemy(w, 'grunt', -30, 100, { slot: { x: -30, y: 0 } }); killEnemy(w, c, null, false, 0); assert.equal(w.melts.length, 0, 'A cold kill does not burst');
+  a.burn = 0.2; a.burnT = 2; killEnemy(w, a, null, false, 0); assert.equal(w.melts.length, 2, 'A burning kill bursts (next tick)'); P.updatePassives(w, TICK);
+  assert.ok(b.hp < 1 && (!b.alive || b.burnT > 0), 'The enemy beside it is hit and set alight'); assert.ok(far.hp === 1 && !(far.burnT > 0), 'One further off is not'); assert.equal(w.melts.length, 0);
+  endSortie('abandoned'); }
 
 // ---- v2.11: save backup codes ----
 { const S = await import('@last-orbit/save/save.js'); fresh(); G.state.pilot.name = 'Adam ✦'; G.state.salvage = 12345; G.state.stats.bestWave = 74; G.state.prestige.level = 3;

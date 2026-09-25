@@ -33,6 +33,7 @@ export const PAINTS = [
   { id: 'm_bulwark', name: 'Bulwark Prime', trim: 0xffc36b, hull: 0x6e4a1e, source: 'mastery', ship: 'bulwark' },
   { id: 'm_tempest', name: 'Tempest Prime', trim: 0xd3c4ff, hull: 0x3a2f78, source: 'mastery', ship: 'tempest' },
   { id: 'm_revenant', name: 'Revenant Prime', trim: 0xff7a95, hull: 0x4a1224, source: 'mastery', ship: 'revenant' },
+  { id: 'm_chimera', name: 'Chimera Prime', trim: 0xa8ffbe, hull: 0x173a26, source: 'mastery', ship: 'chimera' },
 ];
 export const PAINT_BY_ID = Object.fromEntries(PAINTS.map((p) => [p.id, p]));
 /** Pilot rank that unlocks a paint job (see PAINT_AT below), or 0 when it comes from elsewhere. */
