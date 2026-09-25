@@ -95,7 +95,7 @@ export function createHangar(hooks) {
   const el = h('div#hangar', top, $.body, $.coSvg, $.stationHot, $.callout, $.nav);
 
   // The rooms aboard the station: 3D spaces to walk round, each reached from the hangar and left the way you came.
-  const ROOMS = { deck: 'Command Deck', control: 'Defence Control' };
+  const ROOMS = { deck: 'Command Deck', control: 'Defence Control', gunner: 'Gunner seat' };
   const CONTROL_LOCK = 'Defence Control opens when the invaders strike back: clear Counterattack stage 1.';
   const CONTROL_INTRO = { icon: 'control', kicker: 'New room aboard', title: 'Defence Control', text: 'The station\'s war room. Its consoles run every defence you have built, the tactical table adds them up, and the threat board is where you launch a siege. Tap ORBIT\'s terminal for advice.' };
   let outside = 'launch'; // the hangar tab the rooms lead back to
@@ -108,7 +108,7 @@ export function createHangar(hooks) {
     if (menuState(id) === 'new') { menuSeen(id); setTimeout(() => hooks.menuIntro?.(MENU_BY_ID[id]), 150); }
     if (!quiet && id !== tab) playSfx('tab');
     if (shownTabs().join() !== navSig) layoutNav();
-    if (ROOMS[id] && !ROOMS[tab]) outside = tab; if ((ROOMS[id] ? id : null) !== G.room) { for (const r of Object.values(G.renderer?.rooms || {})) r.keys = {}; stopWatching(); } G.room = ROOMS[id] ? id : null; const app = el.parentElement; if (app) { if (G.room) app.dataset.room = G.room; else delete app.dataset.room; } setClass($.stationHot, 'on', id === 'launch'); setClass($.callout, 'on', id === 'launch'); setClass($.coSvg, 'on', id === 'launch'); if (id === 'launch') stationNews();
+    if (ROOMS[id] && !ROOMS[tab]) outside = tab; const moved = (ROOMS[id] ? id : null) !== G.room; if (moved) { for (const r of Object.values(G.renderer?.rooms || {})) r.keys = {}; stopWatching(); } G.room = ROOMS[id] ? id : null; if (moved && G.room === 'gunner') G.renderer?.room?.start?.(); /* every time in the seat is a fresh engagement */ const app = el.parentElement; if (app) { if (G.room) app.dataset.room = G.room; else delete app.dataset.room; } setClass($.stationHot, 'on', id === 'launch'); setClass($.callout, 'on', id === 'launch'); setClass($.coSvg, 'on', id === 'launch'); if (id === 'launch') stationNews();
     tab = id; if (pageOf(id) !== page) { page = pageOf(id); layoutNav(); }
     for (const k in navBtns) { setClass(navBtns[k], 'on', k === id); navBtns[k].setAttribute('aria-selected', String(k === id)); }
     if (id === 'awards') G.state.seen.medals = medalTotal().earned;
@@ -119,7 +119,7 @@ export function createHangar(hooks) {
    *  on a list (Workshop upgrades) stay on the row under the finger; switching tabs starts at the top. */
   function render(top = false) {
     const y = $.body.scrollTop; clear($.body);
-    const view = { launch: launchView, missions: missionsView, workshop: workshopView, armory: armoryView, ships: shipsView, contracts: contractsView, records: recordsView, awards: awardsView, deck: () => roomView('deck'), control: () => roomView('control') }[tab]();
+    const view = { launch: launchView, missions: missionsView, workshop: workshopView, armory: armoryView, ships: shipsView, contracts: contractsView, records: recordsView, awards: awardsView, deck: () => roomView('deck'), control: () => roomView('control'), gunner: () => gunnerView() }[tab]();
     $.body.append(view); $.body.scrollTop = top ? 0 : y;
   }
 
@@ -541,7 +541,8 @@ export function createHangar(hooks) {
       panel(next ? `${next.name} is massing` : 'All quiet',
         h('p.sub-note', next ? `Those red lights are the ${next.name} fleet, gathering for waves ${next.first} to ${next.last}: bombards to shell the station, raiders to dive at it.` : locked ? `Nothing out there yet. Clear Counterattack stage ${locked.n} and they will answer with ${locked.name}.` : 'Every siege has been held. Nothing out there but stars.'),
         h('h4.sg-group', { style: '--c:#ff8a5e' }, h('span', 'The guns on the hull'), h('small', `${guns.filter((g) => g.state).length}/3 mounted`)), defList(guns),
-        next ? h('button.btn.gold.wide.sg-defend', { onclick: () => { hooks.closeOverlays?.(); launchSiege(next.n); } }, uiIcon('launch'), `Defend against ${next.name}`) : null);
+        next ? h('button.btn.gold.wide.sg-defend', { onclick: () => { hooks.closeOverlays?.(); launchSiege(next.n); } }, uiIcon('launch'), `Defend against ${next.name}`) : null,
+        h('button.btn.ghost.wide.sg-defend', { onclick: () => { hooks.closeOverlays?.(); show('gunner'); } }, 'Man the guns · prototype'));
     }
   }
   const CONSOLE_NOTE = {
@@ -550,6 +551,32 @@ export function createHangar(hooks) {
     ops: 'Slowing their shells, tracking their raiders, and making every siege pay.',
     alien: 'Hardware fitted with Alien Tech. It fights in every siege from the moment it is fitted.',
   };
+  // ------------------------------------------------------------ the gunner seat (prototype)
+  // The 3D fight is rendering/gunner.js (drawn while G.room is 'gunner'); this is its HUD and the drag that aims.
+  let gun = null;
+  function gunnerView() {
+    const $g = {};
+    const el = h('div.deck3d.gunner', { 'aria-label': 'Gunner seat. Drag to aim; the guns fire when a target is in your sights.' },
+      h('div.d3-top', h('div.d3-title', h('small', 'Gunner seat · prototype'), $g.wave = h('b')), h('button.btn.ghost.small.d3-exit', { onclick: () => show(outside) }, uiIcon('back'), 'Exit')),
+      h('div.gn-hud', h('small', 'Station'), h('i.gn-hull', $g.hull = h('i'), $g.shield = h('em')), $g.pct = h('b'), $g.score = h('span')),
+      $g.hint = h('div.d3-hint', 'Drag to aim · your guns fire when something is in your sights'),
+      $g.end = h('div.rp-end.gn-end', $g.endT = h('b'), $g.endS = h('div.gn-stars'), $g.endSub = h('small'),
+        h('div.gn-end-acts', h('button.btn.primary', { onclick: () => { G.renderer?.room?.start(); gun.sig = ''; playSfx('tab'); } }, uiIcon('reroll'), 'Again'), h('button.btn.ghost', { onclick: () => show(outside) }, 'Exit'))));
+    let down = null;
+    el.addEventListener('pointerdown', (e) => { if (e.target.closest('button')) return; down = { id: e.pointerId, lx: e.clientX, ly: e.clientY }; try { el.setPointerCapture(e.pointerId); } catch { /* not every pointer can be captured */ } $g.hint.classList.add('off'); });
+    el.addEventListener('pointermove', (e) => { if (!down || e.pointerId !== down.id) return; const dx = e.clientX - down.lx, dy = e.clientY - down.ly; down.lx = e.clientX; down.ly = e.clientY; if (Math.abs(dx) + Math.abs(dy) < 160) G.renderer?.room?.look?.(dx * 1.15, dy * 1.15); });
+    const up = () => { down = null; }; el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+    gun = { el, $g, sig: '' }; return el;
+  }
+  function gunnerTick() {
+    if (!gun || G.room !== 'gunner') return; const st = G.renderer?.room?.status?.(); if (!st) return; const { $g } = gun;
+    const sig = [Math.round(st.hull * 100), Math.round(st.shield * 100), st.wave, st.score, st.over, st.won].join(); if (sig === gun.sig) return; gun.sig = sig;
+    setText($g.wave, st.over ? (st.won ? 'Station held' : 'Station lost') : `Wave ${Math.min(st.wave, st.waves)} of ${st.waves}`);
+    $g.hull.style.width = Math.round(st.hull * 100) + '%'; setClass($g.hull, 'low', st.hull < 0.35); $g.shield.style.width = Math.round(Math.min(1, st.shield / 0.2) * 100) + '%';
+    setText($g.pct, Math.round(st.hull * 100) + '%'); setText($g.score, fmtInt(st.score) + ' pts');
+    setClass($g.end, 'on', st.over); setClass($g.end, 'lost', st.over && !st.won); setText($g.endT, st.won ? 'Station held' : 'Station lost');
+    clear($g.endS).append(...[1, 2, 3].map((i) => h('i' + (i <= st.stars ? '.on' : ''), '★'))); setText($g.endSub, `${Math.round(st.hull * 100)}% hull · ${fmtInt(st.score)} points`);
+  }
   // ------------------------------------------------------------ the replay TV, watched full screen
   // The recording plays over the whole screen (rendering/deck.js hands it the frame); these are its controls.
   let watch = null;
@@ -658,7 +685,7 @@ export function createHangar(hooks) {
     const hidden = (p) => (pages[p] || []).some((id) => navBtns[id].classList.contains('badged') || navBtns[id].classList.contains('fresh'));
     setClass($.next, 'badged', hidden(page + 1)); setClass($.prev, 'badged', page > 0 && hidden(page - 1));
   }
-  function update() { watchTick(); setText($.salvage, fmtInt(G.state.salvage)); badges(); pilotId(); stationDone(); G.hangarTop = top.getBoundingClientRect().bottom; stationTag(); }
+  function update() { watchTick(); gunnerTick(); setText($.salvage, fmtInt(G.state.salvage)); badges(); pilotId(); stationDone(); G.hangarTop = top.getBoundingClientRect().bottom; stationTag(); }
   /** Keep the label's text current, and its tap target over wherever the renderer drew it. */
   /** A buy that changed the station says so: a module rebuilt for the first time, lit once maxed, alien hardware fitted. */
   function stationNote(id, was) {
