@@ -1,6 +1,6 @@
 # Changelog
 
-## v2.10.0 — unreleased
+## v2.10.0 — 2026-09-25
 
 - **Counterattack builds the station too:** the boss of each Counterattack stage is towed home on your first clear (either difficulty) and held off the station in a glowing tractor field: the Broodcarrier, Scrapmonger Vorr, the Red Shroud, Iron Admiral Kross, the Hive Heart and the Unmaker. The debrief says so, the station glows where it arrived, the blueprint marks it, and ORBIT has a line for each.
 - **One rebuild for every mode:** the station's figure now counts modules 40%, core pieces 40% and what you capture from the enemy 20% (the six bosses and the four pieces of alien hardware), so 100% means everything.
