@@ -12,6 +12,7 @@ import { CONTRACT_BY_ID } from '@last-orbit/data/contracts.js';
 import { describeCard, pickCard, reroll, pickRelic, pickRoute, pickAnomaly, autoPickIndex } from '@last-orbit/progression/run.js';
 import { ANOMALY_BY_ID, anomalyCounts, anomalyPay, anomalyName } from '@last-orbit/data/anomalies.js';
 import { STATION_CORE, TROPHY_BY_ID, caughtStages } from '@last-orbit/data/station.js';
+import { TIER_BY_N, SIEGE_STARS, SIEGE_BLUEPRINTS, siegeOpen } from '@last-orbit/data/siege.js';
 import { stationBlueprint } from '@last-orbit/ui/stationArt.js';
 import { SYNERGIES, synergyOf, synergyCount, activeTiers } from '@last-orbit/data/synergies.js';
 import { ROUTE_BY_ID } from '@last-orbit/data/routes.js';
@@ -217,6 +218,22 @@ export function createOverlays(layer, hooks) {
     mount('counter-intro', el, (e) => { if (e.key === 'Escape') { close(); return true; } return false; });
   }
 
+  // ------------------------------------------------------------ the Station Siege briefing (first launch, and 'How it works')
+  function showSiegeIntro(go) {
+    const tip = (title, text) => h('li', h('b', title), h('span', text));
+    const el = h('div.modal.ca-intro', { role: 'dialog', 'aria-label': 'Station Siege briefing' },
+      h('div.modal-head', h('div.kicker', 'New mode'), h('h2', 'Station Siege'), h('p', 'Your counterattack stung them. Now they are coming for your station, and every stage you clear brings a bigger siege.')),
+      h('ul.ca-tips',
+        tip('Hold the station', 'It sits behind your ship. Anything that reaches the line hits the station, not you. If it falls, the siege is lost.'),
+        tip('Shoot down the shells', 'Bombards in the formation glow orange as they load, then lob shells at the station. Get under them and shoot them down.'),
+        tip('Stop the raiders', 'Raiders dive straight past you at the station. They trail a red line to where they will hit.'),
+        tip('Your station fights back', 'Every module you have built is a defence here: cannons, point defence, a shield, armour, repair crews and more. Maxed modules work harder.'),
+        tip('Earn stars', `Hold the station, keep it above 50%, keep it above 85%. Each new star pays an Alien Core; your first win at each tier pays ${SIEGE_BLUEPRINTS} Blueprints.`)),
+      h('div.modal-actions', go ? h('button.btn.ghost', { onclick: close }, 'Not yet') : null,
+        h('button.btn.primary', { onclick: () => { close(); go?.(); }, 'data-autofocus': '' }, go ? 'Defend it' : 'Got it')));
+    mount('siege-intro', el, (e) => { if (e.key === 'Escape') { close(); return true; } return false; });
+  }
+
   // ------------------------------------------------------------ a simple information panel (the Command Deck's exhibits)
   function showPanel({ kicker, title, body = [] }) {
     const el = h('div.modal.info-panel', { role: 'dialog', 'aria-label': title }, h('div.modal-head', kicker ? h('div.kicker', kicker) : null, h('h2', title)), ...body,
@@ -320,17 +337,21 @@ export function createOverlays(layer, hooks) {
 
   // ------------------------------------------------------------ debrief
   function showDebrief(s) {
-    const ship = SHIP_BY_ID[s.ship], ca = s.counter, win = ca?.cleared ? 'Stage cleared' : s.reason === 'abandoned' ? 'Sortie abandoned' : 'Signal lost';
+    const ship = SHIP_BY_ID[s.ship], ca = s.counter, sg = s.siege, win = sg?.won ? 'Station held' : sg?.lost ? 'Station lost' : ca?.cleared ? 'Stage cleared' : s.reason === 'abandoned' ? 'Sortie abandoned' : 'Signal lost';
     const salvageEl = h('b.count', '0');
     const done = s.contracts.map((id) => CONTRACT_BY_ID[id]);
     const el = h('div.modal.debrief', { role: 'dialog', 'aria-label': 'Sortie debrief' },
-      h('div.modal-head' + (ca?.cleared ? '.won' : ''), h('div.kicker', ca ? `${ship.name} · Counterattack · Stage ${ca.stage}${ca.hard ? ' · Hard' : ''}` : `${ship.name} · Sector ${s.sector} · ${s.sectorName}` + (s.threat ? ` · Threat ${THREATS[s.threat].roman}` : '') + (s.mutator ? ` · Daily: ${MUTATOR_BY_ID[s.mutator].name}` : '') + (s.warp > 1 ? ` · Warp S${s.warp}` : '')), h('h2', win), h('div.pbs', s.highScore ? h('div.pb', 'New high score') : null, s.best && s.wave > 1 ? h('div.pb', 'New best wave') : null)),
+      h('div.modal-head' + (ca?.cleared || sg?.won ? '.won' : ''), h('div.kicker', sg ? `${ship.name} · Station Siege · ${TIER_BY_N[sg.tier].name}` : ca ? `${ship.name} · Counterattack · Stage ${ca.stage}${ca.hard ? ' · Hard' : ''}` : `${ship.name} · Sector ${s.sector} · ${s.sectorName}` + (s.threat ? ` · Threat ${THREATS[s.threat].roman}` : '') + (s.mutator ? ` · Daily: ${MUTATOR_BY_ID[s.mutator].name}` : '') + (s.warp > 1 ? ` · Warp S${s.warp}` : '')), h('h2', win), h('div.pbs', s.highScore ? h('div.pb', 'New high score') : null, s.best && s.wave > 1 ? h('div.pb', 'New best wave') : null)),
+      sg ? h('div.stars-row', [1, 2, 3].map((i) => h('span.star-big' + (i <= sg.stars ? '.on' : '') + (i > sg.stars - sg.gained && i <= sg.stars ? '.new' : ''), { style: `--d:${i * 180}ms` }, '★')),
+        h('div.star-notes', SIEGE_STARS.map(([label, need], i) => h('small', (sg.won && sg.hull >= need ? '✓' : '·') + ' ' + label + (i ? ` (${Math.round(sg.hull * 100)}%)` : '')))),
+        sg.cores ? h('div.pilot-row.cores-row', h('span', 'Alien Cores'), h('b', '+' + sg.cores)) : null, sg.bp ? h('div.pilot-row.bp-row', h('span', 'First win at this tier'), h('b', `+${sg.bp} Blueprints`)) : null) :
       ca ? h('div.stars-row', [1, 2, 3].map((i) => h('span.star-big' + (i <= ca.stars ? '.on' : '') + (i > ca.stars - ca.gained && i <= ca.stars ? '.new' : ''), { style: `--d:${i * 180}ms` }, '★')),
         h('div.star-notes', h('small', (ca.cleared ? '✓' : '·') + ' Clear the stage'), h('small', (ca.hits <= 5 && ca.cleared ? '✓' : '·') + ` Take 5 hits or fewer (${ca.hits})`), h('small', (ca.killed >= 0.8 && ca.cleared ? '✓' : '·') + ` Destroy 80% of the assault (${Math.round(ca.killed * 100)}%)`)),
         ca.cores ? h('div.pilot-row.cores-row', h('span', 'Alien Cores'), h('b', '+' + ca.cores)) : null, ca.bounty ? h('div.pilot-row', h('span', 'First-clear bounty'), h('b', '+' + fmtInt(ca.bounty) + ' salvage')) : null,
         ca.trophy ? h('div.pilot-row.trophy-row', h('span', `${TROPHY_BY_ID['trophy' + ca.trophy]?.name} captured`), h('b', 'Towed to your station')) : null,
+        ca.siegeUnlocked ? h('div.pilot-row.siege-row', h('span', 'They will retaliate'), h('b', 'Station Siege unlocked')) : null,
         ca.checkpoint ? h('div.pilot-row', h('span', 'Checkpoint saved'), h('b', 'Past the mini-boss')) : null, ca.resumed ? h('small.cp-note', 'Checkpoint run: the clear star only. Fly the whole stage for the other two.') : null) : null,
-      h('div.hero-row', ca ? h('div.big-wave', h('small', 'Stage'), h('b', String(ca.stage))) : h('div.big-wave', h('small', 'Wave'), h('b', String(s.wave))), h('div.earned', h('small', 'Salvage banked'), h('div', art('cur:salvage', 'cur-ico'), salvageEl))),
+      h('div.hero-row', sg ? h('div.big-wave', h('small', 'Station'), h('b', Math.round(sg.hull * 100) + '%')) : ca ? h('div.big-wave', h('small', 'Stage'), h('b', String(ca.stage))) : h('div.big-wave', h('small', 'Wave'), h('b', String(s.wave))), h('div.earned', h('small', 'Salvage banked'), h('div', art('cur:salvage', 'cur-ico'), salvageEl))),
       h('div.score-row', h('small', 'Score'), h('b', fmtInt(s.score || 0)), s.place ? h('span', `#${s.place} of your top 10`) : s.prevScore ? h('span', `Best ${fmtInt(s.prevScore)}`) : null),
       h('div.stat-grid', stat('Level', s.level), stat('Kills', fmtInt(s.kills)), stat('Bosses', s.bosses), stat('Time', fmtTime(s.time))),
       s.daily ? h('div.earned.daily-earned', h('small', `Daily bonus · ${s.daily.streak}-day streak`), h('div', art('cur:salvage', 'cur-ico'), '+' + fmtInt(s.daily.bonus))) : null,
@@ -346,6 +367,9 @@ export function createOverlays(layer, hooks) {
       done.length ? h('div.unlocks', h('div.kicker', `Contracts complete (${done.length})`), done.map((c) => h('div.unlock', uiIcon('check'), h('b', c.name), h('small', `+${c.salvage} salvage` + (c.unlock ? ' · ' + unlockLabel(c.unlock) : ''))))) : null,
       h('div.build', s.weapons.map(([id, r]) => h('div.build-item', { style: `--c:#${WEAPONS[id].color.toString(16).padStart(6, '0')}` }, art('weapon:' + id, 'build-icon'), h('span', WEAPONS[id].name), h('b', 'R' + r))), s.relics.map((id) => h('div.build-item.relic', art('relic:' + id, 'build-icon'), h('span', RELIC_BY_ID[id].name)))),
       s.daily ? h('button.btn.gold.share-btn.wide', { onclick: async () => { const r = await shareText(dailyShareText({ key: G.state.daily.lastDay, mutator: MUTATOR_BY_ID[s.mutator]?.name, wave: s.wave, score: s.score, streak: s.daily.streak })); if (r === 'copied') hooks.toast?.('Result copied. Paste it to a friend!'); else if (r === 'failed') hooks.toast?.('Could not share from this browser.'); } }, uiIcon('share'), 'Share daily result') : null,
+      sg ? h('div.modal-actions', h('button.btn.primary', { onclick: () => { close(); hooks.relaunch(false); }, 'data-autofocus': '' }, uiIcon('reroll'), sg.won ? 'Fly it again' : 'Retry the siege'),
+          sg.won && TIER_BY_N[sg.tier + 1] && siegeOpen(G.state, sg.tier + 1) ? h('button.btn.gold', { onclick: () => { close(); hooks.relaunch(true); } }, uiIcon('launch'), 'Next siege') : null,
+          h('button.btn.ghost.wide', { onclick: () => { close(); hooks.toHangar('missions'); } }, uiIcon('missions'), 'Missions')) :
       ca ? h('div.modal-actions', h('button.btn.primary', { onclick: () => { close(); hooks.relaunch(false); }, 'data-autofocus': '' }, uiIcon('reroll'), 'Retry stage'),
           ca.checkpoint ? h('button.btn.gold', { onclick: () => { close(); hooks.relaunch(false, { checkpoint: true }); } }, uiIcon('launch'), 'From checkpoint') : null,
           ca.cleared && ca.stage < 6 && !ca.hard ? h('button.btn.gold', { onclick: () => { close(); hooks.relaunch(true); } }, uiIcon('launch'), 'Next stage') : null,
@@ -370,7 +394,7 @@ export function createOverlays(layer, hooks) {
   };
 
   return {
-    showOffer, showRelics, showRoutes, showAnomalies, showPause, showSettings, showDebrief, showLoadout, showCounterIntro, showOverhaul, showMenuIntro, showCallsign, showStationComplete, showPanel, showStationName, close,
+    showOffer, showRelics, showRoutes, showAnomalies, showPause, showSettings, showDebrief, showLoadout, showCounterIntro, showOverhaul, showMenuIntro, showCallsign, showStationComplete, showPanel, showStationName, showSiegeIntro, close,
     get kind() { return open?.kind || null; },
     /** Combat freezes while any overlay is up. */
     blocking: () => !!open,

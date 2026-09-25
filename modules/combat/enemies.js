@@ -60,7 +60,7 @@ export function updateEnemies(w, dt) {
       } else if (e.state === 'path') { // Counterattack squads fly scripted lines and simply leave at the end
         if (!movePath(e, edt, p)) { e.rewardMul = 0; e.alive = false; continue; } alive++;
       } else if (e.state === 'raid') { // Station Siege: shells and raiders heading for the station (combat/siege.js)
-        e.y += e.vy * raidSpeed(w, e) * edt; e.x += e.vx * edt + (e.siegeKind === 'raider' ? Math.sin(e.t * 2.6 + e.id) * 9 * edt : 0);
+        const k = raidSpeed(w, e); e.y += e.vy * k * edt; e.x += e.vx * k * edt + (e.siegeKind === 'raider' ? Math.sin(e.t * 2.6 + e.id) * 9 * edt : 0);
         if (e.x < -HALF + 3) e.x = -HALF + 3; if (e.x > HALF - 3) e.x = HALF - 3; alive++;
       } else { // free: swarmlings, split spawn, cruisers
         if (def.cruiser) { e.x += e.vx * edt; e.y += Math.sin(e.t * 2) * 3 * edt; if (Math.abs(e.x) > HALF + 14) { e.rewardMul = 0; e.alive = false; continue; } alive++; }

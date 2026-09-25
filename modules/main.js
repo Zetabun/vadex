@@ -33,7 +33,7 @@ const hooks = {
   celebrate: (color) => { const p = G.world.player; renderer.celebrate(p.x, p.y + 6, color, 40); },
   launch: (opts = {}) => { initAudio(); lastLaunch = opts; if (!startSortie(opts)) { toast('Today\'s Daily Sortie has already been flown.', 'warn'); return; } initWorld(); ui.setMode('sortie'); save('launch'); if (nextOffer()) ui.nextChoice(); },
   abandon: () => finish('abandoned'),
-  relaunch: (next, opts) => hooks.launch(next ? { ...lastLaunch, counter: lastLaunch.counter + 1, checkpoint: false } : { ...lastLaunch, checkpoint: false, ...opts }),
+  relaunch: (next, opts) => hooks.launch(next ? (lastLaunch.siege ? { ...lastLaunch, siege: lastLaunch.siege + 1 } : { ...lastLaunch, counter: lastLaunch.counter + 1, checkpoint: false }) : { ...lastLaunch, checkpoint: false, ...opts }),
   counterNotice: () => {},
   toHangar: (tab) => { initWorld(); ui.setMode('hangar', tab); },
   pendingOffer: () => nextOffer(),

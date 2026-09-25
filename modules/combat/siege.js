@@ -22,9 +22,10 @@ export function initSiege(w) {
 export function siegeWaveStart(w) {
   const s = w.siege; if (!s) return;
   s.shield = s.sys.w_shield || 0; s.raidT = s.tier.raidEvery * (0.5 + rand() * 0.4); s.bossT = 3;
-  s.gun = { dmg: w.base.hp.mul(0.5 * (1 + (s.sys.x_charts || 0))), critChance: 0.05, critMult: 2, bossMul: 0.5, id: 'station', color: 0x7fe8ff };
+  s.assault = w.wave.info?.boss ? 0 : s.tier.assault; s.bomberT = s.tier.bomberEvery * (0.3 + rand() * 0.4); // the boss wave lasts as long as the boss
+  s.gun = { dmg: w.base.hp.mul(0.35 * (1 + (s.sys.x_charts || 0))), critChance: 0.05, critMult: 2, bossMul: 0.5, id: 'station', color: 0x7fe8ff };
   const cand = w.enemies.filter((e) => e.alive && e.slot && !e.boss && !e.parent && e.def.cost >= 1);
-  for (let i = 0; i < s.tier.bombards && cand.length; i++) { const e = cand.splice(Math.floor(rand() * cand.length), 1)[0]; e.bombard = { t: s.tier.shellEvery * (0.45 + rand() * 0.6) }; }
+  for (let i = 0; i < s.tier.bombards && cand.length; i++) { const e = cand.splice(Math.floor(rand() * cand.length), 1)[0]; e.bombard = { t: s.tier.shellEvery * (0.25 + rand() * 0.4) }; }
   if (s.sys.w_barrier > 1) for (const b of w.barriers) b.hp = 1;
   if (s.first) { s.first = false; fx(w, 'siegeStart', s.tier.n, s.tier.name); }
 }
@@ -44,7 +45,13 @@ export function stepSiege(w, dt) {
   // the boss shells it too; raiders come in on their own between the formation's volleys
   let boss = null; for (const e of w.enemies) if (e.alive && e.boss && !e.parent) { boss = e; break; }
   if (boss && !(boss.boss.enter > 0)) { s.bossT -= dt; if (s.bossT <= 0) { s.bossT = Math.max(1.8, 3.8 - s.tier.n * 0.3); launch(w, boss.x + (rand() - 0.5) * boss.r, boss.y - boss.r, 'bossShell'); } }
-  else if (!boss) { s.raidT -= dt; if (s.raidT <= 0) { s.raidT = s.tier.raidEvery * (0.8 + rand() * 0.4); raider(w); } }
+  // the assault: until its time is up, raiders dive at the station and bombers cross the sky dropping shells
+  else if (s.assault > 0) {
+    s.assault -= dt;
+    s.raidT -= dt; if (s.raidT <= 0) { s.raidT = s.tier.raidEvery * (0.8 + rand() * 0.4); raider(w); }
+    s.bomberT -= dt; if (s.bomberT <= 0) { s.bomberT = s.tier.bomberEvery * (0.8 + rand() * 0.4); bomber(w); }
+  }
+  for (const e of w.enemies) if (e.alive && e.type === 'bomber' && Math.abs(e.x) < 44) { e.dropT -= dt; if (e.dropT <= 0) { e.dropT = s.tier.bomberDrop * (0.8 + rand() * 0.4); launch(w, e.x, e.y - e.r, 'shell'); } }
   // bunkers catch shells falling onto them
   if (w.barriers.length) for (const e of w.enemies) if (e.alive && e.state === 'raid' && e.siegeKind !== 'raider' && Math.abs(e.y - FIELD.BARRIER_Y) < 2.5) {
     const b = w.barriers.find((br) => br.hp > 0 && Math.abs(e.x - br.x) < br.w / 2); if (!b) continue;
@@ -68,13 +75,20 @@ function lowestRaid(w, kind, maxY = 140) {
   let best = null; for (const e of w.enemies) if (e.alive && e.state === 'raid' && e.y < maxY && (!kind || (kind === 'shell' ? e.siegeKind !== 'raider' : e.siegeKind === kind)) && (!best || e.y < best.y)) best = e;
   return best;
 }
+/** A shell lobbed at a spot on the defence line well away from the ship (so it has to go and get it), on a straight
+ *  diagonal; landX is where it will come down (the renderer draws the warning line to it). */
 function launch(w, x, y, kind) {
-  const e = spawnEnemy(w, 'siegeshell', x, y, { state: 'raid', vy: kind === 'bossShell' ? -17 : -13, vx: (rand() - 0.5) * 3 });
-  if (e) { e.siegeKind = kind; e.rewardMul = 0; e.rot = -Math.PI / 2; fx(w, 'boom', x, y, 3, 0xff8a3d); sfx(w, 'missile', 0.35); }
+  const px = w.player.x, vy = kind === 'bossShell' ? -17 : -13; let tx = (rand() - 0.5) * 84; if (Math.abs(tx - px) < 24) tx = px + (tx < px ? -24 : 24); if (Math.abs(tx) > 44) tx = px + (tx < px ? 24 : -24);
+  const e = spawnEnemy(w, 'siegeshell', x, y, { state: 'raid', vy, vx: (tx - x) / Math.max(1, (y - FIELD.LAND_Y) / -vy) });
+  if (e) { e.siegeKind = kind; e.rewardMul = 0; e.landX = tx; e.rot = Math.atan2(vy, e.vx); fx(w, 'boom', x, y, 3, 0xff8a3d); sfx(w, 'missile', 0.35); }
+}
+function bomber(w) {
+  const dir = rand() < 0.5 ? 1 : -1, e = spawnEnemy(w, 'bomber', -dir * 60, 112 + rand() * 18, { state: 'free', vx: dir * (13 + w.siege.tier.n) });
+  if (e) { e.dropT = 0.8 + rand() * 0.8; fx(w, 'text', -dir * 36, e.y - 6, 'BOMBER', '#ff9a4d', 1); sfx(w, 'hauler', 0.6); }
 }
 function raider(w) {
   const e = spawnEnemy(w, 'raider', (rand() - 0.5) * 72, FIELD.TOP + 6, { state: 'raid', vy: -24 - w.siege.tier.n * 1.5 });
-  if (e) { e.siegeKind = 'raider'; e.rot = 0; sfx(w, 'dive', 0.6); }
+  if (e) { e.siegeKind = 'raider'; e.rot = 0; e.landX = e.x; sfx(w, 'dive', 0.6); }
 }
 
 /** Something reached the defence line: a shell, a raider or an invader breaking through. */

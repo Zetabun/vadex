@@ -92,7 +92,7 @@ export function step(dt) {
       if (w.siege) { stepSiege(w, dt); if (ws.state !== 'fighting') break; }
       if (!w.player.alive) break;
       let live = 0; for (let i = 0; i < w.enemies.length; i++) { const e = w.enemies[i]; if (e.alive && !e.def.projectile && !(e.def.cruiser && ws.info.kind !== 'resource')) live++; }
-      if (live === 0 && !ws.pending.length && ws.t > 0.5) clearWave(w);
+      if (live === 0 && !ws.pending.length && ws.t > 0.5 && !(w.siege?.assault > 0)) clearWave(w); // a siege wave holds until its assault is over
       break; }
     case 'cleared': updateWeapons(w, dt); updateDrones(w, dt); updateBullets(w, dt); updateEnemies(w, dt); updatePickups(w, dt); ws.timer -= dt; if (ws.timer <= 0 && !w.pickups.length) { if (w.siege?.won) siegeOver(w); else startWave(w); } break;
     case 'dead': updateBullets(w, dt); updateEnemies(w, dt); ws.timer -= dt; if (ws.timer <= 0) afterDeath(w); break;

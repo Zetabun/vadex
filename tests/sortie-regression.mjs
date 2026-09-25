@@ -476,4 +476,23 @@ const back = parseSave(JSON.stringify(G.state)); assert.equal(back.salvage, 1234
 assert.throws(() => parseSave(JSON.stringify({ ...G.state, v: SCHEMA + 1 })), /newer version/);
 assert.throws(() => parseSave('{"run":{},"cur":{}}'), /Not a Last Orbit v2 save/);
 
+// ---- v2.10: Station Siege ----
+{ const { SIEGE_TIERS, TIER_BY_N, siegeOpen, siegeSystems, SIEGE_BLUEPRINTS } = await import('@last-orbit/data/siege.js'); const { hurtStation } = await import('@last-orbit/combat/siege.js');
+  fresh(); assert.equal(SIEGE_TIERS.length, 6); assert.equal(siegeOpen(G.state, 1), false, 'No siege before the first Counterattack clear');
+  G.state.counter.unlocked = true; G.state.counter.stars[1] = 1; assert.equal(siegeOpen(G.state, 1), true, 'Clearing stage 1 brings the first siege'); assert.equal(siegeOpen(G.state, 2), false);
+  assert.equal(siegeSystems(G.state).count, 0, 'A bare station has no defences');
+  G.state.workshop.w_hull = 1; G.state.workshop.w_shield = 5; const sys = siegeSystems(G.state).on; assert.ok(sys.w_hull > 0 && sys.w_shield === 0.25, 'Built modules are defences; maxed ones work harder');
+  launch({ siege: 1 }); const w = G.world, run = G.state.run, t1 = TIER_BY_N[1];
+  assert.equal(run.mode, 'siege'); assert.equal(run.wave, t1.first); assert.ok(w.siege && w.siege.hull === 1); assert.equal(w.barriers.length, 0, 'No bunkers unless the station has built them');
+  const best = G.state.stats.bestWave || 0; startWave(w); assert.equal(G.state.stats.bestWave || 0, best, "A siege's waves do not count as a run's depth");
+  assert.ok(w.siege.shield > 0, 'The shield charges at every wave'); const sh = w.siege.shield;
+  hurtStation(w, 0.1, 0); assert.ok(w.siege.hull === 1 && w.siege.shield < sh, 'The shield takes a hit first');
+  hurtStation(w, 1, 0); assert.ok(w.siege.hull < 1 && w.siege.hull > 0, 'then the hull, through the armour');
+  let over = null; const off = (r) => { over = r; }; bus.on('sortieOver', off); hurtStation(w, 5, 0); assert.equal(over, 'stationLost', 'At 0% the station falls and the siege is lost');
+  let sum = endSortie('stationLost'); assert.ok(sum.siege.lost && sum.siege.stars === 0 && !sum.siege.bp, 'A lost siege earns nothing');
+  // a win: stars by the station's hull, Blueprints once per tier, a core per new star
+  launch({ siege: 1 }); G.state.run.siegeWon = true; G.state.run.siegeHull = 0.9; const bp0 = G.state.prestige.bp, cores0 = G.state.counter.cores;
+  sum = endSortie('cleared'); assert.equal(sum.siege.stars, 3); assert.equal(G.state.prestige.bp - bp0, SIEGE_BLUEPRINTS); assert.equal(G.state.counter.cores - cores0, 3);
+  launch({ siege: 1 }); G.state.run.siegeWon = true; G.state.run.siegeHull = 0.9; sum = endSortie('cleared'); assert.equal(sum.siege.bp, 0, 'Blueprints only on the first win'); assert.equal(sum.siege.cores, 0, 'and cores only for new stars'); }
+
 console.log('Sortie, cards, relics, contracts, workshop, ships, pickups, revive and save checks pass.');

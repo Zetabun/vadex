@@ -15,6 +15,22 @@ assert mapped == set(modules), 'Import map and published module tree differ (run
 assert all(value.startswith('./modules/') for value in imports.values()), 'Import map must use relative source paths'
 for module in modules:
     subprocess.run(['node', '--check', str(module)], check=True, cwd=root)
+# A trailing // comment whose text reads like code has almost always swallowed code by accident (a comment inserted
+# mid-line): the page loads but part of that line silently never runs.
+CODE = re.compile(r"\);|\) \{|\bconst \w+ =|\bif \(|\bfor \(|=> |\bthis\.\w+\(|\} else")
+swallowed = []
+for module in modules:
+    for n, line in enumerate(module.read_text(encoding='utf-8').splitlines(), 1):
+        k = 0
+        while (k := line.find('//', k)) >= 0:
+            before = line[:k]
+            if before.count("'") % 2 or before.count('`') % 2 or before.count('"') % 2 or before.endswith(':'):
+                k += 2
+                continue
+            if before.strip() and CODE.search(line[k + 2:]):
+                swallowed.append(f'{module.relative_to(root)}:{n}')
+            break
+assert not swallowed, 'Code hidden behind a // comment (use /* */ mid-line): ' + ', '.join(swallowed)
 for test in sorted((root / 'tests').glob('*-regression.mjs')):
     subprocess.run(['node', '--experimental-loader', './tests/loader.mjs', './tests/' + test.name], check=True, cwd=root)
 print(f'Validated {len(modules)} modules and the regression suite.')

@@ -9,11 +9,14 @@ import { STATION_MODULES, STATION_ALIEN, stationSnapshot, trophyWon } from '@las
 import { BAL } from '@last-orbit/data/balance.js';
 
 const NAMES = ['First Reprisal', 'Scrap Storm', 'Red Tide', 'Iron Fist', 'Swarm Front', 'The Unmaking'];
-/** One tier per Counterattack stage: its sector's waves from the third to the boss. */
+/** One tier per Counterattack stage, fought one sector deeper than the stage (a pilot who has just cleared it is well past
+ *  that sector in the main game): that sector's waves from the third to its boss, the last tier in the Deep Void. */
 export const SIEGE_TIERS = STAGES.map((sg) => {
-  const sector = sg.n - 1, first = sector * BAL.sectorWaves + 3, last = (sector + 1) * BAL.sectorWaves;
+  const sector = sg.n, first = sector * BAL.sectorWaves + 3, last = (sector + 1) * BAL.sectorWaves;
   return { n: sg.n, name: NAMES[sg.n - 1], sector, first, last, waves: last - first + 1,
-    bombards: 1 + Math.ceil(sg.n / 2), shellEvery: 6.4 - sg.n * 0.35, raidEvery: 9.5 - sg.n * 0.6 };
+    bombards: 2 + Math.floor(sg.n / 2), shellEvery: 4.6 - sg.n * 0.25, raidEvery: 7.5 - sg.n * 0.5,
+    // each wave is an assault to hold for this long, however fast the formation falls: raiders and bombers keep coming
+    assault: 18 + sg.n * 2, bomberEvery: 8 - sg.n * 0.6, bomberDrop: 1.8 - sg.n * 0.1 };
 });
 export const TIER_BY_N = Object.fromEntries(SIEGE_TIERS.map((t) => [t.n, t]));
 
@@ -31,13 +34,13 @@ export const siegeUnlocked = (state) => siegeOpen(state, 1);
 // The station's systems in a siege, one per module and alien piece. at: [built, lit] strength; the combat code reads
 // them through siegeSystems(). desc: what it does, for the defences list and the Defence Control room.
 export const SIEGE_SYSTEMS = [
-  { id: 'w_dmg', name: 'Station cannon', at: [1.4, 0.9], desc: (v) => `Fires on the nearest attacker every ${v}s.` },
-  { id: 'w_rate', name: 'Second cannon', at: [1.8, 1.1], desc: (v) => `A second gun, firing every ${v}s.` },
-  { id: 'w_crit', name: 'Point defence', at: [3.2, 2], desc: (v) => `Shoots down the lowest shell every ${v}s.` },
+  { id: 'w_dmg', name: 'Station cannon', at: [4, 2.8], desc: (v) => `Fires on the nearest attacker every ${v}s.` },
+  { id: 'w_rate', name: 'Second cannon', at: [5, 3.4], desc: (v) => `A second gun, firing every ${v}s.` },
+  { id: 'w_crit', name: 'Point defence', at: [7, 5], desc: (v) => `Shoots down the lowest shell every ${v}s.` },
   { id: 'w_shield', name: 'Station shield', at: [0.15, 0.25], desc: (v) => `Soaks up ${pc(v)} of hull damage each wave.` },
-  { id: 'w_hull', name: 'Armour', at: [0.25, 0.5], desc: (v) => `The station takes ${pc(1 - 1 / (1 + v))} less damage.` },
+  { id: 'w_hull', name: 'Armour', at: [0.15, 0.3], desc: (v) => `The station takes ${pc(1 - 1 / (1 + v))} less damage.` },
   { id: 'w_regen', name: 'Repair crews', at: [0.04, 0.08], desc: (v) => `Repair ${pc(v)} hull after every wave.` },
-  { id: 'w_speed', name: 'Evasive thrusters', at: [0.1, 0.2], desc: (v) => `${pc(v)} of hits on the station miss.` },
+  { id: 'w_speed', name: 'Evasive thrusters', at: [0.08, 0.15], desc: (v) => `${pc(v)} of hits on the station miss.` },
   { id: 'w_barrier', name: 'Bunkers', at: [1, 2], desc: (v) => v > 1 ? 'Your four bunkers stand, rebuilt after every wave.' : 'Your four bunkers stand in the siege.' },
   { id: 'w_magnet', name: 'Tractor field', at: [0.25, 0.4], desc: (v) => `Shells slow by ${pc(v)} as they near the station.` },
   { id: 'w_xp', name: 'Wingmen', at: [1, 2], desc: (v) => v > 1 ? 'Two wingmen fly with you.' : 'A wingman flies with you.' },
@@ -46,7 +49,7 @@ export const SIEGE_SYSTEMS = [
   { id: 'w_reroll', name: 'Tactical relay', at: [0.2, 0.35], desc: (v) => `Raiders are tracked early and fly ${pc(v)} slower.` },
   { id: 'w_choice', name: 'Briefing dome', at: [1, 2], desc: (v) => `Start the siege ${v} card${v > 1 ? 's' : ''} ahead.` },
   { id: 'w_revive', name: 'Emergency beacon', at: [0.15, 0.15], desc: (v) => `Once per siege, a killing blow leaves the station at ${pc(v)}.` },
-  { id: 'x_alloy', name: 'Xeno plating', alien: true, at: [0.2, 0.2], desc: (v) => `Alien armour: the station takes ${pc(1 - 1 / (1 + v))} less damage.` },
+  { id: 'x_alloy', name: 'Xeno plating', alien: true, at: [0.15, 0.15], desc: (v) => `Alien armour: the station takes ${pc(1 - 1 / (1 + v))} less damage.` },
   { id: 'x_phase', name: 'Phase coil', alien: true, at: [20, 20], desc: (v) => `Every ${v}s a pulse wipes enemy fire and shells off the field.` },
   { id: 'x_charts', name: 'Star chart array', alien: true, at: [0.5, 0.5], desc: (v) => `Station guns deal +${pc(v)} damage.` },
   { id: 'x_siphon', name: 'Core siphon', alien: true, at: [0.03, 0.03], desc: (v) => `Every elite or boss part destroyed restores ${pc(v)} station hull.` },

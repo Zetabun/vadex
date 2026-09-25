@@ -213,19 +213,26 @@ export class Station {
   /** Place it in the sky, upper right, at a distance behind everything: in the room between the hangar's header and the
    *  ship (room.top, room.low: screen pixels), as big as fits there and at most 260px wide. */
   update(dt, camera, show, night, w, h, room = null) {
+    const siege = room === 'siege'; if (siege) room = null;
     const THREE = T(); this.fade += ((show ? 1 : 0) - this.fade) * Math.min(1, dt * 3);
     const g = this.group; g.visible = this.fade > 0.02; if (!g.visible) return;
     this.animate(dt, night);
     // px: on-screen width of the station at full size (46 units with its solar wings); it stands about 27 units tall, 16 of
     // them above the hub, so the hub sits that far below the header.
-    const top = room?.top ?? h * 0.13, low = room?.low ?? h * 0.33, px = Math.max(110, Math.min(w * 0.5, 260, ((low - top - 12) / 27) * 46)), hubY = top + 8 + (16 * px) / 46;
-    const D = 420, v = (this._v ||= new THREE.Vector3()).set(0.47, 1 - (2 * hubY) / Math.max(1, h), 0.5).unproject(camera).sub(camera.position).normalize();
-    g.position.copy(camera.position).addScaledVector(v, D); this.screenPx = px;
+    // In a Station Siege it is the thing being defended: big, behind the defence line at the foot of the field.
+    const top = room?.top ?? h * 0.13, low = room?.low ?? h * 0.33, px = siege ? Math.min(w * 1.3, 820) : Math.max(110, Math.min(w * 0.5, 260, ((low - top - 12) / 27) * 46)), hubY = siege ? h * 0.97 : top + 8 + (16 * px) / 46;
+    const D = 420, v = (this._v ||= new THREE.Vector3()).set(siege ? 0 : 0.47, 1 - (2 * hubY) / Math.max(1, h), 0.5).unproject(camera).sub(camera.position).normalize();
+    if (!siege) g.position.copy(camera.position).addScaledVector(v, D); this.screenPx = px;
     const perPx = 2 * D * Math.tan((camera.fov * Math.PI) / 360) / Math.max(1, h);
-    g.scale.setScalar((px * perPx / 46) * (0.85 + 0.15 * this.fade));
+    // in a siege the captured bosses and the old wreckage stay out of the fight's way (they read as enemies there)
+    for (const m of this.trophies) m.visible = !siege; this.M.field.visible = !siege; if (this.wreck) this.wreck.visible = !siege;
+    if (siege) { g.position.set(0, -7, -50); g.scale.setScalar(2.3 * (0.85 + 0.15 * this.fade)); } // just behind the defence line, in front of the Earth
+    if (!siege) g.scale.setScalar((px * perPx / 46) * (0.85 + 0.15 * this.fade));
     g.quaternion.copy(camera.quaternion); // face the camera, then turn a little to show depth
     // where the hub is on screen (the hangar's callout points at it)
     g.updateMatrixWorld(true); this.hubNdc = (this._hn ||= new THREE.Vector3()); this.body.getWorldPosition(this.hubNdc).project(camera);
-    this.body.rotation.set(0.32, Math.sin(this.t * 0.12) * 0.5 + 0.2, Math.sin(this.t * 0.07) * 0.05);
+    this.body.rotation.set(siege ? 0.5 : 0.32, Math.sin(this.t * 0.12) * (siege ? 0.2 : 0.5) + (siege ? 0 : 0.2), Math.sin(this.t * 0.07) * 0.05);
+    // struck: the hull's lights and plating flash red and fade
+    this.flash = Math.max(0, (this.flash || 0) - dt * 2.2); const f = Math.min(1, this.flash); this.M.hull.emissive.setRGB(1, 0.83 - 0.6 * f, 0.6 - 0.5 * f); this.M.plain.emissive.setRGB(0.55 * f, 0.06 * f, 0.04 * f);
   }
 }

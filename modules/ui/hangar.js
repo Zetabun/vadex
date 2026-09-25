@@ -33,6 +33,7 @@ import { menuState, menuSeen, menuLockText } from '@last-orbit/progression/meta.
 import { MENU_BY_ID } from '@last-orbit/data/menus.js';
 import { techLevel, buyTech, powerRating, workshopMaxed, workshopProgress, overhaulReward, blueprintLevel, blueprintNext, buyBlueprint, blueprintLocked, escortSlots, escortTypes, toggleEscort, trailUnlocked, selectTrail } from '@last-orbit/progression/meta.js';
 import { BLUEPRINTS, TRAILS, BP_BASE, OVERHAUL_FX_CAP, OVERHAUL_COST_STEP } from '@last-orbit/data/prestige.js';
+import { SIEGE_TIERS, SIEGE_SYSTEMS, siegeOpen, siegeUnlocked, siegeSystems, systemPart } from '@last-orbit/data/siege.js';
 import { STATION_CORE, MODULE_BY_ID, ALIEN_BY_ID, TROPHY_BY_ID, REBUILD_PARTS, rebuildPct, rebuildParts, stationSnapshot, caughtStages } from '@last-orbit/data/station.js';
 import { stationBlueprint, pieceThumb } from '@last-orbit/ui/stationArt.js';
 import { nightAmount } from '@last-orbit/rendering/background.js';
@@ -368,7 +369,7 @@ export function createHangar(hooks) {
       }
     }
     return h('div.screen', h('div.screen-head', h('h2', 'Missions'), h('p', 'Counterattack, a fresh Daily Sortie every day, and Threat levels for when the sectors stop being scary.')),
-      counterPanel(), daily, h('h3', 'Threat level'), threat);
+      counterPanel(), siegePanel(), daily, h('h3', 'Threat level'), threat);
   }
 
   async function shareDaily() {
@@ -401,6 +402,37 @@ export function createHangar(hooks) {
       h('p', 'Fly free in every direction: drag to move, double-tap a side to dash. Each stage has its own set piece and ends on a boss of its own. Stars earn Alien Cores for Alien Tech in the Workshop.'),
       h('div.ca-meta', h('span', `★ ${stars(c.stars)}/18` + (anyHard ? ` · Hard ★ ${stars(c.hard)}/18` : '')), anyHard ? h('button.ca-toggle' + (counterHard ? '.on' : ''), { onclick: () => { counterHard = !counterHard; playSfx('tab'); render(); } }, counterHard ? 'Hard mode on' : 'Hard mode off') : null),
       h('div.ca-list', rows));
+  }
+
+  // ------------------------------------------------------------ station siege
+  // The first siege opens the briefing; launching from it marks it seen.
+  const launchSiege = (n) => G.state.seen.siegeIntro ? hooks.launch({ siege: n }) : hooks.siegeIntro(() => { G.state.seen.siegeIntro = true; hooks.launch({ siege: n }); });
+  function siegePanel() {
+    const st = G.state, sg = st.siege || { stars: {}, best: {} };
+    if (!st.counter.unlocked) return null;
+    if (!siegeUnlocked(st)) return h('section.panel.ca-panel.sg-panel.locked', h('div.ca-head', h('div', h('div.kicker', 'New mode'), h('h3', 'Station Siege')), uiIcon('lock')),
+      h('p', 'Clear Counterattack stage 1 and the invaders will strike back at your station.'));
+    const sys = siegeSystems(st), stars = Object.values(sg.stars).reduce((a, b) => a + b, 0);
+    const rows = SIEGE_TIERS.map((t) => {
+      const open = siegeOpen(st, t.n), got = sg.stars[t.n] || 0;
+      return h('div.ca-stage' + (open ? '' : '.locked'), h('div.ca-num', h('small', 'Tier'), h('b', String(t.n))),
+        h('div.ca-main', h('b', t.name), h('small', open ? `Waves ${t.first}–${t.last} · best ${fmtInt(sg.best[t.n] || 0)}` : `Clear Counterattack stage ${t.n} first`), h('div.ca-stars', [1, 2, 3].map((i) => h('i' + (i <= got ? '.on' : ''), '★')))),
+        open ? h('button.btn.primary.ca-go', { onclick: () => launchSiege(t.n), 'aria-label': 'Defend against ' + t.name }, uiIcon('launch')) : uiIcon('lock'));
+    });
+    return h('section.panel.ca-panel.sg-panel',
+      h('div.ca-head', h('div', h('div.kicker', 'Station Siege', h('button.ca-how', { onclick: () => hooks.siegeIntro(null) }, 'How it works')), h('h3', 'Hold the station')),
+        h('button.sg-sys', { onclick: () => defences(), title: 'The station\'s defences' }, h('b', `${sys.count}/${SIEGE_SYSTEMS.length}`), h('small', 'defences'))),
+      h('p', 'Every Counterattack stage you clear brings a siege on your station. Shoot down the shells and raiders aimed at it: anything that reaches the line hits the station. It fights back with everything you have built.'),
+      h('div.ca-meta', h('span', `★ ${stars}/${SIEGE_TIERS.length * 3}`)), h('div.ca-list', rows));
+  }
+  /** The station's systems in a siege: which are online (and maxed), what each does, and how to get the rest. */
+  function defences() {
+    const { list, count } = siegeSystems(G.state); playSfx('tab');
+    hooks.panel?.({ kicker: 'Station Siege', title: `Station defences · ${count}/${list.length}`, body: [
+      h('p.sub-note', 'Every module you build is a defence in a siege; a maxed module works harder. Alien Tech fits alien hardware with defences of its own.'),
+      h('div.sg-defs', list.map(({ sys, state, value }) => { const part = systemPart(sys.id);
+        return h('div.sg-def.s' + state, h('i.sg-dot'), h('div', h('b', sys.name), h('small', sys.desc(value)),
+          h('em', state === 2 ? (sys.alien ? `${part.name} · fitted` : `${part.name} · maxed`) : state ? `${part.name} · online · max it for more` : sys.alien ? `Fit the ${part.name} with Alien Tech` : `Build the ${part.name} in the Workshop`))); }))] });
   }
 
   // ------------------------------------------------------------ contracts

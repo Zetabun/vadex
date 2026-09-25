@@ -70,7 +70,7 @@ export function pickTarget(w, skip, from, maxRange) {
     if (from) { const d = Math.hypot(e.x - from.x, e.y - from.y); if (maxRange && d > maxRange) continue; s = 300 - d; }
     s += e.def.prio * 30;
     if (e.state === 'dive') s += 120;
-    if (e.state === 'raid') s += 400; // Station Siege: shells and raiders heading for the station
+    if (e.state === 'raid') s += G.siegePrio ?? 400; // Station Siege: shells and raiders heading for the station (probes can turn it down)
     if (e === w.painted) s += 1e6;
     else if (e.droneMarkT > 0) s += 1e5;
     if (e.weakOpen) s += 5e4;
