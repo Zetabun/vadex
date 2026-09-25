@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.9.1 — 2026-09-25
+
+- **Fix (iPhone):** the station on the home screen could sit under the header on tall phones, so the callout overlapped your name and a tap on Settings opened the station instead. The header now always sits above the station's tap area, and the station is placed in the room between the header and your ship on every screen (a little smaller on short phones), with its tap area and callout following it.
+
 ## v2.9.0 — 2026-09-25
 
 - **The Fall (opening cinematic):** the game now opens on the story. The station in its golden age turns over Earth, shuttles tracing their orbits, until the invader fleet warps in, beams converge, explosions ripple through the modules and the core blows in a whiteout, tearing the rings away. When the smoke clears, your ship drifts in past the broken hub: "The last orbit fell. We must rebuild it." About twenty seconds, it starts on a title card (tap to begin, so it has sound on phones), can be skipped (top right), plays once for every pilot, and can be watched again from Settings (Story: Watch intro).

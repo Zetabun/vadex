@@ -210,7 +210,9 @@ export class Renderer {
     this.drawEnemies(w); this.drawPlayer(w, fdt); this.drawShots(w); this.drawHazards(w); this.drawBarriers(w); this.drawDrones(w); this.drawPickups(w); this.drawSupportCraft(w, fdt);
     this.trans.draw(B); this.parts.draw(B.soft);
     for (const k in B) B[k].end();
-    this.station.sync(G.state); this.station.update(dt, this.camera, G.mode === 'hangar' && !!this.bg.planet.visible, this.bg.earthMat.uniforms.night.value, this.w, this.h);
+    // The station fits between the hangar's header (measured by hangar.js) and the ship's nose.
+    const nose = this.worldToScreen(0, w.player.y + 6, (this._nose ||= [0, 0]));
+    this.station.sync(G.state); this.station.update(dt, this.camera, G.mode === 'hangar' && !!this.bg.planet.visible, this.bg.earthMat.uniforms.night.value, this.w, this.h, { top: G.hangarTop ?? this.h * 0.13, low: nose[1] });
     this.gl.render(this.scene, this.camera);
     this.drawOverlay(w, dt);
     this.lerpOut();
