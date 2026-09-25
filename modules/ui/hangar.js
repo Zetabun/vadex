@@ -37,6 +37,7 @@ import { SIEGE_TIERS, SIEGE_SYSTEMS, SIEGE_CONSOLES, CONSOLE_BY_ID, siegeOpen, s
 import { STATION_CORE, MODULE_BY_ID, ALIEN_BY_ID, TROPHY_BY_ID, REBUILD_PARTS, rebuildPct, rebuildParts, stationSnapshot, caughtStages } from '@last-orbit/data/station.js';
 import { stationBlueprint, pieceThumb } from '@last-orbit/ui/stationArt.js';
 import { replayTitle, replayEnding } from '@last-orbit/rendering/replay.js';
+import { TURRET_MOD, TURRET_RARITY } from '@last-orbit/data/turret.js';
 import { nightAmount } from '@last-orbit/rendering/background.js';
 import { DRONES } from '@last-orbit/data/drones.js';
 import { MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
@@ -108,7 +109,7 @@ export function createHangar(hooks) {
     if (menuState(id) === 'new') { menuSeen(id); setTimeout(() => hooks.menuIntro?.(MENU_BY_ID[id]), 150); }
     if (!quiet && id !== tab) playSfx('tab');
     if (shownTabs().join() !== navSig) layoutNav();
-    if (ROOMS[id] && !ROOMS[tab]) outside = tab; const moved = (ROOMS[id] ? id : null) !== G.room; if (moved) { for (const r of Object.values(G.renderer?.rooms || {})) r.keys = {}; stopWatching(); } G.room = ROOMS[id] ? id : null; if (moved && G.room === 'gunner') G.renderer?.room?.start?.(); /* every time in the seat is a fresh engagement */ const app = el.parentElement; if (app) { if (G.room) app.dataset.room = G.room; else delete app.dataset.room; } setClass($.stationHot, 'on', id === 'launch'); setClass($.callout, 'on', id === 'launch'); setClass($.coSvg, 'on', id === 'launch'); if (id === 'launch') stationNews();
+    if (ROOMS[id] && !ROOMS[tab]) outside = tab; const moved = (ROOMS[id] ? id : null) !== G.room; if (moved) { for (const r of Object.values(G.renderer?.rooms || {})) r.keys = {}; stopWatching(); G.renderer?.rooms?.gunner?.silence?.(); } G.room = ROOMS[id] ? id : null; if (moved && G.room === 'gunner') G.renderer?.room?.start?.(); /* every time in the seat is a fresh engagement */ const app = el.parentElement; if (app) { if (G.room) app.dataset.room = G.room; else delete app.dataset.room; } setClass($.stationHot, 'on', id === 'launch'); setClass($.callout, 'on', id === 'launch'); setClass($.coSvg, 'on', id === 'launch'); if (id === 'launch') stationNews();
     tab = id; if (pageOf(id) !== page) { page = pageOf(id); layoutNav(); }
     for (const k in navBtns) { setClass(navBtns[k], 'on', k === id); navBtns[k].setAttribute('aria-selected', String(k === id)); }
     if (id === 'awards') G.state.seen.medals = medalTotal().earned;
@@ -559,17 +560,33 @@ export function createHangar(hooks) {
     const el = h('div.deck3d.gunner', { 'aria-label': 'Gunner seat. Drag to aim; the guns fire when a target is in your sights.' },
       h('div.d3-top', h('div.d3-title', h('small', 'Gunner seat · prototype'), $g.wave = h('b')), h('button.btn.ghost.small.d3-exit', { onclick: () => show(outside) }, uiIcon('back'), 'Exit')),
       h('div.gn-hud', h('small', 'Station'), h('i.gn-hull', $g.hull = h('i'), $g.shield = h('em')), $g.pct = h('b'), $g.score = h('span')),
-      $g.hint = h('div.d3-hint', 'Drag to aim · your guns fire when something is in your sights'),
+      $g.hint = h('div.d3-hint', 'Drag to aim · cannons fire on their own · hold a target to lock a missile'),
+      $g.msl = h('button.gn-msl', { onclick: () => G.renderer?.room?.fireMissile?.(), 'aria-label': 'Fire missile' }, h('small', 'Missile'), $g.mslState = h('b'), $g.ammo = h('span.gn-ammo'), h('i.gn-reload', $g.reload = h('i'))),
+      $g.pick = h('div.gn-pick'),
       $g.end = h('div.rp-end.gn-end', $g.endT = h('b'), $g.endS = h('div.gn-stars'), $g.endSub = h('small'),
-        h('div.gn-end-acts', h('button.btn.primary', { onclick: () => { G.renderer?.room?.start(); gun.sig = ''; playSfx('tab'); } }, uiIcon('reroll'), 'Again'), h('button.btn.ghost', { onclick: () => show(outside) }, 'Exit'))));
+        h('div.gn-end-acts', h('button.btn.primary', { onclick: () => { G.renderer?.room?.start(); gun.sig = ''; gun.psig = null; playSfx('tab'); } }, uiIcon('reroll'), 'Again'), h('button.btn.ghost', { onclick: () => show(outside) }, 'Exit'))));
     let down = null;
-    el.addEventListener('pointerdown', (e) => { if (e.target.closest('button')) return; down = { id: e.pointerId, lx: e.clientX, ly: e.clientY }; try { el.setPointerCapture(e.pointerId); } catch { /* not every pointer can be captured */ } $g.hint.classList.add('off'); });
+    el.addEventListener('pointerdown', (e) => { if (e.target.closest('button, .gn-pick')) return; down = { id: e.pointerId, lx: e.clientX, ly: e.clientY }; try { el.setPointerCapture(e.pointerId); } catch { /* not every pointer can be captured */ } $g.hint.classList.add('off'); });
     el.addEventListener('pointermove', (e) => { if (!down || e.pointerId !== down.id) return; const dx = e.clientX - down.lx, dy = e.clientY - down.ly; down.lx = e.clientX; down.ly = e.clientY; if (Math.abs(dx) + Math.abs(dy) < 160) G.renderer?.room?.look?.(dx * 1.15, dy * 1.15); });
     const up = () => { down = null; }; el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
-    gun = { el, $g, sig: '' }; return el;
+    gun = { el, $g, sig: '', msig: '', psig: '' }; return el;
   }
   function gunnerTick() {
     if (!gun || G.room !== 'gunner') return; const st = G.renderer?.room?.status?.(); if (!st) return; const { $g } = gun;
+    // the missile button: ammo, reload, and what the seeker is doing
+    const msig = [st.ammo, st.missiles, Math.round(st.reload * 20), st.seeking, st.locked].join();
+    if (msig !== gun.msig) { gun.msig = msig; setText($g.mslState, st.locked ? 'Locked · fire' : st.seeking ? 'Locking…' : st.ammo ? 'Ready' : 'Reloading');
+      setClass($g.msl, 'locked', st.locked); setClass($g.msl, 'seeking', st.seeking); setClass($g.msl, 'empty', !st.ammo); clear($g.ammo).append(...Array.from({ length: st.missiles }, (_, i) => h('i' + (i < st.ammo ? '.on' : ''))));
+      $g.reload.style.width = Math.round(st.reload * 100) + '%'; }
+    // an upgrade to choose between waves
+    const psig = st.pick ? st.pick.ids.join() + '|' + st.rerolls : '';
+    if (psig !== gun.psig) { gun.psig = psig; clear($g.pick); setClass($g.pick, 'on', !!st.pick);
+      if (st.pick) { const g = G.renderer.room, choose = (i) => { const m = g.choosePick(i); if (m) gun.psig = null; };
+        $g.pick.append(h('div.gn-pick-head', h('small', 'Wave held'), h('b', 'Upgrade the guns')),
+          h('div.cards', st.pick.ids.map((id, i) => { const m = TURRET_MOD[id], rar = TURRET_RARITY[m.rarity], have = st.picks[id] || 0;
+            return h('button.card.' + m.rarity, { style: `--c:${rar.color};--r:${rar.color};--d:${i * 70}ms`, onclick: () => choose(i) }, h('div.card-art', art(m.art, 'card-icon')),
+              h('div.card-main', h('div.card-kicker', h('span', m.kind), h('span.rar', rar.name + (m.max > 1 ? ` · ${have}/${m.max}` : ''))), h('div.card-title', m.name), h('div.card-body', m.desc)), h('span.card-key', String(i + 1))); })),
+          st.rerolls > 0 ? h('button.btn.ghost.reroll', { onclick: () => { g.reroll(); } }, uiIcon('reroll'), `Reroll (${st.rerolls})`) : null); } }
     const sig = [Math.round(st.hull * 100), Math.round(st.shield * 100), st.wave, st.score, st.over, st.won].join(); if (sig === gun.sig) return; gun.sig = sig;
     setText($g.wave, st.over ? (st.won ? 'Station held' : 'Station lost') : `Wave ${Math.min(st.wave, st.waves)} of ${st.waves}`);
     $g.hull.style.width = Math.round(st.hull * 100) + '%'; setClass($g.hull, 'low', st.hull < 0.35); $g.shield.style.width = Math.round(Math.min(1, st.shield / 0.2) * 100) + '%';
@@ -747,6 +764,10 @@ export function createHangar(hooks) {
   // W/A/S/D or the arrows walk the room aboard that is open.
   const DECK_KEYS = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', ArrowLeft: 'l', KeyD: 'r', ArrowRight: 'r' };
   for (const [type, on] of [['keydown', true], ['keyup', false]]) addEventListener(type, (e) => { if (on && e.code === 'Escape' && watch && !hooks.blocking?.()) { stopWatching(); e.preventDefault(); return; }
+    if (on && G.room === 'gunner' && G.mode === 'hangar' && !hooks.blocking?.()) { const g = G.renderer?.room;
+      if (e.code === 'Space' || e.code === 'KeyF') { g?.fireMissile?.(); e.preventDefault(); return; }
+      if (g?.pick && /^Digit[1-3]$/.test(e.code)) { g.choosePick(+e.code.slice(5) - 1); if (gun) gun.psig = null; e.preventDefault(); return; }
+      if (g?.pick && e.code === 'KeyR') { g.reroll(); e.preventDefault(); return; } }
     const k = DECK_KEYS[e.code], d = G.renderer?.room; if (!k || !d || watch || (on && hooks.blocking?.())) return; d.keys[k] = on; e.preventDefault(); });
   /** Finishing the station (every Workshop upgrade maxed) gets its moment, once per Overhaul cycle. */
   function stationDone() { const st = G.state, lv = st.prestige?.level || 0; if (st.seen.stationDone === lv || !workshopMaxed() || hooks.blocking?.()) return; st.seen.stationDone = lv; hooks.stationComplete?.(); }

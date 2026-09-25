@@ -20,6 +20,7 @@ const S = {
   ability: ['triangle', 330, 990, 0.3, 0.16, 0.1, 0.1, 0], dash: ['sawtooth', 240, 1100, 0.24, 0.2, 0.12, 0.85, 0.06], dashReady: ['sine', 1320, 1980, 0.09, 0.06, 0.3, 0, 0], paint: ['sine', 1100, 1500, 0.08, 0.09, 0.08, 0, 0], hauler: ['triangle', 1320, 1760, 0.25, 0.1, 0.5, 0, 0],
   // ui
   buy: ['triangle', 660, 880, 0.06, 0.08, 0.03, 0, 0.04], deny: ['square', 140, 110, 0.09, 0.06, 0.1, 0, 0], tab: ['sine', 520, 620, 0.04, 0.05, 0.03, 0, 0],
+  lockBeep: ['square', 1760, 1760, 0.045, 0.045, 0.03, 0, 0], /* a missile seeker searching (gunner seat) */
   milestone: ['triangle', 523, 1046, 0.5, 0.16, 0.2, 0, 0], unlock: ['sine', 440, 1320, 0.6, 0.14, 0.3, 0, 0], rewind: ['sawtooth', 1200, 40, 2.2, 0.25, 2, 0.4, 0], count: ['triangle', 1180, 1050, 0.035, 0.05, 0.05, 0, 0.02], loot: ['sine', 990, 1480, 0.2, 0.1, 0.1, 0, 0.05],
 };
 
@@ -99,6 +100,17 @@ export function setThrust(level) {
   thrust.g.gain.setTargetAtTime(0.013 * k, t, 0.14);
   thrust.lp.frequency.setTargetAtTime(240 + 380 * k, t, 0.14);
   thrust.a.frequency.setTargetAtTime(88 + 26 * k, t, 0.2); thrust.b.frequency.setTargetAtTime(132 + 40 * k, t, 0.2);
+}
+
+// A missile seeker's lock: a steady high tone while it holds (the gunner seat). on: true or false.
+let lock = null;
+export function lockTone(on) {
+  if (!ctx || ctx.state !== 'running') { lock = null; return; }
+  if (!lock || lock.ctx !== ctx) {
+    if (!on) return; const g = ctx.createGain(), lp = ctx.createBiquadFilter(); g.gain.value = 0; lp.type = 'lowpass'; lp.frequency.value = 2800; lp.connect(g); g.connect(sfxBus);
+    const a = ctx.createOscillator(), b = ctx.createOscillator(); a.type = 'square'; b.type = 'square'; a.frequency.value = 1760; b.frequency.value = 1764; a.connect(lp); b.connect(lp); a.start(); b.start(); lock = { ctx, g };
+  }
+  lock.g.gain.setTargetAtTime(on ? 0.028 : 0, ctx.currentTime, 0.015);
 }
 
 // ------------------------------------------------------------------ music
