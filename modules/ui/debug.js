@@ -81,7 +81,10 @@ function runScene(scene, hooks, ui) {
     bus.off?.('sortieOver', over); G.world.fx.length = 0; endSortie(reason || 'abandoned'); recStop({ reason: reason || 'abandoned' }); ui.closeOverlays();
     console.log('replay', lastReplay().frames.length, 'frames', Math.round(replayBytes(lastReplay()) / 1024) + ' KB', reason);
     hooks.toHangar('deck');
-    const V = { tv: [-1.2, 1.1, Math.PI, 0.04], room: [0.4, -1.8, Math.PI + 0.2, 0.02], screen: [-1.2, 2.3, Math.PI, 0.09], wide: [-1.2, -1.3, Math.PI, 0.02] }[arg3 || 'tv'];
+    const V = { tv: [-1.2, 1.1, Math.PI, 0.04], room: [0.4, -1.8, Math.PI + 0.2, 0.02], screen: [-1.2, 2.3, Math.PI, 0.09], wide: [-1.2, -1.3, Math.PI, 0.02], watch: [-1.2, 1.1, Math.PI, 0.04], watchend: [-1.2, 1.1, Math.PI, 0.04] }[arg3 || 'tv'];
+    // replay:…:watch: then tap the TV, as a finger would
+    if (arg3 === 'watchend') setTimeout(() => { const rp = G.renderer.room?.replay; rp?.seek(rp.length - 0.3); }, 3200); /* …and skip to its ending */
+    if (arg3 === 'watch' || arg3 === 'watchend') setTimeout(() => { const el = document.querySelector('.deck3d'), r = G.renderer.canvas.getBoundingClientRect(), o = { pointerId: 5, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2, bubbles: true }; el?.dispatchEvent(new PointerEvent('pointerdown', o)); el?.dispatchEvent(new PointerEvent('pointerup', o)); }, 2600);
     let k = 0; const iv = setInterval(() => { const d = G.renderer?.room; if (d) { d.pos.x = V[0]; d.pos.z = V[1]; d.yaw = V[2]; d.pitch = V[3]; } if (++k > 20) clearInterval(iv); }, 100);
     return; }
   // control:<stages cleared>[:<view>[:<tiers held>]]: Defence Control, with that many Counterattack stages (and so siege

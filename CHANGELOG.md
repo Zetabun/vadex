@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.12.0 — 2026-09-25
+
+- **The replay TV (Command Deck):** a flight recorder now keeps the last 90 seconds of every sortie and Station Siege. That's the ending, whether it's the boss fight or how it went wrong. The big screen on the Command Deck's back wall plays it back as a miniature of the fight, with the game's own enemy models in their colours, your ship banking as it flew, shots and enemy fire, and a burst for every kill. The left of the screen follows the run as it plays (wave, score, hull and shield); the right shows your records.
+- **Tap the TV to watch:** the replay fills the screen, with pause, restart, ½×, 1× and 2× speed, and a scrubber to jump anywhere. It stops on the ending ("Signal lost at wave 31", "Station held"…) with a Watch again button.
+- The recording is kept compressed (about 200 KB) in its own slot, separate from your save, so it survives closing the app. Counterattack isn't recorded yet, because its walls and city aren't part of what's noted. Erase save clears the recording too.
+
 ## v2.11.0 — 2026-09-25
 
 - **Defence Control (new room aboard):** the station's war room, a second room to walk round like the Command Deck. It opens when the invaders first strike back (your first Counterattack clear): enter it from the Station Siege panel in Missions, from the station card, through its door in the Command Deck, or straight from a siege debrief. A short briefing explains it on your first visit.

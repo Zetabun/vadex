@@ -24,6 +24,12 @@ async function get(key) {
 }
 async function del(key) { try { localStorage.removeItem(LS + key); } catch { /* ignore */ } const d = await openDb(); if (d) await new Promise((res) => { const tx = d.transaction(STORE, 'readwrite'); tx.objectStore(STORE).delete(key); tx.oncomplete = res; tx.onerror = res; }); }
 
+/** Binary data (the replay TV's recording) in IndexedDB only: too big for localStorage, and never part of the save.
+ *  The debug sandbox keeps its own. */
+const blobKey = (key) => key + (G.state?.meta.sandbox ? '_sandbox' : '');
+export async function putBlob(key, buf) { const d = await openDb(); if (!d) return; await new Promise((res) => { try { const tx = d.transaction(STORE, 'readwrite'); tx.objectStore(STORE).put(buf, blobKey(key)); tx.oncomplete = res; tx.onerror = res; tx.onabort = res; } catch { res(); } }); }
+export async function getBlob(key) { const d = await openDb(); if (!d) return null; return new Promise((res) => { try { const rq = d.transaction(STORE).objectStore(STORE).get(blobKey(key)); rq.onsuccess = () => res(rq.result || null); rq.onerror = () => res(null); } catch { res(null); } }); }
+
 // Schema migrations: each entry upgrades v → v+1. Never remove entries. v2 saves start at schema 20.
 const MIGRATIONS = {
   // v2.1: pilot career and paint jobs (defaults are filled in by withDefaults).
@@ -65,7 +71,7 @@ export async function legacyBestWave() {
 export const BACKUP_TAG = 'LASTORBIT1:';
 export function exportSave() { return BACKUP_TAG + btoa(unescape(encodeURIComponent(serialize()))); }
 export function importSave(text) { const s = parseSave(text); s.meta.sandbox = G.state.meta.sandbox; return s; }
-export async function hardReset() { await del(slot()); if (slot() === MAIN) await del(BACKUP); }
+export async function hardReset() { await del(slot()); if (slot() === MAIN) await del(BACKUP); await del(blobKey('v2_replay')); }
 /** Enter the debug sandbox: clone the live state into a separate slot. The real save is left exactly as it was. */
 export async function enterSandbox() { await save('pre-sandbox'); G.state.meta.sandbox = true; await save('sandbox'); }
 export async function leaveSandbox() { await del(SANDBOX); }

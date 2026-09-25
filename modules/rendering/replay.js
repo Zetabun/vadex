@@ -1,7 +1,8 @@
 // The replay screen: the flight recorder's last sortie (progression/recorder.js) played back as a miniature of the
 // fight, with the game's own enemy models and your ship, rendered into a texture for a screen aboard the station.
 // Between the recorder's frames everything glides: enemies are matched by id and eased, shots and bullets fly on
-// along their recorded velocity. It loops, holding on the ending for a moment.
+// along their recorded velocity. It loops, holding on the ending for a moment. Watched full screen, it can be paused,
+// sped up and scrubbed.
 import { shapeGeometry, playerParts } from '@last-orbit/rendering/geometry.js';
 import { HZ, unpack } from '@last-orbit/progression/recorder.js';
 import { SHIP_BY_ID } from '@last-orbit/data/ships.js';
@@ -14,11 +15,23 @@ function glowTex(inner = 0.25) {
   g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(inner, 'rgba(255,255,255,.7)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c);
 }
 
+/** What a replay is of: its title and the line under it (ship, sector or siege tier). */
+export function replayTitle(rep) {
+  const m = rep.meta || {}, ship = (SHIP_BY_ID[m.ship]?.name || '').toUpperCase();
+  return { title: m.mode === 'siege' ? 'LAST SIEGE' : m.daily ? 'LAST DAILY SORTIE' : 'LAST SORTIE', sub: [ship, (m.tier || m.sector || '').toUpperCase()].filter(Boolean).join(' · ') };
+}
+/** How it ended, and whether that was a loss. */
+export function replayEnding(rep) {
+  const r = rep.end?.reason, down = r === 'destroyed' || r === 'died', lost = down || r === 'stationLost'; // the sim reports a death as 'destroyed'
+  return { text: down ? 'Signal lost' : r === 'stationLost' ? 'Station lost' : r === 'cleared' ? (rep.meta?.mode === 'siege' ? 'Station held' : 'Cleared') : 'Returned home', lost };
+}
+
 export class ReplayScreen {
   constructor(w = 512, h = 768) {
     const THREE = T(); this.target = new THREE.WebGLRenderTarget(w, h); this.texture = this.target.texture; this.t = 0; this.rep = null;
     const S = (this.scene = new THREE.Scene()); S.background = new THREE.Color(0x050b1e);
     this.cam = new THREE.OrthographicCamera(-57, 57, 168, -3, -200, 200); /* the whole field and the lane they enter by, at 2:3 */ this.cam.position.set(0, 0, 100);
+    this.full = this.cam.clone(); this.paused = false; this.speed = 1; this.loop = true;
     S.add(new THREE.HemisphereLight(0xbfd8ff, 0x1a1030, 0.85)); const sun = new THREE.DirectionalLight(0xffffff, 0.9); sun.position.set(-40, 60, 120); S.add(sun); // the battlefield's own lights
     // stars drifting down the screen, as the fight's backdrop does
     const n = 160, pos = new Float32Array(n * 3); for (let i = 0; i < n; i++) pos.set([(Math.random() - 0.5) * 118, Math.random() * 175 - 4, -50], i * 3);
@@ -48,7 +61,7 @@ export class ReplayScreen {
     for (const k in use) if (parts[k]) this.ship.add(new THREE.Mesh(parts[k], M[use[k]]));
     this.ship.scale.setScalar(4); this.trim = ship.trim;
   }
-  load(rep) { this.rep = rep; this.t = 0; if (rep && this.shipLook !== rep.meta.ship) { this.shipLook = rep.meta.ship; this.buildShip(rep.meta.ship); } }
+  load(rep) { this.rep = rep; this.t = 0; this.paused = false; if (rep && this.shipLook !== rep.meta.ship) { this.shipLook = rep.meta.ship; this.buildShip(rep.meta.ship); } }
   /** Where the playback is: the frame before, the frame after, and how far between them. */
   at() {
     const F = this.rep.frames, x = Math.min(this.t * HZ, F.length - 1), i = Math.floor(x); return { a: F[i], b: F[Math.min(F.length - 1, i + 1)], k: x - i, i };
@@ -56,7 +69,8 @@ export class ReplayScreen {
   get length() { return this.rep ? this.rep.frames.length / HZ : 0; }
   update(dt) {
     if (!this.rep?.frames.length) return; const THREE = T();
-    this.t += dt; if (this.t > this.length + HOLD) this.t = 0;
+    if (!this.paused) this.t += dt * this.speed; if (!this.loop && this.t >= this.length) { this.t = this.length; this.paused = true; } /* watched: stop on the ending */
+    if (this.t > this.length + HOLD) this.t = 0;
     const { a, b, k, i } = this.at(), R = this.rep, d = this.d, t = this.t, ux = unpack.x, uy = unpack.y, uv = unpack.v;
     // the enemies, eased toward where the next frame has them
     if (!b.ids) { b.ids = new Map(); for (let o = 0; o < b.E.length; o += 7) b.ids.set(b.E[o] | (b.E[o + 1] << 8), o); }
@@ -97,4 +111,14 @@ export class ReplayScreen {
     return { wave: a.wave, score: a.score, hull: a.hull, shield: a.shield, level: a.level, t: Math.min(this.t, this.length), len: this.length, done, alive: a.alive };
   }
   render(gl) { if (!this.rep) return; gl.setRenderTarget(this.target); gl.setClearColor(0x050b1e, 1); gl.render(this.scene, this.cam); gl.setRenderTarget(null); }
+  /** Jump to a moment (seconds from the start of the replay). */
+  seek(t) { this.t = Math.max(0, Math.min(this.length, t)); }
+  /** Straight to the screen (w × h), the whole field fitted into the band between insets.top and insets.bottom (the
+   *  controls laid over it): for watching it full screen. */
+  renderFull(gl, w, h, insets = {}) {
+    if (!this.rep) return; const c = this.full, fw = 114, fh = 171, top = insets.top || 0, bot = insets.bottom || 0, band = Math.max(40, h - top - bot);
+    const s = w / band < fw / fh ? fw / w : fh / band; // world units per pixel: the field fits the band's width or its height
+    c.left = (-w * s) / 2; c.right = (w * s) / 2; c.bottom = 82.5 - (bot + band / 2) * s; c.top = c.bottom + h * s;
+    c.updateProjectionMatrix(); gl.setRenderTarget(null); gl.setClearColor(0x050b1e, 1); gl.render(this.scene, c);
+  }
 }

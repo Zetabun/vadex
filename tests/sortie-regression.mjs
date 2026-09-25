@@ -536,4 +536,18 @@ assert.throws(() => parseSave('{"run":{},"cur":{}}'), /Not a Last Orbit v2 save/
   const newer = JSON.parse(JSON.stringify(G.state)); newer.v = 999; assert.throws(() => S.importSave(S.BACKUP_TAG + btoa(unescape(encodeURIComponent(JSON.stringify(newer))))), (e) => e.code === 'NEWER_SAVE', 'A code from a newer build says so');
   assert.equal(newState().meta.lastBackup, 0, 'A new save has never been backed up'); }
 
+// ---- v2.12: the flight recorder behind the replay TV ----
+{ const R = await import('@last-orbit/progression/recorder.js'); fresh();
+  R.recStart({ mode: 'counter' }); launch({}); for (let i = 0; i < 200; i++) { step(TICK); R.recTick(G.world, TICK); } assert.equal(R.recStop({ reason: 'abandoned' }), R.lastReplay(), 'Counterattack is not recorded');
+  endSortie('abandoned'); fresh(); launch({}); R.recStart({ ship: G.state.run.ship, mode: 'main' });
+  for (let i = 0; i < 60 * (R.KEEP + 15) && G.state.run; i++) { step(TICK); R.recTick(G.world, TICK); G.world.player.hull = 1; }
+  const rep = R.recStop({ reason: 'abandoned', wave: G.state.run.wave }); endSortie('abandoned');
+  assert.ok(rep && rep.frames.length <= R.HZ * R.KEEP && rep.frames.length >= R.HZ * R.KEEP - 1, `It keeps the last ${R.KEEP} seconds (${rep?.frames.length} frames)`);
+  assert.ok(rep.frames.some((f) => f.E.length) && rep.frames.some((f) => f.S.length), 'Enemies and shots are recorded');
+  const back = await R.unpackReplay(R.packReplay(rep).buffer); assert.equal(back.frames.length, rep.frames.length, 'Packed and unpacked, every frame comes back');
+  const a = rep.frames.at(-1), b = back.frames.at(-1); assert.deepEqual([...b.E], [...a.E]); assert.deepEqual([...b.B], [...a.B]); assert.equal(b.wave, a.wave); assert.equal(b.score, a.score); assert.ok(Math.abs(b.px - a.px) < 1e-3);
+  assert.deepEqual(back.shapes, rep.shapes); assert.deepEqual(back.end, rep.end);
+  if (typeof CompressionStream !== 'undefined') { const packed = R.packReplay(rep), z = new Uint8Array(await new Response(new Blob([packed]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer());
+    assert.ok(z.length < packed.length, 'It stores compressed'); assert.equal((await R.unpackReplay(z.buffer)).frames.length, rep.frames.length, 'and a compressed replay unpacks'); } }
+
 console.log('Sortie, cards, relics, contracts, workshop, ships, pickups, revive and save checks pass.');

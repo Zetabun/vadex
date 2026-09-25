@@ -36,6 +36,7 @@ import { BLUEPRINTS, TRAILS, BP_BASE, OVERHAUL_FX_CAP, OVERHAUL_COST_STEP } from
 import { SIEGE_TIERS, SIEGE_SYSTEMS, SIEGE_CONSOLES, CONSOLE_BY_ID, siegeOpen, siegeUnlocked, siegeSystems, systemPart, systemSource, sourceName, nextSiege, lockedSiege, siegeAdvice } from '@last-orbit/data/siege.js';
 import { STATION_CORE, MODULE_BY_ID, ALIEN_BY_ID, TROPHY_BY_ID, REBUILD_PARTS, rebuildPct, rebuildParts, stationSnapshot, caughtStages } from '@last-orbit/data/station.js';
 import { stationBlueprint, pieceThumb } from '@last-orbit/ui/stationArt.js';
+import { replayTitle, replayEnding } from '@last-orbit/rendering/replay.js';
 import { nightAmount } from '@last-orbit/rendering/background.js';
 import { DRONES } from '@last-orbit/data/drones.js';
 import { MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
@@ -107,7 +108,7 @@ export function createHangar(hooks) {
     if (menuState(id) === 'new') { menuSeen(id); setTimeout(() => hooks.menuIntro?.(MENU_BY_ID[id]), 150); }
     if (!quiet && id !== tab) playSfx('tab');
     if (shownTabs().join() !== navSig) layoutNav();
-    if (ROOMS[id] && !ROOMS[tab]) outside = tab; if ((ROOMS[id] ? id : null) !== G.room) for (const r of Object.values(G.renderer?.rooms || {})) r.keys = {}; G.room = ROOMS[id] ? id : null; const app = el.parentElement; if (app) { if (G.room) app.dataset.room = G.room; else delete app.dataset.room; } setClass($.stationHot, 'on', id === 'launch'); setClass($.callout, 'on', id === 'launch'); setClass($.coSvg, 'on', id === 'launch'); if (id === 'launch') stationNews();
+    if (ROOMS[id] && !ROOMS[tab]) outside = tab; if ((ROOMS[id] ? id : null) !== G.room) { for (const r of Object.values(G.renderer?.rooms || {})) r.keys = {}; stopWatching(); } G.room = ROOMS[id] ? id : null; const app = el.parentElement; if (app) { if (G.room) app.dataset.room = G.room; else delete app.dataset.room; } setClass($.stationHot, 'on', id === 'launch'); setClass($.callout, 'on', id === 'launch'); setClass($.coSvg, 'on', id === 'launch'); if (id === 'launch') stationNews();
     tab = id; if (pageOf(id) !== page) { page = pageOf(id); layoutNav(); }
     for (const k in navBtns) { setClass(navBtns[k], 'on', k === id); navBtns[k].setAttribute('aria-selected', String(k === id)); }
     if (id === 'awards') G.state.seen.medals = medalTotal().earned;
@@ -501,7 +502,8 @@ export function createHangar(hooks) {
     const el = h('div.deck3d' + (id === 'control' ? '.control' : ''), { 'aria-label': `${ROOMS[id]}. Drag to look around, tap the floor to walk, tap an exhibit to inspect it.` },
       h('div.d3-top', h('div.d3-title', h('small', ROOMS[id]), h('b', id === 'deck' ? p.name || rankTitle(p.rank) : G.state.stationName || 'Station defence')), h('button.btn.ghost.small.d3-exit', { onclick: () => show(outside) }, uiIcon('back'), 'Exit')), hint);
     let down = null;
-    el.addEventListener('pointerdown', (e) => { if (e.target.closest('button')) return; down = { id: e.pointerId, x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, t: performance.now(), moved: false }; try { el.setPointerCapture(e.pointerId); } catch { /* not every pointer can be captured */ } });
+    if (watch && id === 'deck') { el.append(watch.el); el.classList.add('watching'); }
+    el.addEventListener('pointerdown', (e) => { if (e.target.closest('button, input') || watch) return; down = { id: e.pointerId, x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, t: performance.now(), moved: false }; try { el.setPointerCapture(e.pointerId); } catch { /* not every pointer can be captured */ } });
     el.addEventListener('pointermove', (e) => {
       if (!down || e.pointerId !== down.id) return;
       if (!down.moved && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8) down.moved = true;
@@ -548,9 +550,46 @@ export function createHangar(hooks) {
     ops: 'Slowing their shells, tracking their raiders, and making every siege pay.',
     alien: 'Hardware fitted with Alien Tech. It fights in every siege from the moment it is fitted.',
   };
+  // ------------------------------------------------------------ the replay TV, watched full screen
+  // The recording plays over the whole screen (rendering/deck.js hands it the frame); these are its controls.
+  let watch = null;
+  const mm = (v) => `${Math.floor(v / 60)}:${String(Math.floor(v % 60)).padStart(2, '0')}`;
+  function watchReplay() {
+    const d = G.renderer?.room, rp = d?.replay; if (!rp?.rep || watch) return; playSfx('tab');
+    d.watching = true; rp.loop = false; rp.speed = 1; rp.paused = false; rp.seek(0);
+    const name = replayTitle(rp.rep), end = replayEnding(rp.rep), $w = {};
+    const restart = () => { rp.seek(0); rp.paused = false; playSfx('tab', 0.5); };
+    const el = h('div.rp-watch',
+      h('div.rp-head', h('div.rp-title', h('small', h('i.rp-dot'), 'Replay'), h('b', name.title), h('span', name.sub)), h('button.btn.ghost.small.rp-close', { onclick: () => stopWatching(), 'aria-label': 'Close the replay' }, uiIcon('close'))),
+      h('div.rp-stats', $w.wave = h('b'), $w.score = h('span'), h('i.rp-hull', $w.hull = h('i'))),
+      $w.end = h('div.rp-end' + (end.lost ? '.lost' : ''), h('b', end.text), $w.endSub = h('small'), h('button.btn.primary', { onclick: restart }, uiIcon('reroll'), 'Watch again')),
+      h('div.rp-bar', h('button.rp-btn', { onclick: restart, 'aria-label': 'From the start' }, uiIcon('reroll')),
+        $w.play = h('button.rp-btn', { onclick: () => { if (rp.t >= rp.length) rp.seek(0); rp.paused = !rp.paused; }, 'aria-label': 'Pause or play' }),
+        $w.scrub = h('input.rp-scrub', { type: 'range', min: 0, max: rp.length.toFixed(1), step: 0.1, value: 0, 'aria-label': 'Replay position' }),
+        $w.time = h('span.rp-time'),
+        $w.speed = h('button.rp-btn.rp-speed', { onclick: () => { rp.speed = rp.speed === 1 ? 2 : rp.speed === 2 ? 0.5 : 1; }, 'aria-label': 'Playback speed' })));
+    $w.scrub.addEventListener('input', () => { rp.seek(+$w.scrub.value); });
+    const room = $.body.querySelector('.deck3d'); room?.append(el); room?.classList.add('watching');
+    watch = { el, $w, rp, d, sig: '' }; watchTick();
+  }
+  function stopWatching() {
+    if (!watch) return; const { d, rp, el } = watch; d.watching = false; rp.loop = true; rp.speed = 1; rp.paused = false;
+    el.parentElement?.classList.remove('watching'); el.remove(); watch = null;
+  }
+  /** Keep the controls in step with the playback, and tell the room where they leave the screen clear. */
+  function watchTick() {
+    if (!watch) return; const { rp, $w, d, el } = watch, st = rp.status(); if (!st) return;
+    const cv = G.renderer?.canvas?.getBoundingClientRect(), head = el.querySelector('.rp-stats')?.getBoundingClientRect(), bar = el.querySelector('.rp-bar')?.getBoundingClientRect();
+    if (cv && head && bar) d.watchInsets = { top: Math.max(0, head.bottom - cv.top + 4), bottom: Math.max(0, cv.bottom - bar.top + 4) };
+    const sig = [st.wave, st.score, Math.round(st.hull * 50), Math.round(st.t * 4), rp.paused, rp.speed, st.done].join(); if (sig === watch.sig) return; watch.sig = sig;
+    setText($w.wave, 'Wave ' + st.wave); setText($w.score, fmtInt(st.score) + ' pts'); $w.hull.style.width = Math.round(Math.max(0, st.hull) * 100) + '%'; setClass($w.hull, 'low', st.hull < 0.35);
+    $w.scrub.value = st.t.toFixed(1); setText($w.time, `${mm(st.t)} / ${mm(st.len)}`); setText($w.speed, rp.speed === 0.5 ? '½×' : rp.speed + '×');
+    clear($w.play).append(uiIcon(rp.paused ? 'play' : 'pause')); setClass($w.end, 'on', st.done && rp.paused); setText($w.endSub, `Wave ${st.wave} · ${fmtInt(st.score)} points`);
+  }
   /** Tapping an exhibit on the deck: its details, as a panel. */
   function exhibit(kind) {
     if (kind === 'exit') { show(outside); return; }
+    if (kind === 'replay') { watchReplay(); return; }
     if (kind === 'control') { show('control'); return; }
     const st = G.state, s = st.stats, rank = st.prestige?.level || 0; playSfx('tab');
     const panel = (kicker, title, ...body) => hooks.panel?.({ kicker, title, body });
@@ -619,7 +658,7 @@ export function createHangar(hooks) {
     const hidden = (p) => (pages[p] || []).some((id) => navBtns[id].classList.contains('badged') || navBtns[id].classList.contains('fresh'));
     setClass($.next, 'badged', hidden(page + 1)); setClass($.prev, 'badged', page > 0 && hidden(page - 1));
   }
-  function update() { setText($.salvage, fmtInt(G.state.salvage)); badges(); pilotId(); stationDone(); G.hangarTop = top.getBoundingClientRect().bottom; stationTag(); }
+  function update() { watchTick(); setText($.salvage, fmtInt(G.state.salvage)); badges(); pilotId(); stationDone(); G.hangarTop = top.getBoundingClientRect().bottom; stationTag(); }
   /** Keep the label's text current, and its tap target over wherever the renderer drew it. */
   /** A buy that changed the station says so: a module rebuilt for the first time, lit once maxed, alien hardware fitted. */
   function stationNote(id, was) {
@@ -680,7 +719,8 @@ export function createHangar(hooks) {
 
   // W/A/S/D or the arrows walk the room aboard that is open.
   const DECK_KEYS = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', ArrowLeft: 'l', KeyD: 'r', ArrowRight: 'r' };
-  for (const [type, on] of [['keydown', true], ['keyup', false]]) addEventListener(type, (e) => { const k = DECK_KEYS[e.code], d = G.renderer?.room; if (!k || !d || (on && hooks.blocking?.())) return; d.keys[k] = on; e.preventDefault(); });
+  for (const [type, on] of [['keydown', true], ['keyup', false]]) addEventListener(type, (e) => { if (on && e.code === 'Escape' && watch && !hooks.blocking?.()) { stopWatching(); e.preventDefault(); return; }
+    const k = DECK_KEYS[e.code], d = G.renderer?.room; if (!k || !d || watch || (on && hooks.blocking?.())) return; d.keys[k] = on; e.preventDefault(); });
   /** Finishing the station (every Workshop upgrade maxed) gets its moment, once per Overhaul cycle. */
   function stationDone() { const st = G.state, lv = st.prestige?.level || 0; if (st.seen.stationDone === lv || !workshopMaxed() || hooks.blocking?.()) return; st.seen.stationDone = lv; hooks.stationComplete?.(); }
   function pilotId() {

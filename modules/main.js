@@ -9,6 +9,7 @@ import { initWorld, advance } from '@last-orbit/combat/sim.js';
 import { useAbility } from '@last-orbit/combat/abilities.js';
 import { collectAll } from '@last-orbit/combat/pickups.js';
 import { recStart, recTick, recStop } from '@last-orbit/progression/recorder.js';
+import { TIER_BY_N } from '@last-orbit/data/siege.js';
 import { startSortie, endSortie, nextOffer, nextRelic, nextRoute, nextAnomaly, recoverInterruptedRun } from '@last-orbit/progression/run.js';
 import { checkContracts, unlockCounter, refreshMenus, notePeaks } from '@last-orbit/progression/meta.js';
 import { save, load, hardReset, legacyBestWave } from '@last-orbit/save/save.js';
@@ -32,7 +33,7 @@ const hooks = {
   setInsets: (t, b) => renderer && renderer.setInsets(t, b),
   applySettings: () => { renderer.setQuality(); setNotation(G.state.settings.notation); document.getElementById('scan')?.classList.toggle('off', !G.state.settings.scanlines); },
   celebrate: (color) => { const p = G.world.player; renderer.celebrate(p.x, p.y + 6, color, 40); },
-  launch: (opts = {}) => { initAudio(); lastLaunch = opts; if (!startSortie(opts)) { toast('Today\'s Daily Sortie has already been flown.', 'warn'); return; } initWorld(); recStart({ ship: G.state.run.ship, mode: G.state.run.mode || 'main' }); ui.setMode('sortie'); save('launch'); if (nextOffer()) ui.nextChoice(); },
+  launch: (opts = {}) => { initAudio(); lastLaunch = opts; if (!startSortie(opts)) { toast('Today\'s Daily Sortie has already been flown.', 'warn'); return; } initWorld(); const run = G.state.run; recStart({ ship: run.ship, mode: run.mode || 'main', tier: run.siege ? TIER_BY_N[run.siege]?.name : null, daily: !!run.daily }); ui.setMode('sortie'); save('launch'); if (nextOffer()) ui.nextChoice(); },
   abandon: () => finish('abandoned'),
   relaunch: (next, opts) => hooks.launch(next ? (lastLaunch.siege ? { ...lastLaunch, siege: lastLaunch.siege + 1 } : { ...lastLaunch, counter: lastLaunch.counter + 1, checkpoint: false }) : { ...lastLaunch, checkpoint: false, ...opts }),
   counterNotice: () => {},
@@ -50,7 +51,7 @@ const hooks = {
 function finish(reason) {
   if (!G.state.run) return;
   if (G.world) collectAll(G.world);
-  const summary = endSortie(reason); recStop({ reason });
+  const summary = endSortie(reason); recStop({ reason, wave: summary.wave });
   save('sortie-end');
   ui.showDebrief(summary);
 }
