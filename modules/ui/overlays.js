@@ -139,6 +139,7 @@ export function createOverlays(layer, hooks) {
       field('Sound effects', slider(() => s.sfx, set('sfx'), 0, 1, 0.05, 'Sound effects volume')),
       field('Hold screen sides to move', toggle(() => s.holdSides !== false, set('holdSides'), 'Hold screen sides to move')),
       field('Screen shake', toggle(() => s.shake, set('shake'), 'Screen shake')),
+      field('Vibration', toggle(() => s.haptics !== false, set('haptics'), 'Vibration')),
       field('Damage numbers', toggle(() => s.dmgNumbers, set('dmgNumbers'), 'Damage numbers')),
       field('Scanlines', toggle(() => s.scanlines, set('scanlines'), 'Scanlines')),
       field('Graphics', select([['auto', 'Auto'], ['high', 'High'], ['low', 'Low']], () => s.quality, set('quality'), 'Graphics quality')),

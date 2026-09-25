@@ -560,7 +560,7 @@ export function createHangar(hooks) {
     const el = h('div.deck3d.gunner', { 'aria-label': 'Gunner seat. Drag to aim; the guns fire when a target is in your sights.' },
       h('div.d3-top', h('div.d3-title', h('small', 'Gunner seat · prototype'), $g.wave = h('b')), h('button.btn.ghost.small.d3-exit', { onclick: () => show(outside) }, uiIcon('back'), 'Exit')),
       h('div.gn-hud', h('small', 'Station'), h('i.gn-hull', $g.hull = h('i'), $g.shield = h('em')), $g.pct = h('b'), $g.score = h('span')),
-      $g.hint = h('div.d3-hint', 'Drag to aim · cannons fire on their own · hold a target to lock a missile'),
+      $g.hint = h('div.d3-hint', 'Drag to aim · cannons fire on their own · hold the sights on a ◆ target to lock a missile'),
       $g.msl = h('button.gn-msl', { onclick: () => G.renderer?.room?.fireMissile?.(), 'aria-label': 'Fire missile' }, h('small', 'Missile'), $g.mslState = h('b'), $g.ammo = h('span.gn-ammo'), h('i.gn-reload', $g.reload = h('i'))),
       $g.pick = h('div.gn-pick'),
       $g.end = h('div.rp-end.gn-end', $g.endT = h('b'), $g.endS = h('div.gn-stars'), $g.endSub = h('small'),
@@ -575,7 +575,7 @@ export function createHangar(hooks) {
     if (!gun || G.room !== 'gunner') return; const st = G.renderer?.room?.status?.(); if (!st) return; const { $g } = gun;
     // the missile button: ammo, reload, and what the seeker is doing
     const msig = [st.ammo, st.missiles, Math.round(st.reload * 20), st.seeking, st.locked].join();
-    if (msig !== gun.msig) { gun.msig = msig; setText($g.mslState, st.locked ? 'Locked · fire' : st.seeking ? 'Locking…' : st.ammo ? 'Ready' : 'Reloading');
+    if (msig !== gun.msig) { gun.msig = msig; setText($g.mslState, st.locked ? 'Locked · fire' : st.seeking ? 'Locking…' : st.ammo ? 'Ready' : 'Reloading rack');
       setClass($g.msl, 'locked', st.locked); setClass($g.msl, 'seeking', st.seeking); setClass($g.msl, 'empty', !st.ammo); clear($g.ammo).append(...Array.from({ length: st.missiles }, (_, i) => h('i' + (i < st.ammo ? '.on' : ''))));
       $g.reload.style.width = Math.round(st.reload * 100) + '%'; }
     // an upgrade to choose between waves

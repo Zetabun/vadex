@@ -102,6 +102,16 @@ export function setThrust(level) {
   thrust.a.frequency.setTargetAtTime(88 + 26 * k, t, 0.2); thrust.b.frequency.setTargetAtTime(132 + 40 * k, t, 0.2);
 }
 
+/** A missile leaving the rack: a rush of air (noise through a band sweeping up, then away) over a low roar. */
+export function whoosh(vol = 1) {
+  if (!ctx || ctx.state !== 'running' || voices >= MAX_VOICES) return; const now = ctx.currentTime, dur = 0.9;
+  const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(0.32 * vol, now + 0.05); g.gain.exponentialRampToValueAtTime(0.0001, now + dur); g.connect(sfxBus);
+  const n = ctx.createBufferSource(); n.buffer = noiseBuf; n.playbackRate.value = 0.9; const bp = ctx.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.4;
+  bp.frequency.setValueAtTime(500, now); bp.frequency.exponentialRampToValueAtTime(2600, now + 0.18); bp.frequency.exponentialRampToValueAtTime(420, now + dur); n.connect(bp); bp.connect(g); n.start(now); n.stop(now + dur + 0.02);
+  const o = ctx.createOscillator(), og = ctx.createGain(); o.type = 'sawtooth'; o.frequency.setValueAtTime(110, now); o.frequency.exponentialRampToValueAtTime(55, now + dur); og.gain.value = 0.25; const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 300;
+  o.connect(lp); lp.connect(og); og.connect(g); o.start(now); o.stop(now + dur + 0.02);
+  voices++; n.onended = () => { voices = Math.max(0, voices - 1); g.disconnect(); };
+}
 // A missile seeker's lock: a steady high tone while it holds (the gunner seat). on: true or false.
 let lock = null;
 export function lockTone(on) {
