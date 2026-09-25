@@ -3,11 +3,13 @@
 // in it once a day and the next sortie banks more salvage); the keepsakes you have picked up on a cabinet on the left
 // wall, each lit on its shelf (the ones still to find are dim shapes); your desk on the right with the pilot's log on the
 // wall over it and a recruitment poster beside; photos of the big moments pinned up between the doors; a switch for the
-// lights' mood; and Bolt, the maintenance drone that follows you round. Tapping anything names it.
+// lights' mood; and Bolt, the maintenance drone that follows you round. A door by the back leads down to the
+// Observatory once it is back. Tapping anything names it.
 import { Room, canvas, tex, drawArt, text } from '@last-orbit/rendering/room.js';
 import { earthMaterial, nightAmount } from '@last-orbit/rendering/background.js';
 import { KEEPSAKES, PHOTOS, MOOD_BY_ID } from '@last-orbit/data/quarters.js';
 import { rankTitle } from '@last-orbit/data/career.js';
+import { OBSERVATORY_RANK } from '@last-orbit/data/observatory.js';
 const T = () => window.THREE;
 
 // Room: x -3..3, z -4.8 (window) .. 2.4 (back wall, the doors), height 2.9. Small: it is a cabin.
@@ -40,7 +42,7 @@ export class QuartersRoom extends Room {
     super({ w: W, front: FRONT, back: BACK, h: H, start: [0, 1.3, 0] });
     this.shell({ floor: '#211c1a', wall: '#2e2a30', ceil: '#221e22', stud: '#5a4430', tick: 'rgba(255,176,112,.18)', strip: 0xffb070, cove: 0xffb070, frame: 0x3e3834, rib: 0x35302c,
       lamp: 0xffd2a0, lampI: 0.5, panel: 0xfff0dc, panelW: 1.2, hemi: 0.5, sky: 0xffe8d0, sun: 0.5,
-      window: { hw: 2.2, y0: 0.8, y1: 2.4, struts: [-0.75, 0.75] }, lamps: [-3.3, -0.9, 1.4], ribs: [-4.35, 0.3] });
+      window: { hw: 2.2, y0: 0.8, y1: 2.4, struts: [-0.75, 0.75] }, lamps: [-3.3, -0.9, 1.4], ribs: [-4.35, -0.1] }); /* clear of the poster and the Observatory door */
     this.nearFront = 0.8;
     this.furnish(); this.outside(); this.bolt = this.makeBolt();
     this.blocks.push({ x0: BUNK.x0 - 0.1, x1: BUNK.x1 + 0.1, z0: FRONT, z1: FRONT + BUNK.d + 0.2 }, { x0: -W, x1: -W + 0.6, z0: SHELF.z - SHELF.w / 2 - 0.05, z1: SHELF.z + SHELF.w / 2 + 0.05 }, { x0: W - 0.85, x1: W, z0: DESK.z - 0.85, z1: DESK.z + 0.85 });
@@ -136,6 +138,9 @@ export class QuartersRoom extends Room {
     text(nx, name.toUpperCase(), 320, 60, `800 ${name.length > 12 ? 44 : 56}px sans-serif`, '#ffe2c4'); text(nx, `${rankTitle(state.pilot.rank).toUpperCase()} · RANK ${state.pilot.rank}`, 320, 108, '700 22px sans-serif', '#c89a5a');
     this.namePlate.material.map?.dispose(); this.namePlate.material.map = tex(nc); this.namePlate.material.needsUpdate = true; /* over the window */
     this.drawLog(state); this.drawPhotos(state); this.drawPoster(state);
+    // the way down to the Observatory, on the right wall by the doors
+    if (this.obsDoor) { this.scene.remove(this.obsDoor); this.untag(this.obsDoor); } this.obsDoor = new THREE.Group(); this.scene.add(this.obsDoor);
+    this.door(this.obsDoor, W, 1.15, Math.PI / 2, 'OBSERVATORY  ›', 'observatory', { sealed: (state.prestige?.level || 0) < OBSERVATORY_RANK, sign: '#fff0c8', edge: 0xd9a441 });
   }
   /** Set the lights to a mood: the lamps, the strips, the cove, the shelf lights, the rug. */
   setMood(m) {

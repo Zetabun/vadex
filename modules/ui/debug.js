@@ -178,6 +178,18 @@ function runScene(scene, hooks, ui) {
     if (view) { let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 60) setTimeout(place, 100); return; } r.pos.set(view[0], 0, view[1]); r.yaw = view[2]; r.pitch = view[3]; }; place(); }
     if (arg === 'tap') setTimeout(() => ui.tap?.(arg2 || 'shelf'), 1500);
     return; }
+  // observatory[:view|tap[:best wave[:charted]]]: the Observatory at Overhaul rank 6, the best wave (default 94) and how many
+  // depths already charted (default 2). view: telescope, chart, orrery, dome, window, or tap:<exhibit>.
+  if (name === 'observatory') { const best = +arg2 || 94, done = arg3 == null ? 2 : +arg3; st.pilot.name = 'Adam'; st.seen.callsign = true; st.seen.observatory = true; st.prestige.level = 6; st.stationName = 'Halcyon';
+    for (const l of LINES) st.seen.comms[l.id] = 1; st.seen.commsInit = true; st.stats.bestWave = best; st.stats.bestSector = 6; st.stats.sectorsCleared = 6; st.observatory = { charted: {} };
+    [61, 71, 81, 91, 101, 121, 151, 201].slice(0, done).forEach((w) => { if (w <= best) st.observatory.charted[w] = Date.now(); });
+    WORKSHOP.forEach((u, i) => { st.stationPeak[u.id] = u.max; st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.7 - (i % 5) * 0.12))); });
+    recalc(); hooks.toHangar('observatory');
+    const view = { telescope: [0.8, 0.2, 0.3, 0.1], chart: [1.8, 0.55, 1.5708, 0.02], orrery: [0.9, -2.0, -1.2, -0.12], dome: [0, 0.4, 0, 0.72], window: [1.7, -1.4, 0.3, 0.08] }[arg];
+    if (view) { let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 60) setTimeout(place, 100); return; } r.pos.set(view[0], 0, view[1]); r.yaw = view[2]; r.pitch = view[3]; }; place(); }
+    if (arg === 'tap') setTimeout(() => ui.tap?.(arg2 && isNaN(+arg2) ? arg2 : 'telescope'), 1500);
+    if (arg === 'charting') setTimeout(() => { ui.tap?.('chart'); setTimeout(() => document.querySelector('.obs-go')?.click(), 400); }, 1500); /* chart the next depth: the view turns up to it */
+    return; }
   // sgdamage[:tab]: a station left damaged by a lost siege (three systems out), seen from a tab or room (default Defence Control)
   if (name === 'sgdamage') { st.pilot.name = 'Adam'; st.seen.callsign = true; st.counter.unlocked = true; st.counter.stars[1] = 2; st.counter.stars[2] = 1; st.seen.control = true; st.seen.gunnerIntro = true; st.stationName = 'Halcyon';
     WORKSHOP.forEach((u, i) => { st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.6 - (i % 5) * 0.13))); }); st.siege.damage = { ids: ['w_shield', 'w_hull', 'w_dmg'], tier: 2, cost: 1400 }; st.seen.commsInit = true; for (const l of LINES) st.seen.comms[l.id] = 1; recalc(); hooks.toHangar(arg || 'control');

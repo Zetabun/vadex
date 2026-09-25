@@ -29,7 +29,8 @@ export class Room {
   // ---------------------------------------------------------------- the room
   /** Floor, ceiling and walls, the window in the front wall (its frame, struts and glass), glowing strips along the floor
    *  and round the window, ceiling light panels and their lamps, ribs and beams, and a cove light round the top.
-   *  look: colours and where things go (see the Command Deck and Defence Control for the two looks). */
+   *  look: colours and where things go (see the Command Deck and Defence Control for the two looks). look.open: no
+   *  ceiling, light panels or beams across the top (the room builds its own roof: the Observatory's dome). */
   shell(look) {
     const THREE = T(), S = this.scene, { W, FRONT, BACK, H } = this, L = look, win = L.window;
     this.hemi = new THREE.HemisphereLight(L.sky ?? 0xcfe0ff, 0x1a1830, L.hemi ?? 0.55); S.add(this.hemi); S.add(new THREE.AmbientLight(0x405070, L.ambient ?? 0.35)); this.lamps = [];
@@ -48,7 +49,7 @@ export class Room {
     const Ph = (o) => new THREE.MeshPhongMaterial(o), D = BACK - FRONT;
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(2 * W, D), Ph({ map: tex(floorC, [W, D / 2]), specular: 0x33415c, shininess: 40 }));
     floor.rotation.x = -Math.PI / 2; floor.position.set(0, 0, (FRONT + BACK) / 2); S.add(floor); this.floor = floor;
-    const ceil = new THREE.Mesh(new THREE.PlaneGeometry(2 * W, D), Ph({ map: tex(ceilC, [W, D / 2]), shininess: 5 })); ceil.rotation.x = Math.PI / 2; ceil.position.set(0, H, (FRONT + BACK) / 2); S.add(ceil);
+    if (!L.open) { const ceil = new THREE.Mesh(new THREE.PlaneGeometry(2 * W, D), Ph({ map: tex(ceilC, [W, D / 2]), shininess: 5 })); ceil.rotation.x = Math.PI / 2; ceil.position.set(0, H, (FRONT + BACK) / 2); S.add(ceil); }
     const wallMat = Ph({ map: tex(wallC, [D / 2, 1.4]), specular: 0x222a3a, shininess: 18 });
     const wall = (w, h, x, y, z, ry) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), wallMat); m.position.set(x, y, z); m.rotation.y = ry; S.add(m); return m; };
     wall(D, H, -W, H / 2, (FRONT + BACK) / 2, Math.PI / 2); wall(D, H, W, H / 2, (FRONT + BACK) / 2, -Math.PI / 2); wall(2 * W, H, 0, H / 2, BACK, Math.PI);
@@ -65,10 +66,10 @@ export class Room {
     box(2 * hw, 0.04, 0.05, 0, y0 + 0.02, FRONT + 0.17, strip); box(2 * hw, 0.04, 0.05, 0, y1 - 0.02, FRONT + 0.17, strip);
     // ceiling light panels
     const lightMat = (this.lightMat = new THREE.MeshBasicMaterial({ color: L.panel ?? 0xfff1d8 }));
-    for (const z of L.lamps) { const p = new THREE.Mesh(new THREE.PlaneGeometry(L.panelW ?? 2.4, 0.5), lightMat); p.rotation.x = Math.PI / 2; p.position.set(0, H - 0.025, z); S.add(p); }
+    if (!L.open) for (const z of L.lamps) { const p = new THREE.Mesh(new THREE.PlaneGeometry(L.panelW ?? 2.4, 0.5), lightMat); p.rotation.x = Math.PI / 2; p.position.set(0, H - 0.025, z); S.add(p); }
     // structure: ribs down the side walls, beams across the ceiling, and a cove light along the top of the walls
     const rib = Ph({ color: L.rib ?? 0x323c55, specular: 0x4a5a78, shininess: 30 }), cove = (this.coveMat = new THREE.MeshBasicMaterial({ color: L.cove ?? L.strip ?? 0x5ee6ff, transparent: true, opacity: 0.7 }));
-    for (const z of L.ribs) { for (const s of [-1, 1]) box(0.14, H, 0.22, s * (W - 0.07), H / 2, z, rib); box(2 * W, 0.16, 0.22, 0, H - 0.08, z, rib); }
+    for (const z of L.ribs) { for (const s of [-1, 1]) box(0.14, H, 0.22, s * (W - 0.07), H / 2, z, rib); if (!L.open) box(2 * W, 0.16, 0.22, 0, H - 0.08, z, rib); }
     for (const s of [-1, 1]) box(0.03, 0.03, D, s * (W - 0.05), H - 0.2, (FRONT + BACK) / 2, cove); box(2 * W, 0.03, 0.03, 0, H - 0.2, BACK - 0.05, cove);
     // where a tap on the floor is taking you
     this.marker = new THREE.Mesh(new THREE.RingGeometry(0.18, 0.24, 32), new THREE.MeshBasicMaterial({ color: L.strip ?? 0x5ee6ff, transparent: true, opacity: 0 })); this.marker.rotation.x = -Math.PI / 2; this.marker.position.y = 0.02; S.add(this.marker);

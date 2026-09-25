@@ -121,6 +121,7 @@ export function startWave(w) {
   ws.num = run.wave; ws.info = info; ws.state = 'fighting'; ws.t = 0; ws.damaged = false; ws.bossDamaged = false; ws.kills = 0; ws.boss = null; ws.pending = []; ws.shotsFired = 0;
   setWaveBase(w, run.wave, sec.idx);
   const ep = sec.idx === 0 ? earlyPressure(run.wave) : 0; ws.fire = 1 + BAL.earlyPressure.fire * ep; ws.march = 1 + BAL.earlyPressure.march * ep; // the opening waves press harder
+  if (!run.mode && (run.prevBest || 0) >= 10 && run.wave === run.prevBest + 1) fx(w, 'newBest', run.wave); // further than ever: say so as it happens
   maxStat('bestWave', run.wave); maxStat('bestSector', sec.idx + 1); if (run.order.length === 1) maxStat('soloWave', run.wave);
   w.enemies = w.enemies.filter((e) => e.alive && e.def.cruiser); w.ebullets.length = 0; w.hazards = w.hazards.filter((h) => h.kind === 'pool');
   const p = w.player; p.lastStand = true;

@@ -15,6 +15,13 @@
   - **Photos** of the big moments are pinned up between the doors: first launch, first boss down, your best wave, the Counterattack, the first rebuild, the first siege held.
   - **A switch by the door** sets the lights' mood: Warm, Cool, Night or Neon.
   - **Bolt,** the station's little maintenance drone, has moved in and follows you round. Tap it and ORBIT will tell you about it.
+- **The Observatory (new room aboard):** the glass dome under the hub, open to the stars. It opens with the dome, at Overhaul rank 6. Go down to it from your quarters (a new door by the back), or from the station card.
+  - **Chart the Deep Void.** Past wave 60 there are no charts. Eight depths, from wave 61 to wave 201, each wait in the Observatory once a sortie has reached them.
+  - **Charting a depth** lights its constellation in the dome (The Threshold, The Drift, The Lantern, The Crown, The Abyss and more), turns your view up to watch it draw itself in gold, and pays Blueprints.
+  - **Four Void paint jobs,** found nowhere else, come with charting: Starlit, Event Horizon, Void Glass and Abyssal.
+  - **In the room:** the telescope in the middle turns to track the constellations; tap it for what ORBIT sees out there. The chart on the wall lists every depth and what it pays, and the orrery rings the sectors out to the Void, a light riding the deepest you've flown. Through the window, the Void itself.
+  - The debrief tells you when a sortie reaches a new depth.
+- **New best, as it happens:** when a sortie takes you past your best wave, a banner says so the moment you cross it.
 - **The Comms room and daily bounties (new room aboard):** the radio room at the top of the Comms spire. It opens with the spire, at Overhaul rank 3. Go up from the Trophy Hall (a new door on its right wall), or from the station card or Missions.
   - **Three bounties a day,** picked up over the radio from the miners and trawlers: one easy, one harder, one hard. Examples: "Down 450 invaders", "Hit bosses' weak points 10 times", "Reach wave 26 in one sortie", "Reach wave 16 flying the Striker", "Hold a Station Siege".
   - **Sized to how you fly:** each goal is based on your own average per sortie, and each pays salvage based on what one of your sorties earns. Harder bounties pay more.

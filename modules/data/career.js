@@ -1,6 +1,7 @@
 // Pilot career: every sortie earns pilot XP; each rank pays out salvage or unlocks a paint job.
 // Paint jobs are cosmetic (the ship's trim and hull colours) and apply to every ship. They come from pilot ranks,
-// late-game contracts (see data/contracts.js, unlock: { paint }) and ship mastery (a ship's own paint at mastery 10).
+// late-game contracts (see data/contracts.js, unlock: { paint }), ship mastery (a ship's own paint at mastery 10) and the
+// Deep Void (charted in the Observatory).
 export const PAINTS = [
   { id: 'factory', name: 'Factory', trim: null, hull: null, desc: 'Each ship in its own colours.' },
   { id: 'ember', name: 'Ember', trim: 0xff8a3d, hull: 0x8a6a5c },
@@ -21,6 +22,11 @@ export const PAINTS = [
   { id: 'apex', name: 'Apex', trim: 0xfff2c2, hull: 0xc9a44c, source: 'contract' },
   // Counterattack paint (clear stage 6)
   { id: 'xeno', name: 'Xeno', trim: 0x6dffc8, hull: 0x1d3b3a, source: 'counter' },
+  // Deep Void paints (charted in the Observatory: data/observatory.js)
+  { id: 'v_starlit', name: 'Starlit', trim: 0xcfe8ff, hull: 0x1a2240, source: 'void', mark: 61 },
+  { id: 'v_horizon', name: 'Event Horizon', trim: 0xffb070, hull: 0x140a1e, source: 'void', mark: 81 },
+  { id: 'v_glass', name: 'Void Glass', trim: 0x9ff0ff, hull: 0x2a3f5a, source: 'void', mark: 101 },
+  { id: 'v_abyssal', name: 'Abyssal', trim: 0x7a5cff, hull: 0x05030f, source: 'void', mark: 151 },
   // ship mastery paints (mastery 10 with that ship)
   { id: 'm_vanguard', name: 'Vanguard Prime', trim: 0x9ff4ff, hull: 0x3d5f8c, source: 'mastery', ship: 'vanguard' },
   { id: 'm_striker', name: 'Striker Prime', trim: 0xff9bff, hull: 0x5b2a6e, source: 'mastery', ship: 'striker' },

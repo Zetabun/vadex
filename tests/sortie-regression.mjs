@@ -586,6 +586,17 @@ assert.throws(() => parseSave('{"run":{},"cur":{}}'), /Not a Last Orbit v2 save/
   for (const k of D.KEEPSAKES) assert.ok(k.name && k.how && k.log && typeof k.req(G.state) === 'boolean', `${k.id} is complete`);
   const m0 = G.state.quarters.mood; const seen = new Set([m0]); for (let i = 0; i < D.MOODS.length; i++) seen.add(Q.nextMood(G.state).id); assert.equal(seen.size, D.MOODS.length, 'The switch goes round every mood'); }
 
+// ---- v2.15: the Observatory and the Deep Void chart ----
+{ const O = await import('@last-orbit/progression/observatory.js'), D = await import('@last-orbit/data/observatory.js'); const { PAINT_BY_ID } = await import('@last-orbit/data/career.js');
+  fresh(); for (const m of D.VOID_MARKS) { assert.ok(m.wave > 60 && m.bp > 0 && m.stars.length >= 3, `${m.name} is a Deep Void depth with a constellation`); if (m.paint) assert.equal(PAINT_BY_ID[m.paint]?.source, 'void'); }
+  assert.deepEqual(O.newMarks(58, 75).map((m) => m.wave), [61, 71], 'A sortie from wave 58 to 75 reaches two new depths'); assert.deepEqual(O.newMarks(75, 80), []);
+  G.state.stats.bestWave = 84; assert.deepEqual(O.chartable(G.state).map((m) => m.wave), [61, 71, 81]); assert.equal(O.chartMark(G.state, 61), null, 'Nothing is charted before the Observatory is back');
+  G.state.prestige.level = D.OBSERVATORY_RANK; const bp0 = G.state.prestige.bp; const r = O.chartMark(G.state, 61);
+  assert.equal(r.bp, 2); assert.equal(G.state.prestige.bp - bp0, 2); assert.ok(G.state.paints.v_starlit, 'and its paint is yours'); assert.equal(O.chartMark(G.state, 61), null, 'Charted once');
+  assert.equal(O.chartMark(G.state, 91), null, 'A depth not reached cannot be charted'); assert.deepEqual(O.chartable(G.state).map((m) => m.wave), [71, 81]);
+  launch(); G.state.run.prevBest = 30; G.state.run.wave = 31; G.world.fx.length = 0; startWave(G.world); assert.ok(G.world.fx.some((f) => f.k === 'newBest'), 'Passing your best says so as it happens');
+  G.world.fx.length = 0; G.state.run.wave = 33; startWave(G.world); assert.ok(!G.world.fx.some((f) => f.k === 'newBest'), 'once'); endSortie('abandoned'); }
+
 // ---- v2.11: save backup codes ----
 { const S = await import('@last-orbit/save/save.js'); fresh(); G.state.pilot.name = 'Adam ✦'; G.state.salvage = 12345; G.state.stats.bestWave = 74; G.state.prestige.level = 3;
   const code = S.exportSave(); assert.ok(code.startsWith(S.BACKUP_TAG), 'A backup code is tagged so it can be recognised');

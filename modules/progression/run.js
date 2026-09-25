@@ -24,6 +24,7 @@ import { unlockCounter } from '@last-orbit/progression/meta.js';
 import { patchStation } from '@last-orbit/progression/siege.js';
 import { checkBounties } from '@last-orbit/progression/bounties.js';
 import { takeRest } from '@last-orbit/progression/quarters.js';
+import { newMarks } from '@last-orbit/progression/observatory.js';
 import { REST_BONUS } from '@last-orbit/data/quarters.js';
 
 // ---------------------------------------------------------------- sortie lifecycle
@@ -101,6 +102,7 @@ export function endSortie(reason = 'destroyed') {
   summary.banners = (run.bannersDone || []).concat(Object.keys(st.banners).filter((id) => !bannersBefore[id]));
   summary.bounties = checkBounties(st, summary); // the daily bounties this sortie finished
   summary.rested = !!run.rested;
+  summary.voidMarks = !run.mode ? newMarks(run.prevBest || 0, reached) : []; // Deep Void depths reached for the first time
   if (!run.mode) st.history.unshift({ score: summary.score, wave: summary.wave, level: summary.level, ship: summary.ship, salvage: banked, time: summary.time, date: summary.date }); st.history.length = Math.min(st.history.length, 12);
   recalc(); bus.emit('sortieEnded', summary);
   return summary;

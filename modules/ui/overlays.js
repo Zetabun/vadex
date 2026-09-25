@@ -16,6 +16,7 @@ import { TIER_BY_N, SIEGE_STARS, SIEGE_BLUEPRINTS, SYSTEM_BY_ID, listNames } fro
 import { TURRET_MOD } from '@last-orbit/data/turret.js';
 import { bountyText } from '@last-orbit/progression/bounties.js';
 import { REST_BONUS } from '@last-orbit/data/quarters.js';
+import { observatoryOpen, OBSERVATORY_RANK } from '@last-orbit/data/observatory.js';
 import { stationBlueprint } from '@last-orbit/ui/stationArt.js';
 import { SYNERGIES, synergyOf, synergyCount, activeTiers } from '@last-orbit/data/synergies.js';
 import { ROUTE_BY_ID } from '@last-orbit/data/routes.js';
@@ -416,6 +417,7 @@ export function createOverlays(layer, hooks) {
       h('div.score-row', h('small', 'Score'), h('b', fmtInt(s.score || 0)), s.place ? h('span', `#${s.place} of your top 10`) : s.prevScore ? h('span', `Best ${fmtInt(s.prevScore)}`) : null),
       h('div.stat-grid', stat('Level', s.level), stat('Kills', fmtInt(s.kills)), stat('Bosses', s.bosses), stat('Time', fmtTime(s.time))),
       s.daily ? h('div.earned.daily-earned', h('small', `Daily bonus · ${s.daily.streak}-day streak`), h('div', art('cur:salvage', 'cur-ico'), '+' + fmtInt(s.daily.bonus))) : null,
+      ...(s.voidMarks || []).map((m) => h('div.pilot-row.void-row', h('span', `Deep Void: ${m.name}, wave ${m.wave}`), h('b', observatoryOpen(G.state) ? 'Chart it in the Observatory' : `Charted at Overhaul rank ${OBSERVATORY_RANK}`))),
       s.rested ? h('div.pilot-row.rested-row', h('span', 'Well rested'), h('b', `+${Math.round(REST_BONUS * 100)}% salvage`)) : null,
       ...(s.bounties || []).map((b) => h('div.pilot-row.bounty-row', h('span', `Bounty done: ${bountyText(b)}`), h('b', `+${fmtInt(b.reward)} · collect in Missions`))),
       s.repaired?.length ? h('div.pilot-row.sg-fixed', h('span', 'Station repaired while you were out'), h('b', `${s.repaired.length} system${s.repaired.length > 1 ? 's' : ''} back online`)) : null,
