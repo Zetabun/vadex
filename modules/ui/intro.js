@@ -4,8 +4,9 @@
 import { G } from '@last-orbit/core/game.js';
 import { h } from '@last-orbit/ui/dom.js';
 import { typeText } from '@last-orbit/ui/comms.js';
+import { BLOW, AFTER } from '@last-orbit/rendering/intro.js';
 
-const CAPTIONS = [[0.6, 'For a hundred years, the last orbit was our home.'], [3.9, 'Then they came.'], [9.8, 'The last orbit fell.'], [11.9, 'We must rebuild it.']];
+const CAPTIONS = [[0.9, 'For a hundred years, the last orbit was our home.'], [6.6, 'Then they came.'], [AFTER + 0.9, 'The last orbit fell.'], [AFTER + 4.4, 'We must rebuild it.']];
 
 export function createIntro(app) {
   const cap = h('div.in-cap'), flash = h('div.in-flash'), fade = h('div.in-fade'), title = h('div.in-title', h('b', 'LAST ORBIT'), h('small', 'Orbital defence'), h('span', 'Tap to begin'));
@@ -15,8 +16,8 @@ export function createIntro(app) {
   let scene = null, onDone = null, raf = 0, next = 0, ending = false;
   function tick() {
     raf = requestAnimationFrame(tick); if (!scene || G.introPaused) return;
-    while (next < CAPTIONS.length && scene.t >= CAPTIONS[next][0]) { const text = CAPTIONS[next++][1]; cap.classList.add('on'); typeText(cap, text, { speed: 42 }); }
-    if (scene.t > 6.0 && scene.t < 9.6) cap.classList.remove('on');
+    while (next < CAPTIONS.length && scene.t >= CAPTIONS[next][0]) { const text = CAPTIONS[next++][1]; cap.classList.add('on'); typeText(cap, text, { speed: 55 }); }
+    if (scene.t > BLOW - 0.3 && scene.t < AFTER + 0.8) cap.classList.remove('on');
   }
   function beat(name) {
     if (name === 'core') { flash.classList.remove('go'); void flash.offsetWidth; flash.classList.add('go'); }

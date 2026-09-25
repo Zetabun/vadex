@@ -147,21 +147,6 @@ export class Station {
     }
     this.wreck.count = Math.round(36 * Math.max(0, Math.min(1, share)));
   }
-  /** The name tag under the station (in the scene, so nearer things pass in front of it). Empty text hides it. */
-  setLabel(text) {
-    if (text === this.labelText) return; this.labelText = text; const THREE = T();
-    if (!this.label) {
-      this.labelCanvas = document.createElement('canvas'); this.labelCanvas.width = 512; this.labelCanvas.height = 96;
-      this.labelTex = new THREE.CanvasTexture(this.labelCanvas); this.labelTex.anisotropy = 4;
-      this.label = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: this.labelTex, transparent: true, depthWrite: false })); this.label.position.set(0, -17.5, 2); this.group.add(this.label);
-    }
-    this.label.visible = !!text; if (!text) return;
-    const c = this.labelCanvas, g = c.getContext('2d'); g.clearRect(0, 0, c.width, c.height);
-    g.font = '700 38px "Barlow Semi Condensed", "Barlow", system-ui, sans-serif'; const label = text.toUpperCase().split('').join(String.fromCharCode(8202)), w = Math.min(500, g.measureText(label).width + 64), x = (c.width - w) / 2;
-    g.beginPath(); g.roundRect ? g.roundRect(x, 12, w, 72, 36) : g.rect(x, 12, w, 72); g.fillStyle = 'rgba(6,10,24,.72)'; g.fill(); g.lineWidth = 3; g.strokeStyle = 'rgba(94,230,255,.45)'; g.stroke();
-    g.fillStyle = '#9ff0ff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(label, c.width / 2, 50); this.labelTex.needsUpdate = true;
-    this.label.scale.set(c.width * 0.064, c.height * 0.064, 1); /* the pill is 72 px tall on the canvas: about 4.6 station units */
-  }
   makeShuttle() {
     const THREE = T(), g = new THREE.Group(), M = this.M;
     const add = (geo, mat, p, s) => { const m = new THREE.Mesh(this.geo[geo], mat); m.position.set(...p); m.scale.set(...s); g.add(m); return m; };
@@ -194,7 +179,8 @@ export class Station {
     const perPx = 2 * D * Math.tan((camera.fov * Math.PI) / 360) / Math.max(1, h), px = Math.min(w * 0.5, 260);
     g.scale.setScalar((px * perPx / 46) * (0.85 + 0.15 * this.fade));
     g.quaternion.copy(camera.quaternion); // face the camera, then turn a little to show depth
-    if (this.label?.visible) { g.updateMatrixWorld(true); this.labelNdc = (this._ln ||= new THREE.Vector3()); this.label.getWorldPosition(this.labelNdc).project(camera); } else this.labelNdc = null;
+    // where the hub is on screen (the hangar's callout points at it)
+    g.updateMatrixWorld(true); this.hubNdc = (this._hn ||= new THREE.Vector3()); this.body.getWorldPosition(this.hubNdc).project(camera);
     this.body.rotation.set(0.32, Math.sin(this.t * 0.12) * 0.5 + 0.2, Math.sin(this.t * 0.07) * 0.05);
   }
 }

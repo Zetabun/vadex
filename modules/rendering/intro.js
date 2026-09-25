@@ -8,9 +8,9 @@ import { WORKSHOP } from '@last-orbit/data/workshop.js';
 import { playSfx, rumble } from '@last-orbit/audio/audio.js';
 const T = () => window.THREE;
 
-export const INTRO_LEN = 14.5;
-// When things happen (seconds).
-const WARP = 3.6, FIRE = 4.7, BLOW = 6.2, CORE = 7.4, AFTER = 9.2;
+export const INTRO_LEN = 21.5;
+// When things happen (seconds): a long look at the station, the fleet arriving, the build to the blast, a slow aftermath.
+export const WARP = 6.2, FIRE = 7.9, BLOW = 9.8, CORE = 11.3, AFTER = 13.4;
 const lerp = (a, b, k) => a + (b - a) * k, ease = (k) => k * k * (3 - 2 * k), clamp = (k) => Math.max(0, Math.min(1, k));
 
 function glowTex(inner, mid) {
@@ -40,14 +40,14 @@ export class IntroScene {
     this.eyeTex = glowTex('rgba(255,140,150,.95)', 'rgba(255,30,60,.55)'); this.warpTex = glowTex('rgba(200,240,255,.95)', 'rgba(90,170,255,.5)');
     const eye = () => { const e = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: this.eyeTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); e.visible = false; S.add(e); return e; };
     this.fleet = [];
-    const add = (shape, c, s, home) => { const m = new THREE.Mesh(shapeGeometry(shape), foeMat(c)); m.scale.setScalar(s); m.visible = false; S.add(m); this.fleet.push({ m, s, eyes: shape === 'bossCarrier' ? [eye(), eye()] : [eye()], home: new THREE.Vector3(...home), from: new THREE.Vector3(home[0] * 6, home[1] * 4 + 160, home[2] - 900), delay: Math.random() * 0.6 }); };
+    const add = (shape, c, s, home) => { const m = new THREE.Mesh(shapeGeometry(shape), foeMat(c)); m.scale.setScalar(s); m.visible = false; S.add(m); this.fleet.push({ m, s, eyes: shape === 'bossCarrier' ? [eye(), eye()] : [eye()], home: new THREE.Vector3(...home), from: new THREE.Vector3(home[0] * 6, home[1] * 4 + 160, home[2] - 900), delay: Math.random() * 1.1 }); };
     add('bossCarrier', 0x7a4aa8, 9, [0, 26, -40]);
     for (let i = 0; i < 14; i++) { const a = (i / 14) * Math.PI * 2; add(['scout', 'diver', 'lancer', 'phantom'][i % 4], [0x6fd3ff, 0xffb547, 0xff4d7a, 0xa0a8ff][i % 4], 2.4, [Math.cos(a) * 30, 6 + Math.sin(a * 2) * 9, -10 + Math.sin(a) * 22]); }
     // beams, blasts, debris, the shockwave
     this.beams = []; const beamMat = new THREE.MeshBasicMaterial({ color: 0xff3d6a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
     const sleeveMat = new THREE.MeshBasicMaterial({ color: 0xff6a8a, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false });
     for (let i = 0; i < 10; i++) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1, 8, 1, true), beamMat), sl = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 1, 10, 1, true), sleeveMat); b.add(sl); b.visible = false; S.add(b); this.beams.push(b); }
-    this.smokeTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(60,56,62,.75)'); gr.addColorStop(0.6, 'rgba(40,38,46,.35)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })(); this.smokes = [];
+    this.smokeTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(34,30,36,.8)'); gr.addColorStop(0.6, 'rgba(24,22,28,.35)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })(); this.smokes = [];
     this.coreLight = new THREE.PointLight(0xffa050, 0, 220, 1.6); this.coreLight.position.set(0, 1, 0); S.add(this.coreLight);
     this.traffic = [0, 1].map((i) => { const sh = this.station.makeShuttle(); sh.scale.setScalar(0.9); S.add(sh); sh.userData = { r: 15 + i * 7, sp: 0.5 - i * 0.18, ph: i * 2.4, y: -3 + i * 7 }; return sh; });
     this.fireTex = glowTex('rgba(255,236,170,.95)', 'rgba(255,120,40,.55)'); this.sparkTex = glowTex('rgba(255,200,220,.9)', 'rgba(255,60,106,.4)'); this.blasts = [];
@@ -77,7 +77,7 @@ export class IntroScene {
     let cp, look;
     if (t < BLOW) { const k = ease(clamp(t / BLOW)); cp = new THREE.Vector3(lerp(34, 16, k), lerp(10, 6, k), lerp(44, 34, k)); look = new THREE.Vector3(0, lerp(1, 3, k), 0); }
     else if (t < AFTER) { cp = new THREE.Vector3(16, 6, 34); look = new THREE.Vector3(0, 3, 0); }
-    else { const k = ease(clamp((t - AFTER) / 3.4)); cp = new THREE.Vector3(lerp(16, -6, k), lerp(6, 5, k), lerp(34, 58, k)); look = new THREE.Vector3(lerp(0, -2, k), lerp(3, 0, k), 0); }
+    else { const k = ease(clamp((t - AFTER) / 5.2)); cp = new THREE.Vector3(lerp(16, -6, k), lerp(6, 5, k), lerp(34, 58, k)); look = new THREE.Vector3(lerp(0, -2, k), lerp(3, 0, k), 0); }
     const shake = t > BLOW && t < AFTER + 0.6 ? (t > CORE && t < CORE + 1.2 ? 1.6 : 0.45) * (1 - clamp((t - CORE - 1) / 1.5) * 0.6) : 0;
     cam.position.copy(cp).add(new THREE.Vector3((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake)); cam.lookAt(look); cam.updateMatrixWorld();
     // ---- the station: turning, lit; after the core blows, what is left drifts apart and goes dark
@@ -86,7 +86,7 @@ export class IntroScene {
     for (const sh of this.traffic) { if (!sh.visible) continue; const u = sh.userData, a = t * u.sp + u.ph, x = Math.cos(a) * u.r, z = Math.sin(a) * u.r * 0.7; sh.position.set(x, u.y + Math.sin(a * 1.5) * 1.2, z); sh.lookAt(x - Math.sin(a) * u.r, sh.position.y, z + Math.cos(a) * u.r * 0.7); sh.rotateX(Math.PI / 2); }
     // ---- the fleet warps in (a flash as each arrives), holds and fires; after the blast they warp out again
     for (const [i, f] of this.fleet.entries()) {
-      const k = clamp((t - WARP - f.delay) / 0.9), out = clamp((t - AFTER - 1.6 - f.delay * 1.5) / 0.45);
+      const k = clamp((t - WARP - f.delay) / 1.2), out = clamp((t - AFTER - 3 - f.delay * 1.5) / 0.5);
       f.m.visible = k > 0 && out < 1; for (const e of f.eyes) e.visible = f.m.visible; if (!f.m.visible) continue;
       if (out > 0) { if (!f.gone) { f.gone = true; this.blast(f.m.position.clone(), f.s * 3, 0.45, this.warpTex); } f.m.position.lerp(f.from, out * 0.5); f.m.scale.set(f.s, f.s * (1 + out * 8), f.s); }
       else { f.m.position.lerpVectors(f.from, f.home, 1 - Math.pow(1 - k, 3)); if (this.broken) f.m.position.y += Math.sin(t * 0.8 + i) * 0.4; f.m.scale.set(f.s, f.s * (1 + (1 - k) * 6), f.s); }
@@ -97,7 +97,7 @@ export class IntroScene {
       f.eyes.forEach((e, j) => { e.position.copy(f.m.position).addScaledVector(fwd, f.s * 0.35).addScaledVector(side, f.eyes.length > 1 ? (j ? 1 : -1) * f.s * 0.35 : 0); e.scale.setScalar(f.s * (0.7 + 0.15 * Math.sin(t * 7 + i))); e.quaternion.copy(cam.quaternion); });
       if (t > WARP) this.beat('warp', () => playSfx('teleport', 1));
     }
-    const firing = t > FIRE && t < CORE + 0.3, charge = clamp((t - FIRE) / 0.4);
+    const firing = t > FIRE && t < CORE + 0.3, charge = clamp((t - FIRE) / 0.7);
     this.beams.forEach((b, i) => {
       const f = this.fleet[i % this.fleet.length]; b.visible = firing && Math.sin(t * 13 + i * 2.1) > -0.2;
       if (!b.visible) return; const to = new THREE.Vector3(Math.sin(i * 4.1) * 8, Math.cos(i * 2.7) * 5, Math.sin(i * 1.3) * 4), from = f.m.position, d = to.clone().sub(from), len = d.length();
@@ -107,11 +107,11 @@ export class IntroScene {
     });
     if (t > FIRE) this.beat('fire', () => playSfx('ebeam', 1));
     // ---- chain explosions across the modules, then the core
-    if (t > BLOW && t < CORE) { if (Math.random() < dt * 14) { const kids = st.body.children, c = kids[1 + Math.floor(Math.random() * (kids.length - 1))]; const at = this.worldOf(c); this.blast(at, 5 + Math.random() * 6, 0.9); this.smoke(at, 6 + Math.random() * 5, 2.6); if (Math.random() < 0.4) playSfx('boom', 1); } }
+    if (t > BLOW && t < CORE) { if (Math.random() < dt * (7 + 12 * (t - BLOW) / (CORE - BLOW))) { const kids = st.body.children, c = kids[1 + Math.floor(Math.random() * (kids.length - 1))]; const at = this.worldOf(c); this.blast(at, 5 + Math.random() * 6, 0.9); this.smoke(at, 6 + Math.random() * 5, 2.6); if (Math.random() < 0.4) playSfx('boom', 1); } }
     if (t > BLOW) this.beat('blow', () => playSfx('bossdie', 0.8));
     if (t > CORE) this.beat('core', () => {
       rumble(3.2, 1); this.broken = true; this.debris.visible = true; this.embers.visible = true; this.coreLight.intensity = 7;
-      for (let n = 0; n < 9; n++) this.smoke(new THREE.Vector3((Math.random() - 0.5) * 10, 1 + (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 10), 16 + Math.random() * 14, 4 + Math.random() * 2);
+      for (let n = 0; n < 7; n++) this.smoke(new THREE.Vector3((Math.random() - 0.5) * 12, 1 + (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 10 - 4), 10 + Math.random() * 8, 3.2 + Math.random() * 1.2);
       for (const sh of this.traffic) { this.blast(sh.position.clone(), 5, 0.7); sh.visible = false; } this.blast(new THREE.Vector3(0, 1, 0), 60, 1.6); this.blast(new THREE.Vector3(0, 1, 0), 26, 1.1);
       // every piece flies off on its own heading, tumbling; the hub stays, scorched
       st.body.children.forEach((c, i) => { if (i === 1) return; const d = c.position.clone(); if (d.lengthSq() < 0.01) d.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5); d.normalize(); c.userData.v = d.multiplyScalar(8 + Math.random() * 14); c.userData.w = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(3); });
@@ -129,11 +129,11 @@ export class IntroScene {
     }
     // ---- aftermath: the pilot's ship slides into the foreground
     if (t > AFTER) {
-      const k = ease(clamp((t - AFTER) / 3)); this.ship.visible = true; this.ship.position.set(lerp(-14, -3.2, k), lerp(-9, -1.6, k), lerp(72, 47, k)); this.ship.rotation.set(0, 0, Math.sin(t * 1.4) * 0.06);
+      const k = ease(clamp((t - AFTER - 0.8) / 4.6)); this.ship.visible = t > AFTER + 0.8; this.ship.position.set(lerp(-14, -3.2, k), lerp(-9, -1.6, k), lerp(72, 47, k)); this.ship.rotation.set(0, 0, Math.sin(t * 1.4) * 0.06);
       this.ship.updateMatrixWorld(true); this.flames.forEach((f) => { f.visible = true; f.position.copy(this.shipInner.localToWorld(new THREE.Vector3(f.userData.nz[0], f.userData.nz[1] - 0.25, 0))); f.scale.setScalar(1.4 + Math.random() * 0.5); f.quaternion.copy(cam.quaternion); });
       this.beat('after');
     }
-    for (let i = this.smokes.length - 1; i >= 0; i--) { const s = this.smokes[i]; s.t += dt; const k = s.t / s.life; if (k >= 1) { this.scene.remove(s.m); s.m.material.dispose(); this.smokes.splice(i, 1); continue; } s.m.position.addScaledVector(s.drift, dt); s.m.scale.setScalar(s.size * (0.5 + k * 0.9)); s.m.material.opacity = Math.min(1, k * 6) * (1 - k) * 0.9; s.m.quaternion.copy(cam.quaternion); s.m.rotateZ(s.spin * t); }
+    for (let i = this.smokes.length - 1; i >= 0; i--) { const s = this.smokes[i]; s.t += dt; const k = s.t / s.life; if (k >= 1) { this.scene.remove(s.m); s.m.material.dispose(); this.smokes.splice(i, 1); continue; } s.m.position.addScaledVector(s.drift, dt); s.m.scale.setScalar(s.size * (0.5 + k * 0.9)); s.m.material.opacity = Math.min(1, k * 6) * (1 - k) * (1 - k) * 0.85; s.m.quaternion.copy(cam.quaternion); s.m.rotateZ(s.spin * t); }
     // ---- blasts: grow and fade, always facing the camera
     for (let i = this.blasts.length - 1; i >= 0; i--) { const b = this.blasts[i]; b.t += dt; const k = b.t / b.life; if (k >= 1) { this.scene.remove(b.m); b.m.material.dispose(); this.blasts.splice(i, 1); continue; } b.m.scale.setScalar(b.size * (0.4 + k * 0.9)); b.m.material.opacity = 1 - k * k; b.m.quaternion.copy(cam.quaternion); }
     // Earth, lit from the sun (the shader wants the light in view space)

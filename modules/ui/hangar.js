@@ -34,7 +34,7 @@ import { MENU_BY_ID } from '@last-orbit/data/menus.js';
 import { techLevel, buyTech, powerRating, workshopMaxed, workshopProgress, overhaulReward, blueprintLevel, blueprintNext, buyBlueprint, blueprintLocked, escortSlots, escortTypes, toggleEscort, trailUnlocked, selectTrail } from '@last-orbit/progression/meta.js';
 import { BLUEPRINTS, TRAILS, BP_BASE, OVERHAUL_FX_CAP, OVERHAUL_COST_STEP } from '@last-orbit/data/prestige.js';
 import { STATION_CORE } from '@last-orbit/data/station.js';
-import { stationBlueprint } from '@last-orbit/ui/stationArt.js';
+import { stationBlueprint, pieceThumb } from '@last-orbit/ui/stationArt.js';
 import { nightAmount } from '@last-orbit/rendering/background.js';
 import { DRONES } from '@last-orbit/data/drones.js';
 import { MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
@@ -82,10 +82,13 @@ export function createHangar(hooks) {
   }
   function turn(d) { page = Math.max(0, Math.min(pages.length - 1, page + d)); playSfx('tab'); layoutNav(); badges(); }
   // The station in the home-screen sky is a way aboard: it sits over the spot the renderer draws it (rendering/station.js).
-  $.stationHot = h('button.station-hot', { 'aria-label': 'Your station', onclick: () => { if (menuState('deck') === 'locked') { playSfx('tab'); hooks.toast?.('Your orbital station. Every Workshop upgrade builds a module; your first Overhaul opens its Command Deck.', 'info'); } else show('deck'); } });
+  $.stationHot = h('button.station-hot', { 'aria-label': 'Your station', onclick: () => stationCard() });
   // The name tag under the station (drawn in the 3D scene) is tappable too: it names the station.
-  $.labelHot = h('button.label-hot', { 'aria-label': 'Name your station', onclick: () => { playSfx('tab'); hooks.nameStation?.(); } });
-  const el = h('div#hangar', top, $.body, $.stationHot, $.labelHot, $.nav);
+  // The station callout: its name and how far the rebuild has come, with a hairline to the hub (placed each frame).
+  $.coLine = document.createElementNS('http://www.w3.org/2000/svg', 'line'); $.coDot = document.createElementNS('http://www.w3.org/2000/svg', 'circle'); $.coDot.setAttribute('r', '3.5');
+  $.coSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); $.coSvg.setAttribute('class', 'co-svg'); $.coSvg.append($.coLine, $.coDot);
+  $.callout = h('button.st-callout', { onclick: () => stationCard() }, h('small', 'Your station'), $.coName = h('b'), $.coSub = h('span'));
+  const el = h('div#hangar', top, $.body, $.coSvg, $.stationHot, $.callout, $.nav);
 
   function show(id, quiet) {
     // A menu the pilot has not earned yet stays shut (with a note on when it opens); a newly opened one explains itself once.
@@ -93,7 +96,7 @@ export function createHangar(hooks) {
     if (menuState(id) === 'new') { menuSeen(id); setTimeout(() => hooks.menuIntro?.(MENU_BY_ID[id]), 150); }
     if (!quiet && id !== tab) playSfx('tab');
     if (shownTabs().join() !== navSig) layoutNav();
-    G.deckOpen = id === 'deck'; setClass($.stationHot, 'on', id === 'launch'); setClass($.labelHot, 'on', id === 'launch');
+    G.deckOpen = id === 'deck'; setClass($.stationHot, 'on', id === 'launch'); setClass($.callout, 'on', id === 'launch'); setClass($.coSvg, 'on', id === 'launch');
     tab = id; if (pageOf(id) !== page) { page = pageOf(id); layoutNav(); }
     for (const k in navBtns) { setClass(navBtns[k], 'on', k === id); navBtns[k].setAttribute('aria-selected', String(k === id)); }
     if (id === 'awards') G.state.seen.medals = medalTotal().earned;
@@ -208,8 +211,8 @@ export function createHangar(hooks) {
   function overhaulPanel() {
     const pr = G.state.prestige, rank = pr.level || 0, ready = workshopMaxed(), prog = workshopProgress(), bp = overhaulReward();
     // The station blueprint: what the Workshop has built, and (dashed gold) what the next Overhaul adds to the core.
-    const plan = h('div.oh-plan', { html: stationBlueprint(rank, G.state.workshop, { peak: G.state.stationPeak }) },
-      h('div.oh-plan-tag', h('small', G.state.stationName || 'Your station'), h('b', ready ? 'Complete' : `${Math.round(prog.cur / prog.goal * 100)}% built`)),
+    const plan = h('div.oh-plan', { html: stationBlueprint(rank, G.state.workshop, { peak: G.state.stationPeak, name: G.state.stationName, pct: rebuilt() }) },
+      h('div.oh-plan-tag', h('small', G.state.stationName || 'Your station'), h('b', ready ? 'Workshop complete' : `Workshop ${Math.round(prog.cur / prog.goal * 100)}%`)),
       rank < STATION_CORE.at(-1).at ? h('div.oh-plan-next', h('i'), `Next Overhaul adds: ${STATION_CORE.find((c) => c.at === rank + 1).name}`) : null);
     return h('section.panel.oh-panel' + (ready ? '.ready' : ''),
       h('div.oh-head', h('div', h('div.kicker', rank ? `Overhaul · Rank ${rank}` : 'Overhaul'), h('h3', ready ? 'Station complete' : 'Build your station')), h('div.oh-rank', h('b', String(rank)), h('small', 'rank'))),
@@ -228,7 +231,7 @@ export function createHangar(hooks) {
     const cards = STATION_CORE.filter((c) => c.at >= 1).map((c) => {
       const trail = TRAILS.find((t) => t.at === c.at), state = c.at <= rank ? 'done' : c.at === rank + 1 ? 'next' : 'later';
       return h('div.rm-card.' + state, h('div.rm-top', h('small', 'Rank ' + c.at), state === 'done' ? h('i.rm-tick', '✓') : state === 'next' ? h('b.rm-next', 'NEXT') : null),
-        h('b.rm-piece', c.name), c.desc ? h('span.rm-desc', c.desc) : null, trail ? h('span.rm-trail', trailSwatch(trail), trail.name + ' trail') : null);
+        h('div.rm-thumb', { html: pieceThumb(c.id) }), h('b.rm-piece', c.name), h('span.rm-desc', c.line || ''), trail ? h('span.rm-trail', trailSwatch(trail), trail.name + ' trail') : null);
     });
     const el = h('div.oh-road', h('h4.oh-sub', 'Station roadmap'), h('div.rm-list', cards));
     // Start the strip at the next rank, so what is coming is in view.
@@ -490,7 +493,7 @@ export function createHangar(hooks) {
     } else if (kind === 'trophies') {
       panel('Command Deck', 'Overhaul trophies', h('div.deck-trophies', Array.from({ length: Math.max(rank, 1) }, (_, i) => h('div.trophy' + (i < rank ? '' : '.empty'), h('b', ROMAN_N(i + 1)), h('small', STATION_CORE.find((c) => c.at === i + 1)?.name || 'Overhaul')))), roadmap(rank));
     } else if (kind === 'station') {
-      panel('Command Deck', 'Your station', h('div.oh-plan', { html: stationBlueprint(rank, st.workshop, { peak: st.stationPeak }) }), roadmap(rank));
+      panel('Command Deck', 'Your station', h('div.oh-plan', { html: stationBlueprint(rank, st.workshop, { peak: st.stationPeak, name: st.stationName, pct: rebuilt() }) }), roadmap(rank));
     }
   }
 
@@ -532,11 +535,30 @@ export function createHangar(hooks) {
   }
   function update() { setText($.salvage, fmtInt(G.state.salvage)); badges(); pilotId(); stationDone(); stationTag(); }
   /** Keep the label's text current, and its tap target over wherever the renderer drew it. */
+  /** The callout's text, and its hairline from the text to wherever the renderer drew the station's hub. */
   function stationTag() {
-    G.stationLabel = tab === 'launch' ? G.state.stationName || 'Name your station' : '';
-    const p = G.renderer?.station?.labelNdc; if (!p || tab !== 'launch') return; const x = ((p.x + 1) / 2 * 100).toFixed(1) + '%', y = ((1 - p.y) / 2 * 100).toFixed(1) + '%';
-    if ($.labelHot._x !== x || $.labelHot._y !== y) { $.labelHot._x = x; $.labelHot._y = y; $.labelHot.style.left = x; $.labelHot.style.top = y; }
+    if (tab !== 'launch') return;
+    const st = G.state, pct = rebuilt(), deck = menuState('deck') !== 'locked';
+    const sig = (st.stationName || '') + '|' + pct + '|' + deck;
+    if ($.callout._sig !== sig) { $.callout._sig = sig; setText($.coName, st.stationName || 'Unnamed'); setClass($.callout, 'unnamed', !st.stationName); setText($.coSub, `${pct}% rebuilt` + (deck ? ' · Command Deck ›' : '')); }
+    const p = G.renderer?.station?.hubNdc, box = el.getBoundingClientRect(); if (!p || !box.width) return;
+    const hx = (p.x + 1) / 2 * box.width, hy = (1 - p.y) / 2 * box.height, c = $.callout;
+    c.style.top = Math.round(hy - c.offsetHeight / 2) + 'px';
+    const ax = c.offsetLeft + c.offsetWidth + 6, ay = Math.round(hy);
+    $.coLine.setAttribute('x1', ax); $.coLine.setAttribute('y1', ay); $.coLine.setAttribute('x2', Math.round(hx - 7)); $.coLine.setAttribute('y2', Math.round(hy)); $.coDot.setAttribute('cx', Math.round(hx)); $.coDot.setAttribute('cy', Math.round(hy));
   }
+  /** How much of the station has been rebuilt, over its whole life (modules stay built through Overhauls). */
+  const rebuilt = () => { let cur = 0, goal = 0; for (const u of WORKSHOP) { cur += Math.min(u.max, Math.max(G.state.workshop[u.id] || 0, G.state.stationPeak?.[u.id] || 0)); goal += u.max; } return Math.round(cur / goal * 100); };
+  /** Everything about the station in one card: its blueprint, the rebuild, its name, and the way aboard. */
+  function stationCard() {
+    const st = G.state, rank = st.prestige?.level || 0, deck = menuState('deck') !== 'locked'; playSfx('tab');
+    hooks.panel?.({ kicker: 'Your station', title: st.stationName || 'Unnamed station', body: [
+      h('div.oh-plan', { html: stationBlueprint(rank, st.workshop, { peak: st.stationPeak, name: st.stationName, pct: rebuilt() }) }),
+      h('p.sub-note', deck ? 'Every Workshop upgrade rebuilds a module. Every Overhaul grows the core.' : 'Every Workshop upgrade rebuilds a module. Your first Overhaul restores the Command Deck.'),
+      h('div.sc-actions', h('button.btn.ghost', { onclick: () => hooks.nameStation?.() }, st.stationName ? 'Rename' : 'Name it'),
+        deck ? h('button.btn.primary', { onclick: () => { hooks.closeOverlays?.(); show('deck'); } }, 'Board the Command Deck') : h('button.btn.ghost', { onclick: () => { hooks.closeOverlays?.(); show('workshop'); } }, 'Workshop'))] });
+  }
+
   // W/A/S/D or the arrows walk the Command Deck.
   const DECK_KEYS = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', ArrowLeft: 'l', KeyD: 'r', ArrowRight: 'r' };
   for (const [type, on] of [['keydown', true], ['keyup', false]]) addEventListener(type, (e) => { const k = DECK_KEYS[e.code], d = G.renderer?.deck; if (!k || !d || !G.deckOpen || G.mode !== 'hangar' || (on && hooks.blocking?.())) return; d.keys[k] = on; e.preventDefault(); });

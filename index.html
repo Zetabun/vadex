@@ -600,8 +600,11 @@ button.stat-row{width:100%;text-align:left}
 
 /* Overhaul panel v2.8: the station blueprint, what the Overhaul pays, and the roadmap. */
 .oh-plan{position:relative;margin:10px 0 8px;border-radius:14px;overflow:hidden;background:radial-gradient(120% 90% at 50% 40%,rgba(28,70,120,.55),rgba(6,14,34,.95));border:1px solid rgba(94,230,255,.28);box-shadow:inset 0 0 30px rgba(94,230,255,.08)}
-.oh-plan svg{display:block;width:100%;height:auto;aspect-ratio:48/33}
-.oh-plan .sb-gridline{stroke:rgba(94,230,255,.08);stroke-width:.06}
+.oh-plan svg{display:block;width:100%;height:auto;aspect-ratio:4/3}
+.oh-plan .sb-gridline{stroke:rgba(94,230,255,.07);stroke-width:.05}.oh-plan .sb-gridmajor{stroke:rgba(94,230,255,.16);stroke-width:.08}
+.oh-plan .sb-axis{stroke:rgba(94,230,255,.22);stroke-width:.08;stroke-dasharray:.8 .6;fill:none}.oh-plan .sb-ticks{stroke:rgba(159,233,255,.45);stroke-width:.1;fill:none}.oh-plan .sb-corner{stroke:rgba(159,233,255,.7);stroke-width:.2;fill:none}
+.oh-plan .sb-title rect{fill:rgba(6,14,34,.75);stroke:rgba(159,233,255,.55);stroke-width:.12}.oh-plan .sb-title path{stroke:rgba(159,233,255,.35);stroke-width:.08}.oh-plan .sb-title text{fill:#bfefff;font-family:"Barlow Semi Condensed",sans-serif;font-weight:700;letter-spacing:.08em}
+.oh-plan .sb-fine{stroke-width:.1;opacity:.7}
 .oh-plan g{fill:none;stroke-width:.16;stroke-linejoin:round;stroke-linecap:round}
 .oh-plan .sb-core{stroke:#9fe9ff;fill:rgba(94,230,255,.1)}
 .oh-plan .sb-next{stroke:#ffc857;stroke-dasharray:.5 .4;fill:rgba(255,200,87,.06);animation:sbPulse 2.2s ease-in-out infinite}
@@ -615,12 +618,14 @@ button.stat-row{width:100%;text-align:left}
 .oh-pay div{display:flex;flex-direction:column;line-height:1.1}.oh-pay small{font:700 9.5px var(--cond);letter-spacing:.18em;text-transform:uppercase;color:#ffc58f}.oh-pay b{font:800 20px var(--disp);color:#ffe3bf}.oh-pay>span{font:600 11px var(--body);color:var(--dim);text-align:right}
 .oh-sub{margin:12px 0 6px;font:700 10.5px var(--cond);letter-spacing:.22em;text-transform:uppercase;color:#ffc58f}
 .rm-list{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 8px;scroll-snap-type:x proximity;scrollbar-width:none}.rm-list::-webkit-scrollbar{display:none}
-.rm-card{flex:0 0 132px;scroll-snap-align:start;display:flex;flex-direction:column;gap:4px;padding:9px 10px;border-radius:12px;background:rgba(12,16,34,.8);border:1px solid var(--line)}
+.rm-card{flex:0 0 138px;scroll-snap-align:start;display:flex;flex-direction:column;gap:3px;padding:8px 10px 9px;border-radius:12px;background:rgba(12,16,34,.8);border:1px solid var(--line)}
+.rm-thumb{height:46px;margin:2px 0 4px;border-radius:8px;background:radial-gradient(90% 90% at 50% 50%,rgba(28,70,120,.45),rgba(6,14,34,.6));border:1px solid rgba(94,230,255,.14)}.rm-thumb svg{display:block;width:100%;height:100%}
+.rm-thumb .th-base{fill:none;stroke:rgba(159,233,255,.28);stroke-width:.35}.rm-thumb .th-piece{fill:rgba(255,200,87,.22);stroke:#ffc857;stroke-width:.45;stroke-linejoin:round}.rm-card.done .th-piece{fill:rgba(109,255,200,.2);stroke:#6dffc8}.rm-card.later .th-piece{stroke:#8a96b0;fill:rgba(138,150,176,.12)}
 .rm-card.done{border-color:rgba(109,255,200,.3);background:rgba(20,48,44,.55)}.rm-card.next{border-color:rgba(255,200,87,.7);background:linear-gradient(160deg,rgba(80,52,10,.6),rgba(18,16,30,.9));box-shadow:0 0 16px rgba(255,200,87,.2)}.rm-card.later{opacity:.72}
 .rm-top{display:flex;justify-content:space-between;align-items:center}.rm-top small{font:700 9px var(--cond);letter-spacing:.18em;text-transform:uppercase;color:var(--dim)}
 .rm-tick{font-style:normal;color:#6dffc8;font-weight:800}.rm-next{padding:1px 6px;border-radius:6px;background:var(--gold);color:#1a1300;font:800 8.5px var(--disp);letter-spacing:.08em}
-.rm-piece{font:700 13.5px var(--disp);color:var(--ink);letter-spacing:.02em}.rm-desc{font:500 10.5px/1.3 var(--body);color:var(--dim)}
-.rm-trail{display:flex;align-items:center;gap:6px;margin-top:auto;font:600 10.5px var(--body);color:#ffd99a}.rm-trail .swatch{width:14px;height:14px;border-radius:50%;flex:none}
+.rm-piece{font:700 13.5px var(--disp);color:var(--ink);letter-spacing:.02em}.rm-desc{font:500 10.5px/1.3 var(--body);color:var(--dim);min-height:27px}
+.rm-trail{display:flex;align-items:center;gap:6px;margin-top:4px;font:600 10.5px var(--body);color:#ffd99a}.rm-trail .swatch{width:14px;height:14px;border-radius:50%;flex:none}
 
 /* Command Deck: the pilot's room aboard the station. */
 .deck h3 .h-count{margin-left:8px;font:600 11px var(--body);letter-spacing:0;color:var(--dim);text-transform:none}
@@ -679,7 +684,7 @@ button.stat-row{width:100%;text-align:left}
 .in-flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}.in-flash.go{animation:inFlash 1.3s ease-out}
 @keyframes inFlash{0%{opacity:0}6%{opacity:1}30%{opacity:.85}100%{opacity:0}}
 .in-fade{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;transition:opacity .6s}.in-fade.on{opacity:1}
-.in-skip{position:absolute;right:14px;bottom:calc(11% + 12px);padding:8px 14px;border-radius:99px;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.25);color:#cfd8ea;font:700 11px var(--cond);letter-spacing:.2em;text-transform:uppercase;cursor:pointer}
+.in-skip{position:absolute;right:14px;top:max(12px,calc(env(safe-area-inset-top,0px) + 8px));padding:8px 14px;border-radius:99px;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.25);color:#cfd8ea;font:700 11px var(--cond);letter-spacing:.2em;text-transform:uppercase;cursor:pointer}
 #intro.titled .in-skip{display:none}
 /* The station AI's comms panel. */
 #comms{position:absolute;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 78px);z-index:40;display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:14px;background:rgba(6,12,30,.92);border:1px solid rgba(94,230,255,.35);box-shadow:0 8px 30px rgba(0,0,0,.45),0 0 20px rgba(94,230,255,.12);transform:translateY(-12px);opacity:0;pointer-events:none;transition:opacity .35s,transform .35s}
@@ -687,7 +692,17 @@ button.stat-row{width:100%;text-align:left}
 .cm-av{flex:none;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 40% 35%,#9ff0ff,#1a6c8f 60%,#08203a);box-shadow:0 0 14px rgba(94,230,255,.5)}.cm-av i{width:13px;height:13px;border-radius:50%;background:#e8fbff;box-shadow:0 0 10px #5ee6ff;animation:inPulse 1.2s ease-in-out infinite}
 .cm-main{min-width:0}.cm-who{font:700 9px var(--cond);letter-spacing:.22em;text-transform:uppercase;color:var(--cyan)}.cm-text{font:600 14px/1.35 var(--body);color:var(--ink);margin-top:2px;min-height:19px}
 #app[data-mode="sortie"] #comms{display:none}
-.label-hot{position:absolute;display:none;width:38%;height:5.5%;transform:translate(-50%,-50%);background:none;border:0;padding:0;cursor:pointer;z-index:2}.label-hot.on{display:block}
+
+/* The station callout on the launch screen: text on the left, a hairline to the station's hub. */
+.st-callout{position:absolute;left:14px;top:12%;z-index:2;display:none;flex-direction:column;align-items:flex-start;gap:1px;max-width:46%;padding:4px 10px 5px 0;background:none;border:0;border-left:2px solid rgba(94,230,255,.55);padding-left:9px;text-align:left;cursor:pointer;line-height:1.1}
+.st-callout.on{display:flex}
+.st-callout small{font:700 8.5px var(--cond);letter-spacing:.24em;text-transform:uppercase;color:var(--cyan);opacity:.85}
+.st-callout b{font:700 17px var(--disp);letter-spacing:.14em;text-transform:uppercase;color:#e8f1ff;text-shadow:0 0 14px rgba(94,230,255,.45),0 1px 6px rgba(0,0,0,.8);max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st-callout.unnamed b{color:#a9b6d4;font-style:italic;letter-spacing:.1em}
+.st-callout span{font:600 10.5px var(--body);color:#b8c6e4;text-shadow:0 1px 6px rgba(0,0,0,.9)}
+.co-svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;display:none}.co-svg.on{display:block}
+.co-svg line{stroke:rgba(94,230,255,.5);stroke-width:1;stroke-dasharray:3 3}.co-svg circle{fill:none;stroke:#5ee6ff;stroke-width:1.5;filter:drop-shadow(0 0 3px #5ee6ff)}
+.sc-actions{display:flex;gap:8px;margin-top:10px}.sc-actions .btn{flex:1}
 </style>
 </head>
 <body>
