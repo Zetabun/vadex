@@ -228,9 +228,9 @@ export function createOverlays(layer, hooks) {
   function showStationComplete() {
     if (open) return;
     const rank = G.state.prestige?.level || 0, next = STATION_CORE.find((c) => c.at === rank + 1);
-    const el = h('div.modal.confirm.station-done', { role: 'dialog', 'aria-label': 'Station complete' },
-      h('div.modal-head', h('div.kicker', 'Every module built'), h('h2', 'Station complete'),
-        h('p', `Your Workshop is maxed. Overhaul to strip it back for Blueprints: the station keeps its core${next ? ` and grows its ${next.name}` : ''}.`)),
+    const el = h('div.modal.confirm.station-done', { role: 'dialog', 'aria-label': 'Every module built' },
+      h('div.modal-head', h('div.kicker', 'Every module built'), h('h2', next ? 'Ready to Overhaul' : 'Station complete'),
+        h('p', `Your Workshop is maxed. Overhaul to strip it back for Blueprints: every module stays built${next ? `, and the station gains its ${next.name}` : ''}.`)),
       h('div.oh-plan.sd-plan', { html: stationBlueprint(rank, G.state.workshop, { peak: G.state.stationPeak, name: G.state.stationName }) }),
       h('div.modal-actions', h('button.btn.gold', { onclick: () => { close(); hooks.toHangar?.('workshop'); }, 'data-autofocus': '' }, 'Go to Overhaul'), h('button.btn.ghost', { onclick: close }, 'Later')));
     mount('station-done', el, (e) => { if (e.key === 'Escape') { close(); return true; } return false; });
@@ -286,14 +286,14 @@ export function createOverlays(layer, hooks) {
 
   // ------------------------------------------------------------ overhaul
   function showOverhaul() {
-    const st = G.state, bp = overhaulReward(), head = blueprintLevel('bp_head'), rank = st.prestige.level + 1, trail = TRAILS.find((t) => t.at === rank);
+    const st = G.state, bp = overhaulReward(), head = blueprintLevel('bp_head'), rank = st.prestige.level + 1, trail = TRAILS.find((t) => t.at === rank), piece = STATION_CORE.find((c) => c.at === rank);
     const list = (title, items, cls) => h('div.oh-col' + cls, h('b', title), h('ul', items.map((t) => h('li', t))));
     const el = h('div.modal.confirm.oh-confirm', { role: 'alertdialog', 'aria-label': 'Overhaul the Workshop?' },
       h('div.modal-head', h('div.kicker', `Overhaul rank ${rank}`), h('h2', 'Overhaul?'), h('p', `Every Workshop upgrade goes back to ${head ? 'level ' + head + ' (Head Start)' : 'zero'}. Your next few sorties will be tougher while you rebuild, and each rank makes the Workshop ${Math.round(OVERHAUL_COST_STEP * 100)}% dearer.`)),
-      h('div.oh-cols', list('You get', [`${bp} Blueprints`, 'Overhaul rank ' + rank + ': +10% salvage, +2% damage', trail ? `${trail.name} engine trail` : null, rank === 1 ? 'Overhaul Log legendary banner' : null].filter(Boolean), '.get'),
-        list('You keep', ['Salvage in the bank', 'Ships, weapons and abilities', 'Paints, banners and ranks', 'Mastery, medals and records', 'Counterattack and Alien Tech', 'Blueprints and escorts'], '.keep')),
+      h('div.oh-cols', list('You get', [`${bp} Blueprints`, piece ? `Station: the ${piece.name}` : null, 'Overhaul rank ' + rank + ': +10% salvage, +2% damage', trail ? `${trail.name} engine trail` : null, rank === 1 ? 'Overhaul Log legendary banner' : null].filter(Boolean), '.get'),
+        list('You keep', ['Your station: every module stays built', 'Salvage in the bank', 'Ships, weapons and abilities', 'Paints, banners and ranks', 'Mastery, medals and records', 'Counterattack and Alien Tech', 'Blueprints and escorts'], '.keep')),
       h('div.modal-actions', h('button.btn.ghost', { onclick: close, 'data-autofocus': '' }, 'Not yet'),
-        h('button.btn.gold', { onclick: () => { const got = overhaul(); close(); if (got) { hooks.celebrate?.('#ff9f43'); hooks.overhauled?.(got); } } }, 'Overhaul')));
+        h('button.btn.gold', { onclick: () => { const got = overhaul(); close(); if (got) hooks.overhauled?.(got); } }, 'Overhaul')));
     mount('confirm', el, (e) => { if (e.key === 'Escape') { close(); return true; } return false; });
   }
 

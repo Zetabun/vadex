@@ -14,6 +14,7 @@ import { Background } from '@last-orbit/rendering/background.js';
 import { Station } from '@last-orbit/rendering/station.js';
 import { DeckRoom } from '@last-orbit/rendering/deck.js';
 import { IntroScene } from '@last-orbit/rendering/intro.js';
+import { RebuildScene } from '@last-orbit/rendering/rebuild.js';
 import { Banner } from '@last-orbit/rendering/banner.js';
 import { Ground } from '@last-orbit/rendering/ground.js';
 import { counterProgress } from '@last-orbit/combat/counter.js';
@@ -113,7 +114,9 @@ export class Renderer {
     const o = this.overlay, opr = Math.min(window.devicePixelRatio || 1, 2); o.width = Math.round(w * opr); o.height = Math.round(h * opr); this.opr = opr;
     for (const s of this.bg.stars) s.material.uniforms.pr.value = this.pr;
   }
+  // The cinematics (the opening, and the station piece each Overhaul adds) draw instead of everything else while G.introPlaying.
   startIntro(ship) { this.intro = new IntroScene(ship); return this.intro; }
+  startRebuild(state) { this.intro = new RebuildScene(state); return this.intro; }
   stopIntro() { this.intro = null; }
   /** 'field' during sorties, 'hangar' for the ship close-up. Transitions ease over ~0.6s. */
   setView(name) { this.viewTarget = VIEWS[name] || VIEWS.field; this.rails.visible = name !== 'hangar'; }

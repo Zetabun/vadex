@@ -337,6 +337,18 @@ assert.ok(describeCard({ kind: 'fusion', id: 'fu_twinsuns' }).icon2); endSortie(
   assert.equal(G.state.seen.intro, false, 'A new save plays the intro');
   const { setStationName } = await import('@last-orbit/progression/meta.js'); assert.equal(setStationName('  Halcyon <3 '), 'Halcyon 3'); assert.equal(G.state.stationName, 'Halcyon 3'); }
 
+// ---- v2.9: the rebuild figure (modules half, core pieces half), and each piece's reel and station AI line ----
+{ const { rebuildPct, pieceAt, STATION_CORE, CORE_PIECES } = await import('@last-orbit/data/station.js');
+  const max = Object.fromEntries(WORKSHOP.map((u) => [u.id, u.max])), pct = (workshop, stationPeak, level) => rebuildPct({ workshop, stationPeak, prestige: { level } });
+  assert.equal(pct({}, {}, 0), 0, 'A new station is 0% rebuilt');
+  assert.equal(pct(max, {}, 0), 50, 'Every module built is half the rebuild');
+  assert.equal(pct({}, max, 1), 55, 'The first Overhaul: modules kept, plus the Command Deck');
+  assert.equal(pct({}, max, CORE_PIECES - 1), 95, 'One piece short of the crown is not complete');
+  assert.equal(pct({}, max, CORE_PIECES), 100, 'The crown completes the station');
+  assert.equal(pct(max, max, CORE_PIECES + 4), 100, 'Overhauls past the crown stay at 100%');
+  assert.equal(pieceAt(0), null); assert.equal(pieceAt(1).id, 'deck'); assert.equal(pieceAt(CORE_PIECES + 1), null, 'No reel past the crown');
+  assert.ok(STATION_CORE.filter((c) => c.at >= 2).every((c) => c.say && c.name), 'Every piece after the Deck has a station AI line'); }
+
 // ---- v2.8: callsign ----
 { const { cleanCallsign, setCallsign, CALLSIGN_MAX } = await import('@last-orbit/progression/meta.js');
   assert.equal(cleanCallsign('  Ace<b>  Rimmer!! '), 'Aceb Rimmer'); assert.equal(cleanCallsign('Zoë-7'), 'Zoë-7'); assert.equal(cleanCallsign('x'.repeat(40)).length, CALLSIGN_MAX); assert.equal(cleanCallsign('!!!'), '');

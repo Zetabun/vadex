@@ -10,6 +10,7 @@ import { createOverlays } from '@last-orbit/ui/overlays.js';
 import { art } from '@last-orbit/ui/art.js';
 import { createIntro } from '@last-orbit/ui/intro.js';
 import { createComms } from '@last-orbit/ui/comms.js';
+import { pieceAt } from '@last-orbit/data/station.js';
 
 export function initUI(app, hooks) {
   const $ = {};
@@ -33,7 +34,11 @@ export function initUI(app, hooks) {
     closeOverlays: () => overlays.close(),
     stationComplete: () => overlays.showStationComplete(),
     callsignSet: (name, first) => { if (G.mode === 'hangar') hangar.render(); if (first) greet(true); },
-    overhauled: (bp) => { banner('Overhaul complete', `Rank ${G.state.prestige.level}`, `+${bp} Blueprints`, '#ff9f43', 2200); if (G.mode === 'hangar') hangar.render(); },
+    // An Overhaul that adds a station piece shows it being built first; then the banner.
+    overhauled: (bp) => {
+      const after = () => { hooks.celebrate?.('#ff9f43'); banner('Overhaul complete', `Rank ${G.state.prestige.level}`, `+${bp} Blueprints`, '#ff9f43', 2200); if (G.mode === 'hangar') hangar.render(); };
+      if (pieceAt(G.state.prestige.level)) intro.play({ rebuild: true, done: after }); else after();
+    },
     pause: () => { if (G.mode === 'sortie' && !overlays.blocking()) { playSfx('tab'); overlays.showPause(); } },
     toHangar: (tab) => hooks.toHangar(tab),
     toast: (text, kind = 'good') => toast(text, kind),

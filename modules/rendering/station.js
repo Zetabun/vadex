@@ -93,6 +93,8 @@ export class Station {
   spinner(y) { const THREE = T(), r = new THREE.Group(); r.position.y = y; this.body.add(r); this.rings.push(r); return (m) => { this.body.remove(m); r.add(m); m.position.y -= y; return m; }; }
   core(rank) {
     const M = this.M, P = (...a) => this.part(...a), has = (id) => coreBuilt(id, rank);
+    // what each core piece added to the body, so a cinematic can build one in front of you (rendering/rebuild.js)
+    this.pieces = {}; const piece = (id, fn) => { if (!has(id)) return; const n = this.body.children.length; fn(); this.pieces[id] = this.body.children.slice(n); };
     // the backbone: a lattice truss across and a spine up and down
     this.truss([['x', -13.6, -1.8, 0], ['x', 1.8, 13.6, 0], ['y', 3.4, 9.8, 0], ['y', -9, -3.4, 0]]);
     // the hub: a windowed core with end cones, docking ports and gold-foil bands
@@ -103,16 +105,16 @@ export class Station {
     for (const s of [-1, 1]) P('plane', M.radiator, s * 1.6, 6.6, 0, 2.2, 3.6, 1, 0, s * 0.5, 0);
     // navigation lights: red to port, green to starboard, a white strobe on top
     this.nav.push([P('sph', M.red, -13.8, 0.5, 0, 0.28, 0.28, 0.28), 0], [P('sph', M.green, 13.8, 0.5, 0, 0.28, 0.28, 0.28), 0.5], [P('sph', M.strobe, 0, 10, 0, 0.22, 0.22, 0.22), 0.25]);
-    if (has('deck')) { P('dome', M.glass, 0, 4.1, 0, 1.5, 1.2, 1.5); P('cyl', M.gold, 0, 4.1, 0, 1.6, 0.16, 1.6); }
-    if (has('ring')) { const add = this.spinner(0.6); add(P('ring', M.hull, 0, 0.6, 0, 4.6, 4.6, 4.6, Math.PI / 2)); for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2; add(P('cyl', M.truss, Math.cos(a) * 3.2, 0.6, Math.sin(a) * 3.2, 0.1, 2.9, 0.1, 0, -a, Math.PI / 2)); } }
-    if (has('spire')) { P('cyl', M.truss, 0, 12.6, 0, 0.14, 5.2, 0.14); P('sph', M.plain, 0, 11.2, 0, 0.5, 0.5, 0.5); P('dome', M.plain, 0.9, 13.5, 0, 0.7, 0.28, 0.7, 0, 0, -0.6); this.blink.push(P('sph', M.red, 0, 15.3, 0, 0.26, 0.26, 0.26)); }
-    if (has('solar')) for (const s of [-1, 1]) { P('cyl', M.truss, s * 15.4, 0, 0, 0.12, 3.8, 0.12, 0, 0, Math.PI / 2); for (const y of [-1.75, 1.75]) P('plane', M.solar, s * 19.8, y, 0, 6.4, 3, 1, -0.35, 0, 0); P('box', M.truss, s * 19.8, 0, 0, 6.4, 0.12, 0.12); }
-    if (has('ring2')) { const add = this.spinner(-0.4); add(P('ring', M.hull, 0, -0.4, 0, 7.8, 7.8, 5, Math.PI / 2)); }
-    if (has('dome')) { P('sph', M.glass, 0, -10.8, 0, 1.5, 1.5, 1.5); P('cyl', M.gold, 0, -9.5, 0, 0.9, 0.3, 0.9); }
-    if (has('yard')) { for (const [x, y, w, h] of [[-4.2, -4.6, 5, 0.16], [-4.2, -7.4, 5, 0.16], [-6.6, -6, 0.16, 3], [-1.8, -6, 0.16, 3]]) P('box', M.gold, x, y, 0, w, h, 0.16); P('cone', M.plain, -4.2, -6, 0, 0.6, 2.4, 0.45, 0, 0, -Math.PI / 2); }
-    if (has('beacons')) for (const [x, y] of [[-13.6, -0.8], [13.6, -0.8], [0, 9.9], [0, -9]]) this.blink.push(P('sph', M.warm, x, y, 0.4, 0.32, 0.32, 0.32));
-    if (has('halo')) { const add = this.spinner(0); add(P('torus', M.halo, 0, 0, 0, 11.5, 11.5, 11.5, Math.PI / 2 - 0.25)); }
-    if (has('crown')) this.crown = P('oct', M.warm, 0, 17, 0, 1, 1.5, 1);
+    piece('deck', () => { P('dome', M.glass, 0, 4.1, 0, 1.5, 1.2, 1.5); P('cyl', M.gold, 0, 4.1, 0, 1.6, 0.16, 1.6); });
+    piece('ring', () => { const add = this.spinner(0.6); add(P('ring', M.hull, 0, 0.6, 0, 4.6, 4.6, 4.6, Math.PI / 2)); for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2; add(P('cyl', M.truss, Math.cos(a) * 3.2, 0.6, Math.sin(a) * 3.2, 0.1, 2.9, 0.1, 0, -a, Math.PI / 2)); } });
+    piece('spire', () => { P('cyl', M.truss, 0, 12.6, 0, 0.14, 5.2, 0.14); P('sph', M.plain, 0, 11.2, 0, 0.5, 0.5, 0.5); P('dome', M.plain, 0.9, 13.5, 0, 0.7, 0.28, 0.7, 0, 0, -0.6); this.blink.push(P('sph', M.red, 0, 15.3, 0, 0.26, 0.26, 0.26)); });
+    piece('solar', () => { for (const s of [-1, 1]) { P('cyl', M.truss, s * 15.4, 0, 0, 0.12, 3.8, 0.12, 0, 0, Math.PI / 2); for (const y of [-1.75, 1.75]) P('plane', M.solar, s * 19.8, y, 0, 6.4, 3, 1, -0.35, 0, 0); P('box', M.truss, s * 19.8, 0, 0, 6.4, 0.12, 0.12); } });
+    piece('ring2', () => { const add = this.spinner(-0.4); add(P('ring', M.hull, 0, -0.4, 0, 7.8, 7.8, 5, Math.PI / 2)); });
+    piece('dome', () => { P('sph', M.glass, 0, -10.8, 0, 1.5, 1.5, 1.5); P('cyl', M.gold, 0, -9.5, 0, 0.9, 0.3, 0.9); });
+    piece('yard', () => { for (const [x, y, w, h] of [[-4.2, -4.6, 5, 0.16], [-4.2, -7.4, 5, 0.16], [-6.6, -6, 0.16, 3], [-1.8, -6, 0.16, 3]]) P('box', M.gold, x, y, 0, w, h, 0.16); P('cone', M.plain, -4.2, -6, 0, 0.6, 2.4, 0.45, 0, 0, -Math.PI / 2); });
+    piece('beacons', () => { for (const [x, y] of [[-13.6, -0.8], [13.6, -0.8], [0, 9.9], [0, -9]]) this.blink.push(P('sph', M.warm, x, y, 0.4, 0.32, 0.32, 0.32)); });
+    piece('halo', () => { const add = this.spinner(0); add(P('torus', M.halo, 0, 0, 0, 11.5, 11.5, 11.5, Math.PI / 2 - 0.25)); });
+    piece('crown', () => { this.crown = P('oct', M.warm, 0, 17, 0, 1, 1.5, 1); });
   }
   module(m, st) {
     const M = this.M, ghost = st === 'ghost', lit = st === 'lit';

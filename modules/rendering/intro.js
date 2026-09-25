@@ -1,5 +1,5 @@
 // The opening: the station in its golden age above Earth, the invader fleet arriving, the station torn apart, and the
-// pilot's lone ship among the wreckage. About fourteen seconds, played once (and from Settings). The UI layer shows the
+// pilot's lone ship among the wreckage. About twenty seconds, played once (and from Settings). The UI layer shows the
 // captions and the whiteout; this draws the scene and reports its beats through onBeat(name).
 import { Station } from '@last-orbit/rendering/station.js';
 import { earthMaterial } from '@last-orbit/rendering/background.js';
@@ -13,25 +13,32 @@ export const INTRO_LEN = 21.5;
 export const WARP = 6.2, FIRE = 7.9, BLOW = 9.8, CORE = 11.3, AFTER = 13.4;
 const lerp = (a, b, k) => a + (b - a) * k, ease = (k) => k * k * (3 - 2 * k), clamp = (k) => Math.max(0, Math.min(1, k));
 
-function glowTex(inner, mid) {
+export function glowTex(inner, mid) {
   const THREE = T(), c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
   gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.2, inner); gr.addColorStop(0.55, mid); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
   return new THREE.CanvasTexture(c);
 }
 
+/** The shared backdrop of the cinematics: sunlight, Earth below with its atmosphere, and the stars. */
+export function backdrop(S) {
+  const THREE = T();
+  S.add(new THREE.HemisphereLight(0xcfe0ff, 0x10121e, 0.6)); const sun = new THREE.DirectionalLight(0xfff4e0, 1.1); sun.position.set(-60, 50, 40); S.add(sun);
+  const sunDir = new THREE.Vector3(-0.6, 0.5, 0.4).normalize();
+  // Earth below, stars behind
+  const earth = new THREE.Mesh(new THREE.SphereGeometry(1300, 96, 64), earthMaterial()); earth.position.set(0, -1390, -300); earth.rotation.x = 1.15; S.add(earth);
+  earth.material.uniforms.night.value = 0;
+  const atmo = new THREE.Mesh(new THREE.SphereGeometry(1325, 64, 48), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.BackSide, blending: THREE.AdditiveBlending,
+    vertexShader: 'varying vec3 vN, vV; void main(){ vN = normalize(normalMatrix * normal); vec4 mv = modelViewMatrix * vec4(position, 1.); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
+    fragmentShader: 'varying vec3 vN, vV; void main(){ float k = pow(1. - abs(dot(vN, vV)), 3.5); gl_FragColor = vec4(vec3(.3, .6, 1.) * k * 1.4, k); }' })); atmo.position.copy(earth.position); S.add(atmo);
+  const n = 1400, pos = new Float32Array(n * 3); for (let i = 0; i < n; i++) { const u = Math.random() * 2 - 1, a = Math.random() * Math.PI * 2, r = Math.sqrt(1 - u * u); pos.set([Math.cos(a) * r * 5000, u * 5000, Math.sin(a) * r * 5000], i * 3); }
+  const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); S.add(new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xffffff, size: 1.8, sizeAttenuation: false })));
+  return { earth, sunDir };
+}
+
 export class IntroScene {
   constructor(shipId = 'vanguard') {
     const THREE = T(); this.scene = new THREE.Scene(); this.cam = new THREE.PerspectiveCamera(50, 1, 0.5, 7000); this.t = 0; this.fired = {}; this.onBeat = null;
-    const S = this.scene; S.add(new THREE.HemisphereLight(0xcfe0ff, 0x10121e, 0.6)); const sun = new THREE.DirectionalLight(0xfff4e0, 1.1); sun.position.set(-60, 50, 40); S.add(sun);
-    this.sunDir = new THREE.Vector3(-0.6, 0.5, 0.4).normalize();
-    // Earth below, stars behind
-    this.earth = new THREE.Mesh(new THREE.SphereGeometry(1300, 96, 64), earthMaterial()); this.earth.position.set(0, -1390, -300); this.earth.rotation.x = 1.15; S.add(this.earth);
-    this.earth.material.uniforms.night.value = 0;
-    const atmo = new THREE.Mesh(new THREE.SphereGeometry(1325, 64, 48), new THREE.ShaderMaterial({ transparent: true, depthWrite: false, side: THREE.BackSide, blending: THREE.AdditiveBlending,
-      vertexShader: 'varying vec3 vN, vV; void main(){ vN = normalize(normalMatrix * normal); vec4 mv = modelViewMatrix * vec4(position, 1.); vV = normalize(-mv.xyz); gl_Position = projectionMatrix * mv; }',
-      fragmentShader: 'varying vec3 vN, vV; void main(){ float k = pow(1. - abs(dot(vN, vV)), 3.5); gl_FragColor = vec4(vec3(.3, .6, 1.) * k * 1.4, k); }' })); atmo.position.copy(this.earth.position); S.add(atmo);
-    const n = 1400, pos = new Float32Array(n * 3); for (let i = 0; i < n; i++) { const u = Math.random() * 2 - 1, a = Math.random() * Math.PI * 2, r = Math.sqrt(1 - u * u); pos.set([Math.cos(a) * r * 5000, u * 5000, Math.sin(a) * r * 5000], i * 3); }
-    const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); S.add(new THREE.Points(sg, new THREE.PointsMaterial({ color: 0xffffff, size: 1.8, sizeAttenuation: false })));
+    const S = this.scene; ({ earth: this.earth, sunDir: this.sunDir } = backdrop(S));
     // the station at its height: every module built and lit, every core piece in place
     this.station = new Station(S); this.station.group.visible = true;
     this.station.sync({ prestige: { level: 10 }, workshop: Object.fromEntries(WORKSHOP.map((u) => [u.id, u.max])) });

@@ -33,7 +33,7 @@ import { menuState, menuSeen, menuLockText } from '@last-orbit/progression/meta.
 import { MENU_BY_ID } from '@last-orbit/data/menus.js';
 import { techLevel, buyTech, powerRating, workshopMaxed, workshopProgress, overhaulReward, blueprintLevel, blueprintNext, buyBlueprint, blueprintLocked, escortSlots, escortTypes, toggleEscort, trailUnlocked, selectTrail } from '@last-orbit/progression/meta.js';
 import { BLUEPRINTS, TRAILS, BP_BASE, OVERHAUL_FX_CAP, OVERHAUL_COST_STEP } from '@last-orbit/data/prestige.js';
-import { STATION_CORE } from '@last-orbit/data/station.js';
+import { STATION_CORE, rebuildPct } from '@last-orbit/data/station.js';
 import { stationBlueprint, pieceThumb } from '@last-orbit/ui/stationArt.js';
 import { nightAmount } from '@last-orbit/rendering/background.js';
 import { DRONES } from '@last-orbit/data/drones.js';
@@ -215,13 +215,13 @@ export function createHangar(hooks) {
       h('div.oh-plan-tag', h('small', G.state.stationName || 'Your station'), h('b', ready ? 'Workshop complete' : `Workshop ${Math.round(prog.cur / prog.goal * 100)}%`)),
       rank < STATION_CORE.at(-1).at ? h('div.oh-plan-next', h('i'), `Next Overhaul adds: ${STATION_CORE.find((c) => c.at === rank + 1).name}`) : null);
     return h('section.panel.oh-panel' + (ready ? '.ready' : ''),
-      h('div.oh-head', h('div', h('div.kicker', rank ? `Overhaul · Rank ${rank}` : 'Overhaul'), h('h3', ready ? 'Station complete' : 'Build your station')), h('div.oh-rank', h('b', String(rank)), h('small', 'rank'))),
+      h('div.oh-head', h('div', h('div.kicker', rank ? `Overhaul · Rank ${rank}` : 'Overhaul'), h('h3', ready ? 'Ready to Overhaul' : 'Build your station')), h('div.oh-rank', h('b', String(rank)), h('small', 'rank'))),
       plan,
       ready ? h('div.oh-pay', h('div', h('small', 'Overhaul now for'), h('b', `${bp} Blueprints`)), h('span', bp > BP_BASE ? `${BP_BASE} + ${bp - BP_BASE} for going past wave 60` : 'Reach past wave 60 first for up to +5'))
         : h('div.oh-meter', h('div.meter.small', h('i', { style: `width:${(prog.cur / prog.goal * 100).toFixed(1)}%` })), h('small', `${prog.cur}/${prog.goal} Workshop levels · every upgrade builds a module`)),
       h('p', ready
-        ? 'The Workshop resets for Blueprints: escort drones and perks that are never lost. Your station keeps its core and grows a new piece. Ships, cosmetics, ranks and Counterattack progress all stay.'
-        : 'Max every Workshop upgrade to complete the station, then Overhaul: the Workshop resets for Blueprints, and the station keeps its core and grows a new piece every rank.'),
+        ? 'The Workshop resets for Blueprints: escort drones and perks that are never lost. Your station keeps every module and gains a new core piece. Ships, cosmetics, ranks and Counterattack progress all stay.'
+        : 'Max every Workshop upgrade to finish the modules, then Overhaul: the Workshop resets for Blueprints, and the station keeps every module and gains a new core piece every rank.'),
       roadmap(rank),
       h('div.oh-perks', h('span', `Each rank: +10% salvage, +2% damage${rank >= OVERHAUL_FX_CAP ? ' (maxed)' : ''}`), h('span', `Workshop costs +${Math.round(OVERHAUL_COST_STEP * 100)}% per rank`)),
       ready ? h('button.btn.gold.oh-go', { onclick: () => hooks.confirmOverhaul() }, 'Overhaul') : null);
@@ -547,14 +547,14 @@ export function createHangar(hooks) {
     const ax = c.offsetLeft + c.offsetWidth + 6, ay = Math.round(hy);
     $.coLine.setAttribute('x1', ax); $.coLine.setAttribute('y1', ay); $.coLine.setAttribute('x2', Math.round(hx - 7)); $.coLine.setAttribute('y2', Math.round(hy)); $.coDot.setAttribute('cx', Math.round(hx)); $.coDot.setAttribute('cy', Math.round(hy));
   }
-  /** How much of the station has been rebuilt, over its whole life (modules stay built through Overhauls). */
-  const rebuilt = () => { let cur = 0, goal = 0; for (const u of WORKSHOP) { cur += Math.min(u.max, Math.max(G.state.workshop[u.id] || 0, G.state.stationPeak?.[u.id] || 0)); goal += u.max; } return Math.round(cur / goal * 100); };
+  /** How much of the station has been rebuilt: modules and core pieces (data/station.js). */
+  const rebuilt = () => rebuildPct(G.state);
   /** Everything about the station in one card: its blueprint, the rebuild, its name, and the way aboard. */
   function stationCard() {
     const st = G.state, rank = st.prestige?.level || 0, deck = menuState('deck') !== 'locked'; playSfx('tab');
     hooks.panel?.({ kicker: 'Your station', title: st.stationName || 'Unnamed station', body: [
       h('div.oh-plan', { html: stationBlueprint(rank, st.workshop, { peak: st.stationPeak, name: st.stationName, pct: rebuilt() }) }),
-      h('p.sub-note', deck ? 'Every Workshop upgrade rebuilds a module. Every Overhaul grows the core.' : 'Every Workshop upgrade rebuilds a module. Your first Overhaul restores the Command Deck.'),
+      h('p.sub-note', 'The modules are half the rebuild: every Workshop upgrade restores one. The ten core pieces are the other half, one per Overhaul' + (deck ? '.' : ', starting with the Command Deck.')),
       h('div.sc-actions', h('button.btn.ghost', { onclick: () => hooks.nameStation?.() }, st.stationName ? 'Rename' : 'Name it'),
         deck ? h('button.btn.primary', { onclick: () => { hooks.closeOverlays?.(); show('deck'); } }, 'Board the Command Deck') : h('button.btn.ghost', { onclick: () => { hooks.closeOverlays?.(); show('workshop'); } }, 'Workshop'))] });
   }

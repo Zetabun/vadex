@@ -45,6 +45,8 @@ function runScene(scene, hooks, ui) {
   // station:<overhaul rank>:<share of Workshop levels, 0-1>[:tab]
   // intro[:seconds]: the opening, frozen at a moment (for screenshots) or playing from the start
   if (name === 'intro') { hooks.toHangar('launch'); setTimeout(() => { const sc = ui.intro({ tap: arg === 'title' }); if (arg === 'title') return; if (arg) { for (let k = 0; k < +arg / 0.05; k++) sc.update(0.05); G.introPaused = true; } }, 300); return; }
+  // rebuild:<rank>[:seconds]: the reel after an Overhaul to that rank (Workshop just reset, every module built), frozen or playing
+  if (name === 'rebuild') { st.prestige.level = +arg || 1; st.stationName = 'Halcyon'; for (const u of WORKSHOP) { st.stationPeak[u.id] = u.max; st.workshop[u.id] = 0; } recalc(); hooks.toHangar('launch'); setTimeout(() => { const sc = ui.intro({ rebuild: true }); if (arg2) { for (let k = 0; k < +arg2 / 0.05; k++) sc.update(0.05); G.introPaused = true; } }, 300); return; }
   // comms:<line id>: the station AI saying one of its lines
   if (name === 'comms') { st.pilot.name = 'Adam'; st.seen.callsign = true; hooks.toHangar('launch'); setTimeout(() => { const l = LINES.find((x) => x.id === (arg || 'welcome')); if (l) ui.comms.say(l.text); }, 600); return; }
   if (name === 'deck') { st.prestige.level = +arg || 3; st.pilot.name = 'Adam'; st.seen.callsign = true; for (const id of ['signal', 'checker', 'ember', 'royal']) st.banners[id] = 1; st.unlocked.ships.bulwark = 1; st.stats.bestWave = 74; st.stats.maxAnomalies = 2; st.counter.stars = { 1: 3, 2: 2, 3: 1 }; refreshMenus(); st.seen.menus.deck = true; recalc(); hooks.toHangar('deck');
