@@ -34,7 +34,7 @@ export function initAudio() {
   master = ctx.createGain(); comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 6;
   sfxBus = ctx.createGain(); musicBus = ctx.createGain(); sfxBus.connect(master); musicBus.connect(master); master.connect(comp); comp.connect(ctx.destination);
   noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-  applyVolumes();
+  applyVolumes(); fetching = null; loadSamples(); // a new context decodes its own copies
 }
 export function applyVolumes() { if (!ctx) return; const s = G.state.settings, t = ctx.currentTime; master.gain.setTargetAtTime(s.master, t, 0.05); sfxBus.gain.setTargetAtTime(s.sfx, t, 0.05); musicBus.gain.setTargetAtTime(s.music * 0.55, t, 0.2); }
 export function resumeAudio() {
@@ -60,6 +60,25 @@ export function playSfx(id, vol = 1, pitch = 1) {
   const o = ctx.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0 * p, now); o.frequency.exponentialRampToValueAtTime(Math.max(10, f1 * p), now + dur); o.connect(g); o.start(now); o.stop(now + dur + 0.02);
   voices++; o.onended = () => { voices = Math.max(0, voices - 1); g.disconnect(); };
   if (nz) { const n = ctx.createBufferSource(); n.buffer = noiseBuf; n.playbackRate.value = 0.5 + Math.random(); const ng = ctx.createGain(), f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.setValueAtTime(Math.max(300, f0 * 4), now); f.frequency.exponentialRampToValueAtTime(120, now + dur); ng.gain.value = nz; n.connect(f); f.connect(ng); ng.connect(g); n.start(now, Math.random() * 0.5, dur + 0.02); }
+}
+
+// ------------------------------------------------------------------ recorded sounds (assets/sfx)
+// Most sounds are synthesised; these are recordings, loaded once sound starts. Several files for one id are variations,
+// played in turn at random. playSample returns false until they have loaded, so the caller can fall back to a synth one.
+const VER = import.meta.url.split('?')[1] || ''; // the build's cache-bust, so a changed file is fetched afresh
+const SAMPLES = { turretShot: { files: ['turret-shot-1', 'turret-shot-2', 'turret-shot-3', 'turret-shot-4'], gap: 0.05, spread: 0.04 }, turretReady: { files: ['turret-ready'], gap: 0.3, spread: 0 } };
+const bufs = {}; let fetching = null;
+function loadSamples() {
+  if (fetching || !ctx) return; const c = ctx;
+  fetching = Promise.all(Object.entries(SAMPLES).map(([id, d]) => Promise.all(d.files.map((f) => fetch(new URL(`../../assets/sfx/${f}.wav${VER ? '?' + VER : ''}`, import.meta.url)).then((r) => r.arrayBuffer()).then((a) => c.decodeAudioData(a)).catch(() => null)))
+    .then((list) => { bufs[id] = list.filter(Boolean); }))).catch(() => { fetching = null; });
+}
+/** A recorded sound; false if it is not loaded (yet). */
+export function playSample(id, vol = 1, pitch = 1) {
+  if (!ctx || ctx.state !== 'running') return false; const list = bufs[id], d = SAMPLES[id]; if (!list?.length) { loadSamples(); return false; }
+  const now = ctx.currentTime, prev = last['s:' + id] || 0; if ((now - prev < d.gap && prev <= now) || voices >= MAX_VOICES) return true; last['s:' + id] = now;
+  const src = ctx.createBufferSource(), g = ctx.createGain(); src.buffer = list[Math.floor(Math.random() * list.length)]; src.playbackRate.value = pitch * (1 + (Math.random() * 2 - 1) * d.spread);
+  g.gain.value = vol; src.connect(g); g.connect(sfxBus); src.start(now); voices++; src.onended = () => { voices = Math.max(0, voices - 1); g.disconnect(); }; return true;
 }
 
 // ------------------------------------------------------------------ the station AI's voice, and big explosions

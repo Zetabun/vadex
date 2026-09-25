@@ -11,7 +11,7 @@ import { Station } from '@last-orbit/rendering/station.js';
 import { shapeGeometry } from '@last-orbit/rendering/geometry.js';
 import { SIEGE_STARS } from '@last-orbit/data/siege.js';
 import { turretKit, turretStats, turretOffer, TURRET_MOD } from '@last-orbit/data/turret.js';
-import { playSfx, lockTone, whoosh } from '@last-orbit/audio/audio.js';
+import { playSfx, playSample, lockTone, whoosh } from '@last-orbit/audio/audio.js';
 import { haptic } from '@last-orbit/ui/haptics.js';
 const T = () => window.THREE;
 
@@ -242,13 +242,13 @@ export class GunnerScene {
     let target = null, best = this.st.cone;
     for (const e of this.enemies) { if (!e.alive || e.kind === 'capital') continue; const L = this.lead(e, origin), ang = fwd.angleTo(this.v.subVectors(L, origin)); if (ang < best) { best = ang; target = e; } }
     this.locked = target; this.fireT -= fdt; const gun = this.gun;
-    if (gun.reloadT > 0) { gun.reloadT -= fdt; if (gun.reloadT <= 0) { gun.reloadT = 0; gun.ammo = this.st.mag; playSfx('dashReady', 0.7); haptic('thud'); } }
+    if (gun.reloadT > 0) { gun.reloadT -= fdt; if (gun.reloadT <= 0) { gun.reloadT = 0; gun.ammo = this.st.mag; if (!playSample('turretReady', 0.7)) playSfx('dashReady', 0.7); haptic('thud'); } }
     if (target && fight && this.fireT <= 0 && !gun.reloadT && gun.ammo > 0) {
       this.fireT = this.st.fireEvery; gun.ammo--; this.recoil = Math.min(0.012, this.recoil + 0.0035); this.shake = Math.max(this.shake || 0, 0.18); haptic('tick');
       if (gun.ammo <= 0) { gun.reloadT = this.st.gunReload; playSfx('charge', 0.5); } const b = this.barrels[this.side = 1 - this.side]; b.kick = 1; b.flash.visible = true; b.flash.rotation.z = Math.random() * 6;
       const muzzle = b.flash.getWorldPosition(new THREE.Vector3()), aim = this.lead(target, muzzle).clone(), dir = aim.sub(muzzle).normalize();
       if (this.bullets.length < 280) this.bullets.push({ p: muzzle, v: dir.multiplyScalar(this.st.speed), life: 2.2, pierce: this.st.pierce, hit: [], mul: 1 });
-      playSfx('cannon', 0.28);
+      if (!playSample('turretShot', 0.55, 1)) playSfx('cannon', 0.28); // the recorded shot (the synth one until it has loaded)
     }
     for (const b of this.barrels) { b.kick = Math.max(0, b.kick - dt * 9); b.g.position.z = -1.2 + b.kick * 0.14; if (b.kick < 0.5) b.flash.visible = false; }
     // the sentry guns on the station: a round at a fighter now and then
