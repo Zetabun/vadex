@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.13.0 — 2026-09-25
+
+- **Man the guns (prototype, Defence Control):** tap Defence Control's window and choose "Man the guns" to take the station's own twin cannons in 3D. Drag to aim; the cannons fire on their own at whatever is in the sights. Hold off five waves: fighters, bombers that drop torpedoes on the station, gunships that hover and beam it, and finally a capital ship whose weak points you shoot out. It's a first version to try out: no rewards yet, and damage to the station doesn't carry over.
+  - **Homing missiles:** bombers, gunships and weak points are armoured (marked ◆) and shrug off most cannon fire. Hold the sights on one and the seeker locks on, its beeps speeding up to a steady tone. Then fire. The missile rack reloads all at once when it's empty.
+  - **The cannons** carry a 30-round magazine, shown as a ring round the crosshair, then reload slowly.
+  - **Upgrades between waves:** pick one of three turret upgrades after each wave (18 in all, for the cannons, the missiles and the station), with rerolls. What you've built on the station sets the guns' starting kit: the weapon battery, the cycler drum, the shield, the hull, point defence and more. The invaders get tougher every wave.
+  - **Feel:** a recorded plasma cannon that rings out through a reverb, a kick and a rumble with every round, a heavy jolt with every missile launched, big explosions when missiles hit, and ships that break apart into tumbling, burning wreckage.
+- **Vibration (Settings, on by default):** the gunner seat vibrates as the cannons fire and reload, and when missiles launch or the station is hit, on phones that support it.
+- **Station Siege is harder:** after playtesting it was far too easy. The station's guns and auto-aim no longer do the defending for you, and the station's systems are weaker. There are more shells, raiders attack in wings, and every wave brings a barrage. The invaders also scale with your pilot's power, so a strong pilot still gets a fight.
+
 ## v2.12.0 — 2026-09-25
 
 - **The replay TV (Command Deck):** a flight recorder now keeps the last 90 seconds of every sortie and Station Siege. That's the ending, whether it's the boss fight or how it went wrong. The big screen on the Command Deck's back wall plays it back as a miniature of the fight, with the game's own enemy models in their colours, your ship banking as it flew, shots and enemy fire, and a burst for every kill. The left of the screen follows the run as it plays (wave, score, hull and shield); the right shows your records.
