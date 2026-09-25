@@ -37,6 +37,8 @@ import { SIEGE_TIERS, SIEGE_SYSTEMS, SIEGE_CONSOLES, CONSOLE_BY_ID, TIER_BY_N, S
 import { settleSiege, repairStation } from '@last-orbit/progression/siege.js';
 import { commsOpen, refreshBounties, bountyProgress, bountyText, claimBounty, rerollBounty, bountyClaimable, untilNextPost } from '@last-orbit/progression/bounties.js';
 import { COMMS_RANK, BOUNTY_BONUS_BP, TRANSMISSIONS } from '@last-orbit/data/bounties.js';
+import { QUARTERS_RANK, REST_BONUS, KEEPSAKES, PHOTOS, BOLT_LINES, quartersOpen } from '@last-orbit/data/quarters.js';
+import { rest, nextMood } from '@last-orbit/progression/quarters.js';
 import { BOSSES } from '@last-orbit/data/bosses.js';
 import { STATION_CORE, MODULE_BY_ID, ALIEN_BY_ID, TROPHY_BY_ID, REBUILD_PARTS, rebuildPct, rebuildParts, stationSnapshot, caughtStages, hallOpen, STATION_TROPHIES, trophyWon, HUNTED } from '@last-orbit/data/station.js';
 import { stationBlueprint, pieceThumb } from '@last-orbit/ui/stationArt.js';
@@ -100,13 +102,15 @@ export function createHangar(hooks) {
   const el = h('div#hangar', top, $.body, $.coSvg, $.stationHot, $.callout, $.nav);
 
   // The rooms aboard the station: 3D spaces to walk round, each reached from the hangar and left the way you came.
-  const ROOMS = { deck: 'Command Deck', control: 'Defence Control', gunner: 'Gunner seat', hall: 'Trophy Hall', comms: 'Comms room' };
+  const ROOMS = { deck: 'Command Deck', control: 'Defence Control', gunner: 'Gunner seat', hall: 'Trophy Hall', comms: 'Comms room', quarters: 'Pilot\'s quarters' };
   const CONTROL_LOCK = 'Defence Control opens when the invaders strike back: clear Counterattack stage 1.';
   const CONTROL_INTRO = { icon: 'control', kicker: 'New room aboard', title: 'Defence Control', text: 'The station\'s war room. Its consoles run every defence you have built, the tactical table adds them up, and the threat board is where you launch a siege. Tap ORBIT\'s terminal for advice.' };
   const HALL_LOCK = 'The Trophy Hall is in the Habitat ring: it opens at Overhaul rank 2.';
   const HALL_INTRO = { icon: 'awards', kicker: 'New room aboard', title: 'Trophy Hall', text: 'The Habitat ring is turning again, and inside it a hall for everything you have beaten. Every boss you capture in the Counterattack hangs in a stasis cradle here, its record on the plaque, and the hologram keeps the hunting record of every sector boss you have faced.' };
   const COMMS_LOCK = `The Comms room is up the Comms spire: it opens at Overhaul rank ${COMMS_RANK}.`;
   const COMMS_INTRO = { icon: 'missions', kicker: 'New room aboard', title: 'Comms room', text: 'The Comms spire is back, and with it the radio room at the top. ORBIT listens on every frequency: each day the miners and trawlers post three bounties, one easy, one harder, one hard, sized to how you fly. Finish them for salvage, and all three in a day for a Blueprint. They are in Missions too.' };
+  const QUARTERS_LOCK = `Your quarters are in the Outer ring: they open at Overhaul rank ${QUARTERS_RANK}.`;
+  const QUARTERS_INTRO = { icon: 'home', kicker: 'New room aboard', title: 'Pilot\'s quarters', text: `The Outer ring is sealed, and there is a room in it with your name on the door. Rest in your bunk once a day and your next sortie banks ${Math.round(REST_BONUS * 100)}% more salvage. The keepsakes you pick up on the way end up on your shelf, the big moments on your wall. Oh, and Bolt lives here now.` };
   let outside = 'launch'; // the hangar tab the rooms lead back to
   let gunTier = 1, gunFrom = 'control'; // the siege in the gunner seat, and where leaving it goes
   function show(id, quiet) {
@@ -120,6 +124,9 @@ export function createHangar(hooks) {
     if (id === 'comms' && !commsOpen(G.state)) { if (!quiet) { playSfx('deny'); hooks.toast?.(COMMS_LOCK, 'info'); } if (tab !== id) return; id = 'launch'; }
     if (id === 'comms' && !G.state.seen.commsRoom) { G.state.seen.commsRoom = true; setTimeout(() => hooks.menuIntro?.(COMMS_INTRO), 150); }
     if (id === 'comms' || id === 'missions') postBounties();
+    // Your quarters open with the Outer ring.
+    if (id === 'quarters' && !quartersOpen(G.state)) { if (!quiet) { playSfx('deny'); hooks.toast?.(QUARTERS_LOCK, 'info'); } if (tab !== id) return; id = 'launch'; }
+    if (id === 'quarters' && !G.state.seen.quarters) { G.state.seen.quarters = true; setTimeout(() => hooks.menuIntro?.(QUARTERS_INTRO), 150); }
     // A menu the pilot has not earned yet stays shut (with a note on when it opens); a newly opened one explains itself once.
     if (menuState(id) === 'locked') { if (!quiet) { playSfx('deny'); hooks.toast?.(menuLockText(id), 'info'); } if (tab !== id) return; id = 'launch'; }
     if (menuState(id) === 'new') { menuSeen(id); setTimeout(() => hooks.menuIntro?.(MENU_BY_ID[id]), 150); }
@@ -136,7 +143,7 @@ export function createHangar(hooks) {
    *  on a list (Workshop upgrades) stay on the row under the finger; switching tabs starts at the top. */
   function render(top = false) {
     const y = $.body.scrollTop; clear($.body);
-    const view = { launch: launchView, missions: missionsView, workshop: workshopView, armory: armoryView, ships: shipsView, contracts: contractsView, records: recordsView, awards: awardsView, deck: () => roomView('deck'), control: () => roomView('control'), hall: () => roomView('hall'), comms: () => roomView('comms'), gunner: () => gunnerView() }[tab]();
+    const view = { launch: launchView, missions: missionsView, workshop: workshopView, armory: armoryView, ships: shipsView, contracts: contractsView, records: recordsView, awards: awardsView, deck: () => roomView('deck'), control: () => roomView('control'), hall: () => roomView('hall'), comms: () => roomView('comms'), quarters: () => roomView('quarters'), gunner: () => gunnerView() }[tab]();
     $.body.append(view); $.body.scrollTop = top ? 0 : y;
   }
 
@@ -456,6 +463,36 @@ export function createHangar(hooks) {
         h('p.sub-note', 'The map pings every sector you have reached. The further out you fly, the more the spire can hear.')] });
     }
   }
+  // ------------------------------------------------------------ the Pilot's quarters
+  /** Tapping something in your quarters: the bunk (rest), the keepsakes, the log, the photos, the lights, Bolt, the
+   *  poster, the window, or a door. */
+  let boltTalk = 0;
+  function quartersExhibit(kind) {
+    const st = G.state, room = G.renderer?.room;
+    if (kind === 'exit') { show(outside); return; }
+    if (kind === 'hall') { show('hall'); return; }
+    const panel = (title, ...body) => hooks.panel?.({ kicker: 'Pilot\'s quarters', title, body });
+    if (kind === 'bunk') {
+      const r = rest(st); playSfx(r === 'rested' ? 'unlock' : 'tab', 0.6);
+      if (r === 'rested') { room?.sleep?.(); hooks.saveNow?.('rest'); setTimeout(() => hooks.toast?.(`Well rested: your next sortie banks +${Math.round(REST_BONUS * 100)}% salvage.`, 'good'), 1300); }
+      else hooks.toast?.(r === 'already' ? 'You are rested already. Fly a sortie to make the most of it.' : 'You have slept today. The bunk will be here tomorrow.', 'info');
+      return;
+    }
+    if (kind === 'mood') { const m = nextMood(st); room?.setMood?.(m); playSfx('tab'); hooks.toast?.(`Lights: ${m.name}`, 'info'); hooks.saveNow?.('mood'); return; }
+    if (kind === 'bolt') { room?.poke?.(); playSfx('unlock', 0.5, 1.7); hooks.say?.(BOLT_LINES[boltTalk++ % BOLT_LINES.length]); return; }
+    playSfx('tab');
+    if (kind === 'poster') { hooks.say?.('The recruitment poster. They printed a thousand of them after the Fall, {n}. You answered.'); return; }
+    if (kind === 'window') { hooks.say?.('The Outer ring faces the Earth. On a clear night you can see where the cities were, {n}.'); return; }
+    const got = KEEPSAKES.filter((k) => k.req(st)), hexc = (n) => '#' + n.toString(16).padStart(6, '0');
+    if (kind === 'shelf') panel(`Keepsakes · ${got.length}/${KEEPSAKES.length}`, h('p.sub-note', 'Things you have picked up on the way. Each one comes home to this shelf.'),
+      h('div.ks-list', KEEPSAKES.map((k) => { const has = k.req(st); return h('div.ks-row' + (has ? '' : '.off'), { style: `--c:${has ? hexc(k.color) : '#3a3440'}` }, h('i'), h('div', h('b', has ? k.name : 'Still to find'), h('small', has ? k.log : k.how))); })));
+    else if (kind === 'log') panel("Pilot's log", h('p.sub-note', `${got.length} of ${KEEPSAKES.length} entries. A new one every time something goes on the shelf.`),
+      got.length ? h('div.ks-list', got.map((k, i) => h('div.ks-row', { style: `--c:${hexc(k.color)}` }, h('i'), h('div', h('b', `Entry ${i + 1}`), h('small', k.log))))) : h('p.sub-note', 'Nothing written yet.'));
+    else if (kind === 'photos') { const ph = PHOTOS.filter((p) => p.req(st));
+      panel(`Photos · ${ph.length}/${PHOTOS.length}`, h('p.sub-note', 'The big moments, pinned up by the door. The empty pins are the ones still to come.'),
+        h('div.ks-list', PHOTOS.map((p) => h('div.ks-row' + (p.req(st) ? '' : '.off'), { style: `--c:${p.req(st) ? '#ffe2c4' : '#3a3440'}` }, h('i'), h('div', h('b', p.req(st) ? p.caption(st) : 'An empty pin'), h('small', p.req(st) ? 'Pinned up.' : 'A moment still to come.'))))));
+    }
+  }
   // ------------------------------------------------------------ counterattack
   let counterHard = false;
   // The first Counterattack launch opens the briefing; launching from it marks it seen.
@@ -597,8 +634,8 @@ export function createHangar(hooks) {
   function roomView(id) {
     // The room itself is 3D (rendering/deck.js and control.js, drawn while G.room is set); this is the touch layer over it.
     const p = G.state.pilot, hint = h('div.d3-hint', 'Drag to look around · Tap the floor to walk · Tap anything to inspect');
-    const el = h('div.deck3d' + (id === 'control' ? '.control' : id === 'hall' ? '.hall' : id === 'comms' ? '.comms' : ''), { 'aria-label': `${ROOMS[id]}. Drag to look around, tap the floor to walk, tap an exhibit to inspect it.` },
-      h('div.d3-top', h('div.d3-title', h('small', ROOMS[id]), h('b', id === 'deck' ? p.name || rankTitle(p.rank) : id === 'hall' ? `${caughtStages(G.state).length}/6 captured` : id === 'comms' ? `${(G.state.bounties?.list || []).filter((b) => b.done).length}/3 bounties done` : G.state.stationName || 'Station defence')), h('button.btn.ghost.small.d3-exit', { onclick: () => show(outside) }, uiIcon('back'), 'Exit')), hint);
+    const el = h('div.deck3d' + (id === 'control' ? '.control' : id === 'hall' ? '.hall' : id === 'comms' ? '.comms' : id === 'quarters' ? '.quarters' : ''), { 'aria-label': `${ROOMS[id]}. Drag to look around, tap the floor to walk, tap an exhibit to inspect it.` },
+      h('div.d3-top', h('div.d3-title', h('small', ROOMS[id]), h('b', id === 'deck' || id === 'quarters' ? p.name || rankTitle(p.rank) : id === 'hall' ? `${caughtStages(G.state).length}/6 captured` : id === 'comms' ? `${(G.state.bounties?.list || []).filter((b) => b.done).length}/3 bounties done` : G.state.stationName || 'Station defence')), h('button.btn.ghost.small.d3-exit', { onclick: () => show(outside) }, uiIcon('back'), 'Exit')), hint);
     let down = null;
     if (watch && id === 'deck') { el.append(watch.el); el.classList.add('watching'); }
     el.addEventListener('pointerdown', (e) => { if (e.target.closest('button, input') || watch) return; down = { id: e.pointerId, x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, t: performance.now(), moved: false }; try { el.setPointerCapture(e.pointerId); } catch { /* not every pointer can be captured */ } });
@@ -611,7 +648,7 @@ export function createHangar(hooks) {
     const up = (e) => {
       if (!down || e.pointerId !== down.id) return; const tap = !down.moved && performance.now() - down.t < 450; down = null; hint.classList.add('off');
       if (!tap) return; const r = G.renderer.canvas.getBoundingClientRect(), res = G.renderer.room?.pick(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-      if (res?.exhibit) ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit }[id] || exhibit)(res.exhibit); else if (res?.walk) playSfx('tab', 0.4);
+      if (res?.exhibit) ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit, quarters: quartersExhibit }[id] || exhibit)(res.exhibit); else if (res?.walk) playSfx('tab', 0.4);
     };
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', () => { down = null; });
     return el;
@@ -651,6 +688,7 @@ export function createHangar(hooks) {
     if (kind === 'exit') { show(outside); return; }
     if (kind === 'deck') { show('deck'); return; }
     if (kind === 'comms') { show('comms'); return; }
+    if (kind === 'quarters') { show('quarters'); return; }
     playSfx('tab');
     if (kind === 'window') { hooks.say?.('The ring turns once every seven and a half minutes, {n}. Out there: our hub, and everything we have towed home.'); return; }
     const panel = (title, ...body) => hooks.panel?.({ kicker: 'Trophy Hall', title, body });
@@ -901,7 +939,8 @@ export function createHangar(hooks) {
         deck ? h('button.btn.primary', { onclick: () => { hooks.closeOverlays?.(); show('deck'); } }, control ? 'Command Deck' : 'Board the Command Deck') : h('button.btn.ghost', { onclick: () => { hooks.closeOverlays?.(); show('workshop'); } }, 'Workshop'),
         control ? h('button.btn.gold.sc-control', { onclick: () => { hooks.closeOverlays?.(); show('control'); } }, 'Defence Control') : null,
         hallOpen(st) ? h('button.btn.ghost.sc-hall', { onclick: () => { hooks.closeOverlays?.(); show('hall'); } }, 'Trophy Hall') : null,
-        commsOpen(st) ? h('button.btn.ghost.sc-comms', { onclick: () => { hooks.closeOverlays?.(); show('comms'); } }, 'Comms room') : null)] });
+        commsOpen(st) ? h('button.btn.ghost.sc-comms', { onclick: () => { hooks.closeOverlays?.(); show('comms'); } }, 'Comms room') : null,
+        quartersOpen(st) ? h('button.btn.ghost.sc-quarters', { onclick: () => { hooks.closeOverlays?.(); show('quarters'); } }, 'Quarters') : null)] });
   }
 
   // W/A/S/D or the arrows walk the room aboard that is open.
@@ -922,5 +961,5 @@ export function createHangar(hooks) {
   bus.on('contract', () => { if (G.mode === 'hangar') render(); });
   bus.on('medal', () => { if (G.mode === 'hangar' && tab === 'awards') { G.state.seen.medals = medalTotal().earned; render(); } });
   layoutNav();
-  return { el, top, nav: $.nav, show, render, update, siege: (n) => launchSiege(n), tap: (kind) => ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit }[G.room] || exhibit)(kind), get tab() { return tab; } };
+  return { el, top, nav: $.nav, show, render, update, siege: (n) => launchSiege(n), tap: (kind) => ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit, quarters: quartersExhibit }[G.room] || exhibit)(kind), get tab() { return tab; } };
 }

@@ -167,6 +167,17 @@ function runScene(scene, hooks, ui) {
     if (view) { let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 60) setTimeout(place, 100); return; } r.pos.set(view[0], 0, view[1]); r.yaw = view[2]; r.pitch = view[3]; }; place(); }
     if (arg === 'tap') setTimeout(() => ui.tap?.(arg2 || 'bounties'), 1500);
     return; }
+  // quarters[:view[:mood]]: the Pilot's quarters at Overhaul rank 5, with ten of the twelve keepsakes found and most of the
+  // photos up. view: bunk, shelf, desk, photos, window, or tap:<exhibit>. mood: warm, cool, night, neon.
+  if (name === 'quarters') { st.pilot.name = 'Adam'; st.pilot.rank = 12; st.seen.callsign = true; st.seen.quarters = true; st.prestige.level = 5; st.stationName = 'Halcyon';
+    for (const l of LINES) st.seen.comms[l.id] = 1; st.seen.commsInit = true; Object.assign(st.stats, { sorties: 40, deaths: 12, sectorBosses: 5, bestSector: 5, sectorsCleared: 4, bestWave: 48, siegeWins: 1 });
+    st.counter.unlocked = true; st.counter.stars[1] = 2; st.quarters = { restDay: '', rested: false, mood: ['warm', 'cool', 'night', 'neon'].includes(arg2) ? arg2 : 'warm' };
+    WORKSHOP.forEach((u, i) => { st.stationPeak[u.id] = u.max; st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.7 - (i % 5) * 0.12))); });
+    recalc(); hooks.toHangar('quarters');
+    const view = { bunk: [-0.4, -2.3, 0.15, -0.3], shelf: [0.9, -1.45, 1.5708, 0.02], desk: [-0.7, -1.9, -1.2, -0.05], photos: [0, -1.5, Math.PI, 0.04], window: [0, -2.6, 0, 0.12] }[arg];
+    if (view) { let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 60) setTimeout(place, 100); return; } r.pos.set(view[0], 0, view[1]); r.yaw = view[2]; r.pitch = view[3]; }; place(); }
+    if (arg === 'tap') setTimeout(() => ui.tap?.(arg2 || 'shelf'), 1500);
+    return; }
   // sgdamage[:tab]: a station left damaged by a lost siege (three systems out), seen from a tab or room (default Defence Control)
   if (name === 'sgdamage') { st.pilot.name = 'Adam'; st.seen.callsign = true; st.counter.unlocked = true; st.counter.stars[1] = 2; st.counter.stars[2] = 1; st.seen.control = true; st.seen.gunnerIntro = true; st.stationName = 'Halcyon';
     WORKSHOP.forEach((u, i) => { st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.6 - (i % 5) * 0.13))); }); st.siege.damage = { ids: ['w_shield', 'w_hull', 'w_dmg'], tier: 2, cost: 1400 }; st.seen.commsInit = true; for (const l of LINES) st.seen.comms[l.id] = 1; recalc(); hooks.toHangar(arg || 'control');

@@ -574,6 +574,18 @@ assert.throws(() => parseSave('{"run":{},"cur":{}}'), /Not a Last Orbit v2 save/
   // and a sortie's end reports what it finished
   G.state.bounties.list = [B.makeBounty(G.state, D.BOUNTY_BY_ID.waves)]; launch(); G.state.stats.wavesCleared = (G.state.stats.wavesCleared || 0) + 9999; const sum = endSortie('abandoned'); assert.ok(sum.bounties.length === 1, 'The debrief lists the bounties a sortie finished'); }
 
+// ---- v2.15: the Pilot's quarters ----
+{ const Q = await import('@last-orbit/progression/quarters.js'), D = await import('@last-orbit/data/quarters.js'); const { grantSalvage } = await import('@last-orbit/progression/run.js');
+  fresh(); assert.equal(D.quartersOpen(G.state), false); G.state.prestige.level = D.QUARTERS_RANK; assert.equal(D.quartersOpen(G.state), true, 'The quarters open with the Outer ring');
+  assert.equal(Q.rest(G.state, '2030-02-01'), 'rested', 'A night in the bunk'); assert.equal(Q.rest(G.state, '2030-02-01'), 'already', 'still rested until a sortie');
+  launch(); assert.equal(G.state.run.rested, true, 'The next sortie takes the rest with it'); assert.equal(G.state.quarters.rested, false);
+  const a = grantSalvage(100); G.state.run.rested = false; const b = grantSalvage(100); assert.ok(Math.abs(a / b - (1 + D.REST_BONUS)) < 1e-9, 'A rested pilot banks more salvage');
+  G.state.run.rested = true; const sum = endSortie('abandoned'); assert.equal(sum.rested, true, 'The debrief says so');
+  assert.equal(Q.rest(G.state, '2030-02-01'), 'tomorrow', 'Once a day'); assert.equal(Q.rest(G.state, '2030-02-02'), 'rested', 'and again the next');
+  fresh(); assert.equal(Q.keepsakesEarned(G.state).length, 0, 'A new pilot has found nothing yet'); G.state.stats.sorties = 1; G.state.stats.deaths = 1; assert.deepEqual(Q.keepsakesEarned(G.state).map((k) => k.id), ['k_chip', 'k_plate']);
+  for (const k of D.KEEPSAKES) assert.ok(k.name && k.how && k.log && typeof k.req(G.state) === 'boolean', `${k.id} is complete`);
+  const m0 = G.state.quarters.mood; const seen = new Set([m0]); for (let i = 0; i < D.MOODS.length; i++) seen.add(Q.nextMood(G.state).id); assert.equal(seen.size, D.MOODS.length, 'The switch goes round every mood'); }
+
 // ---- v2.11: save backup codes ----
 { const S = await import('@last-orbit/save/save.js'); fresh(); G.state.pilot.name = 'Adam ✦'; G.state.salvage = 12345; G.state.stats.bestWave = 74; G.state.prestige.level = 3;
   const code = S.exportSave(); assert.ok(code.startsWith(S.BACKUP_TAG), 'A backup code is tagged so it can be recognised');

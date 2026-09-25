@@ -8,6 +8,13 @@
   - **The hunting record:** a hologram between the doors turns through every main-game sector boss you've faced. Tap it for how each hunt has gone: which you've beaten and how many times, and which have beaten you (and so taught you their moves).
   - **The window** looks back at your station's hub, with the bosses you've towed home held in its tractor fields. The view turns slowly as the ring spins.
 - Boss kills are now counted boss by boss, for the hunting record.
+- **The Pilot's quarters (new room aboard):** your own cabin in the Outer ring. It opens with the ring, at Overhaul rank 5. Walk out to it from the Trophy Hall (a new door on its left wall), or from the station card.
+  - **Your bunk** sits under the window, with the Earth beyond and your callsign and rank over it. Rest in it once a day and you're well rested: your next sortie banks 10% more salvage, and the debrief says so.
+  - **Keepsakes:** twelve to find as you play, each lit and turning on its shelf in the cabinet. They run from your first salvage chip and a scorched hull plate off your first lost ship to a Singularity shard and a Void compass. The ones still to find stand as dark shapes; tap the cabinet to see how to get them.
+  - **The pilot's log** on the wall over your desk gets a new entry, in your own words, every time something goes on the shelf.
+  - **Photos** of the big moments are pinned up between the doors: first launch, first boss down, your best wave, the Counterattack, the first rebuild, the first siege held.
+  - **A switch by the door** sets the lights' mood: Warm, Cool, Night or Neon.
+  - **Bolt,** the station's little maintenance drone, has moved in and follows you round. Tap it and ORBIT will tell you about it.
 - **The Comms room and daily bounties (new room aboard):** the radio room at the top of the Comms spire. It opens with the spire, at Overhaul rank 3. Go up from the Trophy Hall (a new door on its right wall), or from the station card or Missions.
   - **Three bounties a day,** picked up over the radio from the miners and trawlers: one easy, one harder, one hard. Examples: "Down 450 invaders", "Hit bosses' weak points 10 times", "Reach wave 26 in one sortie", "Reach wave 16 flying the Striker", "Hold a Station Siege".
   - **Sized to how you fly:** each goal is based on your own average per sortie, and each pays salvage based on what one of your sorties earns. Harder bounties pay more.

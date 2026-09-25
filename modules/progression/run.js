@@ -23,6 +23,8 @@ import { STAGE_BY_N, STAR_HITS, STAR_KILLS, CORES_PER_STAR, clearBounty } from '
 import { unlockCounter } from '@last-orbit/progression/meta.js';
 import { patchStation } from '@last-orbit/progression/siege.js';
 import { checkBounties } from '@last-orbit/progression/bounties.js';
+import { takeRest } from '@last-orbit/progression/quarters.js';
+import { REST_BONUS } from '@last-orbit/data/quarters.js';
 
 // ---------------------------------------------------------------- sortie lifecycle
 export function startSortie(opts = {}) {
@@ -33,6 +35,7 @@ export function startSortie(opts = {}) {
   if (daily && daily.done) return null;
   st.run = newRun(ship, { ...opts, seed: daily ? daily.seed : opts.seed }); st.run.prevBest = st.stats.bestWave || 0; st.run.prevScore = st.stats.bestScore || 0; G.mode = 'sortie';
   const run = st.run;
+  if (takeRest(st)) run.rested = true; // a night in the bunk: this sortie banks more salvage
   run.threat = daily ? 0 : Math.max(0, Math.min(threatMax(), st.threat || 0));
   if (daily) { run.daily = daily.key; run.mutator = daily.mutator.id; st.daily.done = true; }
   // Warp start: begin at an unlocked sector with catch-up upgrades and relics for the sectors skipped.
@@ -97,6 +100,7 @@ export function endSortie(reason = 'destroyed') {
   if (run.intelGained) summary.intel = { id: run.intelGained, level: st.intel[run.intelGained] };
   summary.banners = (run.bannersDone || []).concat(Object.keys(st.banners).filter((id) => !bannersBefore[id]));
   summary.bounties = checkBounties(st, summary); // the daily bounties this sortie finished
+  summary.rested = !!run.rested;
   if (!run.mode) st.history.unshift({ score: summary.score, wave: summary.wave, level: summary.level, ship: summary.ship, salvage: banked, time: summary.time, date: summary.date }); st.history.length = Math.min(st.history.length, 12);
   recalc(); bus.emit('sortieEnded', summary);
   return summary;
@@ -155,7 +159,7 @@ export const xpProgress = (run) => run ? Math.min(1, run.xp / xpToNext(run.level
 
 export function grantSalvage(v) {
   const run = G.state.run; if (!run || !(v > 0)) return 0;
-  const got = v * G.sheet.n('salvageGain'); run.salvage += got; return got;
+  const got = v * G.sheet.n('salvageGain') * (run.rested ? 1 + REST_BONUS : 1); run.salvage += got; return got;
 }
 
 // ---------------------------------------------------------------- card offers
