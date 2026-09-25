@@ -32,6 +32,7 @@ import { h, clear, toggle, slider, select } from '@last-orbit/ui/dom.js';
 import { uiIcon } from '@last-orbit/ui/icons.js';
 import { art } from '@last-orbit/ui/art.js';
 import { dailyShareText, shareText } from '@last-orbit/ui/share.js';
+import { exportSave, importSave } from '@last-orbit/save/save.js';
 
 export function createOverlays(layer, hooks) {
   let open = null; // { kind, el, keys }
@@ -125,13 +126,14 @@ export function createOverlays(layer, hooks) {
   }
 
   // ------------------------------------------------------------ pause / settings
-  function settingsBody() {
+  function settingsBody(fromPause = false) {
     const s = G.state.settings, set = (k) => (v) => { s[k] = v; applyVolumes(); hooks.applySettings?.(); };
     const field = (label, control) => h('label.field', h('span', label), control);
     return h('div.settings',
       field('Story', h('button.btn.ghost.small.callsign-edit', { onclick: () => hooks.replayIntro?.() }, 'Watch intro', uiIcon('play'))),
       field('Station name', h('button.btn.ghost.small.callsign-edit', { onclick: () => showStationName({ fromSettings: true }) }, G.state.stationName || 'Name it', uiIcon('chevron'))),
       field('Callsign', h('button.btn.ghost.small.callsign-edit', { onclick: () => showCallsign({ fromSettings: true }) }, G.state.pilot.name || 'Add callsign', uiIcon('chevron'))),
+      fromPause ? null : field('Save backup', h('button.btn.ghost.small.callsign-edit' + (backedUp() ? '' : '.nudge'), { onclick: () => showBackup() }, backupAge(), uiIcon('chevron'))),
       field('Master volume', slider(() => s.master, set('master'), 0, 1, 0.05, 'Master volume')),
       field('Music', slider(() => s.music, set('music'), 0, 1, 0.05, 'Music volume')),
       field('Sound effects', slider(() => s.sfx, set('sfx'), 0, 1, 0.05, 'Sound effects volume')),
@@ -277,6 +279,55 @@ export function createOverlays(layer, hooks) {
   }
 
   // ------------------------------------------------------------ naming the station
+  // ------------------------------------------------------------ save backup: a code to keep somewhere safe, and restoring one
+  // Progress lives on this device only, and iOS can clear a home-screen app's storage when space runs low.
+  const DAY = 86400000, backedUp = () => (G.state.meta.lastBackup || 0) > 0;
+  function backupAge() {
+    const t = G.state.meta.lastBackup || 0; if (!t) return 'Back up now'; const days = Math.floor((Date.now() - t) / DAY);
+    return days < 1 ? 'Backed up today' : days < 2 ? 'Backed up yesterday' : `Backed up ${days} days ago`;
+  }
+  /** Who a save belongs to and how far along it is, to recognise it by. */
+  function saveCard(s) {
+    const p = s.pilot || {}, st = s.stats || {}, row = (k, v) => h('div.db-row', h('small', k), h('b', String(v)));
+    const when = s.meta?.lastSave ? new Date(s.meta.lastSave).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—';
+    return h('div.deck-board.bk-card', row('Pilot', `${p.name || rankTitle(p.rank || 1)} · Rank ${p.rank || 1}`), row('Overhaul rank', s.prestige?.level || 0), row('Best wave', st.bestWave || '—'), row('Salvage', fmtInt(s.salvage || 0)), row('Sorties', fmtInt(st.sorties || 0)), row('Saved', when));
+  }
+  function showBackup() {
+    const code = exportSave(), note = h('p.bk-note'), err = h('p.bk-err');
+    const kept = (how) => { G.state.meta.lastBackup = Date.now(); hooks.saveNow?.('backup'); note.textContent = how; playSfx('unlock', 0.6); };
+    // copy to the clipboard; where that is refused, select the code in a box so it can be copied by hand
+    const box = h('textarea.bk-code', { readOnly: true, rows: 3, 'aria-label': 'Backup code' }); box.value = code; box.hidden = true;
+    async function copy() {
+      try { await navigator.clipboard.writeText(code); kept('Backup code copied. Paste it into Notes or an email to yourself.'); }
+      catch { box.hidden = false; box.focus(); box.select(); note.textContent = 'Copy this code and keep it somewhere safe.'; }
+    }
+    async function share() {
+      try { await navigator.share({ title: 'Last Orbit backup', text: code }); kept('Backup shared. Keep it somewhere safe.'); }
+      catch (e) { if (e?.name !== 'AbortError') copy(); }
+    }
+    const input = h('textarea.bk-input', { rows: 3, placeholder: 'Paste a backup code', spellcheck: false, autocapitalize: 'off', autocomplete: 'off', 'aria-label': 'Backup code to restore' });
+    const go = h('button.btn.ghost.wide', { disabled: true, onclick: () => {
+      let s; try { s = importSave(input.value); } catch (e) { err.textContent = e?.code === 'NEWER_SAVE' ? 'That backup comes from a newer version of Last Orbit. Update the game first.' : 'That doesn\'t look like a Last Orbit backup code. Check you copied all of it.'; playSfx('deny'); return; }
+      confirmRestore(s);
+    } }, 'Restore from code');
+    input.addEventListener('input', () => { go.disabled = !input.value.trim(); err.textContent = ''; });
+    const el = h('div.modal.backup', { role: 'dialog', 'aria-label': 'Save backup' },
+      h('div.modal-head', h('div.kicker', 'Settings'), h('h2', 'Save backup'), h('p', 'Your progress is kept on this device only, and iOS can clear a home-screen app\'s storage when the phone runs low on space. Keep a backup code somewhere safe, like Notes or an email to yourself.')),
+      saveCard(G.state),
+      h('div.bk-actions', navigator.share ? h('button.btn.gold', { onclick: share }, uiIcon('share'), 'Share backup') : null, h('button.btn' + (navigator.share ? '.ghost' : '.gold'), { onclick: copy }, 'Copy code')),
+      note, box,
+      h('h3.bk-h', 'Restore'), h('p.sub-note', 'Paste a backup code to bring that progress onto this device.'), input, err, go,
+      h('div.modal-actions', h('button.btn.primary', { onclick: () => showSettings(false), 'data-autofocus': '' }, 'Done')));
+    mount('backup', el, (e) => { if (e.key === 'Escape') { showSettings(false); return true; } return false; });
+  }
+  function confirmRestore(s) {
+    const el = h('div.modal.confirm', { role: 'alertdialog', 'aria-label': 'Restore this save?' },
+      h('div.modal-head', h('div.kicker', 'Save backup'), h('h2', 'Restore this save?'), h('p', 'It replaces all the progress on this device, and it cannot be undone. Back up this device first if you might want its progress back.')),
+      saveCard(s),
+      h('div.modal-actions', h('button.btn.ghost', { onclick: () => showBackup(), 'data-autofocus': '' }, 'Cancel'), h('button.btn.danger', { onclick: () => { close(); hooks.restoreSave?.(s); } }, 'Restore')));
+    mount('confirm', el, (e) => { if (e.key === 'Escape') { showBackup(); return true; } return false; });
+  }
+
   function showStationName({ fromSettings = false } = {}) {
     const cur = G.state.stationName || '';
     const input = h('input.callsign-input', { type: 'text', value: cur, maxLength: STATION_NAME_MAX, placeholder: 'e.g. Halcyon', autocomplete: 'off', autocapitalize: 'words', spellcheck: false, enterKeyHint: 'done', 'aria-label': 'Station name', 'data-autofocus': '' });
@@ -322,7 +373,7 @@ export function createOverlays(layer, hooks) {
   }
   function showSettings(fromPause) {
     const el = h('div.modal.settings-modal', { role: 'dialog', 'aria-label': 'Settings' },
-      h('div.modal-head', h('h2', 'Settings')), settingsBody(),
+      h('div.modal-head', h('h2', 'Settings')), settingsBody(fromPause),
       h('div.modal-actions', h('button.btn.primary', { onclick: () => (fromPause ? showPause() : close()), 'data-autofocus': '' }, 'Done'),
         fromPause ? null : h('button.btn.danger.small', { onclick: () => confirmReset() }, 'Erase save')),
       h('div.display-info', displayInfo()));

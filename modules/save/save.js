@@ -34,7 +34,8 @@ const MIGRATIONS = {
   22: (s) => s,
 };
 export function parseSave(text) {
-  let raw = text.trim(); if (!raw.startsWith('{')) raw = decodeURIComponent(escape(atob(raw)));
+  // a backup code (tagged, base64; spaces and line breaks from pasting are ignored), or the raw JSON
+  let raw = String(text || '').trim(); if (!raw.startsWith('{')) raw = decodeURIComponent(escape(atob(raw.replace(/^LASTORBIT\d*:/i, '').replace(/\s+/g, ''))));
   let s = JSON.parse(raw); if (!s || typeof s !== 'object' || !s.unlocked || !s.stats) throw new Error('Not a Last Orbit v2 save');
   const version = Number(s.v || SCHEMA);
   if (version > SCHEMA) { const e = new Error(`This save was created by a newer version of Last Orbit (schema ${version}; this build supports ${SCHEMA}).`); e.code = 'NEWER_SAVE'; throw e; }
@@ -60,7 +61,9 @@ export async function load() {
 export async function legacyBestWave() {
   try { const t = await get('main'); if (!t) return 0; const s = JSON.parse(t); return Math.max(0, Number(s?.stats?.bestWave) || 0); } catch { return 0; }
 }
-export function exportSave() { return btoa(unescape(encodeURIComponent(serialize()))); }
+/** The save as a backup code to keep somewhere safe (restore it with importSave). */
+export const BACKUP_TAG = 'LASTORBIT1:';
+export function exportSave() { return BACKUP_TAG + btoa(unescape(encodeURIComponent(serialize()))); }
 export function importSave(text) { const s = parseSave(text); s.meta.sandbox = G.state.meta.sandbox; return s; }
 export async function hardReset() { await del(slot()); if (slot() === MAIN) await del(BACKUP); }
 /** Enter the debug sandbox: clone the live state into a separate slot. The real save is left exactly as it was. */

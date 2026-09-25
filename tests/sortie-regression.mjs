@@ -524,4 +524,16 @@ assert.throws(() => parseSave('{"run":{},"cur":{}}'), /Not a Last Orbit v2 save/
   for (const u of WORKSHOP) G.state.workshop[u.id] = u.max; for (const a of ['x_alloy', 'x_phase', 'x_charts', 'x_siphon']) G.state.counter.tech[a] = 1;
   assert.equal(S.siegeSystems(G.state).count, S.SIEGE_SYSTEMS.length); assert.ok(S.siegeAdvice(G.state, 1).includes('maxed'), 'and says so when every system is maxed'); }
 
+// ---- v2.11: save backup codes ----
+{ const S = await import('@last-orbit/save/save.js'); fresh(); G.state.pilot.name = 'Adam ✦'; G.state.salvage = 12345; G.state.stats.bestWave = 74; G.state.prestige.level = 3;
+  const code = S.exportSave(); assert.ok(code.startsWith(S.BACKUP_TAG), 'A backup code is tagged so it can be recognised');
+  const back = S.importSave(code); assert.equal(back.pilot.name, 'Adam ✦'); assert.equal(back.salvage, 12345); assert.equal(back.stats.bestWave, 74); assert.equal(back.prestige.level, 3);
+  // what pasting does to a long code: wrapped lines, spaces, a trailing newline
+  const messy = '  ' + code.replace(/(.{60})/g, '$1\n ') + '\n'; assert.equal(S.importSave(messy).salvage, 12345, 'Line breaks and spaces from pasting are ignored');
+  assert.equal(S.importSave(code.slice(S.BACKUP_TAG.length)).salvage, 12345, 'A code without its tag still restores');
+  assert.equal(S.importSave(JSON.stringify(G.state)).salvage, 12345, 'Raw JSON still restores');
+  for (const bad of ['', 'hello', code.slice(0, code.length / 2), S.BACKUP_TAG + btoa('{"x":1}')]) assert.throws(() => S.importSave(bad), `A bad code is refused: ${bad.slice(0, 20)}`);
+  const newer = JSON.parse(JSON.stringify(G.state)); newer.v = 999; assert.throws(() => S.importSave(S.BACKUP_TAG + btoa(unescape(encodeURIComponent(JSON.stringify(newer))))), (e) => e.code === 'NEWER_SAVE', 'A code from a newer build says so');
+  assert.equal(newState().meta.lastBackup, 0, 'A new save has never been backed up'); }
+
 console.log('Sortie, cards, relics, contracts, workshop, ships, pickups, revive and save checks pass.');

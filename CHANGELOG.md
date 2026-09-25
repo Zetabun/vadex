@@ -15,6 +15,7 @@
 - **New doors aboard:** every door in the station's rooms is now a proper bulkhead: a chamfered frame with a glowing trim in the room's colour, two leaves with frosted windows and hazard-striped kick plates, a lit sign above and a status panel beside it. Walk up to one and it slides open onto a lit corridor. A sealed door glows red, is taped across and shows a padlock.
 - **ORBIT in the rooms** now speaks from the bottom of the screen, so its messages never cover the room's title or the Exit button.
 - **Missions:** siege tiers and Counterattack stages you haven't flown say "not yet flown" instead of "best 0".
+- **Save backup (Settings):** your progress lives only on this device, and iOS can clear a home-screen app's storage when the phone runs low on space. Settings now has Save backup: share or copy a backup code to keep in Notes or an email, and paste one back in to restore. Before anything is replaced it shows whose save the code holds (pilot, rank, best wave, salvage, when it was saved) and asks you to confirm. Settings shows when you last backed up, and highlights the button if you never have.
 - **Opening cinematic:** when the core blows, the station's hub now tears in two. The halves drift apart with glowing, jagged rims, sparks and smoke venting from the break. The habitat rings snap into tumbling arcs instead of flying off whole. The closing shot now fits your ship to your screen: on phones it was too big, clipped at the edge and sitting under the captions.
 
 ## v2.10.1 — 2026-09-25

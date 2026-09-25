@@ -40,6 +40,9 @@ const hooks = {
   pendingRelic: () => nextRelic(),
   pendingRoute: () => nextRoute(),
   pendingAnomaly: () => nextAnomaly(),
+  // a save restored from a backup code replaces this device's progress, and is saved at once
+  restoreSave: async (s) => { adopt(s); ui.setMode('hangar'); await save('restore'); toast('Progress restored from your backup.', 'good'); },
+  saveNow: (why = 'manual') => save(why),
   hardReset: async () => { await hardReset(); const s = newState(); s.meta.sandbox = G.state.meta.sandbox; s.meta.legacyChecked = G.state.meta.legacyChecked; adopt(s); ui.setMode('hangar'); await save('reset'); toast('Save erased. Good luck, pilot.', 'warn'); setTimeout(() => ui.callsign({ first: true }), 600); },
 };
 

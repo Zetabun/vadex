@@ -8,7 +8,7 @@ import { SHIPS } from '@last-orbit/data/ships.js';
 import { grantXp, nextOffer, nextRelic, pickCard, pickRelic, autoPickIndex } from '@last-orbit/progression/run.js';
 import { debugSetWave } from '@last-orbit/combat/sim.js';
 import { killEnemy } from '@last-orbit/combat/world.js';
-import { enterSandbox } from '@last-orbit/save/save.js';
+import { enterSandbox, exportSave } from '@last-orbit/save/save.js';
 import { h } from '@last-orbit/ui/dom.js';
 import { BANNERS, BANNER_BY_ID } from '@last-orbit/data/banners.js';
 import { WORKSHOP } from '@last-orbit/data/workshop.js';
@@ -74,6 +74,9 @@ function runScene(scene, hooks, ui) {
     if (V) { let k = 0; const iv = setInterval(() => { const d = G.renderer?.room; if (d) { d.pos.x = V[0]; d.pos.z = V[1]; d.yaw = V[2]; d.pitch = V[3]; } if (++k > 20) clearInterval(iv); }, 100); }
     return; }
   if (name === 'station') { st.prestige.level = +arg || 0; const f = arg2 == null ? 0.5 : +arg2; WORKSHOP.forEach((u, i) => { st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, f * 1.6 - (i % 5) * 0.15))); }); if (arg4) { const n = Math.min(6, +arg4 || 0); st.counter.unlocked = true; ALIEN_TECH.forEach((a, i) => { if (i < n) st.counter.tech[a.id] = 1; }); for (let k = 1; k <= n; k++) st.counter.stars[k] = 1; } recalc(); hooks.toHangar(arg3 === 'card' ? 'launch' : arg3 || 'launch'); if (arg3 === 'card') setTimeout(() => document.querySelector('.st-callout')?.click(), 900); return; }
+  // backup[:restore]: Settings, then the save backup screen (restore: with a code pasted and the confirm open)
+  if (name === 'backup') { st.pilot.name = 'Adam'; st.seen.callsign = true; hooks.toHangar('launch'); setTimeout(() => { document.querySelector('.hg-top .icon-btn')?.click(); setTimeout(() => { [...document.querySelectorAll('.settings .field')].find((f) => f.textContent.includes('Save backup'))?.querySelector('button')?.click();
+    if (arg === 'restore') setTimeout(() => { const i = document.querySelector('.bk-input'); i.value = exportSave(); i.dispatchEvent(new Event('input')); document.querySelector('.modal.backup .btn.ghost.wide')?.click(); }, 300); }, 300); }, 500); return; }
   if (name === 'callsign') { st.pilot.name = arg || ''; st.seen.callsign = !!arg; hooks.toHangar('launch'); setTimeout(() => (arg2 === 'greet' ? ui.greet() : ui.callsign({ first: !arg })), 400); return; }
   if (name === 'newpilot') { st.stats.sorties = +arg || 0; st.seen.menus = {}; st.seen.menusInit = true; refreshMenus(); hooks.toHangar('launch'); if (arg2) setTimeout(() => [...document.querySelectorAll('.nav-btn')].find((b) => b.textContent.toLowerCase().includes(arg2))?.click(), 500); return; }
   if (name === 'hull' || name === 'hullfly') { st.unlocked.ships[arg] = 1; st.ship = arg; st.banner = 'none'; recalc(); if (name === 'hull') { hooks.toHangar('launch'); return; } }
