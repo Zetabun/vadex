@@ -443,7 +443,7 @@ export function createHangar(hooks) {
     const el = h('div.deck3d', { 'aria-label': 'Command Deck. Drag to look around, tap the floor to walk, tap an exhibit to inspect it.' },
       h('div.d3-top', h('div.d3-title', h('small', 'Command Deck'), h('b', p.name || rankTitle(p.rank))), h('button.btn.ghost.small.d3-exit', { onclick: () => show('launch') }, uiIcon('back'), 'Exit')), hint);
     let down = null;
-    el.addEventListener('pointerdown', (e) => { if (e.target.closest('button')) return; down = { id: e.pointerId, x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, t: performance.now(), moved: false }; el.setPointerCapture?.(e.pointerId); });
+    el.addEventListener('pointerdown', (e) => { if (e.target.closest('button')) return; down = { id: e.pointerId, x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, t: performance.now(), moved: false }; try { el.setPointerCapture(e.pointerId); } catch { /* not every pointer can be captured */ } });
     el.addEventListener('pointermove', (e) => {
       if (!down || e.pointerId !== down.id) return;
       if (!down.moved && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8) down.moved = true;

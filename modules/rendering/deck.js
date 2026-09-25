@@ -41,9 +41,9 @@ export class DeckRoom {
   // ---------------------------------------------------------------- the room
   shell() {
     const THREE = T(), S = this.scene;
-    S.add(new THREE.HemisphereLight(0xcfe0ff, 0x1a1830, 0.55)); S.add(new THREE.AmbientLight(0x405070, 0.35));
+    this.hemi = new THREE.HemisphereLight(0xcfe0ff, 0x1a1830, 0.55); S.add(this.hemi); S.add(new THREE.AmbientLight(0x405070, 0.35)); this.lamps = [];
     const sun = new THREE.DirectionalLight(0xfff2dd, 0.7); sun.position.set(-3, 4, -10); S.add(sun);
-    for (const z of [-5.8, -2.4, 1]) { const l = new THREE.PointLight(0xffe6c4, 0.55, 9, 1.6); l.position.set(0, H - 0.3, z); S.add(l); }
+    for (const z of [-5.8, -2.4, 1]) { const l = new THREE.PointLight(0xffe6c4, 0.55, 9, 1.6); l.position.set(0, H - 0.3, z); S.add(l); this.lamps.push(l); }
     const floorC = canvas(256, 256), f = floorC.getContext('2d');
     f.fillStyle = '#1b2233'; f.fillRect(0, 0, 256, 256);
     for (let i = 0; i < 200; i++) { f.fillStyle = `rgba(${Math.random() < 0.5 ? '255,255,255' : '0,0,0'},${Math.random() * 0.05})`; f.fillRect(Math.random() * 256, Math.random() * 256, 20, 20); }
@@ -70,20 +70,43 @@ export class DeckRoom {
     for (const s of [-1, 1]) box(0.05, 0.04, BACK - FRONT, s * (W - 0.03), 0.06, (FRONT + BACK) / 2, strip);
     box(8.6, 0.04, 0.05, 0, 0.47, FRONT + 0.17, strip); box(8.6, 0.04, 0.05, 0, 3.03, FRONT + 0.17, strip);
     // ceiling light panels
-    const lightMat = new THREE.MeshBasicMaterial({ color: 0xfff1d8 });
+    const lightMat = (this.lightMat = new THREE.MeshBasicMaterial({ color: 0xfff1d8 }));
     for (const z of [-5.8, -2.4, 1]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.5), lightMat); p.rotation.x = Math.PI / 2; p.position.set(0, H - 0.01, z); S.add(p); }
     // the holo-table
     const tbl = new THREE.Group(); tbl.position.set(TABLE.x, 0, TABLE.z); S.add(tbl);
     const base = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.8, 0.85, 24), Ph({ color: 0x2c3650, specular: 0x4a5a78, shininess: 40 })); base.position.y = 0.42; tbl.add(base);
-    const top = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.05, 0.08, 36), Ph({ color: 0x1b2438, emissive: 0x0a3a50, specular: 0x7fd8ff, shininess: 90 })); top.position.y = 0.88; tbl.add(top);
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.35, 1.2, 32, 1, true), new THREE.MeshBasicMaterial({ color: 0x5ee6ff, transparent: true, opacity: 0.08, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); beam.position.y = 1.5; tbl.add(beam);
+    const top = new THREE.Mesh(new THREE.CylinderGeometry(1.05, 1.05, 0.08, 36), Ph({ color: 0x141b2c, specular: 0x7fd8ff, shininess: 90 })); top.position.y = 0.88; tbl.add(top);
+    const gridC = canvas(256, 256), gc = gridC.getContext('2d'); gc.strokeStyle = 'rgba(94,230,255,.45)'; gc.lineWidth = 1.5;
+    for (let i = 16; i < 256; i += 24) { gc.beginPath(); gc.moveTo(i, 0); gc.lineTo(i, 256); gc.stroke(); gc.beginPath(); gc.moveTo(0, i); gc.lineTo(256, i); gc.stroke(); }
+    for (const r of [40, 80, 118]) { gc.beginPath(); gc.arc(128, 128, r, 0, Math.PI * 2); gc.lineWidth = 2.5; gc.strokeStyle = 'rgba(94,230,255,.6)'; gc.stroke(); }
+    this.holoGrid = new THREE.Mesh(new THREE.CircleGeometry(1, 48), new THREE.MeshBasicMaterial({ map: tex(gridC), transparent: true, opacity: 0.7, blending: THREE.AdditiveBlending, depthWrite: false })); this.holoGrid.rotation.x = -Math.PI / 2; this.holoGrid.position.y = 0.925; tbl.add(this.holoGrid);
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.95, 0.35, 1.2, 32, 1, true), new THREE.MeshBasicMaterial({ color: 0x5ee6ff, transparent: true, opacity: 0.055, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); beam.position.y = 1.5; tbl.add(beam);
     const rim = new THREE.Mesh(new THREE.TorusGeometry(1.05, 0.025, 8, 48), strip); rim.rotation.x = Math.PI / 2; rim.position.y = 0.93; tbl.add(rim);
     this.tag(tbl, 'station');
     // the way out, on the back wall
-    const door = box(1.3, 2.3, 0.1, 3.4, 1.15, BACK - 0.05, Ph({ color: 0x39445e, specular: 0x55667f, shininess: 30 }));
-    const exitC = canvas(128, 40); text(exitC.getContext('2d'), 'HANGAR', 64, 20, '800 22px sans-serif', '#7fe8ff');
-    const exit = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 0.28), new THREE.MeshBasicMaterial({ map: tex(exitC), transparent: true })); exit.position.set(3.4, 2.5, BACK - 0.11); exit.rotation.y = Math.PI; S.add(exit);
-    this.tag(door, 'exit'); this.tag(exit, 'exit');
+    const doorG = new THREE.Group(); doorG.position.set(3.4, 0, BACK); S.add(doorG);
+    const dpart = (w, h, d, x, y, z, m) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); doorG.add(b); return b; };
+    const panelMat = Ph({ color: 0x3d4964, specular: 0x6a7c9e, shininess: 45 }), trimMat = Ph({ color: 0x232b3e, shininess: 20 });
+    for (const s of [-1, 1]) { dpart(0.64, 2.3, 0.08, s * 0.33, 1.15, -0.05, panelMat); dpart(0.08, 1.5, 0.02, s * 0.2, 1.2, -0.1, trimMat); }
+    dpart(1.6, 0.16, 0.2, 0, 2.38, -0.08, frame); for (const s of [-1, 1]) dpart(0.16, 2.46, 0.2, s * 0.74, 1.23, -0.08, frame);
+    dpart(0.02, 2.3, 0.03, 0, 1.15, -0.1, strip); this.doorLight = dpart(0.12, 0.12, 0.03, 0.55, 1.25, -0.2, new THREE.MeshBasicMaterial({ color: 0x6dffc8 }));
+    const exitC = canvas(256, 64), ec = exitC.getContext('2d'); ec.fillStyle = '#081222'; ec.fillRect(0, 0, 256, 64); ec.strokeStyle = '#5ee6ff'; ec.lineWidth = 3; ec.strokeRect(2, 2, 252, 60); text(ec, 'HANGAR  ›', 128, 33, '800 30px sans-serif', '#9ff0ff');
+    const exit = new THREE.Mesh(new THREE.PlaneGeometry(1, 0.25), new THREE.MeshBasicMaterial({ map: tex(exitC) })); exit.position.set(0, 2.66, -0.12); exit.rotation.y = Math.PI; doorG.add(exit);
+    this.hitBox(doorG, 1.6, 2.8, 0.4, 0, 1.4, -0.2); this.tag(doorG, 'exit');
+    // structure: ribs down the side walls, beams across the ceiling, and a cove light along the top of the walls
+    const rib = Ph({ color: 0x323c55, specular: 0x4a5a78, shininess: 30 }), cove = new THREE.MeshBasicMaterial({ color: 0x5ee6ff, transparent: true, opacity: 0.7 });
+    for (const z of [-6.9, -0.9, 1.9]) { for (const s of [-1, 1]) box(0.14, H, 0.22, s * (W - 0.07), H / 2, z, rib); box(2 * W, 0.16, 0.22, 0, H - 0.08, z, rib); }
+    for (const s of [-1, 1]) box(0.03, 0.03, BACK - FRONT, s * (W - 0.05), H - 0.2, (FRONT + BACK) / 2, cove); box(2 * W, 0.03, 0.03, 0, H - 0.2, BACK - 0.05, cove);
+    // a lounge in the back-left corner: a couch, a plant, and a wall screen with the station roadmap
+    const lounge = new THREE.Group(); lounge.position.set(-W, 0, 2.2); S.add(lounge);
+    const cushion = Ph({ color: 0x2c4a7a, specular: 0x222222, shininess: 8 }), leg = Ph({ color: 0x1a2030 });
+    const lp = (w, h, d, x, y, z, m) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); lounge.add(b); return b; };
+    lp(0.8, 0.28, 2.2, 0.55, 0.3, 0, cushion); lp(0.22, 0.62, 2.2, 0.22, 0.6, 0, cushion); for (const s of [-1, 1]) lp(0.8, 0.5, 0.18, 0.55, 0.4, s * 1.09, cushion); lp(0.7, 0.14, 2.1, 0.55, 0.09, 0, leg);
+    const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.15, 0.4, 16), Ph({ color: 0xd9dee8, shininess: 40 })); pot.position.set(0.35, 0.2, 1.55); lounge.add(pot);
+    const leafMat = Ph({ color: 0x3f9a56, specular: 0x224422, shininess: 10, side: THREE.DoubleSide });
+    for (let i = 0; i < 9; i++) { const lf = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.7, 5), leafMat), a = (i / 9) * Math.PI * 2; lf.position.set(0.35 + Math.cos(a) * 0.1, 0.72, 1.55 + Math.sin(a) * 0.1); lf.rotation.set(Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5); lounge.add(lf); }
+    this.roadmapScreen = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 1.05), new THREE.MeshBasicMaterial({ color: 0xffffff })); this.roadmapScreen.position.set(0.04, 1.85, 0); this.roadmapScreen.rotation.y = Math.PI / 2; lounge.add(this.roadmapScreen);
+    lp(0.03, 1.13, 1.98, 0.02, 1.85, 0, frame); this.tag(this.roadmapScreen, 'station');
     // where a tap on the floor is taking you
     this.marker = new THREE.Mesh(new THREE.RingGeometry(0.18, 0.24, 32), new THREE.MeshBasicMaterial({ color: 0x5ee6ff, transparent: true, opacity: 0 })); this.marker.rotation.x = -Math.PI / 2; this.marker.position.y = 0.02; S.add(this.marker);
   }
@@ -117,7 +140,7 @@ export class DeckRoom {
     this.station.sync(state);
     if (sig === this.sig) return; this.sig = sig;
     if (this.show) { this.scene.remove(this.show); this.untag(this.show); } const THREE = T(); this.show = new THREE.Group(); this.scene.add(this.show);
-    this.medalWall(state); this.shipBay(state); this.bannerHall(state, banners); this.recordsScreen(state); this.trophyShelf(rank); this.nameSign(state, rank);
+    this.medalWall(state); this.shipBay(state); this.bannerHall(state, banners); this.recordsScreen(state); this.trophyShelf(rank); this.nameSign(state, rank); this.roadmap(rank);
   }
   medalWall(state) {
     const THREE = T(), g = new THREE.Group(); g.position.set(-W + 0.06, 0, 0); g.rotation.y = Math.PI / 2; this.show.add(g); // on the left wall, facing into the room
@@ -142,12 +165,13 @@ export class DeckRoom {
       const ring = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.02, 8, 36), new THREE.MeshBasicMaterial({ color: owned ? ship.trim : 0x3a4560 })); ring.rotation.x = Math.PI / 2; ring.position.y = 0.81; g.add(ring);
       const parts = playerParts(ship.id), model = new THREE.Group(), active = ship.id === state.ship && paint && paint.id !== 'factory';
       const trim = active ? paint.trim ?? ship.trim : ship.trim;
-      const M = owned ? { hull: Ph({ color: active ? paint.hull ?? 0x718996 : 0x718996, shininess: 30 }), deck: Ph({ color: 0xe2eced, shininess: 40 }), dark: Ph({ color: 0x152735 }), glass: Ph({ color: 0x125875, emissive: 0x073345, shininess: 110, specular: 0xb8f5ff }),
+      const M = owned ? { hull: Ph({ color: active ? paint.hull ?? 0x718996 : 0x718996, emissive: 0x0c1420, shininess: 30 }), deck: Ph({ color: 0xe2eced, emissive: 0x141a22, shininess: 40 }), dark: Ph({ color: 0x152735 }), glass: Ph({ color: 0x125875, emissive: 0x073345, shininess: 110, specular: 0xb8f5ff }),
         trim: Ph({ color: trim, emissive: new THREE.Color(trim).multiplyScalar(0.4) }), gun: Ph({ color: 0x667782 }), gold: Ph({ color: 0xffb94e, emissive: 0x583000 }) } : null;
       const use = { hull: 'hull', deck: 'deck', cockpit: 'glass', chassis: 'dark', markings: 'gold', lights: 'trim', wings: 'deck', pods: 'gun', pods2: 'gun', armour: 'deck', fins: 'hull', crown: 'gold', engine: 'trim' };
       const ghost = new THREE.LineBasicMaterial({ color: 0x5ee6ff, transparent: true, opacity: 0.35 });
-      for (const k of ['hull', 'deck', 'cockpit', 'chassis', 'markings', 'lights', 'engine']) { if (!parts[k]) continue; model.add(owned ? new THREE.Mesh(parts[k], M[use[k]]) : new THREE.LineSegments(new THREE.EdgesGeometry(parts[k], 30), ghost)); }
-      model.rotation.x = -Math.PI / 2; const pivot = new THREE.Group(); pivot.add(model); pivot.scale.setScalar(0.3); pivot.position.y = 1.35; pivot.userData.spin = i * 1.3; g.add(pivot); (this.spins ||= []).push(pivot);
+      for (const k of ['hull', 'deck', 'cockpit', 'chassis', 'markings', 'lights', 'engine', 'wings', 'fins', 'pods']) { if (!parts[k]) continue; model.add(owned ? new THREE.Mesh(parts[k], M[use[k]]) : new THREE.LineSegments(new THREE.EdgesGeometry(parts[k], 30), ghost)); }
+      model.rotation.x = -Math.PI / 2 + 0.28; const pivot = new THREE.Group(); pivot.add(model); pivot.scale.setScalar(0.34); pivot.position.y = 1.4;
+      const beamUp = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.4, 0.9, 24, 1, true), new THREE.MeshBasicMaterial({ color: owned ? ship.trim : 0x5ee6ff, transparent: true, opacity: owned ? 0.07 : 0.04, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); beamUp.position.y = 1.26; g.add(beamUp); pivot.userData.spin = i * 1.3; g.add(pivot); (this.spins ||= []).push(pivot);
       const lbl = this.label(owned ? ship.name.toUpperCase() : '?', 0.9, 0.2, owned ? '#e8f1ff' : '#5a6580'); lbl.position.set(-0.5, 0.5, 0); lbl.rotation.y = -Math.PI / 2; g.add(lbl); this.hitBox(g, 1.1, 1.9, 1.3, 0, 0.95, 0);
       this.tag(g, 'ships');
     });
@@ -160,8 +184,8 @@ export class DeckRoom {
     const span = list.length * 0.9 + 0.4, rod = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, span, 8), new THREE.MeshPhongMaterial({ color: 0x8a96b0 })); rod.rotation.x = Math.PI / 2; rod.position.set(W - 0.35, H - 0.25, -3.1); g.add(rod);
     list.forEach((b, i) => {
       const c = canvas(64, 192); paintBanner(c.getContext('2d'), b, 64, 192, b.live ? state.stats[b.live] || 0 : 0);
-      const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.42, 1.26), new THREE.MeshLambertMaterial({ map: tex(c), transparent: true, side: THREE.DoubleSide, emissive: 0x222222 }));
-      flag.geometry.translate(0, -0.63, 0); flag.position.set(W - 0.38, H - 0.27, -3.1 + (i - (list.length - 1) / 2) * 0.9); flag.userData.ry = -Math.PI / 2; g.add(flag); this.flags.push(flag);
+      const flag = new THREE.Mesh(new THREE.PlaneGeometry(0.34, 1.02), new THREE.MeshLambertMaterial({ map: tex(c), transparent: true, side: THREE.DoubleSide, emissive: 0x222222 }));
+      flag.geometry.translate(0, -0.51, 0); flag.position.set(W - 0.38, H - 0.27, -3.1 + (i - (list.length - 1) / 2) * 0.9); flag.userData.ry = -Math.PI / 2; g.add(flag); this.flags.push(flag);
     });
     this.tag(g, 'banners');
   }
@@ -172,21 +196,34 @@ export class DeckRoom {
     const deep = Math.max(0, (s.bestWave || 0) - 60), cs = Object.values(state.counter.stars || {}).reduce((a, b) => a + b, 0);
     const rows = [['Furthest wave', s.bestWave || '—'], ['High score', s.bestScore ? Math.round(s.bestScore).toLocaleString() : '—'], ['Deep Void', deep ? `+${deep} waves` : '—'], ['Counterattack', cs + ' ★'], ['Sorties', s.sorties || 0], ['Invaders', (s.kills || 0).toLocaleString()]];
     rows.forEach(([k, v], i) => { const y = 78 + Math.floor(i / 2) * 64, col = i % 2 ? 272 : 26; text(x, k.toUpperCase(), col, y, '700 15px sans-serif', '#7f8bb0', 'left'); text(x, String(v), col, y + 26, '800 26px sans-serif', '#e8fbff', 'left'); });
-    const scr = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.75), new THREE.MeshBasicMaterial({ map: tex(c) })); scr.position.set(-1.2, 1.75, BACK - 0.04); scr.rotation.y = Math.PI; this.show.add(scr);
+    const scr = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.75), new THREE.MeshBasicMaterial({ map: tex(c) })); scr.position.set(-1.2, 1.75, BACK - 0.06); scr.rotation.y = Math.PI; this.show.add(scr);
+    const bezel = new THREE.Mesh(new THREE.BoxGeometry(3.36, 1.91, 0.06), new THREE.MeshPhongMaterial({ color: 0x1a2030, shininess: 40 })); bezel.position.set(-1.2, 1.75, BACK - 0.03); this.show.add(bezel);
     this.tag(scr, 'records');
   }
   trophyShelf(rank) {
     const THREE = T(), g = new THREE.Group(); g.position.set(0, 0, FRONT + 0.55); this.show.add(g);
     const shelf = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.08, 0.5), new THREE.MeshPhongMaterial({ color: 0x3a4560, shininess: 50 })); shelf.position.y = 0.72; g.add(shelf); this.hitBox(g, 6.6, 0.7, 0.6, 0, 0.95, 0);
-    const gold = new THREE.MeshPhongMaterial({ color: 0xffc857, emissive: 0x3a2600, specular: 0xfff0c0, shininess: 90 }), dim = new THREE.MeshPhongMaterial({ color: 0x2a3244, transparent: true, opacity: 0.5 });
+    const gold = new THREE.MeshPhongMaterial({ color: 0xffc857, emissive: 0x3a2600, specular: 0xfff0c0, shininess: 90, side: THREE.DoubleSide });
+    const ghost = new THREE.LineBasicMaterial({ color: 0x5ee6ff, transparent: true, opacity: 0.25 });
+    // a cup in profile, turned: foot, stem, and a bowl closed at the bottom
+    const prof = [[0, 0], [0.12, 0], [0.12, 0.03], [0.05, 0.05], [0.025, 0.08], [0.025, 0.17], [0.05, 0.2], [0.11, 0.26], [0.135, 0.36], [0.14, 0.42], [0.125, 0.42], [0.12, 0.37], [0.1, 0.28], [0, 0.25]].map(([x, y]) => new THREE.Vector2(x, y));
+    const cupGeo = new THREE.LatheGeometry(prof, 24), handleGeo = new THREE.TorusGeometry(0.06, 0.012, 6, 16, Math.PI);
     for (let i = 0; i < 10; i++) {
-      const x = (i - 4.5) * 0.62, m = i < rank ? gold : dim, cup = new THREE.Group(); cup.position.set(x, 0.76, 0); g.add(cup);
-      const a = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.13, 0.06, 16), m); a.position.y = 0.03; cup.add(a);
-      const b = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.14, 8), m); b.position.y = 0.13; cup.add(b);
-      const c = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.06, 0.18, 16, 1, true), m); c.position.y = 0.29; cup.add(c);
-      if (i < rank) { const l = this.label(['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][i], 0.36, 0.14, '#ffd99a'); l.position.set(0, -0.05, 0.26); cup.add(l); }
+      const x = (i - 4.5) * 0.62, won = i < rank, cup = new THREE.Group(); cup.position.set(x, 0.76, 0); g.add(cup);
+      if (won) { cup.add(new THREE.Mesh(cupGeo, gold)); for (const s of [-1, 1]) { const hd = new THREE.Mesh(handleGeo, gold); hd.position.set(s * 0.13, 0.33, 0); hd.rotation.z = s > 0 ? -Math.PI / 2 : Math.PI / 2; cup.add(hd); } }
+      else cup.add(new THREE.LineSegments(new THREE.EdgesGeometry(cupGeo, 40), ghost));
+      const l = this.label(['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][i], 0.36, 0.13, won ? '#ffd99a' : '#3e4a66'); l.position.set(0, -0.02, 0.26); cup.add(l);
     }
     this.tag(g, 'trophies');
+  }
+  /** The lounge screen: what each Overhaul rank adds to the station, ticked off as they are reached. */
+  roadmap(rank) {
+    const c = canvas(512, 284), x = c.getContext('2d');
+    x.fillStyle = '#050a18'; x.fillRect(0, 0, 512, 284); x.strokeStyle = 'rgba(94,230,255,.5)'; x.lineWidth = 2; x.strokeRect(4, 4, 504, 276);
+    text(x, 'STATION ROADMAP', 256, 28, '800 22px sans-serif', '#9ff0ff');
+    STATION_CORE.filter((cr) => cr.at >= 1).forEach((cr, i) => { const col = i < 5 ? 0 : 1, row = i % 5, px = 28 + col * 244, py = 70 + row * 42, done = cr.at <= rank, next = cr.at === rank + 1;
+      text(x, done ? '✓' : String(cr.at), px + 10, py, '800 18px sans-serif', done ? '#6dffc8' : next ? '#ffc857' : '#4a5670'); text(x, cr.name, px + 34, py, `${next ? 800 : 600} 18px sans-serif`, done ? '#e8fbff' : next ? '#ffd99a' : '#6a7690', 'left'); });
+    const m = this.roadmapScreen.material; m.map?.dispose?.(); m.map = tex(c); m.needsUpdate = true;
   }
   nameSign(state, rank) {
     const THREE = T(), c = canvas(768, 96), x = c.getContext('2d'), p = state.pilot;
@@ -212,6 +249,7 @@ export class DeckRoom {
     x = Math.max(-W + 0.6, Math.min(W - 0.6, x)); z = Math.max(FRONT + 1.1, Math.min(BACK - 0.6, z));
     const push = (cx, cz, r) => { const dx = x - cx, dz = z - cz, d = Math.hypot(dx, dz); if (d < r) { const k = d > 1e-3 ? r / d : 1; x = cx + (d > 1e-3 ? dx : r) * (d > 1e-3 ? k : 1); z = cz + (d > 1e-3 ? dz * k : 0); } };
     push(TABLE.x, TABLE.z, TABLE.r); for (const pz of PEDESTAL_Z) push(PEDESTAL_X, pz, 0.85);
+    if (x < -3.85 && z > 0.95 && z < 3.45) x = -3.85; // the couch
     return { x, z };
   }
   resize(w, h) { this.cam.aspect = w / Math.max(1, h); this.cam.updateProjectionMatrix(); }
@@ -229,6 +267,9 @@ export class DeckRoom {
     // outside: Earth turns slowly, lit from the sun (its shader wants the light in view space)
     const u = this.earth.material.uniforms; u.time.value = this.t + 400; u.night.value = night; u.sun.value.copy(this.sunDir).transformDirection(this.cam.matrixWorldInverse); this.earth.rotation.y = this.t * 0.002;
     this.sun.visible = false; // the sun itself is behind you
+    // evening in the room: the lights dim a little and warm up when it is night outside
+    for (const l of this.lamps) { l.intensity = 0.55 - night * 0.18; l.color.setRGB(1, 0.9 - night * 0.08, 0.77 - night * 0.15); } this.hemi.intensity = 0.55 - night * 0.2; this.lightMat.color.setRGB(1, 0.94 - night * 0.1, 0.85 - night * 0.2);
+    this.holoGrid.rotation.z = this.t * 0.15; this.doorLight.material.color.setRGB(0.43, 1, 0.78).multiplyScalar(0.6 + 0.4 * Math.sin(this.t * 2.5));
     // the hologram, the ships, the banners
     this.station.animate(dt, night); this.station.body.rotation.set(0.25, this.t * 0.3, 0);
     for (const p of this.spins || []) { p.rotation.y = this.t * 0.5 + p.userData.spin; p.position.y = 1.35 + Math.sin(this.t * 1.4 + p.userData.spin) * 0.05; }
