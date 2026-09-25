@@ -4,6 +4,8 @@
 // opens with the first Overhaul. One layout feeds the 3D model (rendering/station.js) and the Overhaul panel's
 // blueprint (ui/hangar.js). Coordinates are station units, front view: x right, y up, hub at the origin.
 import { WORKSHOP } from '@last-orbit/data/workshop.js';
+import { STAGES } from '@last-orbit/data/counter.js';
+import { BOSSES } from '@last-orbit/data/bosses.js';
 
 /** Workshop modules. name: what the station calls it; shape: how it is drawn; x, y: where it sits on the trusses. */
 export const STATION_MODULES = [
@@ -35,6 +37,21 @@ export const STATION_ALIEN = [
 ];
 export const ALIEN_BY_ID = Object.fromEntries(STATION_ALIEN.map((a) => [a.id, a]));
 
+/** Captured bosses: each Counterattack stage's boss (data/counter.js), towed home on the stage's first clear and held off
+ *  the station in a tractor field projected from anchor. say: the station AI's line when it arrives. */
+export const STATION_TROPHIES = [
+  { stage: 1, x: -18, y: 8, anchor: [-13.6, 0], say: 'We towed the Broodcarrier home. Let them see it from orbit.' },
+  { stage: 2, x: -9, y: 11.5, anchor: [0, 9.8], say: 'Vorr\'s scrap heap is ours now, {n}. It suits us better.' },
+  { stage: 3, x: 9, y: 11.5, anchor: [0, 9.8], say: 'The Red Shroud hangs in our tractor field. It is quieter than it was.' },
+  { stage: 4, x: 18, y: 8, anchor: [13.6, 0], say: 'Admiral Kross\'s flagship, docked at our station. I enjoy this more than I should.' },
+  { stage: 5, x: 18, y: -8, anchor: [13.6, 0], say: 'The Hive Heart has stopped beating. We keep it where they can see it.' },
+  { stage: 6, x: -18, y: -8, anchor: [-13.6, 0], say: 'The Unmaker, unmade. It will never threaten this orbit again.' },
+].map((t) => ({ ...t, id: 'trophy' + t.stage, boss: STAGES[t.stage - 1].boss, name: BOSSES[STAGES[t.stage - 1].boss]?.name || 'Boss' }));
+export const TROPHY_BY_ID = Object.fromEntries(STATION_TROPHIES.map((t) => [t.id, t]));
+/** A stage's boss is captured once the stage has been cleared on either difficulty. */
+export const trophyWon = (state, n) => (state.counter?.stars?.[n] || 0) > 0 || (state.counter?.hard?.[n] || 0) > 0;
+export const caughtStages = (state) => STATION_TROPHIES.filter((t) => trophyWon(state, t.stage)).map((t) => t.stage);
+
 /** Core pieces by Overhaul rank. The hub is always there. say: what the station AI says once it is back (from rank 2;
  *  the Command Deck has its own line). */
 export const STATION_CORE = [
@@ -55,18 +72,32 @@ export const coreBuilt = (id, rank) => (STATION_CORE.find((c) => c.id === id)?.a
 export const pieceAt = (rank) => (rank > 0 ? STATION_CORE.find((c) => c.at === rank) || null : null);
 export const CORE_PIECES = STATION_CORE.filter((c) => c.at > 0).length;
 const MAX = Object.fromEntries(WORKSHOP.map((u) => [u.id, u.max]));
-/** How far the rebuild has come, 0..100. The modules (the highest Workshop level each has reached) are half of it and
- *  the core pieces the Overhauls add are the other half, so it reaches 100% only when the crown goes on. */
-export function rebuildPct(state) {
-  let cur = 0, goal = 0; for (const m of STATION_MODULES) { cur += Math.min(MAX[m.id], Math.max(state.workshop?.[m.id] || 0, state.stationPeak?.[m.id] || 0)); goal += MAX[m.id]; }
-  const pieces = Math.min(CORE_PIECES, state.prestige?.level || 0);
-  return Math.floor((cur / goal + pieces / CORE_PIECES) * 50 + 1e-9);
+/** The rebuild has three parts, each with its share of the whole: the modules (Workshop), the core pieces (Overhauls)
+ *  and what is captured from the enemy (Counterattack: its bosses and the alien hardware). */
+export const REBUILD_PARTS = [
+  { id: 'mod', weight: 40, label: 'Modules', from: 'Workshop upgrades' },
+  { id: 'core', weight: 40, label: 'Core pieces', from: 'Overhauls' },
+  { id: 'ctr', weight: 20, label: 'Captured from the enemy', from: 'Counterattack and Alien Tech' },
+];
+const CAPTURES = STATION_TROPHIES.length + STATION_ALIEN.length;
+/** How far each part has come (0..1), with counts for the overview: modules by Workshop levels the station has reached
+ *  (never un-built), core pieces by Overhaul rank, captures by bosses towed home and alien hardware fitted. */
+export function rebuildParts(state) {
+  let cur = 0, goal = 0, built = 0; for (const m of STATION_MODULES) { const l = Math.min(MAX[m.id], Math.max(state.workshop?.[m.id] || 0, state.stationPeak?.[m.id] || 0)); cur += l; goal += MAX[m.id]; if (l > 0) built++; }
+  const pieces = Math.min(CORE_PIECES, state.prestige?.level || 0), tech = state.counter?.tech || {};
+  const caught = STATION_TROPHIES.filter((t) => trophyWon(state, t.stage)).length + STATION_ALIEN.filter((a) => (tech[a.id] || 0) > 0).length;
+  return { mod: { share: cur / goal, cur: built, goal: STATION_MODULES.length }, core: { share: pieces / CORE_PIECES, cur: pieces, goal: CORE_PIECES }, ctr: { share: caught / CAPTURES, cur: caught, goal: CAPTURES } };
 }
-/** The station part by part (modules: 0 outline, 1 built, 2 lit; alien pieces: 0 or 1) and its rebuild figure. The
- *  hangar compares two of these to show what changed. */
+/** How far the rebuild has come, 0..100: modules 40, core pieces 40, captures 20, so 100% means everything. */
+export function rebuildPct(state) {
+  const p = rebuildParts(state); return Math.floor(REBUILD_PARTS.reduce((a, r) => a + p[r.id].share * r.weight, 0) + 1e-9);
+}
+/** The station part by part (modules: 0 outline, 1 built, 2 lit; alien hardware and captured bosses: 0 or 1), its rebuild
+ *  figure and its parts' shares. The hangar compares two of these to show what changed. */
 export function stationSnapshot(state) {
   const parts = {}, tech = state.counter?.tech || {};
   for (const m of STATION_MODULES) { const lvl = state.workshop?.[m.id] || 0; parts[m.id] = Math.max(lvl, state.stationPeak?.[m.id] || 0) <= 0 ? 0 : lvl >= MAX[m.id] ? 2 : 1; }
   for (const a of STATION_ALIEN) parts[a.id] = (tech[a.id] || 0) > 0 ? 1 : 0;
-  return { parts, pct: rebuildPct(state) };
+  for (const t of STATION_TROPHIES) parts[t.id] = trophyWon(state, t.stage) ? 1 : 0;
+  const p = rebuildParts(state); return { parts, pct: rebuildPct(state), shares: { mod: p.mod.share, core: p.core.share, ctr: p.ctr.share } };
 }

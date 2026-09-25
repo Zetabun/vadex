@@ -1,6 +1,6 @@
 // The orbital station as a blueprint: a schematic of the same layout the 3D model uses (data/station.js). Built modules
 // are filled, maxed ones glow, unbuilt ones are dashed outlines; the core piece the next Overhaul adds is marked in gold.
-import { STATION_MODULES, STATION_CORE, STATION_ALIEN, coreBuilt } from '@last-orbit/data/station.js';
+import { STATION_MODULES, STATION_CORE, STATION_ALIEN, STATION_TROPHIES, coreBuilt } from '@last-orbit/data/station.js';
 import { WORKSHOP } from '@last-orbit/data/workshop.js';
 const MAX = Object.fromEntries(WORKSHOP.map((u) => [u.id, u.max]));
 
@@ -54,8 +54,9 @@ const fmt = (n) => +n.toFixed(2);
 
 /** SVG markup for the pilot's station, as a technical blueprint that fits the frame to what is drawn.
  *  rank: Overhaul rank; workshop: levels by id; peak: highest levels ever (modules stay built); next: mark the next piece;
- *  name, pct: for the title block; alien: Alien Tech levels (fitted hardware is drawn in violet). */
-export function stationBlueprint(rank, workshop, { next = true, peak = {}, name = '', pct = null, alien = {} } = {}) {
+ *  name, pct: for the title block; alien: Alien Tech levels (fitted hardware is drawn in violet); caught: stages whose boss
+ *  was towed home. */
+export function stationBlueprint(rank, workshop, { next = true, peak = {}, name = '', pct = null, alien = {}, caught = [] } = {}) {
   const parts = [], box = [...BASE];
   const grow = (r) => { box[0] = Math.min(box[0], r[0]); box[1] = Math.min(box[1], r[1]); box[2] = Math.max(box[2], r[2]); box[3] = Math.max(box[3], r[3]); };
   // trusses, the hub and its windows
@@ -70,6 +71,7 @@ export function stationBlueprint(rank, workshop, { next = true, peak = {}, name 
     parts.push(`<g class="sb-mod ${st}" transform="translate(${m.x} ${-m.y})">${shapeOf(m, m.shape)}</g>`);
   }
   for (const a of STATION_ALIEN) if ((alien?.[a.id] || 0) > 0) parts.push(`<path class="sb-strut" d="M${a.anchor[0]} ${-a.anchor[1]}L${a.x} ${-a.y}"/><g class="sb-alien" transform="translate(${a.x} ${-a.y})">${ALIEN_ART[a.shape]}</g>`);
+  for (const t of STATION_TROPHIES) if (caught.includes(t.stage)) { parts.push(`<path class="sb-field" d="M${t.anchor[0]} ${-t.anchor[1]}L${t.x} ${-t.y}"/><g class="sb-trophy" transform="translate(${t.x} ${-t.y})"><path d="M0 -2L1.8 0L0 2L-1.8 0Z"/><circle r="0.6"/></g>`); grow([t.x - 2.2, -t.y - 2.4, t.x + 2.2, -t.y + 2.4]); }
   // the sheet: fit a 4:3 frame round the drawing, with room for the tag (top left) and the title block (bottom right)
   let [x0, y0, x1, y1] = [box[0] - 2.2, box[1] - 4.2, box[2] + 2.2, box[3] + 3.4], w = x1 - x0, h = y1 - y0;
   if (w / h < 4 / 3) { const nw = h * 4 / 3; x0 -= (nw - w) / 2; w = nw; } else { const nh = w * 3 / 4; y0 -= (nh - h) / 2; h = nh; }

@@ -43,7 +43,7 @@ function runScene(scene, hooks, ui) {
   const [name, arg, arg2, arg3, arg4] = scene.split(':');
   // Scenes play as an established pilot (every menu open), except newpilot:<sorties>, which shows the menus opening up.
   st.seen.menus = {}; st.seen.menusInit = false; refreshMenus();
-  // station:<overhaul rank>:<share of Workshop levels, 0-1>[:tab[:alien]] (alien: every Alien Tech fitted)
+  // station:<overhaul rank>:<share of Workshop levels, 0-1>[:tab[:captures]] (captures: that many stages cleared and Alien Tech fitted)
   // intro[:seconds]: the opening, frozen at a moment (for screenshots) or playing from the start
   if (name === 'intro') { hooks.toHangar('launch'); setTimeout(() => { const sc = ui.intro({ tap: arg === 'title' }); if (arg === 'title') return; if (arg) { for (let k = 0; k < +arg / 0.05; k++) sc.update(0.05); G.introPaused = true; } }, 300); return; }
   // rebuild:<rank>[:seconds[:alien]]: the reel after an Overhaul to that rank (Workshop just reset, every module built), frozen or playing
@@ -57,7 +57,7 @@ function runScene(scene, hooks, ui) {
     const V = { window: [0, 1.5, 0, -0.08], medals: [-1.2, -2.2, 1.35, 0], ships: [1.4, -2.2, -1.35, -0.1], back: [0, -1.5, Math.PI, -0.05], table: [0, 0.2, 0, -0.35] }[arg2];
     if (V) { let n = 0; const iv = setInterval(() => { const d = G.renderer?.deck; if (d) { d.pos.x = V[0]; d.pos.z = V[1]; d.yaw = V[2]; d.pitch = V[3]; } if (++n > 20) clearInterval(iv); }, 100); }
     return; }
-  if (name === 'station') { st.prestige.level = +arg || 0; const f = arg2 == null ? 0.5 : +arg2; WORKSHOP.forEach((u, i) => { st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, f * 1.6 - (i % 5) * 0.15))); }); if (arg4) { st.counter.unlocked = true; for (const a of ALIEN_TECH) st.counter.tech[a.id] = 1; } recalc(); hooks.toHangar(arg3 || 'launch'); return; }
+  if (name === 'station') { st.prestige.level = +arg || 0; const f = arg2 == null ? 0.5 : +arg2; WORKSHOP.forEach((u, i) => { st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, f * 1.6 - (i % 5) * 0.15))); }); if (arg4) { const n = Math.min(6, +arg4 || 0); st.counter.unlocked = true; ALIEN_TECH.forEach((a, i) => { if (i < n) st.counter.tech[a.id] = 1; }); for (let k = 1; k <= n; k++) st.counter.stars[k] = 1; } recalc(); hooks.toHangar(arg3 === 'card' ? 'launch' : arg3 || 'launch'); if (arg3 === 'card') setTimeout(() => document.querySelector('.st-callout')?.click(), 900); return; }
   if (name === 'callsign') { st.pilot.name = arg || ''; st.seen.callsign = !!arg; hooks.toHangar('launch'); setTimeout(() => (arg2 === 'greet' ? ui.greet() : ui.callsign({ first: !arg })), 400); return; }
   if (name === 'newpilot') { st.stats.sorties = +arg || 0; st.seen.menus = {}; st.seen.menusInit = true; refreshMenus(); hooks.toHangar('launch'); if (arg2) setTimeout(() => [...document.querySelectorAll('.nav-btn')].find((b) => b.textContent.toLowerCase().includes(arg2))?.click(), 500); return; }
   if (name === 'hull' || name === 'hullfly') { st.unlocked.ships[arg] = 1; st.ship = arg; st.banner = 'none'; recalc(); if (name === 'hull') { hooks.toHangar('launch'); return; } }

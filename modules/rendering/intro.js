@@ -104,9 +104,10 @@ export class IntroScene {
       f.eyes.forEach((e, j) => { e.position.copy(f.m.position).addScaledVector(fwd, f.s * 0.35).addScaledVector(side, f.eyes.length > 1 ? (j ? 1 : -1) * f.s * 0.35 : 0); e.scale.setScalar(f.s * (0.7 + 0.15 * Math.sin(t * 7 + i))); e.quaternion.copy(cam.quaternion); });
       if (t > WARP) this.beat('warp', () => playSfx('teleport', 1));
     }
-    const firing = t > FIRE && t < CORE + 0.3, charge = clamp((t - FIRE) / 0.7);
+    const firing = t > FIRE && t < CORE + 0.3, charge = clamp((t - FIRE) / 0.7); this.zap = (this.zap || 0) - dt;
     this.beams.forEach((b, i) => {
-      const f = this.fleet[i % this.fleet.length]; b.visible = firing && Math.sin(t * 13 + i * 2.1) > -0.2;
+      const f = this.fleet[i % this.fleet.length], was = b.visible; b.visible = firing && Math.sin(t * 13 + i * 2.1) > -0.2;
+      if (b.visible && !was && (this.zap || 0) <= 0) { this.zap = 0.12 + Math.random() * 0.12; playSfx('laser', 0.55, 0.45 + Math.random() * 0.2); }
       if (!b.visible) return; const to = new THREE.Vector3(Math.sin(i * 4.1) * 8, Math.cos(i * 2.7) * 5, Math.sin(i * 1.3) * 4), from = f.m.position, d = to.clone().sub(from), len = d.length();
       b.position.copy(from).addScaledVector(d, 0.5); b.scale.set(0.3 + 0.7 * charge, len, 0.3 + 0.7 * charge); b.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize());
       if (Math.random() < dt * 6) this.blast(to, 2 + Math.random() * 2, 0.35, this.sparkTex);

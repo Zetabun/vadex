@@ -1,7 +1,9 @@
 // The orbital station, drawn in the hangar sky above the home world (layout and meaning: data/station.js), and as the
 // hologram on the Command Deck's table. Rebuilt whenever the Workshop or Overhaul rank changes; otherwise it turns
 // slowly, its lights breathe and a shuttle comes and goes.
-import { STATION_MODULES, STATION_ALIEN, MODULE_BY_ID, ALIEN_BY_ID, coreBuilt } from '@last-orbit/data/station.js';
+import { STATION_MODULES, STATION_ALIEN, STATION_TROPHIES, MODULE_BY_ID, ALIEN_BY_ID, TROPHY_BY_ID, coreBuilt, trophyWon } from '@last-orbit/data/station.js';
+import { BOSSES } from '@last-orbit/data/bosses.js';
+import { shapeGeometry } from '@last-orbit/rendering/geometry.js';
 import { WORKSHOP } from '@last-orbit/data/workshop.js';
 const T = () => window.THREE;
 const MAX = Object.fromEntries(WORKSHOP.map((u) => [u.id, u.max]));
@@ -33,7 +35,7 @@ function textures() {
 
 export class Station {
   constructor(scene) {
-    const THREE = T(), X = textures(); this.group = new THREE.Group(); this.group.visible = false; scene.add(this.group); this.sig = ''; this.t = 0; this.fade = 0; this.pulses = [];
+    const THREE = T(), X = textures(); this.group = new THREE.Group(); this.group.visible = false; scene.add(this.group); this.sig = ''; this.t = 0; this.fade = 0; this.pulses = []; this.trophyMats = {}; this.trophies = [];
     this.body = new THREE.Group(); this.group.add(this.body); this.blink = []; this.rings = []; this.nav = []; this.crown = null;
     const Ph = (o) => new THREE.MeshPhongMaterial(o);
     this.M = {
@@ -50,6 +52,7 @@ export class Station {
       scaffold: new THREE.LineBasicMaterial({ color: 0x5ee6ff, transparent: true, opacity: 0.4 }),
       halo: new THREE.MeshBasicMaterial({ color: 0x5ee6ff, transparent: true, opacity: 0.2, depthWrite: false }),
       alien: Ph({ color: 0x4a2c66, emissive: 0x1c0a30, specular: 0xb08aff, shininess: 70 }), alienGlow: new THREE.MeshBasicMaterial({ color: 0xc18cff }),
+      field: new THREE.MeshBasicMaterial({ color: 0x7fe8ff, transparent: true, opacity: 0.1, blending: THREE.AdditiveBlending, depthWrite: false }),
     };
     const G = THREE;
     this.geo = { box: new G.BoxGeometry(1, 1, 1), cyl: new G.CylinderGeometry(1, 1, 1, 20), cone: new G.ConeGeometry(1, 1, 16), sph: new G.SphereGeometry(1, 20, 14),
@@ -60,14 +63,15 @@ export class Station {
   /** Rebuild if the Workshop, the Overhaul rank or the Alien Tech fitted changed. */
   sync(state) {
     const rank = state.prestige?.level || 0, peak = (id) => Math.max(state.stationPeak?.[id] || 0, state.workshop[id] || 0), tech = state.counter?.tech || {};
-    const alien = STATION_ALIEN.filter((a) => (tech[a.id] || 0) > 0);
-    const sig = rank + ':' + STATION_MODULES.map((m) => (state.workshop[m.id] || 0) + '/' + peak(m.id)).join(',') + '|' + alien.map((a) => a.id).join(',');
+    const alien = STATION_ALIEN.filter((a) => (tech[a.id] || 0) > 0), caught = STATION_TROPHIES.filter((t) => trophyWon(state, t.stage));
+    const sig = rank + ':' + STATION_MODULES.map((m) => (state.workshop[m.id] || 0) + '/' + peak(m.id)).join(',') + '|' + alien.map((a) => a.id).join(',') + '|' + caught.map((t) => t.stage).join('');
     if (sig === this.sig) return; this.sig = sig;
-    const b = this.body; while (b.children.length) b.remove(b.children[0]); this.blink = []; this.rings = []; this.nav = []; this.crown = null;
+    const b = this.body; while (b.children.length) b.remove(b.children[0]); this.blink = []; this.rings = []; this.nav = []; this.crown = null; this.trophies = [];
     this.core(rank);
     // never un-built: a module stays once it has been built; the Workshop reset after an Overhaul only puts its lights out
     for (const m of STATION_MODULES) { const lvl = state.workshop[m.id] || 0; this.module(m, peak(m.id) <= 0 ? 'ghost' : lvl >= MAX[m.id] ? 'lit' : 'built'); }
     for (const a of alien) this.alien(a);
+    for (const t of caught) this.trophy(t);
     this.wreckage(1 - STATION_MODULES.reduce((a, m) => a + Math.min(MAX[m.id], peak(m.id)), 0) / STATION_MODULES.reduce((a, m) => a + MAX[m.id], 0));
   }
   part(geo, mat, x, y, z, sx, sy, sz, rx = 0, ry = 0, rz = 0) {
@@ -154,11 +158,18 @@ export class Station {
       case 'siphon': P('cone', A, 0, -0.2, 0, 1.05, 1.9, 1.05, Math.PI); P('sph', G, 0, -1.35, 0, 0.42, 0.42, 0.42); for (const s of [-1, 1]) P('cone', A, s * 0.95, -1.1, 0, 0.16, 1.1, 0.16, 0, 0, s * 0.5 + Math.PI); break;
     }
   }
+  /** A captured boss, held off the station in a tractor field: its own hull, darkened, turning slowly. */
+  trophy(t) {
+    const THREE = T(), b = BOSSES[t.boss] || {}, dark = new THREE.Color(0x16141f);
+    const mat = (this.trophyMats[t.boss] ||= new THREE.MeshPhongMaterial({ color: new THREE.Color(b.color || 0x8890a0).lerp(dark, 0.45), emissive: new THREE.Color(b.color || 0x8890a0).multiplyScalar(0.12), specular: 0x55607a, shininess: 30 }));
+    const m = new THREE.Mesh(shapeGeometry(b.shape), mat); m.position.set(t.x, t.y, 0); m.scale.setScalar(1.9); m.userData.ph = t.stage * 1.7; this.body.add(m); this.trophies.push(m);
+    const dx = t.x - t.anchor[0], dy = t.y - t.anchor[1]; this.part('cyl', this.M.field, t.anchor[0] + dx / 2, t.anchor[1] + dy / 2, 0, 0.45, Math.hypot(dx, dy), 0.45, 0, 0, Math.atan2(dy, dx) - Math.PI / 2);
+  }
   /** A soft glow, twice, over parts that changed while you were away (module or alien ids); it waits for the station to fade in. */
   pulse(ids) {
     const THREE = T(); this.glowTex ||= canvasTex(64, 64, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.3, 'rgba(170,240,255,.7)'); gr.addColorStop(1, 'rgba(94,230,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
     for (const id of ids) {
-      const m = MODULE_BY_ID[id] || ALIEN_BY_ID[id]; if (!m) continue;
+      const m = MODULE_BY_ID[id] || ALIEN_BY_ID[id] || TROPHY_BY_ID[id]; if (!m) continue;
       const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.glowTex, color: ALIEN_BY_ID[id] ? 0xd8b0ff : 0xffffff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false }));
       s.position.set(m.x, m.y, 1.5); this.body.add(s); this.pulses.push({ s, t: -0.8 });
     }
@@ -188,6 +199,7 @@ export class Station {
     for (const [m, ph] of this.nav) m.visible = ((t * 0.9 + ph) % 1) < (m.material === M.strobe ? 0.12 : 0.55);
     M.scaffold.opacity = 0.28 + 0.12 * Math.sin(t * 1.6);
     const v = 0.72 + 0.28 * Math.sin(t * 1.3) + night * 0.15; M.alienGlow.color.setRGB(0.66 * v, 0.46 * v, v);
+    M.field.opacity = 0.08 + 0.05 * Math.sin(t * 2.1); for (const m of this.trophies) m.rotation.set(Math.sin(t * 0.3 + m.userData.ph) * 0.25, Math.sin(t * 0.2 + m.userData.ph) * 0.5, Math.sin(t * 0.15 + m.userData.ph) * 0.3);
     for (let i = this.pulses.length - 1; i >= 0; i--) {
       const p = this.pulses[i]; p.t += dt; const k = p.t / 2.6; if (k >= 1) { p.s.parent?.remove(p.s); p.s.material.dispose(); this.pulses.splice(i, 1); continue; }
       const a = k < 0 ? 0 : Math.abs(Math.sin(k * Math.PI * 2)); p.s.material.opacity = a * (1 - k * 0.3); p.s.scale.setScalar(7 + a * 6);

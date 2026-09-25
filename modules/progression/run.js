@@ -121,13 +121,13 @@ function recordCounter(st, run, s, reason) {
   const earned = cleared ? (run.fromCheckpoint ? 1 : 1 + (hits <= STAR_HITS ? 1 : 0) + (killed >= STAR_KILLS ? 1 : 0)) : 0;
   const cpKey = n + (run.hard ? 'h' : ''); c.checkpoints ||= {};
   if (cleared) delete c.checkpoints[cpKey]; else if (run.checkpointLevel) c.checkpoints[cpKey] = Math.max(c.checkpoints[cpKey] || 0, run.checkpointLevel);
-  const prev = c[key][n] || 0, gained = Math.max(0, earned - prev), first = cleared && !prev;
+  const prev = c[key][n] || 0, gained = Math.max(0, earned - prev), first = cleared && !prev, towed = cleared && !(c.stars[n] || 0) && !(c.hard[n] || 0); // towed: the boss is captured for the station
   if (earned > prev) c[key][n] = earned;
   const cores = gained * CORES_PER_STAR; c.cores += cores; st.stats.counterStars = (st.stats.counterStars || 0) + gained;
   const bounty = first ? clearBounty(n, run.hard) : 0; st.salvage += bounty;
   if (cleared) { maxStat('counterBest', n); if (run.hard) maxStat('counterHard', n); if (n === 6) st.paints.xeno ||= Date.now(); }
   const score = Math.round(run.score || 0), best = c.best[n] || 0; if (score > best) c.best[n] = score;
-  return { score, counter: { stage: n, hard: !!run.hard, cleared, checkpoint: !cleared && !!c.checkpoints[cpKey], resumed: !!run.fromCheckpoint, stars: earned, gained, cores, bounty, hits, killed, newBest: score > best && score > 0 } };
+  return { score, counter: { stage: n, hard: !!run.hard, cleared, checkpoint: !cleared && !!c.checkpoints[cpKey], resumed: !!run.fromCheckpoint, stars: earned, gained, cores, bounty, hits, killed, trophy: towed ? n : 0, newBest: score > best && score > 0 } };
 }
 
 /** A saved sortie found at boot (closed or discarded tab) cannot be resumed: bank its salvage and drop it. */

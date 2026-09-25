@@ -11,7 +11,7 @@ import { SHIP_BY_ID } from '@last-orbit/data/ships.js';
 import { CONTRACT_BY_ID } from '@last-orbit/data/contracts.js';
 import { describeCard, pickCard, reroll, pickRelic, pickRoute, pickAnomaly, autoPickIndex } from '@last-orbit/progression/run.js';
 import { ANOMALY_BY_ID, anomalyCounts, anomalyPay, anomalyName } from '@last-orbit/data/anomalies.js';
-import { STATION_CORE } from '@last-orbit/data/station.js';
+import { STATION_CORE, TROPHY_BY_ID, caughtStages } from '@last-orbit/data/station.js';
 import { stationBlueprint } from '@last-orbit/ui/stationArt.js';
 import { SYNERGIES, synergyOf, synergyCount, activeTiers } from '@last-orbit/data/synergies.js';
 import { ROUTE_BY_ID } from '@last-orbit/data/routes.js';
@@ -231,7 +231,7 @@ export function createOverlays(layer, hooks) {
     const el = h('div.modal.confirm.station-done', { role: 'dialog', 'aria-label': 'Every module built' },
       h('div.modal-head', h('div.kicker', 'Every module built'), h('h2', next ? 'Ready to Overhaul' : 'Station complete'),
         h('p', `Your Workshop is maxed. Overhaul to strip it back for Blueprints: every module stays built${next ? `, and the station gains its ${next.name}` : ''}.`)),
-      h('div.oh-plan.sd-plan', { html: stationBlueprint(rank, G.state.workshop, { peak: G.state.stationPeak, alien: G.state.counter?.tech, name: G.state.stationName }) }),
+      h('div.oh-plan.sd-plan', { html: stationBlueprint(rank, G.state.workshop, { peak: G.state.stationPeak, alien: G.state.counter?.tech, caught: caughtStages(G.state), name: G.state.stationName }) }),
       h('div.modal-actions', h('button.btn.gold', { onclick: () => { close(); hooks.toHangar?.('workshop'); }, 'data-autofocus': '' }, 'Go to Overhaul'), h('button.btn.ghost', { onclick: close }, 'Later')));
     mount('station-done', el, (e) => { if (e.key === 'Escape') { close(); return true; } return false; });
     playSfx('milestone');
@@ -328,6 +328,7 @@ export function createOverlays(layer, hooks) {
       ca ? h('div.stars-row', [1, 2, 3].map((i) => h('span.star-big' + (i <= ca.stars ? '.on' : '') + (i > ca.stars - ca.gained && i <= ca.stars ? '.new' : ''), { style: `--d:${i * 180}ms` }, '★')),
         h('div.star-notes', h('small', (ca.cleared ? '✓' : '·') + ' Clear the stage'), h('small', (ca.hits <= 5 && ca.cleared ? '✓' : '·') + ` Take 5 hits or fewer (${ca.hits})`), h('small', (ca.killed >= 0.8 && ca.cleared ? '✓' : '·') + ` Destroy 80% of the assault (${Math.round(ca.killed * 100)}%)`)),
         ca.cores ? h('div.pilot-row.cores-row', h('span', 'Alien Cores'), h('b', '+' + ca.cores)) : null, ca.bounty ? h('div.pilot-row', h('span', 'First-clear bounty'), h('b', '+' + fmtInt(ca.bounty) + ' salvage')) : null,
+        ca.trophy ? h('div.pilot-row.trophy-row', h('span', `${TROPHY_BY_ID['trophy' + ca.trophy]?.name} captured`), h('b', 'Towed to your station')) : null,
         ca.checkpoint ? h('div.pilot-row', h('span', 'Checkpoint saved'), h('b', 'Past the mini-boss')) : null, ca.resumed ? h('small.cp-note', 'Checkpoint run: the clear star only. Fly the whole stage for the other two.') : null) : null,
       h('div.hero-row', ca ? h('div.big-wave', h('small', 'Stage'), h('b', String(ca.stage))) : h('div.big-wave', h('small', 'Wave'), h('b', String(s.wave))), h('div.earned', h('small', 'Salvage banked'), h('div', art('cur:salvage', 'cur-ico'), salvageEl))),
       h('div.score-row', h('small', 'Score'), h('b', fmtInt(s.score || 0)), s.place ? h('span', `#${s.place} of your top 10`) : s.prevScore ? h('span', `Best ${fmtInt(s.prevScore)}`) : null),

@@ -3,7 +3,7 @@
 import { G } from '@last-orbit/core/game.js';
 import { h } from '@last-orbit/ui/dom.js';
 import { voiceBlip } from '@last-orbit/audio/audio.js';
-import { STATION_CORE, STATION_ALIEN } from '@last-orbit/data/station.js';
+import { STATION_CORE, STATION_ALIEN, STATION_TROPHIES, trophyWon } from '@last-orbit/data/station.js';
 
 /** Type text into el letter by letter, chirping every other letter. */
 export function typeText(el, text, { speed = 38, onDone } = {}) {
@@ -26,6 +26,7 @@ export const LINES = [
   { id: 'overhaul', when: (s) => (s.prestige?.level || 0) >= 1, text: 'The Command Deck is restored. Come aboard, {n}.' },
   ...STATION_CORE.filter((c) => c.say).map((c) => ({ id: 'core_' + c.id, when: (s) => (s.prestige?.level || 0) >= c.at, text: c.say })),
   ...STATION_ALIEN.map((a) => ({ id: 'alien_' + a.id, when: (s) => (s.counter?.tech?.[a.id] || 0) >= 1, text: a.say })),
+  ...STATION_TROPHIES.map((t) => ({ id: 'trophy_' + t.stage, when: (s) => trophyWon(s, t.stage), text: t.say })),
 ];
 
 export function createComms(app) {

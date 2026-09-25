@@ -337,15 +337,17 @@ assert.ok(describeCard({ kind: 'fusion', id: 'fu_twinsuns' }).icon2); endSortie(
   assert.equal(G.state.seen.intro, false, 'A new save plays the intro');
   const { setStationName } = await import('@last-orbit/progression/meta.js'); assert.equal(setStationName('  Halcyon <3 '), 'Halcyon 3'); assert.equal(G.state.stationName, 'Halcyon 3'); }
 
-// ---- v2.9: the rebuild figure (modules half, core pieces half), and each piece's reel and station AI line ----
+// ---- v2.10: the rebuild figure (modules 40, core pieces 40, Counterattack captures 20), each piece's reel and station AI line ----
 { const { rebuildPct, pieceAt, STATION_CORE, CORE_PIECES } = await import('@last-orbit/data/station.js');
   const max = Object.fromEntries(WORKSHOP.map((u) => [u.id, u.max])), pct = (workshop, stationPeak, level) => rebuildPct({ workshop, stationPeak, prestige: { level } });
   assert.equal(pct({}, {}, 0), 0, 'A new station is 0% rebuilt');
-  assert.equal(pct(max, {}, 0), 50, 'Every module built is half the rebuild');
-  assert.equal(pct({}, max, 1), 55, 'The first Overhaul: modules kept, plus the Command Deck');
-  assert.equal(pct({}, max, CORE_PIECES - 1), 95, 'One piece short of the crown is not complete');
-  assert.equal(pct({}, max, CORE_PIECES), 100, 'The crown completes the station');
-  assert.equal(pct(max, max, CORE_PIECES + 4), 100, 'Overhauls past the crown stay at 100%');
+  assert.equal(pct(max, {}, 0), 40, 'Every module built is 40% of the rebuild');
+  assert.equal(pct({}, max, 1), 44, 'The first Overhaul: modules kept, plus the Command Deck');
+  assert.equal(pct({}, max, CORE_PIECES), 80, 'Every core piece adds the next 40%');
+  assert.equal(pct(max, max, CORE_PIECES + 4), 80, 'Overhauls past the crown add nothing more');
+  const all = { workshop: max, stationPeak: max, prestige: { level: CORE_PIECES }, counter: { stars: { 1: 1, 2: 3, 3: 1, 4: 2, 5: 1 }, hard: { 6: 1 }, tech: { x_alloy: 1, x_phase: 2, x_charts: 1, x_siphon: 3 } } };
+  assert.equal(rebuildPct(all), 100, 'Counterattack captures are the last 20%: every boss towed home (either difficulty) and all alien hardware');
+  assert.equal(rebuildPct({ ...all, counter: { ...all.counter, hard: {} } }), 98, 'One boss short is not complete');
   assert.equal(pieceAt(0), null); assert.equal(pieceAt(1).id, 'deck'); assert.equal(pieceAt(CORE_PIECES + 1), null, 'No reel past the crown');
   assert.ok(STATION_CORE.filter((c) => c.at >= 2).every((c) => c.say && c.name), 'Every piece after the Deck has a station AI line'); }
 
@@ -359,7 +361,10 @@ assert.ok(describeCard({ kind: 'fusion', id: 'fu_twinsuns' }).icon2); endSortie(
   assert.equal(stationSnapshot({ ...base, workshop: { w_dmg: 1 } }).parts.w_dmg, 1, 'Its first level builds it');
   assert.equal(stationSnapshot({ ...base, workshop: { w_dmg: 10 } }).parts.w_dmg, 2, 'Maxed, it is lit');
   assert.equal(stationSnapshot({ ...base, stationPeak: { w_dmg: 10 } }).parts.w_dmg, 1, 'After an Overhaul it stays built, lights out');
-  assert.equal(stationSnapshot({ ...base, counter: { tech: { x_alloy: 1 } } }).parts.x_alloy, 1, 'Alien Tech bolts its hardware on at level 1'); }
+  assert.equal(stationSnapshot({ ...base, counter: { tech: { x_alloy: 1 } } }).parts.x_alloy, 1, 'Alien Tech bolts its hardware on at level 1');
+  const { STATION_TROPHIES, TROPHY_BY_ID } = await import('@last-orbit/data/station.js'); const { STAGES } = await import('@last-orbit/data/counter.js');
+  assert.equal(STATION_TROPHIES.length, STAGES.length, 'Every Counterattack stage has a boss to tow home'); assert.ok(STATION_TROPHIES.every((t) => t.name && t.say && t.anchor), 'each named, with a field and a line');
+  assert.equal(stationSnapshot({ ...base, counter: { tech: {}, stars: { 2: 1 } } }).parts.trophy2, 1, "Clearing stage 2 tows its boss home"); }
 
 // ---- v2.8: callsign ----
 { const { cleanCallsign, setCallsign, CALLSIGN_MAX } = await import('@last-orbit/progression/meta.js');

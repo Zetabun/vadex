@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.10.0 — unreleased
+
+- **Counterattack builds the station too:** the boss of each Counterattack stage is towed home on your first clear (either difficulty) and held off the station in a glowing tractor field: the Broodcarrier, Scrapmonger Vorr, the Red Shroud, Iron Admiral Kross, the Hive Heart and the Unmaker. The debrief says so, the station glows where it arrived, the blueprint marks it, and ORBIT has a line for each.
+- **One rebuild for every mode:** the station's figure now counts modules 40%, core pieces 40% and what you capture from the enemy 20% (the six bosses and the four pieces of alien hardware), so 100% means everything.
+- **The rebuild bar:** a segmented bar in the station callout, one skewed segment per 5% in three groups (cyan for modules, blue-violet for core pieces, violet for captures), each filling on its own; the segment still filling pulses, and new progress lights segment by segment as the figure counts up.
+- **Station overview:** the station card lists the three parts of the rebuild in the bar's colours: what each is, where it comes from and how far along it is.
+- **Intro:** the invaders' beams now make a low laser sound as they fire on the station.
+
 ## v2.9.0 — 2026-09-25
 
 - **The Fall (opening cinematic):** the game now opens on the story. The station in its golden age turns over Earth, shuttles tracing their orbits, until the invader fleet warps in, beams converge, explosions ripple through the modules and the core blows in a whiteout, tearing the rings away. When the smoke clears, your ship drifts in past the broken hub: "The last orbit fell. We must rebuild it." About twenty seconds, it starts on a title card (tap to begin, so it has sound on phones), can be skipped (top right), plays once for every pilot, and can be watched again from Settings (Story: Watch intro).
