@@ -15,6 +15,7 @@
 - **New doors aboard:** every door in the station's rooms is now a proper bulkhead: a chamfered frame with a glowing trim in the room's colour, two leaves with frosted windows and hazard-striped kick plates, a lit sign above and a status panel beside it. Walk up to one and it slides open onto a lit corridor. A sealed door glows red, is taped across and shows a padlock.
 - **ORBIT in the rooms** now speaks from the bottom of the screen, so its messages never cover the room's title or the Exit button.
 - **Missions:** siege tiers and Counterattack stages you haven't flown say "not yet flown" instead of "best 0".
+- **Opening cinematic:** when the core blows, the station's hub now tears in two. The halves drift apart with glowing, jagged rims, sparks and smoke venting from the break. The habitat rings snap into tumbling arcs instead of flying off whole. The closing shot now fits your ship to your screen: on phones it was too big, clipped at the edge and sitting under the captions.
 
 ## v2.10.1 — 2026-09-25
 

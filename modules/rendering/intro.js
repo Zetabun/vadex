@@ -13,6 +13,32 @@ export const INTRO_LEN = 21.5;
 export const WARP = 6.2, FIRE = 7.9, BLOW = 9.8, CORE = 11.3, AFTER = 13.4;
 const lerp = (a, b, k) => a + (b - a) * k, ease = (k) => k * k * (3 - 2 * k), clamp = (k) => Math.max(0, Math.min(1, k));
 
+/** A section of the hub's hull (radius 1, height h, open) with one end torn: torn 1 rips the bottom edge, -1 the top.
+ *  The tear bites in and out round the rim, over the last three rows, and the metal bends a little as it goes. */
+const TEAR_R = 30;
+/** One tear's shape round the rim: how deep it bites at each point, and how far the metal bends. */
+const tearPattern = () => ({ bite: Array.from({ length: TEAR_R }, (_, i) => ((i % 2 ? 0.62 : 0.2) + Math.random() * 0.35) * 0.62), bend: Array.from({ length: TEAR_R }, () => (Math.random() - 0.5) * 0.16) });
+function tornShell(h, torn, { bite, bend }, rows = 8) {
+  const THREE = T(), R = TEAR_R, H = rows, g = new THREE.CylinderGeometry(1, 1, h, R, H, true), p = g.attributes.position;
+  for (let i = 0; i < p.count; i++) {
+    const row = Math.floor(i / (R + 1)), col = i % (R + 1) % R, edge = torn > 0 ? H - row : row, k = [1, 0.55, 0.2][edge]; if (k == null) continue;
+    p.setY(i, p.getY(i) + torn * bite[col] * k); const r = 1 + bend[col] * k; p.setX(i, p.getX(i) * r); p.setZ(i, p.getZ(i) * r);
+  }
+  g.computeVertexNormals(); return g;
+}
+/** A band of heat along a torn rim: bright at the edge, gone within a hand's width. */
+function heatTex(torn) {
+  const THREE = T(), c = document.createElement('canvas'); c.width = 8; c.height = 64; const x = c.getContext('2d'), gr = x.createLinearGradient(0, torn > 0 ? 64 : 0, 0, torn > 0 ? 0 : 64);
+  gr.addColorStop(0, 'rgba(255,220,140,1)'); gr.addColorStop(0.25, 'rgba(255,110,40,.75)'); gr.addColorStop(0.7, 'rgba(160,30,10,.15)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); x.fillStyle = gr; x.fillRect(0, 0, 8, 64);
+  return new THREE.CanvasTexture(c);
+}
+/** The inside of a torn section: charred, glowing hot toward the break. */
+function emberTex(torn) {
+  const THREE = T(), c = document.createElement('canvas'); c.width = 8; c.height = 128; const x = c.getContext('2d'), gr = x.createLinearGradient(0, torn > 0 ? 128 : 0, 0, torn > 0 ? 0 : 128);
+  gr.addColorStop(0, '#fff0b0'); gr.addColorStop(0.12, '#ffa040'); gr.addColorStop(0.35, '#b8401c'); gr.addColorStop(0.7, '#2a1410'); gr.addColorStop(1, '#0c0a0c'); x.fillStyle = gr; x.fillRect(0, 0, 8, 128);
+  return new THREE.CanvasTexture(c);
+}
+
 export function glowTex(inner, mid) {
   const THREE = T(), c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 0, 64, 64, 64);
   gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.2, inner); gr.addColorStop(0.55, mid); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
@@ -56,6 +82,8 @@ export class IntroScene {
     for (let i = 0; i < 10; i++) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 1, 8, 1, true), beamMat), sl = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 1, 10, 1, true), sleeveMat); b.add(sl); b.visible = false; S.add(b); this.beams.push(b); }
     this.smokeTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'), gr = g.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(34,30,36,.8)'); gr.addColorStop(0.6, 'rgba(24,22,28,.35)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128); return new THREE.CanvasTexture(c); })(); this.smokes = [];
     this.coreLight = new THREE.PointLight(0xffa050, 0, 220, 1.6); this.coreLight.position.set(0, 1, 0); S.add(this.coreLight);
+    // the glow in the hub's torn halves: here (dark) from the start, since a light added mid-scene recompiles every lit material
+    this.breakLights = [0, 1].map(() => { const l = new THREE.PointLight(0xff8a3c, 0, 22, 1.6); S.add(l); return l; });
     this.traffic = [0, 1].map((i) => { const sh = this.station.makeShuttle(); sh.scale.setScalar(0.9); S.add(sh); sh.userData = { r: 15 + i * 7, sp: 0.5 - i * 0.18, ph: i * 2.4, y: -3 + i * 7 }; return sh; });
     this.fireTex = glowTex('rgba(255,236,170,.95)', 'rgba(255,120,40,.55)'); this.sparkTex = glowTex('rgba(255,200,220,.9)', 'rgba(255,60,106,.4)'); this.blasts = [];
     const dbox = new THREE.BoxGeometry(1, 0.18, 0.7); this.debris = new THREE.InstancedMesh(dbox, new THREE.MeshPhongMaterial({ color: 0x3a4152, emissive: 0x120804, specular: 0x556070, shininess: 30 }), 220);
@@ -65,7 +93,7 @@ export class IntroScene {
     // the survivor: the pilot's ship, in the foreground at the end
     const P = playerParts(shipId), ship = new THREE.Group(), M = { hull: 0x718996, deck: 0xe2eced, chassis: 0x152735, cockpit: 0x125875, markings: 0xffb94e, lights: 0x52dcff, engine: 0x52dcff, wings: 0xe2eced, fins: 0x718996, pods: 0x667782 };
     for (const k of Object.keys(M)) if (P[k]) ship.add(new THREE.Mesh(P[k], new THREE.MeshPhongMaterial({ color: M[k], emissive: k === 'lights' || k === 'engine' ? 0x176c83 : 0x0a0f18, shininess: 50 })));
-    ship.rotation.x = -Math.PI / 2; this.shipInner = ship; this.ship = new THREE.Group(); this.ship.add(ship); const rim = new THREE.PointLight(0x9fdcff, 2.2, 26, 1.5); rim.position.set(2.5, 3, 4); this.ship.add(rim); this.ship.scale.setScalar(1.9); this.ship.visible = false; S.add(this.ship);
+    ship.rotation.x = -Math.PI / 2; this.shipInner = ship; this.shipSpan = new THREE.Box3().setFromObject(ship).getSize(new THREE.Vector3()).x || 4; /* its width at scale 1 */ this.ship = new THREE.Group(); this.ship.add(ship); const rim = new THREE.PointLight(0x9fdcff, 2.2, 26, 1.5); rim.position.set(2.5, 3, 4); this.ship.add(rim); this.ship.scale.setScalar(1.9); this.ship.visible = false; S.add(this.ship);
     this.nozzles = NOZZLES[shipId] || NOZZLES.vanguard;
     this.flames = this.nozzles.map((nz) => { const f = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: glowTex('rgba(180,240,255,.95)', 'rgba(60,160,255,.5)'), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); f.userData.nz = nz; S.add(f); f.visible = false; return f; });
   }
@@ -75,6 +103,59 @@ export class IntroScene {
   blast(pos, size, life, tex = this.fireTex) {
     const THREE = T(), m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: tex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
     m.position.copy(pos); this.scene.add(m); this.blasts.push({ m, t: 0, life, size });
+  }
+  /** The hub tears across its middle: two torn halves (the top keeps its cone and band, the bottom its own), glowing
+   *  inside, drift apart and tumble slowly, off to either side of the frame. */
+  tearHub() {
+    const THREE = T(), st = this.station, body = st.body, kids = body.children.slice(), hub = kids[1], M = st.M; hub.visible = false; hub.userData.keep = true;
+    const q = body.getWorldQuaternion(new THREE.Quaternion()).invert(), local = (x, y, z) => new THREE.Vector3(x, y, z).applyQuaternion(q); // world directions in the body's frame
+    const outer = M.hull.clone(); outer.emissiveIntensity = 0; outer.color.setRGB(0.2, 0.19, 0.2); outer.specular.setRGB(0.12, 0.1, 0.1); /* scorched */
+    const half = (y, h, torn, parts, v, w) => {
+      const g = new THREE.Group(); g.position.set(0, y, 0); body.add(g);
+      const tear = tearPattern(), shell = new THREE.Mesh(tornShell(h, torn, tear), outer); shell.scale.set(1.8, 1, 1.8); g.add(shell);
+      // the rim glows where it tore: a short band on the same tear, hot at the edge
+      const bandH = 0.9, band = new THREE.Mesh(tornShell(bandH, torn, tear, 3), new THREE.MeshBasicMaterial({ map: heatTex(torn), transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+      band.scale.set(1.83, 1, 1.83); band.position.y = -torn * (h - bandH) / 2; g.add(band);
+      const inner = new THREE.Mesh(shell.geometry, new THREE.MeshBasicMaterial({ map: emberTex(torn), side: THREE.BackSide })); inner.scale.set(1.77, 1, 1.77); g.add(inner);
+      for (const c of parts) g.attach(c);
+      const edge = new THREE.Vector3(0, -torn * h / 2, 0), fire = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: this.fireTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+      this.scene.add(fire); const light = this.breakLights[torn > 0 ? 0 : 1]; g.add(light); light.position.copy(edge); light.intensity = 3;
+      fire.material.depthTest = false; /* a glow in the opening, not hidden behind the hull */
+      Object.assign(g.userData, { keep: true, v, w, damp: 0.13, edge, fire, light, inner: inner.material, band: band.material });
+      return g;
+    };
+    // (kids: 2 top cone, 3 bottom cone, 4 lower band, 5 upper band)
+    this.halves = [half(1.6, 2.8, 1, [kids[2], kids[5]], local(-1.5, 2.1, -1.1), new THREE.Vector3(0.22, 0.07, 0.3)),
+      half(-1.4, 3.2, -1, [kids[3], kids[4]], local(1.8, 0.15, -1.8), new THREE.Vector3(-0.25, 0.08, -0.2))];
+  }
+  /** The spinning rings snap into three or four arcs, each flying outward from where it broke, tumbling about itself. */
+  snapRings() {
+    const THREE = T(), st = this.station, body = st.body; body.updateMatrixWorld(true); const inv = body.matrixWorld.clone().invert(), rings = [];
+    body.traverse((o) => { if (o.isMesh && o.geometry === st.geo.ring) rings.push(o); });
+    for (const ring of rings) {
+      const m = inv.clone().multiply(ring.matrixWorld), n = 3 + Math.floor(Math.random() * 2); let a = Math.random() * 6;
+      for (let i = 0; i < n; i++) {
+        const len = ((Math.PI * 2) / n) * (0.72 + Math.random() * 0.22), mid = a + len / 2, c = new THREE.Vector3(Math.cos(mid), Math.sin(mid), 0);
+        const geo = new THREE.TorusGeometry(1, 0.24, 10, 16, len); geo.rotateZ(a); geo.translate(-c.x, -c.y, 0); // centred on the arc, so it tumbles about itself
+        const arc = new THREE.Mesh(geo, ring.material); m.decompose(arc.position, arc.quaternion, arc.scale); arc.position.copy(c.clone().applyMatrix4(m)); body.add(arc);
+        const out = c.clone().applyMatrix4(m).sub(new THREE.Vector3().applyMatrix4(m)).normalize();
+        arc.userData.v = out.multiplyScalar(6 + Math.random() * 9).add(new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(4));
+        arc.userData.w = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(1.8); a += (Math.PI * 2) / n;
+      }
+      ring.parent.remove(ring);
+    }
+  }
+  /** The torn halves keep burning: a flickering glow at each break, sparks and smoke off the ragged rims, dying down. */
+  burnHalves(dt, since) {
+    const THREE = T(), cam = this.cam, heat = Math.max(0.28, Math.exp(-since / 4));
+    for (const g of this.halves || []) {
+      const u = g.userData, at = g.localToWorld(u.edge.clone()), flick = 0.8 + 0.2 * Math.sin(this.t * 23 + g.id) * Math.sin(this.t * 7.3);
+      u.fire.position.copy(at); u.fire.quaternion.copy(cam.quaternion); u.fire.scale.setScalar(4.2 * heat * flick); u.fire.material.opacity = Math.min(1, since * 3) * heat * 0.8;
+      u.light.intensity = 3.2 * heat * flick; u.inner.color.setScalar(0.45 + 0.55 * heat * flick); u.band.color.setScalar(0.35 + 0.65 * heat * flick);
+      const rim = () => { const a = Math.random() * Math.PI * 2; return g.localToWorld(new THREE.Vector3(Math.cos(a) * 1.8, u.edge.y, Math.sin(a) * 1.8)); };
+      if (Math.random() < dt * 9 * heat) this.blast(rim(), 0.7 + Math.random() * 1.2, 0.28, this.sparkTex);
+      if (Math.random() < dt * 2.2 * heat) this.smoke(rim(), 2.5 + Math.random() * 2.5, 2.4);
+    }
   }
   /** Where a module sits in world space (for blasts along the station). */
   worldOf(obj) { const THREE = T(), v = new THREE.Vector3(); obj.getWorldPosition(v); return v; }
@@ -121,23 +202,29 @@ export class IntroScene {
       rumble(3.2, 1); this.broken = true; this.debris.visible = true; this.embers.visible = true; this.coreLight.intensity = 7;
       for (let n = 0; n < 7; n++) this.smoke(new THREE.Vector3((Math.random() - 0.5) * 12, 1 + (Math.random() - 0.5) * 8, (Math.random() - 0.5) * 10 - 4), 10 + Math.random() * 8, 3.2 + Math.random() * 1.2);
       for (const sh of this.traffic) { this.blast(sh.position.clone(), 5, 0.7); sh.visible = false; } this.blast(new THREE.Vector3(0, 1, 0), 60, 1.6); this.blast(new THREE.Vector3(0, 1, 0), 26, 1.1);
-      // every piece flies off on its own heading, tumbling; the hub stays, scorched
-      st.body.children.forEach((c, i) => { if (i === 1) return; const d = c.position.clone(); if (d.lengthSq() < 0.01) d.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5); d.normalize(); c.userData.v = d.multiplyScalar(8 + Math.random() * 14); c.userData.w = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(3); });
       for (const k in st.M) { const m = st.M[k]; if (m.color && m.isMeshPhongMaterial) { m.color.multiplyScalar(0.35); if ('emissiveIntensity' in m) m.emissiveIntensity = 0; } }
+      // the hub tears in two and the rings snap into arcs; every other piece flies off on its own heading, tumbling
+      this.tearHub(); this.snapRings();
+      for (const c of st.body.children) { if (c.userData.v || c.userData.keep) continue; const d = c.position.clone(); if (d.lengthSq() < 0.01) d.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5); d.normalize(); c.userData.v = d.multiplyScalar(8 + Math.random() * 14); c.userData.w = new THREE.Vector3(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).multiplyScalar(3); }
       st.M.light.color.setRGB(0.15, 0.1, 0.08); st.M.warm.color.setRGB(0.2, 0.1, 0.05);
       for (const f of this.fleet) f.leave = true;
     });
     if (this.broken) {
-      for (const c of st.body.children) { const u = c.userData; if (!u.v) continue; c.position.addScaledVector(u.v, dt); u.v.multiplyScalar(1 - dt * 0.35); c.rotation.x += u.w.x * dt; c.rotation.y += u.w.y * dt; c.rotation.z += u.w.z * dt; }
+      for (const c of st.body.children) { const u = c.userData; if (!u.v) continue; c.position.addScaledVector(u.v, dt); u.v.multiplyScalar(1 - dt * (u.damp ?? 0.35)); c.rotation.x += u.w.x * dt; c.rotation.y += u.w.y * dt; c.rotation.z += u.w.z * dt; }
       st.body.rotation.y += dt * 0.02; this.coreLight.intensity *= Math.exp(-dt * 1.8);
       st.M.halo.opacity = Math.max(0, st.M.halo.opacity - dt * 0.6); st.M.scaffold.opacity = 0; /* holograms do not survive the blast */
-      if (t > CORE + 0.8 && Math.random() < dt * 3.5) { const hub = this.worldOf(st.body.children[1]); hub.add(new THREE.Vector3((Math.random() - 0.5) * 3, (Math.random() - 0.5) * 5, (Math.random() - 0.5) * 3)); this.blast(hub, 1.2 + Math.random() * 1.6, 0.3, this.sparkTex); }
+      this.burnHalves(dt, t - CORE);
       const d = this.dummy; this.bits.forEach((b, i) => { b.p.addScaledVector(b.v, dt); b.v.multiplyScalar(1 - dt * 0.25); d.position.copy(b.p); d.rotation.set(b.r.x * t, b.r.y * t, b.r.z * t); d.scale.setScalar(b.s); d.updateMatrix(); this.debris.setMatrixAt(i, d.matrix); if (i < 90) { d.scale.setScalar(Math.max(0, 1 - (t - CORE) / 5) * (0.6 + (i % 5) * 0.2)); d.position.copy(b.p).multiplyScalar(0.8); d.updateMatrix(); this.embers.setMatrixAt(i, d.matrix); } }); this.debris.instanceMatrix.needsUpdate = true; this.embers.instanceMatrix.needsUpdate = true;
       const wk = clamp((t - CORE) / 1.4); this.wave.scale.setScalar(4 + wk * 70); this.wave.material.opacity = (1 - wk) * 0.6; this.wave.quaternion.copy(cam.quaternion); /* a ring expanding toward the viewer */
     }
     // ---- aftermath: the pilot's ship slides into the foreground
     if (t > AFTER) {
-      const k = ease(clamp((t - AFTER - 0.8) / 4.6)); this.ship.visible = t > AFTER + 0.8; this.ship.position.set(lerp(-14, -3.2, k), lerp(-9, -1.6, k), lerp(72, 47, k)); this.ship.rotation.set(0, 0, Math.sin(t * 1.4) * 0.06);
+      const k = ease(clamp((t - AFTER - 0.8) / 4.6)); this.ship.visible = t > AFTER + 0.8;
+      // where on screen it settles (a little below centre, clear of the captions) and from where it glides in (off the lower left)
+      const at = (nx, ny, dist) => new THREE.Vector3(nx, ny, 0.5).unproject(cam).sub(cam.position).normalize().multiplyScalar(dist).add(cam.position);
+      const end = at(0.04, -0.2, 13), from = at(-1.5, -1.25, 17); this.ship.position.lerpVectors(from, end, k); this.ship.rotation.set(0, 0, Math.sin(t * 1.4) * 0.06);
+      // as big as looks right, but never wider than about 60% of the screen
+      const wide = 2 * 13 * Math.tan((cam.fov * Math.PI) / 360) * cam.aspect; this.ship.scale.setScalar(Math.min(1.9, (wide * 0.6) / this.shipSpan));
       this.ship.updateMatrixWorld(true); this.flames.forEach((f) => { f.visible = true; f.position.copy(this.shipInner.localToWorld(new THREE.Vector3(f.userData.nz[0], f.userData.nz[1] - 0.25, 0))); f.scale.setScalar(1.4 + Math.random() * 0.5); f.quaternion.copy(cam.quaternion); });
       this.beat('after');
     }
