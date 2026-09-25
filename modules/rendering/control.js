@@ -130,8 +130,8 @@ export class ControlRoom extends Room {
     this.station.sync(state);
     const sys = siegeSystems(state), sg = state.siege || { stars: {}, best: {} }, rank = state.prestige?.level || 0, next = nextSiege(state);
     const threat = SIEGE_TIERS.filter((t) => siegeOpen(state, t.n) && !sg.won?.[t.n]).map((t) => t.n);
-    const sig = [sys.list.map((x) => x.state).join(''), JSON.stringify(sg.stars), JSON.stringify(sg.best), sg.wins || 0, threat.join(), SIEGE_TIERS.map((t) => (siegeOpen(state, t.n) ? 1 : 0)).join(''), rank > 0, state.stationName].join('|');
-    if (sig === this.sig) return; this.sig = sig; this.threat = threat; this.next = next;
+    const sig = [sys.list.map((x) => x.state).join(''), JSON.stringify(sg.stars), JSON.stringify(sg.best), sg.wins || 0, threat.join(), SIEGE_TIERS.map((t) => (siegeOpen(state, t.n) ? 1 : 0)).join(''), rank > 0, state.stationName, (state.siege?.damage?.ids || []).join(), sg.kills || 0].join('|');
+    if (sig === this.sig) return; this.sig = sig; this.threat = threat; this.next = next; this.damaged = sys.damaged > 0;
     if (this.show) { this.scene.remove(this.show); this.untag(this.show); } const THREE = T(); this.show = new THREE.Group(); this.scene.add(this.show);
     for (const cn of SIEGE_CONSOLES) this.consoleScreen(cn, sys);
     this.threatBoard(state, sg); this.guns(sys); this.fleet(threat); this.nameSign(state); this.blipsFor(threat.length);
@@ -142,16 +142,16 @@ export class ControlRoom extends Room {
     x.fillStyle = '#050a18'; x.fillRect(0, 0, 512, 300); x.fillStyle = cn.color; x.globalAlpha = 0.16; x.fillRect(0, 0, 512, 52); x.globalAlpha = 1; x.strokeStyle = cn.color; x.lineWidth = 3; x.strokeRect(4, 4, 504, 292);
     text(x, cn.name.toUpperCase(), 20, 28, '800 26px sans-serif', cn.color, 'left'); text(x, `${on}/${rows.length} ONLINE`, 492, 28, '700 18px sans-serif', on ? '#e8fbff' : '#6a7690', 'right');
     const step = Math.min(40, 236 / rows.length);
-    rows.forEach((r, i) => { const y = 76 + i * step, col = r.state === 2 ? '#ffd27a' : r.state ? '#5ee6ff' : '#3a4560';
+    rows.forEach((r, i) => { const y = 76 + i * step, col = r.damaged ? '#ff4d6a' : r.state === 2 ? '#ffd27a' : r.state ? '#5ee6ff' : '#3a4560';
       x.fillStyle = col; x.beginPath(); x.arc(30, y, 8, 0, Math.PI * 2); x.fill();
-      text(x, r.sys.name, 50, y, `700 ${step < 38 ? 19 : 21}px sans-serif`, r.state ? '#e8fbff' : '#6a7690', 'left'); text(x, r.state === 2 ? (r.sys.alien ? 'FITTED' : 'MAXED') : r.state ? 'ONLINE' : 'OFFLINE', 492, y, '800 15px sans-serif', col, 'right'); });
+      text(x, r.sys.name, 50, y, `700 ${step < 38 ? 19 : 21}px sans-serif`, r.state || r.damaged ? '#e8fbff' : '#6a7690', 'left'); text(x, r.damaged ? 'DAMAGED' : r.state === 2 ? (r.sys.alien ? 'FITTED' : 'MAXED') : r.state ? 'ONLINE' : 'OFFLINE', 492, y, '800 15px sans-serif', col, 'right'); });
     const [side, z] = CONSOLE_AT[cn.id], scr = this.screen(this.show, c, 1.9, 1.1, side * (W - 0.03), 1.92, z, -side * Math.PI / 2); this.tag(scr, cn.id);
-    this.consoles[cn.id].edge.material.color.set(on ? cn.color : '#3a4560');
+    this.consoles[cn.id].edge.material.color.set(rows.some((r) => r.damaged) ? '#ff4d6a' : on ? cn.color : '#3a4560');
   }
   threatBoard(state, sg) {
     const c = canvas(640, 350), x = c.getContext('2d'), stars = Object.values(sg.stars || {}).reduce((a, b) => a + b, 0);
     x.fillStyle = '#060a16'; x.fillRect(0, 0, 640, 350); x.strokeStyle = '#ffb547'; x.lineWidth = 3; x.strokeRect(5, 5, 630, 340);
-    text(x, 'THREAT BOARD', 24, 32, '800 28px sans-serif', '#ffd9a0', 'left'); text(x, `HELD ${sg.wins || 0} · ★ ${stars}/${SIEGE_TIERS.length * 3}`, 616, 32, '700 19px sans-serif', '#9fb0d0', 'right');
+    text(x, 'THREAT BOARD', 24, 32, '800 28px sans-serif', '#ffd9a0', 'left'); text(x, `HELD ${sg.wins || 0} · ★ ${stars}/${SIEGE_TIERS.length * 3} · ${sg.kills || 0} DOWNED`, 616, 32, '700 17px sans-serif', '#9fb0d0', 'right');
     SIEGE_TIERS.forEach((t, i) => { const y = 84 + i * 44, open = siegeOpen(state, t.n), held = !!sg.won?.[t.n], got = sg.stars?.[t.n] || 0;
       x.fillStyle = open ? (held ? 'rgba(109,255,200,.07)' : 'rgba(255,181,71,.1)') : 'rgba(255,255,255,.02)'; x.fillRect(16, y - 19, 608, 38);
       text(x, String(t.n), 36, y, '800 22px sans-serif', open ? '#ffd9a0' : '#3e4a66'); text(x, open ? t.name.toUpperCase() : 'UNKNOWN', 64, y, '800 21px sans-serif', open ? '#e8fbff' : '#3e4a66', 'left');
@@ -212,9 +212,10 @@ export class ControlRoom extends Room {
   }
   // ---------------------------------------------------------------- every frame
   update(dt) {
-    this.walk(dt); const t = this.t, alert = !!this.threat?.length, night = nightAmount();
-    // the room: dim screens-and-panels light; on alert the cove glows amber and breathes
-    const k = alert ? 0.75 + 0.25 * Math.sin(t * 2.4) : 0.8; this.coveMat.color.setRGB(k, 0.71 * k, 0.28 * k); for (const l of this.lamps) l.intensity = 0.42 - night * 0.1;
+    this.walk(dt); const t = this.t, red = !!this.damaged, alert = red || !!this.threat?.length, night = nightAmount();
+    // the room: dim screens-and-panels light; on alert the cove glows amber and breathes, red and faster while the station
+    // is damaged
+    const k = alert ? 0.75 + 0.25 * Math.sin(t * (red ? 4.2 : 2.4)) : 0.8; if (red) this.coveMat.color.setRGB(k, 0.18 * k, 0.16 * k); else this.coveMat.color.setRGB(k, 0.71 * k, 0.28 * k); for (const l of this.lamps) l.intensity = 0.42 - night * 0.1;
     // the radar: the sweep turns, blips brighten as it passes and creep in towards the station
     const sa = (t * 1.3) % (Math.PI * 2); this.sweep.rotation.z = sa;
     for (const b of this.blips) {
@@ -223,7 +224,8 @@ export class ControlRoom extends Room {
     }
     this.station.animate(dt, 0.4); this.station.body.rotation.set(0.35, t * 0.25, 0);
     // the beacon: turning amber blades on alert, a steady green lens when all is quiet
-    this.blades.visible = alert; if (alert) { this.blades.rotation.y = t * 3.2; this.lens.material.color.setRGB(1, 0.6 + 0.2 * Math.sin(t * 6.4), 0.2); } else this.lens.material.color.setRGB(0.3, 0.9, 0.55);
+    for (const b of this.blades.children) b.material.color.setRGB(1, red ? 0.25 : 1, red ? 0.25 : 1); /* red blades while damaged */
+    this.blades.visible = alert; if (alert) { this.blades.rotation.y = t * (red ? 5 : 3.2); if (red) this.lens.material.color.setRGB(1, 0.12 + 0.12 * Math.sin(t * 9), 0.15); else this.lens.material.color.setRGB(1, 0.6 + 0.2 * Math.sin(t * 6.4), 0.2); } else this.lens.material.color.setRGB(0.3, 0.9, 0.55);
     // outside: the guns scan the dark, the fleet's running lights wink, the hull's edge lights blink in turn
     for (const g of this.turrets || []) { g.yaw.rotation.y = Math.sin(t * (g.pd ? 0.5 : 0.23) + g.ph) * (g.pd ? 0.9 : 0.45); g.pitch.rotation.x = 0.12 + Math.sin(t * 0.31 + g.ph) * 0.08; if (g.lamp) g.lamp.visible = (t + g.ph) % 1.4 < 0.7; }
     const fl = this.fleetLights; if (fl?.m) { const c = (this._fc ||= new (T().Color)()); fl.ph.forEach((ph, i) => fl.m.setColorAt(i, c.setHex(0xff5566).multiplyScalar(0.45 + 0.55 * Math.max(0, Math.sin(t * 2.1 + ph))))); fl.m.instanceColor.needsUpdate = true; }

@@ -476,24 +476,39 @@ const back = parseSave(JSON.stringify(G.state)); assert.equal(back.salvage, 1234
 assert.throws(() => parseSave(JSON.stringify({ ...G.state, v: SCHEMA + 1 })), /newer version/);
 assert.throws(() => parseSave('{"run":{},"cur":{}}'), /Not a Last Orbit v2 save/);
 
-// ---- v2.10: Station Siege ----
-{ const { SIEGE_TIERS, TIER_BY_N, siegeOpen, siegeSystems, SIEGE_BLUEPRINTS } = await import('@last-orbit/data/siege.js'); const { hurtStation } = await import('@last-orbit/combat/siege.js');
+// ---- v2.10 / v2.14: Station Siege, fought from the gunner seat ----
+{ const S = await import('@last-orbit/data/siege.js'), { SIEGE_TIERS, TIER_BY_N, siegeOpen, siegeSystems, SIEGE_BLUEPRINTS, siegeGuns, siegePay } = S;
+  const { settleSiege, repairStation, patchStation, PATCH_TIME } = await import('@last-orbit/progression/siege.js'); const { turretKit, TURRET_MOD } = await import('@last-orbit/data/turret.js');
   fresh(); assert.equal(SIEGE_TIERS.length, 6); assert.equal(siegeOpen(G.state, 1), false, 'No siege before the first Counterattack clear');
   G.state.counter.unlocked = true; G.state.counter.stars[1] = 1; assert.equal(siegeOpen(G.state, 1), true, 'Clearing stage 1 brings the first siege'); assert.equal(siegeOpen(G.state, 2), false);
   assert.equal(siegeSystems(G.state).count, 0, 'A bare station has no defences');
-  G.state.workshop.w_hull = 1; G.state.workshop.w_shield = 5; const sys = siegeSystems(G.state).on; const shieldAt = (await import('@last-orbit/data/siege.js')).SYSTEM_BY_ID.w_shield.at; assert.ok(sys.w_hull > 0 && sys.w_shield === shieldAt[1] && shieldAt[1] > shieldAt[0], 'Built modules are defences; maxed ones work harder');
-  launch({ siege: 1 }); const w = G.world, run = G.state.run, t1 = TIER_BY_N[1];
-  assert.equal(run.mode, 'siege'); assert.equal(run.wave, t1.first); assert.ok(w.siege && w.siege.hull === 1); assert.equal(w.barriers.length, 0, 'No bunkers unless the station has built them');
-  const best = G.state.stats.bestWave || 0; startWave(w); assert.equal(G.state.stats.bestWave || 0, best, "A siege's waves do not count as a run's depth");
-  assert.ok(w.siege.shield > 0, 'The shield charges at every wave'); const sh = w.siege.shield;
-  hurtStation(w, 0.1, 0); assert.ok(w.siege.hull === 1 && w.siege.shield < sh, 'The shield takes a hit first');
-  hurtStation(w, 1, 0); assert.ok(w.siege.hull < 1 && w.siege.hull > 0, 'then the hull, through the armour');
-  let over = null; const off = (r) => { over = r; }; bus.on('sortieOver', off); hurtStation(w, 5, 0); assert.equal(over, 'stationLost', 'At 0% the station falls and the siege is lost');
-  let sum = endSortie('stationLost'); assert.ok(sum.siege.lost && sum.siege.stars === 0 && !sum.siege.bp, 'A lost siege earns nothing');
-  // a win: stars by the station's hull, Blueprints once per tier, a core per new star
-  launch({ siege: 1 }); G.state.run.siegeWon = true; G.state.run.siegeHull = 0.9; const bp0 = G.state.prestige.bp, cores0 = G.state.counter.cores;
-  sum = endSortie('cleared'); assert.equal(sum.siege.stars, 3); assert.equal(G.state.prestige.bp - bp0, SIEGE_BLUEPRINTS); assert.equal(G.state.counter.cores - cores0, 3);
-  launch({ siege: 1 }); G.state.run.siegeWon = true; G.state.run.siegeHull = 0.9; sum = endSortie('cleared'); assert.equal(sum.siege.bp, 0, 'Blueprints only on the first win'); assert.equal(sum.siege.cores, 0, 'and cores only for new stars'); }
+  for (const t of SIEGE_TIERS) { assert.ok(t.plan.length >= 4 && t.plan.at(-1).cap, `Tier ${t.n} ends on a capital ship`); assert.ok(TURRET_MOD[t.gun], `Tier ${t.n} fits a real turret upgrade`); assert.ok(t.salvage > 0 && t.repair > 0 && t.breaks > 0); }
+  for (let n = 2; n <= 6; n++) assert.ok(TIER_BY_N[n].hp >= TIER_BY_N[n - 1].hp && TIER_BY_N[n].salvage > TIER_BY_N[n - 1].salvage, 'Each tier is tougher and pays more');
+  const bare = turretKit(G.state);
+  G.state.workshop.w_hull = 1; G.state.workshop.w_shield = 5; G.state.workshop.w_dmg = 1; const sys = siegeSystems(G.state).on, shieldAt = S.SYSTEM_BY_ID.w_shield.at;
+  assert.ok(sys.w_hull > 0 && sys.w_shield === shieldAt[1] && shieldAt[1] > shieldAt[0], 'Built modules are systems; maxed ones work harder');
+  const kit = turretKit(G.state); assert.ok(kit.dmg > bare.dmg && kit.armour > 0 && kit.shieldMax === shieldAt[1], 'and they arm the guns');
+  // a win: stars by the hull kept, salvage (double the first time), Blueprints and a turret upgrade for good, the first time only
+  G.state.salvage = 0; const bp0 = G.state.prestige.bp, cores0 = G.state.counter.cores || 0;
+  let r = settleSiege({ tier: 1, won: true, hull: 0.9, kills: 40, score: 9000 });
+  assert.equal(r.stars, 3); assert.equal(G.state.prestige.bp - bp0, SIEGE_BLUEPRINTS); assert.equal((G.state.counter.cores || 0) - cores0, 3);
+  assert.equal(r.salvage, siegePay(TIER_BY_N[1], 0.9, true)); assert.equal(G.state.salvage, r.salvage); assert.equal(r.gun, TIER_BY_N[1].gun); assert.deepEqual(siegeGuns(G.state), { [TIER_BY_N[1].gun]: 1 }, 'The guns keep the upgrade');
+  r = settleSiege({ tier: 1, won: true, hull: 0.6, kills: 30, score: 5000 });
+  assert.equal(r.bp, 0, 'Blueprints only on the first win'); assert.equal(r.cores, 0, 'cores only for new stars'); assert.equal(r.gun, null); assert.equal(r.salvage, siegePay(TIER_BY_N[1], 0.6, false), 'and salvage every time, by the hull kept');
+  assert.ok(siegePay(TIER_BY_N[1], 1, false) > siegePay(TIER_BY_N[1], 0.3, false), 'A cleaner hold pays more'); assert.equal(G.state.siege.kills, 70, 'Invaders downed are tallied');
+  // a loss: some systems knocked offline (the guns go without them) until repaired, for salvage or by a sortie long enough
+  const before = siegeSystems(G.state).count; r = settleSiege({ tier: 1, won: false, hull: 0, kills: 5, score: 100 }, () => 0);
+  assert.equal(r.stars, 0); assert.equal(r.broke.length, Math.min(TIER_BY_N[1].breaks, before)); assert.equal(siegeSystems(G.state).count, before - r.broke.length, 'A lost siege knocks systems out');
+  assert.ok(siegeSystems(G.state).list.filter((x) => x.damaged).length === r.broke.length && S.siegeDamage(G.state).cost === TIER_BY_N[1].repair);
+  assert.ok(!r.broke.includes('w_salvage'), 'never the cargo hold'); assert.ok(turretKit(G.state).dmg < kit.dmg || turretKit(G.state).armour < kit.armour || turretKit(G.state).shieldMax < kit.shieldMax, 'and the guns feel it');
+  assert.equal(G.state.workshop.w_dmg, 1, 'The Workshop itself is untouched');
+  G.state.salvage = 10; assert.equal(repairStation(), false, 'Repairs cost salvage'); assert.equal(patchStation(PATCH_TIME - 1), null, 'A short sortie is not long enough for the crews'); assert.ok(S.siegeDamage(G.state));
+  G.state.salvage = TIER_BY_N[1].repair; assert.equal(repairStation(), true); assert.equal(G.state.salvage, 0); assert.equal(siegeSystems(G.state).count, before, 'Paid for, every system is back');
+  settleSiege({ tier: 1, won: false, hull: 0 }, () => 0); assert.deepEqual(patchStation(PATCH_TIME).length > 0, true, 'or the crews patch it while the pilot is out'); assert.equal(S.siegeDamage(G.state), null);
+  settleSiege({ tier: 1, won: false, hull: 0 }, () => 0); r = settleSiege({ tier: 1, won: true, hull: 0.5 }); assert.ok(r.repaired.length > 0 && !S.siegeDamage(G.state), 'and a siege held repairs it too');
+  // a sortie of a minute or more finishes the repairs, and the debrief says so
+  settleSiege({ tier: 1, won: false, hull: 0 }, () => 0); launch(); G.state.run.time = PATCH_TIME + 5; let sum = endSortie('abandoned'); assert.ok(sum.repaired?.length > 0 && !S.siegeDamage(G.state), 'A sortie brings the crews home with the station patched');
+  settleSiege({ tier: 1, won: false, hull: 0 }, () => 0); launch(); G.state.run.time = 10; sum = endSortie('abandoned'); assert.equal(sum.repaired, null); assert.ok(S.siegeDamage(G.state), 'but not a sortie abandoned at once'); }
 
 // ---- v2.10.1: sounds come back after the phone sleeps (a new audio context's clock starts again at zero) ----
 { let clock = 500, oscs = 0; const node = () => ({ connect() {}, disconnect() {}, gain: { value: 0, setValueAtTime() {}, exponentialRampToValueAtTime() {}, linearRampToValueAtTime() {}, setTargetAtTime() {} } });

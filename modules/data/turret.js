@@ -3,19 +3,20 @@
 // (rendering/gunner.js reads it).
 import { siegeSystems } from '@last-orbit/data/siege.js';
 
-/** What the station you have built gives the guns before the first pick. */
-export function turretKit(state) {
-  const { on, list } = siegeSystems(state), lvl = (id) => list.find((x) => x.sys.id === id)?.state || 0;
+/** What the station you have built gives the guns before the first pick (each system's effect: data/siege.js). */
+export const turretKit = (state) => kitFrom(siegeSystems(state).on);
+/** The same from the systems online: { id: value }. */
+export function kitFrom(on) {
+  const crew = 1 - (on.w_start || 0);
   return {
     // the cannons fire four rounds a second (in time with the recorded shot, assets/sfx/turret-shot-*), each a heavy one
-    dmg: 2.3 * (1 + lvl('w_dmg') * 0.25) * (1 + (on.x_charts || 0) * 0.5), // the weapon battery, a quarter harder built and a half maxed, and the star charts
-    fireEvery: 0.25 * [1, 0.9, 0.8][lvl('w_rate')], // the cycler drum
+    dmg: 2.3 * (1 + (on.w_dmg || 0)) * (1 + (on.x_charts || 0)), fireEvery: 0.25 * (1 - (on.w_rate || 0)),
     cone: 0.09, speed: 520, pierce: 0, splash: 0, tesla: 0, flak: 0, ap: 0,
-    mag: 30, gunReload: 2.3, // a magazine for the cannons, and a slow reload once it runs dry
-    missiles: 2, lockTime: 1.1, missileDmg: 20, missileBlast: 0, reload: 8, // the missile rack reloads, all at once, when it is empty
+    mag: 30, gunReload: 2.3 * crew, // a magazine for the cannons, and a slow reload once it runs dry
+    missiles: 2, lockTime: 1.1, missileDmg: 20, missileBlast: 0, reload: 8 * crew, // the missile rack reloads, all at once, when it is empty
     shieldMax: on.w_shield || 0, regen: on.w_regen || 0, armour: (on.w_hull || 0) + (on.x_alloy || 0), evade: on.w_speed || 0,
-    pdEvery: on.w_crit ? on.w_crit * 0.6 : 0, torpSlow: on.w_magnet || 0, sentries: 0,
-    rerolls: on.w_reroll ? (on.w_reroll > 0.3 ? 2 : 1) : 0, freePicks: on.w_choice || 0, beacon: !!on.w_revive,
+    pdEvery: on.w_crit || 0, torpSlow: on.w_magnet || 0, sentries: on.w_xp || 0, bunkers: on.w_barrier || 0, phaseEvery: on.x_phase || 0, siphon: on.x_siphon || 0,
+    rerolls: on.w_reroll || 0, freePicks: on.w_choice || 0, beacon: on.w_revive || 0, cargo: on.w_salvage || 0,
   };
 }
 

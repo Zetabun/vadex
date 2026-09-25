@@ -38,6 +38,7 @@ const hooks = {
   relaunch: (next, opts) => hooks.launch(next ? (lastLaunch.siege ? { ...lastLaunch, siege: lastLaunch.siege + 1 } : { ...lastLaunch, counter: lastLaunch.counter + 1, checkpoint: false }) : { ...lastLaunch, checkpoint: false, ...opts }),
   counterNotice: () => {},
   toHangar: (tab) => { initWorld(); ui.setMode('hangar', tab); },
+  toSiege: (n) => { initWorld(); ui.setMode('hangar', 'control'); ui.siege(n); },
   pendingOffer: () => nextOffer(),
   pendingRelic: () => nextRelic(),
   pendingRoute: () => nextRoute(),

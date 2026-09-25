@@ -1,15 +1,17 @@
-// Gunner seat (prototype): man the station's guns in 3D. The turret sits on a mast above the station, which lies ahead
-// and below with Earth beyond. Fighters make strafing runs at it, bombers fly in to release torpedoes, torpedoes streak
-// at its hull, and a capital ship with three weak points ends it. Drag to aim; the twin cannons fire on their own
-// whenever something is in the sights (with a lead marker for fast targets). Hold the sights on a target and the
-// missile seeker locks on (beeping faster, then a steady tone): fire, and a homing missile goes for it. Between waves,
-// pick one of three turret upgrades (data/turret.js); what the station has built sets the starting kit. The station's
-// hull is your life. Its own little simulation: nothing here touches the 2D fight.
+// Gunner seat: the Station Siege, fought from the station's guns in 3D. The turret sits on a mast above the station, which
+// lies ahead and below with Earth beyond. Fighters make strafing runs at it, bombers fly in to release torpedoes,
+// torpedoes streak at its hull, gunships hover and beam it, and each siege ends on a capital ship with weak points to shoot
+// out. Drag to aim; the twin cannons fire on their own whenever something is in the sights (with a lead marker for fast
+// targets). Hold the sights on an armoured target and the missile seeker locks on (beeping faster, then a steady tone):
+// fire, and a homing missile goes for it. Between waves, pick one of three turret upgrades (data/turret.js); what the
+// station has built sets the starting kit, and every tier held adds an upgrade the guns keep. The tier (data/siege.js)
+// sets the waves and how tough they are. The station's hull is your life; the hangar files the result when it ends
+// (progression/siege.js). Its own little simulation: nothing here touches the 2D fight.
 import { G } from '@last-orbit/core/game.js';
 import { backdrop, glowTex } from '@last-orbit/rendering/intro.js';
 import { Station } from '@last-orbit/rendering/station.js';
 import { shapeGeometry } from '@last-orbit/rendering/geometry.js';
-import { SIEGE_STARS } from '@last-orbit/data/siege.js';
+import { SIEGE_STARS, TIER_BY_N, siegeGuns } from '@last-orbit/data/siege.js';
 import { turretKit, turretStats, turretOffer, TURRET_MOD } from '@last-orbit/data/turret.js';
 import { playSfx, playSample, lockTone, whoosh, explosion } from '@last-orbit/audio/audio.js';
 import { haptic } from '@last-orbit/ui/haptics.js';
@@ -26,12 +28,11 @@ const KIND = {
   capital: { hp: Infinity, r: 52, shape: 'bossCarrier', color: 0x8a5ac8, score: 0 },
   weak: { hp: 34, r: 7, score: 400, armour: 0.4, missile: true },
 };
-export const WAVES = [
-  { name: 'Wave 1', fighters: 6 }, { name: 'Wave 2', fighters: 7, bombers: 1 }, { name: 'Wave 3', fighters: 8, bombers: 1, gunships: 1 },
-  { name: 'Wave 4', fighters: 9, bombers: 2, gunships: 1 }, { name: 'Capital ship', fighters: 3, capital: true },
-];
-// how much tougher each kind gets per wave (fighters most: bombers and weak points are the missiles' work)
+// how much tougher each kind gets, wave by wave, by the siege's last wave four steps of it (fighters most: bombers and weak
+// points are the missiles' work); on top of the tier's own toughness
 const GROW = { fighter: 0.3, bomber: 0.12, gunship: 0.1, weak: 0.06 };
+// a capital ship's weak points, as many as the tier gives it
+const WEAK_AT = [[-20, 4, 6], [20, 4, 6], [0, -14, 9], [-11, 13, 5], [11, 13, 5]];
 const rnd = (a, b) => a + Math.random() * (b - a);
 const DEBRIS_MAX = 380, PIECES = { fighter: 10, bomber: 18, gunship: 20, torpedo: 4, weak: 12, capital: 44 };
 
@@ -78,22 +79,29 @@ export class GunnerScene {
     this.start();
   }
   // ---------------------------------------------------------------- a fresh engagement
-  start() {
+  /** A siege of tier n (data/siege.js). opts.kit and opts.picks stand in for the station's kit and the guns' standing
+   *  upgrades (for tests); otherwise they come from the save. */
+  start(n = this.tierN || 1, opts = {}) {
     for (const e of this.enemies || []) this.drop(e); for (const m of this.missiles || []) this.scene.remove(m.g); this.debris = []; this.embers = [];
-    this.enemies = []; this.bullets = []; this.missiles = []; this.hull = 1; this.shield = 0; this.score = 0; this.kills = 0; this.wave = -1; this.gap = 1.2; this.over = false; this.won = false;
-    this.yaw = 0; this.pitch = -0.18; this.fireT = 0; this.side = 0; this.banner = { text: 'Man the guns', t: 2.2 }; this.hitT = 0; this.pdT = 0; this.sentryT = 0; this.spawnQ = [];
-    this.picks = {}; this.pick = null; this.waveLive = false; this.kit = null; this.running = true;
+    this.tierN = TIER_BY_N[n] ? n : 1; this.tier = TIER_BY_N[this.tierN]; this.engagement = (this.engagement || 0) + 1; this.kitOverride = opts.kit || null;
+    this.enemies = []; this.bullets = []; this.missiles = []; this.hull = 1; this.shield = 0; this.score = 0; this.kills = 0; this.wave = -1; this.gap = 1.2; this.over = false; this.won = false; this.abandoned = false; this.paused = false; this.filed = false;
+    this.yaw = 0; this.pitch = -0.18; this.fireT = 0; this.side = 0; this.banner = { text: this.tier.name, t: 2.4 }; this.hitT = 0; this.pdT = 0; this.sentryT = 0; this.spawnQ = []; this.bunkers = 0; this.phaseT = 0;
+    this.picks = { ...(opts.picks || (G.state ? siegeGuns(G.state) : {})) }; this.pick = null; this.waveLive = false; this.kit = null; this.running = true;
     this.ms = { ammo: 0, reloadT: 0, target: null, lockT: 0, locked: false, beepT: 0, noLock: 0 }; this.gun = { ammo: 0, reloadT: 0 }; this.recoil = 0; this.roll = 0; this.jolt = 0; this.shake = 0;
     if (G.state) this.sync(G.state); lockTone(false);
   }
   sync(state) {
     this.station.sync(state); if (this.kit) return;
-    this.kit = turretKit(state); this.st = turretStats(this.kit, this.picks); this.ms.ammo = this.st.missiles; this.gun.ammo = this.st.mag; this.picksDue = this.kit.freePicks; this.rerolls = this.kit.rerolls; this.beacon = this.kit.beacon;
+    this.kit = this.kitOverride || turretKit(state); this.st = turretStats(this.kit, this.picks); this.ms.ammo = this.st.missiles; this.gun.ammo = this.st.mag; this.picksDue = this.kit.freePicks; this.rerolls = this.kit.rerolls; this.beacon = this.kit.beacon; this.phaseT = this.st.phaseEvery;
   }
   resize(w, h) { this.w = w; this.h = h; this.cam.aspect = w / Math.max(1, h); this.cam.fov = this.fov0 = w < h ? 74 : 58; this.cam.updateProjectionMatrix(); }
   look(dx, dy) { if (this.pick) return; this.yaw = Math.max(-YAW_MAX, Math.min(YAW_MAX, this.yaw - dx * 0.0042)); this.pitch = Math.max(PITCH_MIN, Math.min(PITCH_MAX, this.pitch - dy * 0.0042)); }
   /** Stop the seeker's tone (leaving the seat). */
   silence() { lockTone(false); }
+  /** Leave mid-siege: it counts as lost (true if there was a fight to leave). */
+  abandon() { if (this.over || this.wave < 0) return false; this.over = true; this.running = false; this.abandoned = true; lockTone(false); this.banner = { text: 'Siege abandoned', t: 99 }; return true; }
+  /** How far through the siege a wave is, as steps of toughening: 0 on the first wave, 4 on the last. */
+  get stage() { return (Math.max(0, this.wave) * 4) / Math.max(1, this.tier.plan.length - 1); }
   // ---------------------------------------------------------------- upgrades between waves
   offerPick() { this.pick = { ids: turretOffer(this.picks) }; if (!this.pick.ids.length) { this.pick = null; return; } this.ms.target = null; this.ms.locked = false; lockTone(false); playSfx('unlock', 0.6); }
   choosePick(i) {
@@ -118,48 +126,50 @@ export class GunnerScene {
   }
   spawn(kind, pos, extra = {}) {
     // the invaders toughen wave by wave, as the guns are upgraded between them
-    const THREE = T(), grow = 1 + (GROW[kind] || 0) * Math.max(0, this.wave), e = { kind, k: KIND[kind], hp: KIND[kind].hp * grow, max: KIND[kind].hp * grow, pos: pos.clone(), vel: new THREE.Vector3(), t: 0, g: this.mesh(kind), alive: true, flash: 0, ...extra };
+    const THREE = T(), grow = (1 + (GROW[kind] || 0) * this.stage) * this.tier.hp, e = { kind, k: KIND[kind], hp: KIND[kind].hp * grow, max: KIND[kind].hp * grow, pos: pos.clone(), vel: new THREE.Vector3(), t: 0, g: this.mesh(kind), alive: true, flash: 0, ...extra };
     this.enemies.push(e); return e;
   }
   drop(e) { e.alive = false; this.scene.remove(e.g); e.g.traverse((o) => { o.material?.dispose?.(); }); }
   far(latMax = 0.9) { const THREE = T(), a = rnd(-latMax, latMax), d = rnd(420, 560); return new THREE.Vector3(Math.sin(a) * d, rnd(40, 170), -Math.cos(a) * d); } // near enough that the action starts in seconds
   nextWave() {
-    this.wave++; const W = WAVES[this.wave]; if (!W) { this.win(); return; } this.waveLive = true;
+    this.wave++; const plan = this.tier.plan, W = plan[this.wave]; if (!W) { this.win(); return; } this.waveLive = true;
     this.gun.ammo = this.st.mag; this.gun.reloadT = 0; this.ms.ammo = this.st.missiles; this.ms.reloadT = 0; // the crew reloads between waves
-    this.banner = { text: W.capital ? 'Capital ship inbound' : W.name, t: 2.4 }; this.shield = this.st.shieldMax; playSfx(W.capital ? 'bossintro' : 'milestone', 0.6);
-    for (let i = 0; i < (W.fighters || 0); i++) this.spawnQ.push({ kind: 'fighter', at: 0.4 + i * 0.9 });
-    for (let i = 0; i < (W.bombers || 0); i++) this.spawnQ.push({ kind: 'bomber', at: 3 + i * 4 });
-    for (let i = 0; i < (W.gunships || 0); i++) this.spawnQ.push({ kind: 'gunship', at: 5 + i * 5 });
-    if (W.capital) this.spawnQ.push({ kind: 'capital', at: 0.5 });
+    this.banner = { text: W.cap ? 'Capital ship inbound' : this.wave === plan.length - 1 ? 'Final wave' : `Wave ${this.wave + 1}`, t: 2.4 }; this.shield = this.st.shieldMax; this.bunkers = this.st.bunkers; playSfx(W.cap ? 'bossintro' : 'milestone', 0.6);
+    for (let i = 0; i < (W.f || 0); i++) this.spawnQ.push({ kind: 'fighter', at: 0.4 + i * 0.9 });
+    for (let i = 0; i < (W.b || 0); i++) this.spawnQ.push({ kind: 'bomber', at: 3 + i * 4 });
+    for (let i = 0; i < (W.g || 0); i++) this.spawnQ.push({ kind: 'gunship', at: 5 + i * 5 });
+    if (W.cap) this.spawnQ.push({ kind: 'capital', at: 0.5, weak: W.cap });
   }
   /** A wave held: the repair crews patch the hull, and an upgrade is earned (not after the last). */
-  waveCleared() { this.waveLive = false; if (this.st.regen) this.hull = Math.min(1, this.hull + this.st.regen); if (this.wave < WAVES.length - 1) this.picksDue++; this.gap = 1.1; }
+  waveCleared() { this.waveLive = false; if (this.st.regen) this.hull = Math.min(1, this.hull + this.st.regen); if (this.wave < this.tier.plan.length - 1) this.picksDue++; this.gap = 1.1; }
   fighterGoal(e) { const THREE = T(); e.state = 'approach'; e.goal = new THREE.Vector3(rnd(-80, 80), rnd(10, 70), rnd(-300, -230)); }
   addFighter(from) { const e = this.spawn('fighter', from || this.far()); this.fighterGoal(e); e.vel.set(0, 0, 1).multiplyScalar(40); e.shotT = 0; return e; }
   addBomber() { const THREE = T(), p = this.far(0.5); p.y = rnd(40, 120); const e = this.spawn('bomber', p); e.state = 'inbound'; e.goal = new THREE.Vector3(p.x * 0.18, rnd(0, 25), -150); e.vel.set(0, 0, 20); return e; }
   /** A gunship takes a station off to one side and shells the station from there, sliding back and forth. */
   addGunship() { const THREE = T(), side = Math.random() < 0.5 ? -1 : 1, e = this.spawn('gunship', this.far(0.6)); e.home = new THREE.Vector3(side * rnd(70, 130), rnd(35, 85), rnd(-290, -240)); e.shotT = 3; e.vel.set(0, 0, 20); return e; }
   addTorpedo(from) { const THREE = T(), e = this.spawn('torpedo', from), to = this.v.copy(this.hub).add(new THREE.Vector3(rnd(-6, 6), rnd(-3, 5), rnd(-4, 4))); e.vel.subVectors(to, from).normalize().multiplyScalar(38); e.trailT = 0; return e; }
-  addCapital() {
+  addCapital(weak = 3) {
     const THREE = T(), e = this.spawn('capital', new THREE.Vector3(0, 160, -900)); e.goal = new THREE.Vector3(0, 60, -330); e.launchT = 4; e.salvoT = 7;
-    e.weak = [[-20, 4, 6], [20, 4, 6], [0, -14, 9]].map((o) => this.spawn('weak', e.pos, { off: new THREE.Vector3(...o), host: e })); return e;
+    e.weak = WEAK_AT.slice(0, weak).map((o) => this.spawn('weak', e.pos, { off: new THREE.Vector3(...o), host: e })); return e;
   }
   steer(e, goal, speed, turn, dt) { const want = this.v.subVectors(goal, e.pos); const d = want.length(); want.multiplyScalar(speed / Math.max(1e-3, d)); e.vel.lerp(want, Math.min(1, dt * turn)); e.pos.addScaledVector(e.vel, dt); return d; }
   // ---------------------------------------------------------------- the station takes a hit
-  hurt(dmg, at) {
+  /** heavy: a torpedo or a gunship's beam (the bunkers take the first of those each wave). */
+  hurt(dmg, at, heavy = false) {
     if (this.over) return; if (this.st.evade && Math.random() < this.st.evade) return;
+    if (heavy && this.bunkers > 0) { this.bunkers--; this.blast(at, 16, 0.5, this.cyanTex); playSfx('shield', 0.8); return; }
     dmg /= 1 + this.st.armour;
-    dmg *= 1 + 0.08 * Math.max(0, this.wave); /* and hit harder */ if (this.shield > 0) { const a = Math.min(this.shield, dmg); this.shield -= a; dmg -= a; }
+    dmg *= (1 + 0.08 * this.stage) * this.tier.dmg; /* and hit harder, wave by wave and tier by tier */ if (this.shield > 0) { const a = Math.min(this.shield, dmg); this.shield -= a; dmg -= a; }
     if (dmg > 0) { this.hull = Math.max(0, this.hull - dmg); this.station.flash = 1; this.shake = Math.max(this.shake || 0, dmg > 0.05 ? 0.9 : 0.35); if (dmg > 0.05) haptic('hit'); }
     this.blast(at, 5, 0.4, this.sparkTex);
-    if (this.hull <= 0 && this.beacon) { this.beacon = false; this.hull = 0.15; this.banner = { text: 'Emergency beacon', t: 2 }; playSfx('milestone', 0.8); return; }
+    if (this.hull <= 0 && this.beacon) { this.hull = this.beacon; this.beacon = 0; this.banner = { text: 'Emergency beacon', t: 2 }; playSfx('milestone', 0.8); return; }
     if (this.hull <= 0) { this.over = true; this.running = false; lockTone(false); this.banner = { text: 'Station lost', t: 99 }; playSfx('bossdie', 0.9); for (let i = 0; i < 8; i++) this.blast(this.v.copy(this.hub).add(new (T().Vector3)(rnd(-18, 18), rnd(-8, 8), rnd(-10, 10))), rnd(12, 26), rnd(0.6, 1.2)); }
   }
   win() { this.won = true; this.over = true; this.running = false; lockTone(false); this.banner = { text: 'Station held', t: 99 }; playSfx('milestone', 1); }
   /** Damage to one enemy (cannon round, missile, arc, blast); true if it died. */
   damage(e, n, cannon = false) { if (!e.alive || e.kind === 'capital') return false; if (cannon && e.k.armour) n *= e.k.armour + (1 - e.k.armour) * Math.min(1, this.st.ap); /* armour turns most cannon fire aside */ e.hp -= n; e.flash = 1; if (e.hp <= 0) { this.kill(e); return true; } return false; }
   kill(e) {
-    e.alive = false; this.score += e.k.score; this.kills++;
+    e.alive = false; this.score += e.k.score; this.kills++; if (this.st.siphon && e.k.missile && !this.over) this.hull = Math.min(1, this.hull + this.st.siphon); /* the core siphon */
     this.blast(e.pos, e.kind === 'bomber' ? 26 : e.kind === 'weak' ? 22 : e.kind === 'torpedo' ? 9 : 16, 0.6); this.blast(e.pos, e.kind === 'bomber' ? 14 : 8, 0.35, this.sparkTex);
     playSfx(e.kind === 'torpedo' ? 'hurt' : 'boom', e.kind === 'bomber' || e.kind === 'weak' ? 0.9 : 0.5); this.shatter(e); this.drop(e);
     if (e.kind === 'weak' && e.host.weak.every((w) => !w.alive)) e.host.dying = 1.3; // the capital ship goes up in a chain of blasts
@@ -240,10 +250,10 @@ export class GunnerScene {
     const j = on ? this.jolt : 0; this.rig.position.set(nx * amp * 2, ny * amp * 2 - j * 0.025, j * 0.09); this.rig.rotation.x = j * 0.03;
     this.punch *= Math.exp(-dt * 7); const fov = (this.fov0 || cam.fov) + (on ? this.punch * 7 : 0); if (Math.abs(cam.fov - fov) > 0.01) { cam.fov = fov; cam.updateProjectionMatrix(); } /* a launch punches the view wide */
     const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(cam.quaternion), origin = cam.position;
-    const fight = this.running && !this.pick, fdt = fight ? dt : 0; // an upgrade being chosen holds the fight
+    const fight = this.running && !this.pick && !this.paused, fdt = fight ? dt : 0; // an upgrade being chosen (or a dialog) holds the fight
     // waves: when the sky is clear, any upgrades earned, then the next
     if (fight) {
-      for (let i = this.spawnQ.length - 1; i >= 0; i--) { const q = this.spawnQ[i]; q.at -= dt; if (q.at <= 0) { this.spawnQ.splice(i, 1); if (q.kind === 'fighter') this.addFighter(); else if (q.kind === 'bomber') this.addBomber(); else if (q.kind === 'gunship') this.addGunship(); else this.addCapital(); } }
+      for (let i = this.spawnQ.length - 1; i >= 0; i--) { const q = this.spawnQ[i]; q.at -= dt; if (q.at <= 0) { this.spawnQ.splice(i, 1); if (q.kind === 'fighter') this.addFighter(); else if (q.kind === 'bomber') this.addBomber(); else if (q.kind === 'gunship') this.addGunship(); else this.addCapital(q.weak); } }
       if (!this.spawnQ.length && !this.enemies.some((e) => e.alive)) {
         if (this.waveLive) this.waveCleared();
         this.gap -= dt; if (this.gap <= 0) { if (this.picksDue > 0) { this.picksDue--; this.offerPick(); } else { this.gap = 2.2; this.nextWave(); } }
@@ -254,21 +264,21 @@ export class GunnerScene {
       if (!e.alive) continue; e.t += fdt; e.flash = Math.max(0, e.flash - dt * 6);
       if (fdt) {
         if (e.kind === 'fighter') {
-          if (e.state === 'approach') { if (this.steer(e, e.goal, 80, 1.6, dt) < 30) { e.state = 'run'; e.runGoal = this.v.copy(this.hub).add(new THREE.Vector3(rnd(-10, 10), rnd(-2, 6), rnd(-6, 6))).clone(); e.shots = 3; e.shotT = 0.6; } }
+          if (e.state === 'approach') { if (this.steer(e, e.goal, 80, 1.6, dt) < 30) { e.state = 'run'; e.runGoal = this.v.copy(this.hub).add(new THREE.Vector3(rnd(-10, 10), rnd(-2, 6), rnd(-6, 6))).clone(); e.shots = this.tier.shots; e.shotT = 0.6; } }
           else if (e.state === 'run') {
             const d = this.steer(e, e.runGoal, 110, 2.4, dt); e.shotT -= dt;
             if (e.shotT <= 0 && e.shots > 0 && d < 230) { e.shots--; e.shotT = 0.45; const bm = this.beams.find((b) => !b.m.visible); const hit = this.v.copy(e.runGoal).add(new THREE.Vector3(rnd(-5, 5), rnd(-3, 3), rnd(-3, 3))).clone(); if (bm) { this.beam(bm.m, e.pos, hit); bm.t = 0.12; } if (Math.random() < 0.65) this.hurt(0.011, hit); playSfx('laser', 0.3, 0.8 + Math.random() * 0.3); }
             if (d < 45) { e.state = 'break'; const s = Math.sign(e.pos.x) || 1; e.goal = new THREE.Vector3(s * rnd(140, 220), rnd(80, 160), rnd(-260, -120)); }
           } else if (this.steer(e, e.goal, 100, 1.4, dt) < 30) this.fighterGoal(e);
         } else if (e.kind === 'bomber') {
-          if (e.state === 'inbound') { if (this.steer(e, e.goal, 32, 0.8, dt) < 12) { e.state = 'outbound'; for (let i = 0; i < 3; i++) this.addTorpedo(e.pos.clone().add(new THREE.Vector3((i - 1) * 4, -2, 0))); playSfx('missile', 0.7); e.goal = new THREE.Vector3(e.pos.x * 3 + (Math.sign(e.pos.x) || 1) * 200, 220, -700); } }
+          if (e.state === 'inbound') { if (this.steer(e, e.goal, 32, 0.8, dt) < 12) { e.state = 'outbound'; for (let i = 0; i < this.tier.torps; i++) this.addTorpedo(e.pos.clone().add(new THREE.Vector3((i - (this.tier.torps - 1) / 2) * 4, -2, 0))); playSfx('missile', 0.7); e.goal = new THREE.Vector3(e.pos.x * 3 + (Math.sign(e.pos.x) || 1) * 200, 220, -700); } }
           else if (this.steer(e, e.goal, 34, 0.7, dt) < 40) { e.state = 'inbound'; e.goal = new THREE.Vector3(rnd(-60, 60), rnd(0, 25), -150); } // round again for another pass
         } else if (e.kind === 'gunship') {
           const hover = this.v.copy(e.home).add(new THREE.Vector3(Math.sin(e.t * 0.4) * 40, Math.sin(e.t * 0.7) * 6, 0)).clone(); this.steer(e, hover, 36, 1.2, dt);
-          if (e.pos.distanceTo(e.home) < 90) { e.shotT -= dt; if (e.shotT <= 0) { e.shotT = 4; const bm = this.beams.find((b) => !b.m.visible), hit = this.hub.clone().add(new THREE.Vector3(rnd(-6, 6), rnd(-2, 5), rnd(-4, 4)));
-            if (bm) { this.beam(bm.m, e.pos, hit); bm.m.scale.x = bm.m.scale.z = 2.4; bm.t = 0.25; } this.hurt(0.022, hit); playSfx('ebeam', 0.5); } }
+          if (e.pos.distanceTo(e.home) < 90) { e.shotT -= dt; if (e.shotT <= 0) { e.shotT = this.tier.beamEvery; const bm = this.beams.find((b) => !b.m.visible), hit = this.hub.clone().add(new THREE.Vector3(rnd(-6, 6), rnd(-2, 5), rnd(-4, 4)));
+            if (bm) { this.beam(bm.m, e.pos, hit); bm.m.scale.x = bm.m.scale.z = 2.4; bm.t = 0.25; } this.hurt(0.022, hit, true); playSfx('ebeam', 0.5); } }
         } else if (e.kind === 'torpedo') {
-          const to = this.v.subVectors(this.hub, e.pos), dist = to.length(); if (dist < 9) { e.alive = false; this.hurt(0.08, e.pos); this.blast(e.pos, 20, 0.7); playSfx('boom', 1); this.drop(e); continue; }
+          const to = this.v.subVectors(this.hub, e.pos), dist = to.length(); if (dist < 9) { e.alive = false; this.hurt(0.08, e.pos, true); this.blast(e.pos, 20, 0.7); playSfx('boom', 1); this.drop(e); continue; }
           const slow = dist < 150 ? 1 - this.st.torpSlow : 1; /* the tractor field drags them near the station */ e.pos.addScaledVector(e.vel, dt * slow); e.trailT -= dt; if (e.trailT <= 0) { e.trailT = 0.05; this.blast(e.pos, 3.5, 0.5, this.sparkTex); }
         } else if (e.kind === 'capital') {
           if (e.dying != null) { e.dying -= dt; e.boomT = (e.boomT || 0) - dt; if (e.boomT <= 0) { e.boomT = 0.12; this.blast(this.v.copy(e.pos).add(new THREE.Vector3(rnd(-30, 30), rnd(-14, 14), rnd(-10, 10))), rnd(20, 50), rnd(0.7, 1.4)); this.shake = 0.3; }
@@ -276,7 +286,7 @@ export class GunnerScene {
           this.steer(e, e.goal, 40, 0.5, dt); e.vel.multiplyScalar(0.98);
           if (e.pos.distanceTo(e.goal) < 40) {
             e.launchT -= dt; if (e.launchT <= 0 && this.enemies.filter((x) => x.alive && x.kind === 'fighter').length < 4) { e.launchT = 7; this.addFighter(e.pos.clone().add(new THREE.Vector3(rnd(-20, 20), -10, 20))); }
-            e.salvoT -= dt; if (e.salvoT <= 0) { e.salvoT = 8; for (let i = 0; i < 3; i++) this.addTorpedo(e.pos.clone().add(new THREE.Vector3((i - 1) * 14, -8, 12))); playSfx('missile', 0.9); }
+            e.salvoT -= dt; if (e.salvoT <= 0) { e.salvoT = 8; for (let i = 0; i < this.tier.torps; i++) this.addTorpedo(e.pos.clone().add(new THREE.Vector3((i - (this.tier.torps - 1) / 2) * 14, -8, 12))); playSfx('missile', 0.9); }
           }
         }
       }
@@ -342,6 +352,9 @@ export class GunnerScene {
     // point defence: the station picks off the torpedo nearest it now and then
     if (this.st.pdEvery && fight) { this.pdT -= dt; if (this.pdT <= 0) { let tor = null, bd = 260; for (const e of this.enemies) if (e.alive && e.kind === 'torpedo') { const dd = e.pos.distanceTo(this.hub); if (dd < bd) { bd = dd; tor = e; } } if (tor) { this.pdT = this.st.pdEvery; this.beam(this.pdBeam, this.hub, tor.pos); this.pdBeamT = 0.15; this.kill(tor); } } }
     this.pdBeamT = Math.max(0, (this.pdBeamT || 0) - dt); this.pdBeam.visible = this.pdBeamT > 0;
+    // the phase coil: every so often a pulse off the station wipes every torpedo in the sky (it waits for some to wipe)
+    if (this.st.phaseEvery && fight) { this.phaseT -= dt; if (this.phaseT <= 0) { const tor = this.enemies.filter((e) => e.alive && e.kind === 'torpedo');
+      if (tor.length) { this.phaseT = this.st.phaseEvery; for (const e of tor) this.kill(e); this.blast(this.hub, 320, 0.8, this.ringTex, { from: 0.05, grow: 1, ease: true, lin: true }); this.blast(this.hub, 60, 0.4, this.cyanTex); playSfx('teleport', 0.8); } } }
     for (const b of [...this.beams, ...this.arcs]) { if (!b.m.visible) continue; b.t -= dt; b.m.material.opacity = Math.max(0, b.t / 0.12); if (b.t <= 0) b.m.visible = false; }
     this.enemies = this.enemies.filter((e) => e.alive);
     { let n = 0; const d2 = this.d, col = new THREE.Color();
@@ -416,7 +429,8 @@ export class GunnerScene {
   }
   status() {
     const stars = this.won ? SIEGE_STARS.filter(([, need]) => this.hull >= need).length : 0, ms = this.ms;
-    return { hull: this.hull, shield: this.shield, wave: Math.max(0, this.wave) + 1, waves: WAVES.length, score: this.score, over: this.over, won: this.won, stars,
+    return { hull: this.hull, shield: this.shield, wave: Math.max(0, this.wave) + 1, waves: this.tier.plan.length, score: this.score, over: this.over, won: this.won, stars,
+      tier: this.tierN, name: this.tier.name, kills: this.kills, engagement: this.engagement, abandoned: this.abandoned, started: this.wave >= 0, cargo: this.st?.cargo || 0, bunkers: this.bunkers,
       ammo: ms.ammo, missiles: this.st?.missiles || 0, reload: ms.reloadT > 0 && this.st ? 1 - ms.reloadT / this.st.reload : 1, rackReloading: ms.reloadT > 0, seeking: !!ms.target && !ms.locked, locked: ms.locked,
       pick: this.pick, rerolls: this.rerolls || 0, picks: this.picks };
   }

@@ -1,6 +1,7 @@
 // The orbital station, drawn in the hangar sky above the home world (layout and meaning: data/station.js), and as the
 // hologram on the Command Deck's table. Rebuilt whenever the Workshop or Overhaul rank changes; otherwise it turns
-// slowly, its lights breathe and a shuttle comes and goes.
+// slowly, its lights breathe and a shuttle comes and goes. After a lost Station Siege, until it is repaired, its lights
+// are half out and flickering and smoke and sparks pour off the systems that were knocked out.
 import { STATION_MODULES, STATION_ALIEN, STATION_TROPHIES, MODULE_BY_ID, ALIEN_BY_ID, TROPHY_BY_ID, coreBuilt, trophyWon } from '@last-orbit/data/station.js';
 import { BOSSES } from '@last-orbit/data/bosses.js';
 import { shapeGeometry } from '@last-orbit/rendering/geometry.js';
@@ -58,10 +59,13 @@ export class Station {
     this.geo = { box: new G.BoxGeometry(1, 1, 1), cyl: new G.CylinderGeometry(1, 1, 1, 20), cone: new G.ConeGeometry(1, 1, 16), sph: new G.SphereGeometry(1, 20, 14),
       dome: new G.SphereGeometry(1, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), torus: new G.TorusGeometry(1, 0.03, 6, 72), ring: new G.TorusGeometry(1, 0.24, 12, 48), oct: new G.OctahedronGeometry(1, 0), plane: new G.PlaneGeometry(1, 1) };
     this.edges = {}; // scaffold outlines, by geometry
-    this.shuttle = this.makeShuttle(); this.group.add(this.shuttle);
+    this.shuttle = this.makeShuttle(); this.group.add(this.shuttle); this.smoke = []; this.dmgAt = [];
   }
   /** Rebuild if the Workshop, the Overhaul rank or the Alien Tech fitted changed. */
   sync(state) {
+    // damage from a lost siege (no rebuild: it only smokes)
+    const dmg = state.siege?.damage?.ids || [], dsig = dmg.join();
+    if (dsig !== this.dmgSig) { this.dmgSig = dsig; this.dmgAt = dmg.map((id) => MODULE_BY_ID[id] || ALIEN_BY_ID[id]).filter(Boolean).map((m) => ({ x: m.x, y: m.y, t: Math.random() * 0.3 })); }
     const rank = state.prestige?.level || 0, peak = (id) => Math.max(state.stationPeak?.[id] || 0, state.workshop[id] || 0), tech = state.counter?.tech || {};
     const alien = STATION_ALIEN.filter((a) => (tech[a.id] || 0) > 0), caught = STATION_TROPHIES.filter((t) => trophyWon(state, t.stage));
     const sig = rank + ':' + STATION_MODULES.map((m) => (state.workshop[m.id] || 0) + '/' + peak(m.id)).join(',') + '|' + alien.map((a) => a.id).join(',') + '|' + caught.map((t) => t.stage).join('');
@@ -189,13 +193,27 @@ export class Station {
     add('cone', M.plain, [0, 0.9, 0], [0.45, 1.1, 0.35]); add('box', M.plain, [0, -0.1, 0], [0.8, 1.1, 0.5]); add('box', M.dark, [0, -0.2, 0], [1.8, 0.35, 0.12]);
     this.flame = add('sph', M.engine, [0, -0.85, 0], [0.22, 0.5, 0.22]); return g;
   }
-  /** Lights, rings, the shuttle. */
+  /** A puff of smoke (or now and then a spark) off a damaged system, drifting out from the station. */
+  puff(d) {
+    const THREE = T(); this.smokeTex ||= canvasTex(64, 64, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(96,98,108,.9)'); gr.addColorStop(0.55, 'rgba(62,64,74,.45)'); gr.addColorStop(1, 'rgba(40,40,48,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
+    this.sparkTex ||= canvasTex(32, 32, (g, w) => { const gr = g.createRadialGradient(w / 2, w / 2, 0, w / 2, w / 2, w / 2); gr.addColorStop(0, 'rgba(255,255,230,1)'); gr.addColorStop(0.35, 'rgba(255,170,70,.8)'); gr.addColorStop(1, 'rgba(255,90,30,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, w); });
+    const spark = Math.random() < 0.2, s = new THREE.Sprite(new THREE.SpriteMaterial({ map: spark ? this.sparkTex : this.smokeTex, transparent: true, depthWrite: false, blending: spark ? THREE.AdditiveBlending : THREE.NormalBlending, opacity: 0 }));
+    const out = new THREE.Vector3(d.x, d.y, 0); if (out.lengthSq() < 1) out.set(0, 1, 0); out.normalize();
+    s.position.set(d.x + (Math.random() - 0.5) * 1.2, d.y + (Math.random() - 0.5) * 1.2, 1.1); this.body.add(s);
+    this.smoke.push({ s, t: 0, spark, life: spark ? 0.3 : 2.2 + Math.random() * 0.8, v: out.multiplyScalar(spark ? 3.5 : 1.1).add(new THREE.Vector3((Math.random() - 0.5) * 0.6, 0.5, 0.6)), size: spark ? 0.7 + Math.random() * 0.5 : 1.2 + Math.random() * 0.8 });
+  }
+  /** Lights, rings, the shuttle; smoke off anything damaged. */
   animate(dt, night) {
     this.t += dt; const t = this.t, M = this.M;
+    // damaged in a lost siege: smoke and sparks off the broken systems, the lights half out and flickering
+    const hurt = this.dmgAt.length > 0, flick = hurt ? 0.3 + 0.25 * (Math.sin(t * 13.7) > 0.55 ? 1 : 0) : 1;
+    if (hurt) for (const d of this.dmgAt) { d.t -= dt; if (d.t <= 0) { d.t = 0.16 + Math.random() * 0.22; this.puff(d); } }
+    for (let i = this.smoke.length - 1; i >= 0; i--) { const p = this.smoke[i]; p.t += dt; const k = p.t / p.life; if (k >= 1) { p.s.parent?.remove(p.s); p.s.material.dispose(); this.smoke.splice(i, 1); continue; }
+      p.s.position.addScaledVector(p.v, dt); p.s.scale.setScalar(p.size * (p.spark ? 1 - k : 1 + k * 2.2)); p.s.material.opacity = p.spark ? 1 - k : Math.min(1, k * 6) * (1 - k) * 0.85; }
     for (const r of this.rings) r.rotation.y = t * 0.2;
     if (this.crown) this.crown.rotation.y = t * 0.8;
-    const k = 0.8 + 0.2 * Math.sin(t * 2.2) + night * 0.25; M.light.color.setRGB(0.62 * k, 0.94 * k, k); M.warm.color.setRGB(k, 0.82 * k, 0.48 * k);
-    M.hull.emissiveIntensity = 0.55 + night * 0.7; M.red.color.setRGB(Math.sin(t * 3) > 0.3 ? 1 : 0.25, 0.2, 0.25);
+    const k = (0.8 + 0.2 * Math.sin(t * 2.2) + night * 0.25) * (hurt ? 0.3 + flick * 0.4 : 1); M.light.color.setRGB(0.62 * k, 0.94 * k, k); M.warm.color.setRGB(k, 0.82 * k, 0.48 * k);
+    M.hull.emissiveIntensity = (0.55 + night * 0.7) * flick; M.red.color.setRGB(Math.sin(t * 3) > 0.3 ? 1 : 0.25, 0.2, 0.25);
     for (const [m, ph] of this.nav) m.visible = ((t * 0.9 + ph) % 1) < (m.material === M.strobe ? 0.12 : 0.55);
     M.scaffold.opacity = 0.28 + 0.12 * Math.sin(t * 1.6);
     const v = 0.72 + 0.28 * Math.sin(t * 1.3) + night * 0.15; M.alienGlow.color.setRGB(0.66 * v, 0.46 * v, v);

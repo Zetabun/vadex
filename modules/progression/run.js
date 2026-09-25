@@ -21,6 +21,7 @@ import { ANOMALIES, ANOMALY_BY_ID, ANOMALY_CHOICES, anomalyCounts } from '@last-
 import { SYNERGIES, synergyOf, synergyCount } from '@last-orbit/data/synergies.js';
 import { STAGE_BY_N, STAR_HITS, STAR_KILLS, CORES_PER_STAR, clearBounty } from '@last-orbit/data/counter.js';
 import { unlockCounter, powerRating } from '@last-orbit/progression/meta.js';
+import { patchStation } from '@last-orbit/progression/siege.js';
 import { TIER_BY_N, siegeSystems, siegeToughness, SIEGE_STARS, SIEGE_BLUEPRINTS, SIEGE_CORES_PER_STAR } from '@last-orbit/data/siege.js';
 
 // ---------------------------------------------------------------- sortie lifecycle
@@ -73,6 +74,8 @@ export function endSortie(reason = 'destroyed') {
   st.run = null; G.mode = 'hangar';
   const bannersBefore = { ...st.banners };
   summary.threat = run.threat || 0; summary.mutator = run.mutator || null;
+  // a station damaged in a lost siege is patched by its crews while the pilot is out (if the sortie lasted long enough)
+  if (run.mode !== 'siege') summary.repaired = patchStation(summary.time);
   if (run.mode === 'counter') Object.assign(summary, recordCounter(st, run, summary, reason)); else if (run.mode === 'siege') Object.assign(summary, recordSiege(st, run, summary, reason)); else Object.assign(summary, recordSortie(st, run, summary));
   if (run.daily) {
     const d = st.daily; d.streak = d.lastDay === prevDayKey(run.daily) ? d.streak + 1 : d.lastDay === run.daily ? d.streak : 1; d.lastDay = run.daily;

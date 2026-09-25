@@ -19,6 +19,8 @@ import { STAGE_BY_N } from '@last-orbit/data/counter.js';
 import { ENEMIES } from '@last-orbit/data/enemies.js';
 import { LINES } from '@last-orbit/ui/comms.js';
 import { powerRating, refreshMenus } from '@last-orbit/progression/meta.js';
+import { kitFrom } from '@last-orbit/data/turret.js';
+import { SIEGE_TIERS } from '@last-orbit/data/siege.js';
 
 export async function initDebug(app, { hooks, ui } = {}) {
   // &st=<px>: pretend to have a notch (the top safe-area inset), to check layouts the way a phone shows them
@@ -37,6 +39,35 @@ export async function initDebug(app, { hooks, ui } = {}) {
   // ?debug=1&scene=… jumps straight to a screen, for screenshots and layout checks.
   const scene = new URLSearchParams(location.search).get('scene');
   if (scene) { panel.style.display = 'none'; G.demo = true; runScene(scene, hooks, ui); } // demo scenes never auto-pause
+  window.gunnerBot = gunnerBot;
+}
+
+// ---- the gunner-seat balance bot (window.gunnerBot, in a debug build with the seat open: scene=gunner)
+// A typical player's station at each tier's unlock (tests/gunner-campaign-sim.mjs): the systems online.
+const BOT_BASE = { w_barrier: 1, w_crit: 8, w_dmg: 0.25, w_hull: 0.12, w_magnet: 0.25, w_rate: 0.1, w_regen: 0.03, w_reroll: 1, w_salvage: 0.15, w_shield: 0.08, w_speed: 0.06, w_start: 0.15, w_xp: 1, x_alloy: 0.12 };
+const BOT_ON = { 1: BOT_BASE, 2: { ...BOT_BASE, w_barrier: 2, w_magnet: 0.4 }, 3: { ...BOT_BASE, w_barrier: 2, w_magnet: 0.4, w_reroll: 2, w_speed: 0.12, w_start: 0.3 },
+  4: { ...BOT_BASE, w_barrier: 2, w_crit: 6, w_magnet: 0.4, w_regen: 0.06, w_reroll: 2, w_revive: 0.15, w_shield: 0.14, w_speed: 0.12, w_start: 0.3, w_xp: 2, x_siphon: 0.03 },
+  5: { ...BOT_BASE, w_barrier: 2, w_choice: 1, w_crit: 6, w_dmg: 0.5, w_hull: 0.24, w_magnet: 0.4, w_regen: 0.06, w_reroll: 2, w_revive: 0.15, w_shield: 0.14, w_speed: 0.12, w_start: 0.3, w_xp: 2, x_siphon: 0.03 } };
+BOT_ON[6] = { ...BOT_ON[5], w_rate: 0.2, w_salvage: 0.3 };
+/** Fly one siege of tier n in the seat, flat out (no rendering): aims at the most urgent target (torpedoes near the
+ *  station, then, with missiles, the armoured ones, then the nearest) at up to speed rad a frame, fires a missile on
+ *  every lock, picks upgrades at random. o: { style: 'balanced' | 'cannon' | 'human', speed, on (systems), picks (standing ones) }.
+ *  human: a phone player, roughly: slower to switch targets, a looser aim, torpedoes noticed later, a beat before firing. */
+function gunnerBot(n, o = {}) {
+  const g = G.renderer?.room; if (!g?.fireMissile) return 'Open the gunner seat first (scene=gunner)';
+  const style = o.style || 'balanced', human = style === 'human', speed = o.speed ?? (human ? 0.025 : 0.03), holdFor = human ? 1.4 : 0.8, torpR = human ? 130 : 200, slack = human ? 5 : 0, picks = o.picks || Object.fromEntries(SIEGE_TIERS.filter((t) => t.n < n).map((t) => [t.gun, 1]));
+  g.start(n, { kit: kitFrom(o.on || BOT_ON[n]), picks }); const dt = 1 / 30; let t = 0, fired = 0, tgt = null, hold = 0, lastWave = -1, lockedFor = 0; const hulls = [], off = { x: 0, y: 0, z: 0 };
+  const aimAt = (p) => { const d = p.clone().sub(g.cam.position), yaw = Math.atan2(-d.x, -d.z), pitch = Math.atan2(d.y, Math.hypot(d.x, d.z)), k = Math.min(1, dt * 2.2);
+    g.yaw = Math.max(-1.2, Math.min(1.2, g.yaw + Math.max(-speed, Math.min(speed, (yaw - g.yaw) * k)))); g.pitch = Math.max(-0.75, Math.min(0.75, g.pitch + Math.max(-speed, Math.min(speed, (pitch - g.pitch) * k)))); };
+  while (!g.over && t < 900) {
+    if (g.pick) g.choosePick(Math.floor(Math.random() * g.pick.ids.length));
+    if (g.wave !== lastWave) { hulls.push(Math.round(g.hull * 100)); lastWave = g.wave; }
+    const cam = g.cam.position, missiles = style !== 'cannon' && g.ms.ammo > 0, pri = (e) => (e.kind === 'torpedo' && e.pos.distanceTo(g.hub) < torpR ? 0 : missiles && e.k.missile ? 1 : 2);
+    hold -= dt; if (!tgt?.alive || hold <= 0) { tgt = g.enemies.filter((e) => e.alive && e.kind !== 'capital').sort((a, b) => pri(a) - pri(b) || a.pos.distanceTo(cam) - b.pos.distanceTo(cam))[0]; hold = holdFor; off.x = (Math.random() - 0.5) * slack * 2; off.y = (Math.random() - 0.5) * slack * 2; }
+    if (tgt) { const p = g.lead(tgt, cam).clone(); p.x += off.x; p.y += off.y; aimAt(p); } g.update(dt); t += dt;
+    lockedFor = g.ms.locked ? lockedFor + dt : 0; if (style !== 'cannon' && g.ms.locked && lockedFor >= (human ? 0.5 : 0) && g.fireMissile()) fired++;
+  }
+  const s = g.status(); g.filed = true; /* a bot's siege is never filed */ return { n, style, speed, won: s.won, hull: Math.round(s.hull * 100), wave: s.wave, t: Math.round(t), fired, hulls: hulls.join('/') };
 }
 
 function runScene(scene, hooks, ui) {
@@ -96,17 +127,23 @@ function runScene(scene, hooks, ui) {
     if (V) { let k = 0; const iv = setInterval(() => { const d = G.renderer?.room; if (d) { d.pos.x = V[0]; d.pos.z = V[1]; d.yaw = V[2]; d.pitch = V[3]; } if (++k > 20) clearInterval(iv); }, 100); }
     return; }
   if (name === 'station') { st.prestige.level = +arg || 0; const f = arg2 == null ? 0.5 : +arg2; WORKSHOP.forEach((u, i) => { st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, f * 1.6 - (i % 5) * 0.15))); }); if (arg4) { const n = Math.min(6, +arg4 || 0); st.counter.unlocked = true; ALIEN_TECH.forEach((a, i) => { if (i < n) st.counter.tech[a.id] = 1; }); for (let k = 1; k <= n; k++) st.counter.stars[k] = 1; } recalc(); hooks.toHangar(arg3 === 'card' ? 'launch' : arg3 || 'launch'); if (arg3 === 'card') setTimeout(() => document.querySelector('.st-callout')?.click(), 900); return; }
-  // gunner: the 3D gunner seat prototype, on a save with a mid-game station
-  if (name === 'gunner') { st.pilot.name = 'Adam'; st.seen.callsign = true; st.counter.unlocked = true; st.counter.stars[1] = 2; WORKSHOP.forEach((u, i) => { st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.6 - (i % 5) * 0.13))); }); st.seen.control = true; recalc(); hooks.toHangar('control'); setTimeout(() => hooks.toHangar('gunner'), 400);
-    // gunner:boom: a fighter and a bomber blow up right in front of the guns, every two seconds (for screenshots of the wreckage)
-    if (arg === 'boom') setInterval(() => { const g = G.renderer?.room, T3 = window.THREE; if (!g?.shatter || G.room !== 'gunner') return; g.yaw = 0; g.pitch = 0; g.picksDue = 0; g.spawnQ = [];
+  // gunner[:tier][:mode]: a Station Siege in the gunner seat, on a save with a mid-game station and the tiers up to it open.
+  // Modes: auto (the sights follow the nearest target), boom (a fighter and a bomber blow up in front of the guns every two
+  // seconds), missile (a missile into a bomber every 2.5 seconds), won[:hull] / lost (straight to the debrief).
+  if (name === 'gunner') { const tier = Math.max(1, Math.min(6, +arg || 1)), mode = isNaN(+arg) ? arg : arg2, extra = isNaN(+arg) ? arg2 : arg3;
+    st.pilot.name = 'Adam'; st.seen.callsign = true; st.counter.unlocked = true; for (let k = 1; k <= tier; k++) st.counter.stars[k] = 2; st.seen.gunnerIntro = true;
+    WORKSHOP.forEach((u, i) => { st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.6 - (i % 5) * 0.13))); }); st.seen.control = true; recalc(); hooks.toSiege(tier);
+    if (mode === 'won' || mode === 'lost') setTimeout(() => { const g = G.renderer?.room; if (!g?.win) return; g.wave = mode === 'won' ? g.tier.plan.length - 1 : 1; g.score = 18450; g.kills = 57;
+      if (mode === 'won') { g.hull = extra == null ? 0.72 : +extra; g.win(); } else { g.hull = 0; g.over = true; g.running = false; g.banner = { text: 'Station lost', t: 99 }; } }, 700);
+    if (mode === 'boom') setInterval(() => { const g = G.renderer?.room, T3 = window.THREE; if (!g?.shatter || G.room !== 'gunner') return; g.yaw = 0; g.pitch = 0; g.picksDue = 0; g.spawnQ = [];
       for (const [kind, x, z] of [['fighter', -14, -80], ['bomber', 18, -110]]) { const e = g.spawn(kind, new T3.Vector3(x, 4, z)); e.vel.set(x > 0 ? -12 : 12, 0, 20); g.kill(e); } }, 2000);
-    // gunner:missile: a bomber hangs in front of the guns and a missile goes into it, every 2.5 seconds (for shots of the blast)
-    if (arg === 'missile') setInterval(() => { const g = G.renderer?.room, T3 = window.THREE; if (!g?.fireMissile || G.room !== 'gunner') return; g.yaw = 0; g.pitch = 0; g.picksDue = 0; g.spawnQ = []; if (g.pick) g.choosePick(0);
+    if (mode === 'missile') setInterval(() => { const g = G.renderer?.room, T3 = window.THREE; if (!g?.fireMissile || G.room !== 'gunner') return; g.yaw = 0; g.pitch = 0; g.picksDue = 0; g.spawnQ = []; if (g.pick) g.choosePick(0);
       const e = g.spawn('bomber', new T3.Vector3(14, 8, -170)); e.state = 'inbound'; e.goal = new T3.Vector3(14, 8, -3000); e.vel.set(0, 0, 0); Object.assign(g.ms, { target: e, locked: true, ammo: 2, reloadT: 0 }); g.fireMissile(); }, 2500);
-    // gunner:auto: the sights follow the nearest target (for screenshots)
-    if (arg === 'auto') setInterval(() => { const g = G.renderer?.room; if (!g?.enemies || G.room !== 'gunner') return; const cam = g.cam.position, t = g.enemies.filter((e) => e.alive && e.kind !== 'capital').sort((a, b) => a.pos.distanceTo(cam) - b.pos.distanceTo(cam))[0]; if (!t) return; const d = g.lead(t, cam).clone().sub(cam); g.yaw = Math.atan2(-d.x, -d.z); g.pitch = Math.atan2(d.y, Math.hypot(d.x, d.z)); if (g.pick) g.choosePick(0); }, 50);
+    if (mode === 'auto') setInterval(() => { const g = G.renderer?.room; if (!g?.enemies || G.room !== 'gunner') return; const cam = g.cam.position, t = g.enemies.filter((e) => e.alive && e.kind !== 'capital').sort((a, b) => a.pos.distanceTo(cam) - b.pos.distanceTo(cam))[0]; if (!t) return; const d = g.lead(t, cam).clone().sub(cam); g.yaw = Math.atan2(-d.x, -d.z); g.pitch = Math.atan2(d.y, Math.hypot(d.x, d.z)); if (g.pick) g.choosePick(0); }, 50);
     return; }
+  // sgdamage[:tab]: a station left damaged by a lost siege (three systems out), seen from a tab or room (default Defence Control)
+  if (name === 'sgdamage') { st.pilot.name = 'Adam'; st.seen.callsign = true; st.counter.unlocked = true; st.counter.stars[1] = 2; st.counter.stars[2] = 1; st.seen.control = true; st.seen.gunnerIntro = true; st.stationName = 'Halcyon';
+    WORKSHOP.forEach((u, i) => { st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.6 - (i % 5) * 0.13))); }); st.siege.damage = { ids: ['w_shield', 'w_crit', 'w_dmg'], tier: 2, cost: 1400 }; recalc(); hooks.toHangar(arg || 'control'); return; }
   // backup[:restore]: Settings, then the save backup screen (restore: with a code pasted and the confirm open)
   if (name === 'backup') { st.pilot.name = 'Adam'; st.seen.callsign = true; hooks.toHangar('launch'); setTimeout(() => { document.querySelector('.hg-top .icon-btn')?.click(); setTimeout(() => { [...document.querySelectorAll('.settings .field')].find((f) => f.textContent.includes('Save backup'))?.querySelector('button')?.click();
     if (arg === 'restore') setTimeout(() => { const i = document.querySelector('.bk-input'); i.value = exportSave(); i.dispatchEvent(new Event('input')); document.querySelector('.modal.backup .btn.ghost.wide')?.click(); }, 300); }, 300); }, 500); return; }
