@@ -191,7 +191,7 @@ export class DeckRoom extends Room {
     this.sun.visible = false; // the sun itself is behind you
     // evening in the room: the lights dim a little and warm up when it is night outside
     for (const l of this.lamps) { l.intensity = 0.55 - night * 0.18; l.color.setRGB(1, 0.9 - night * 0.08, 0.77 - night * 0.15); } this.hemi.intensity = 0.55 - night * 0.2; this.lightMat.color.setRGB(1, 0.94 - night * 0.1, 0.85 - night * 0.2);
-    this.holoGrid.rotation.z = this.t * 0.15; this.doorLight(this.exitDoor); for (const d of this.show?.children || []) if (d.userData.lamp) this.doorLight(d);
+    this.holoGrid.rotation.z = this.t * 0.15;
     // the hologram, the ships, the banners
     this.station.animate(dt, night); this.station.body.rotation.set(0.25, this.t * 0.3, 0);
     for (const p of this.spins || []) { p.rotation.y = this.t * 0.5 + p.userData.spin; p.position.y = 1.35 + Math.sin(this.t * 1.4 + p.userData.spin) * 0.05; }

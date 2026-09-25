@@ -31,7 +31,7 @@ export class ControlRoom extends Room {
     this.furnish(); this.outside();
     this.solids.push({ ...TABLE });
     for (const [s, z] of Object.values(CONSOLE_AT)) this.blocks.push(s < 0 ? { x0: -W, x1: -W + 0.95, z0: z - 1.15, z1: z + 1.15 } : { x0: W - 0.95, x1: W, z0: z - 1.15, z1: z + 1.15 });
-    this.blocks.push({ x0: -W, x1: -3.75, z0: 2.1, z1: BACK }); // the crates
+    this.blocks.push({ x0: -W, x1: -3.75, z0: 1.85, z1: BACK }); // the crates
   }
   pickExtra() { return [{ obj: this.station.group, kind: 'table' }]; }
   // ---------------------------------------------------------------- the room
@@ -186,17 +186,18 @@ export class ControlRoom extends Room {
   }
   /** The fleets gathering outside: a cluster of red running lights for each siege that is open and not yet held. */
   fleet(threat) {
-    const THREE = T(); this.fleetLights = [];
+    const THREE = T(); this.fleetLights = null;
     const glow = canvas(64, 64), gx = glow.getContext('2d'), gr = gx.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.25, 'rgba(255,120,120,.8)'); gr.addColorStop(1, 'rgba(255,40,60,0)'); gx.fillStyle = gr; gx.fillRect(0, 0, 64, 64);
     const map = tex(glow);
-    for (const n of threat) {
-      const [fx, fy] = FLEET_AT[n - 1], count = 5 + n * 2;
-      for (let i = 0; i < count; i++) {
-        const row = Math.floor((Math.sqrt(8 * i + 1) - 1) / 2), col = i - (row * (row + 1)) / 2; /* a wedge: row r has r + 1 ships */
-        const s = new THREE.Sprite(new THREE.SpriteMaterial({ map, color: 0xff5566, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
-        s.position.set(fx + (col - row / 2) * 16 + (Math.random() - 0.5) * 5, fy - row * 9 + (Math.random() - 0.5) * 4, -950 - row * 12); s.scale.setScalar(10 + Math.random() * 5); s.userData.ph = Math.random() * 6; this.show.add(s); this.fleetLights.push(s);
-      }
-    }
+    // one instanced mesh for every light (each winks on its own through its colour)
+    const lights = []; for (const n of threat) { const [fx, fy] = FLEET_AT[n - 1], count = 5 + n * 2;
+      for (let i = 0; i < count; i++) { const row = Math.floor((Math.sqrt(8 * i + 1) - 1) / 2), col = i - (row * (row + 1)) / 2; /* a wedge: row r has r + 1 ships */
+        lights.push([fx + (col - row / 2) * 16 + (Math.random() - 0.5) * 5, fy - row * 9 + (Math.random() - 0.5) * 4, -950 - row * 12, 10 + Math.random() * 5]); } }
+    if (!lights.length) return;
+    const m = new THREE.InstancedMesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }), lights.length), d = new THREE.Object3D();
+    m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(lights.length * 3), 3); m.frustumCulled = false;
+    lights.forEach(([x, y, z, sc], i) => { d.position.set(x, y, z); d.scale.setScalar(sc); d.updateMatrix(); m.setMatrixAt(i, d.matrix); });
+    this.fleetLights = { m, ph: lights.map(() => Math.random() * 6) }; this.show.add(m);
   }
   /** Red blips on the radar, closing on the station: more of them the more sieges are massing. */
   blipsFor(n) {
@@ -225,9 +226,8 @@ export class ControlRoom extends Room {
     this.blades.visible = alert; if (alert) { this.blades.rotation.y = t * 3.2; this.lens.material.color.setRGB(1, 0.6 + 0.2 * Math.sin(t * 6.4), 0.2); } else this.lens.material.color.setRGB(0.3, 0.9, 0.55);
     // outside: the guns scan the dark, the fleet's running lights wink, the hull's edge lights blink in turn
     for (const g of this.turrets || []) { g.yaw.rotation.y = Math.sin(t * (g.pd ? 0.5 : 0.23) + g.ph) * (g.pd ? 0.9 : 0.45); g.pitch.rotation.x = 0.12 + Math.sin(t * 0.31 + g.ph) * 0.08; if (g.lamp) g.lamp.visible = (t + g.ph) % 1.4 < 0.7; }
-    for (const s of this.fleetLights || []) s.material.opacity = 0.45 + 0.55 * Math.max(0, Math.sin(t * 2.1 + s.userData.ph));
+    const fl = this.fleetLights; if (fl?.m) { const c = (this._fc ||= new (T().Color)()); fl.ph.forEach((ph, i) => fl.m.setColorAt(i, c.setHex(0xff5566).multiplyScalar(0.45 + 0.55 * Math.max(0, Math.sin(t * 2.1 + ph))))); fl.m.instanceColor.needsUpdate = true; }
     this.edgeLights.forEach((l, i) => l.material.color.setRGB(((t * 1.5 - i * 0.18) % 1.5) < 0.25 ? 1 : 0.25, 0.2, 0.25));
     const o = this.orbitFace.material.color, pk = 0.8 + 0.2 * Math.sin(t * 1.7); o.setRGB(pk, pk, pk);
-    this.doorLight(this.exitDoor); for (const d of this.show?.children || []) if (d.userData.lamp) this.doorLight(d);
   }
 }

@@ -2,6 +2,7 @@
 // window in the front wall), doors, walking, looking and tapping. Drag to look, tap the floor to walk there, tap an
 // exhibit to inspect it (the UI shows the details). W/A/S/D walk. Each room builds its exhibits on top.
 import { artSvg } from '@last-orbit/ui/art.js';
+import { playSfx } from '@last-orbit/audio/audio.js';
 const T = () => window.THREE;
 export const EYE = 1.6, SPEED = 2.4;
 
@@ -72,29 +73,85 @@ export class Room {
     // where a tap on the floor is taking you
     this.marker = new THREE.Mesh(new THREE.RingGeometry(0.18, 0.24, 32), new THREE.MeshBasicMaterial({ color: L.strip ?? 0x5ee6ff, transparent: true, opacity: 0 })); this.marker.rotation.x = -Math.PI / 2; this.marker.position.y = 0.02; S.add(this.marker);
   }
-  /** A door set into a wall, its sign above: at (x, z) on the floor, facing into the room along ry (0: the back wall,
-   *  π/2: the right wall, -π/2: the left wall). sealed: shut, with a red light. Tapping it is exhibit kind. */
+  /** A door set into a wall, facing into the room along ry (0: the back wall, π/2: the right wall, -π/2: the left wall),
+   *  at (x, z) on the floor: a chamfered frame with a glowing inner trim, two leaves that slide apart onto a lit corridor
+   *  as you walk up, its sign above and a control panel beside it. sealed: shut and lit red, taped across, a padlock on
+   *  the panel. edge: the trim's colour, sign: the sign's. Tapping it is exhibit kind. */
   door(parent, x, z, ry, label, kind, { sealed = false, sign = '#9ff0ff', edge = 0x5ee6ff } = {}) {
     const THREE = T(), g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry; parent.add(g);
-    const Ph = (o) => new THREE.MeshPhongMaterial(o), part = (w, h, d, px, py, pz, m) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(px, py, pz); g.add(b); return b; };
-    const panelMat = Ph({ color: sealed ? 0x2e3548 : 0x3d4964, specular: 0x6a7c9e, shininess: 45 }), trimMat = Ph({ color: 0x232b3e, shininess: 20 }), frame = this.frameMat;
-    for (const s of [-1, 1]) { part(0.64, 2.3, 0.08, s * 0.33, 1.15, -0.05, panelMat); part(0.08, 1.5, 0.02, s * 0.2, 1.2, -0.1, trimMat); }
-    part(1.6, 0.16, 0.2, 0, 2.38, -0.08, frame); for (const s of [-1, 1]) part(0.16, 2.46, 0.2, s * 0.74, 1.23, -0.08, frame);
-    part(0.02, 2.3, 0.03, 0, 1.15, -0.1, new THREE.MeshBasicMaterial({ color: sealed ? 0x55303a : edge }));
-    if (sealed) for (const y of [0.7, 1.6]) part(1.2, 0.1, 0.03, 0, y, -0.11, new THREE.MeshBasicMaterial({ color: 0x3a2a1a }));
-    const lamp = part(0.12, 0.12, 0.03, 0.55, 1.25, -0.2, new THREE.MeshBasicMaterial({ color: sealed ? 0xff4d6a : 0x6dffc8 }));
-    const k = label.length > 12 ? 1.5 : 1, cw = Math.round(256 * k), c = canvas(cw, 64), x2 = c.getContext('2d'); // a long name gets a wider sign
-    x2.fillStyle = '#081222'; x2.fillRect(0, 0, cw, 64); x2.strokeStyle = sealed ? '#6a3444' : hexCss(edge); x2.lineWidth = 3; x2.strokeRect(2, 2, cw - 4, 60);
-    text(x2, label, cw / 2, 33, `800 ${k > 1 ? 26 : 30}px sans-serif`, sealed ? '#8a5a66' : sign);
-    const s = new THREE.Mesh(new THREE.PlaneGeometry(k, 0.25), new THREE.MeshBasicMaterial({ map: tex(c) })); s.position.set(0, 2.66, -0.12); s.rotation.y = Math.PI; g.add(s);
-    this.hitBox(g, 1.6, 2.8, 0.4, 0, 1.4, -0.2); this.tag(g, kind); g.userData.lamp = lamp; g.userData.sealed = sealed; return g;
+    const f = new THREE.Group(); f.rotation.y = Math.PI; g.add(f); // built facing +z, into the room; the wall is at z 0
+    const OW = 0.7, OH = 2.3, C = 0.26, F = 0.14, acc = sealed ? 0xff4d6a : edge, css = hexCss(acc), txt = sealed ? '#ff9aa8' : sign;
+    const outline = (w, h, c) => { const o = new THREE.Shape(); o.moveTo(-w, 0); o.lineTo(w, 0); o.lineTo(w, h - c); o.lineTo(w - c, h); o.lineTo(-w + c, h); o.lineTo(-w, h - c); o.closePath(); return o; };
+    const Ph = (o) => new THREE.MeshPhongMaterial(o), put = (geo, m, px = 0, py = 0, pz = 0, to = f) => { const o = new THREE.Mesh(geo, m); o.position.set(px, py, pz); to.add(o); return o; };
+    const metal = Ph({ color: 0x2c3448, specular: 0x6a7c9e, shininess: 50 });
+    // the frame, standing proud of the wall, and the light round its inside edge
+    const frame = outline(OW + F, OH + F, C + F * 0.59); frame.holes.push(outline(OW, OH, C));
+    put(new THREE.ExtrudeGeometry(frame, { depth: 0.12, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.015, bevelSegments: 1 }), metal);
+    const ring = outline(OW + 0.04, OH + 0.04, C + 0.024); ring.holes.push(outline(OW, OH, C));
+    const trim = new THREE.MeshBasicMaterial({ color: acc }); put(new THREE.ShapeGeometry(ring), trim, 0, 0, 0.145);
+    // the corridor beyond, painted in perspective, lit at the far end
+    const cc = canvas(256, 384), cx = cc.getContext('2d'), vx = 128, vy = 210;
+    cx.fillStyle = '#04070f'; cx.fillRect(0, 0, 256, 384);
+    const glow = cx.createRadialGradient(vx, vy, 0, vx, vy, 90); glow.addColorStop(0, css); glow.addColorStop(0.35, css + '66'); glow.addColorStop(1, css + '00'); cx.fillStyle = glow; cx.fillRect(0, 0, 256, 384);
+    cx.strokeStyle = css; for (let i = 0; i < 7; i++) { const k = 0.8 ** i, w = 128 * k, top = vy - (vy + 10) * k, bot = vy + (384 - vy) * k; cx.globalAlpha = 0.18 + 0.1 * (6 - i) / 6; cx.lineWidth = 1 + 2 * k; cx.strokeRect(vx - w, top, 2 * w, bot - top); }
+    cx.globalAlpha = 0.25; for (const [a, b] of [[0, 0], [256, 0], [0, 384], [256, 384]]) { cx.beginPath(); cx.moveTo(a, b); cx.lineTo(vx, vy); cx.stroke(); } cx.globalAlpha = 1;
+    const ct = tex(cc); ct.repeat.set(1 / (2 * OW), 1 / OH); ct.offset.set(0.5, 0); // shape UVs are its own coordinates
+    put(new THREE.ShapeGeometry(outline(OW, OH, C)), new THREE.MeshBasicMaterial({ map: ct }), 0, 0, 0.004);
+    // the two leaves, clipped to the doorway so they vanish into the frame as they part
+    const leaf = new THREE.MeshPhongMaterial({ color: sealed ? 0x2e3446 : 0x3d4964, specular: 0x7a8cae, shininess: 55 }), inset = Ph({ color: 0x27324a, emissive: new THREE.Color(acc).multiplyScalar(0.14), specular: 0x9fb4d8, shininess: 80 }), slit = new THREE.MeshBasicMaterial({ color: acc }), leafEdge = Ph({ color: 0x1c2336, shininess: 20 });
+    const hz = canvas(128, 48), hx = hz.getContext('2d'); hx.fillStyle = '#10141f'; hx.fillRect(0, 0, 128, 48); hx.fillStyle = sealed ? '#ffc857' : css; for (let i = -48; i < 128; i += 22) { hx.beginPath(); hx.moveTo(i, 48); hx.lineTo(i + 11, 48); hx.lineTo(i + 59, 0); hx.lineTo(i + 48, 0); hx.fill(); }
+    const kick = new THREE.MeshBasicMaterial({ map: tex(hz), color: 0x9a9a9a }), mats = [leaf, inset, slit, kick, leafEdge], leaves = [];
+    for (const side of [-1, 1]) {
+      const half = new THREE.Shape(); half.moveTo(0, 0); half.lineTo(side * OW, 0); half.lineTo(side * OW, OH - C); half.lineTo(side * (OW - C), OH); half.lineTo(0, OH); half.closePath();
+      const lg = new THREE.Group(); f.add(lg); leaves.push(lg); const mid = side * OW * 0.5;
+      put(new THREE.ExtrudeGeometry(half, { depth: 0.06, bevelEnabled: false }), leaf, 0, 0, 0.03, lg);
+      put(new THREE.BoxGeometry(OW * 0.5, 0.86, 0.012), inset, mid + side * 0.03, 1.52, 0.095, lg); put(new THREE.BoxGeometry(OW * 0.58, 0.94, 0.008), leafEdge, mid + side * 0.03, 1.52, 0.092, lg);
+      put(new THREE.BoxGeometry(OW * 0.64, 0.035, 0.012), slit, mid, 0.98, 0.095, lg);
+      put(new THREE.PlaneGeometry(OW * 0.86, 0.3), kick, mid, 0.24, 0.093, lg);
+      put(new THREE.BoxGeometry(0.018, OH - 0.02, 0.012), slit, side * 0.012, OH / 2, 0.093, lg);
+    }
+    if (sealed) {
+      const tc = canvas(512, 64), t2 = tc.getContext('2d'); t2.fillStyle = '#ffc857'; t2.fillRect(0, 0, 512, 64); t2.fillStyle = '#1a1406'; for (let i = -64; i < 512; i += 40) { t2.beginPath(); t2.moveTo(i, 64); t2.lineTo(i + 20, 64); t2.lineTo(i + 64, 0); t2.lineTo(i + 44, 0); t2.fill(); }
+      t2.fillStyle = '#1a1406'; t2.fillRect(176, 8, 160, 48); text(t2, 'SEALED', 256, 33, '800 30px sans-serif', '#ffc857');
+      const tape = new THREE.MeshBasicMaterial({ map: tex(tc) }); mats.push(tape); const band = put(new THREE.PlaneGeometry(2 * OW + 0.2, 0.26), tape, 0, 1.3, 0.106); band.rotation.z = -0.1;
+    }
+    // the sign over the door, and the panel beside it (a way through, or a padlock)
+    const sw = label.length > 12 ? 1.62 : 1.2, cw = Math.round(sw * 256), sc = canvas(cw, 80), sx = sc.getContext('2d');
+    const bg = sx.createLinearGradient(0, 0, 0, 80); bg.addColorStop(0, '#0c1628'); bg.addColorStop(1, '#060b16'); sx.fillStyle = bg; sx.fillRect(0, 0, cw, 80);
+    sx.fillStyle = css; sx.fillRect(0, 0, cw, 4); sx.fillRect(0, 76, cw, 4); sx.globalAlpha = 0.5; sx.fillRect(10, 12, 6, 56); sx.fillRect(cw - 16, 12, 6, 56); sx.globalAlpha = 1;
+    sx.shadowColor = css; sx.shadowBlur = 14; text(sx, label, cw / 2, 42, `800 ${sw > 1.3 ? 30 : 32}px sans-serif`, txt); sx.shadowBlur = 0;
+    put(new THREE.BoxGeometry(sw + 0.06, 0.34, 0.05), metal, 0, OH + F + 0.22, 0.025);
+    put(new THREE.PlaneGeometry(sw, 0.3), new THREE.MeshBasicMaterial({ map: tex(sc) }), 0, OH + F + 0.22, 0.052);
+    const pc = canvas(96, 144), px = pc.getContext('2d'); px.fillStyle = '#060b16'; px.fillRect(0, 0, 96, 144); px.strokeStyle = css; px.lineWidth = 4; px.strokeRect(4, 4, 88, 136); px.fillStyle = css; px.strokeStyle = css;
+    if (sealed) { px.lineWidth = 7; px.beginPath(); px.arc(48, 62, 16, Math.PI, 0); px.stroke(); px.fillRect(26, 62, 44, 36); px.fillStyle = '#060b16'; px.fillRect(45, 72, 6, 14); }
+    else for (const y of [52, 82]) { px.lineWidth = 7; px.beginPath(); px.moveTo(34, y - 14); px.lineTo(56, y); px.lineTo(34, y + 14); px.stroke(); }
+    px.fillStyle = sealed ? '#ff9aa8' : sign; px.font = '800 15px sans-serif'; px.textAlign = 'center'; px.fillText(sealed ? 'LOCKED' : 'OPEN', 48, 126);
+    const pside = OW + F + 0.24; put(new THREE.BoxGeometry(0.24, 0.36, 0.05), metal, pside, 1.22, 0.025); put(new THREE.PlaneGeometry(0.2, 0.3), new THREE.MeshBasicMaterial({ map: tex(pc) }), pside, 1.22, 0.052);
+    // a strip of light on the floor at the threshold
+    const fc = canvas(8, 64), fx = fc.getContext('2d'), fg = fx.createLinearGradient(0, 0, 0, 64); fg.addColorStop(0, css); fg.addColorStop(1, css + '00'); fx.fillStyle = fg; fx.fillRect(0, 0, 8, 64);
+    const strip = put(new THREE.PlaneGeometry(2 * OW, 0.5), new THREE.MeshBasicMaterial({ map: tex(fc), transparent: true, opacity: 0.35, depthWrite: false }), 0, 0.012, 0.25); strip.rotation.x = -Math.PI / 2;
+    // clip the leaves (and the tape) to the doorway, in world space
+    g.updateWorldMatrix(true, true);
+    const planes = [[1, 0, -OW, 0], [-1, 0, OW, 0], [0, -1, 0, OH], [1, -1, -OW, OH - C], [-1, -1, OW, OH - C]].map(([nx, ny, ax, ay]) => {
+      const n = new THREE.Vector3(nx, ny, 0).normalize().transformDirection(f.matrixWorld), pt = f.localToWorld(new THREE.Vector3(ax, ay, 0)); return new THREE.Plane().setFromNormalAndCoplanarPoint(n, pt); });
+    for (const m of mats) m.clippingPlanes = planes;
+    this.hitBox(g, 2.1, 3.1, 0.4, 0, 1.55, -0.2); this.tag(g, kind);
+    Object.assign(g.userData, { sealed, trim, slit, acc, leaves, open: 0, OW }); (this.doors ||= []).push(g); return g;
   }
-  /** Breathe a door's light (open: green; sealed: a slow red). */
-  doorLight(g) { const l = g?.userData.lamp; if (!l) return; const k = 0.6 + 0.4 * Math.sin(this.t * (g.userData.sealed ? 1.2 : 2.5)); if (g.userData.sealed) l.material.color.setRGB(k, 0.3 * k, 0.4 * k); else l.material.color.setRGB(0.43 * k, k, 0.78 * k); }
+  /** Doors breathe their light, and slide open as you walk up to one (sealed ones stay shut). */
+  animateDoors(dt) {
+    const v = (this._dv ||= new (T().Vector3)());
+    for (const g of this.doors || []) {
+      const u = g.userData; g.getWorldPosition(v); const near = !u.sealed && Math.hypot(this.pos.x - v.x, this.pos.z - v.z) < 2.3, was = u.open;
+      u.open += ((near ? 1 : 0) - u.open) * Math.min(1, dt * 5); if (near && was < 0.02 && u.open >= 0.02) playSfx('dash', 0.22, 0.5);
+      const s = u.open * u.OW * 0.97; u.leaves[0].position.x = -s; u.leaves[1].position.x = s;
+      const k = (u.sealed ? 0.55 + 0.35 * Math.sin(this.t * 1.3) : 0.8 + 0.2 * Math.sin(this.t * 2.2)) + u.open * 0.25; u.trim.color.setHex(u.acc).multiplyScalar(k); u.slit.color.setHex(u.acc).multiplyScalar(0.6 + 0.4 * k);
+    }
+  }
   /** An invisible box that makes a whole exhibit easy to tap (gaps and all). */
   hitBox(parent, w, h, d, x, y, z) { const THREE = T(), m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })); m.position.set(x, y, z); parent.add(m); return m; }
   tag(obj, kind) { obj.traverse((o) => { o.userData.exhibit = kind; }); this.exhibits.push(obj); }
-  untag(group) { this.exhibits = this.exhibits.filter((o) => o !== group && !group.children.includes(o)); }
+  untag(group) { this.exhibits = this.exhibits.filter((o) => o !== group && !group.children.includes(o)); if (this.doors) this.doors = this.doors.filter((d) => d.parent !== group); }
   label(str, w, h, color) {
     const THREE = T(), c = canvas(512, Math.max(32, Math.round(512 * h / w))); text(c.getContext('2d'), str, 256, c.height / 2, `800 ${Math.round(c.height * 0.62)}px sans-serif`, color);
     return new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex(c), transparent: true }));
@@ -114,7 +171,7 @@ export class Room {
   pick(nx, ny) {
     this.ray.setFromCamera({ x: nx, y: ny }, this.cam);
     const extra = this.pickExtra(), hit = this.ray.intersectObjects([...this.exhibits, ...extra.map((e) => e.obj)], true)[0], floor = this.ray.intersectObject(this.floor)[0];
-    if (hit && !hit.object.userData.exhibit) hit.object.userData.exhibit = extra.find((e) => { let o = hit.object; while (o && o !== e.obj) o = o.parent; return o; })?.kind; // parts rebuilt as it grows
+    if (hit && !hit.object.userData.exhibit) { let o = hit.object; while (o && !o.userData.exhibit) o = o.parent; hit.object.userData.exhibit = o?.userData.exhibit || extra.find((e) => { let q = hit.object; while (q && q !== e.obj) q = q.parent; return q; })?.kind; } // added after tagging (radar blips), or rebuilt as the station grows
     if (hit && hit.object.userData.exhibit && (!floor || hit.distance <= floor.distance + 0.01)) return { exhibit: hit.object.userData.exhibit };
     if (floor) { this.target = this.clamp(floor.point.x, floor.point.z); this.marker.position.x = this.target.x; this.marker.position.z = this.target.z; this.marker.material.opacity = 1; return { walk: true }; }
     return null;
@@ -142,8 +199,8 @@ export class Room {
     if (this.marker.material.opacity > 0) this.marker.material.opacity = Math.max(0, this.marker.material.opacity - dt * (this.target ? 0.4 : 2.5));
     const bob = this.target || mv || st ? Math.sin(this.t * 9) * 0.02 : 0;
     this.cam.position.set(this.pos.x, EYE + bob, this.pos.z); this.cam.rotation.set(this.pitch, this.yaw, 0);
-    this.cam.updateMatrixWorld();
+    this.cam.updateMatrixWorld(); this.animateDoors(dt);
   }
   update(dt) { this.walk(dt); }
-  render(gl, dt) { this.update(dt); gl.setClearColor(0x000000, 1); gl.render(this.scene, this.cam); }
+  render(gl, dt) { this.update(dt); gl.localClippingEnabled = true; /* the doors' leaves are clipped to their doorways */ gl.setClearColor(0x000000, 1); gl.render(this.scene, this.cam); }
 }

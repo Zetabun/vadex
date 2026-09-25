@@ -196,7 +196,7 @@ export class Renderer {
     // A room aboard (the Command Deck, Defence Control) replaces the hangar view while it is open (built on the first visit).
     if (this.room) {
       const d = this.room, size = this.w + 'x' + this.h; if (d.size !== size) { d.size = size; d.resize(this.w, this.h); }
-      d.sync(st); d.render(this.gl, Math.min(dt, 0.05)); this.ctx2d.clearRect(0, 0, this.overlay.width, this.overlay.height); return;
+      const now = performance.now(); if (d !== this.synced || now > (d.syncAt || 0)) { this.synced = d; d.syncAt = now + 500; d.sync(st); } /* what it shows changes rarely */ d.render(this.gl, Math.min(dt, 0.05)); this.ctx2d.clearRect(0, 0, this.overlay.width, this.overlay.height); return;
     }
     this.gl.setClearColor(0x050a24, 1);
     this.lerpIn(w, renderAlpha());

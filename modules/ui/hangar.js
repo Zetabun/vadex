@@ -107,7 +107,7 @@ export function createHangar(hooks) {
     if (menuState(id) === 'new') { menuSeen(id); setTimeout(() => hooks.menuIntro?.(MENU_BY_ID[id]), 150); }
     if (!quiet && id !== tab) playSfx('tab');
     if (shownTabs().join() !== navSig) layoutNav();
-    if (ROOMS[id] && !ROOMS[tab]) outside = tab; G.room = ROOMS[id] ? id : null; setClass($.stationHot, 'on', id === 'launch'); setClass($.callout, 'on', id === 'launch'); setClass($.coSvg, 'on', id === 'launch'); if (id === 'launch') stationNews();
+    if (ROOMS[id] && !ROOMS[tab]) outside = tab; if ((ROOMS[id] ? id : null) !== G.room) for (const r of Object.values(G.renderer?.rooms || {})) r.keys = {}; G.room = ROOMS[id] ? id : null; const app = el.parentElement; if (app) { if (G.room) app.dataset.room = G.room; else delete app.dataset.room; } setClass($.stationHot, 'on', id === 'launch'); setClass($.callout, 'on', id === 'launch'); setClass($.coSvg, 'on', id === 'launch'); if (id === 'launch') stationNews();
     tab = id; if (pageOf(id) !== page) { page = pageOf(id); layoutNav(); }
     for (const k in navBtns) { setClass(navBtns[k], 'on', k === id); navBtns[k].setAttribute('aria-selected', String(k === id)); }
     if (id === 'awards') G.state.seen.medals = medalTotal().earned;
@@ -399,7 +399,7 @@ export function createHangar(hooks) {
       const rec = sg.rec + (hard ? hardRec(sg.n) : 0), ok = power >= rec, cp = sg.checkpoint && c.checkpoints?.[sg.n + (hard ? 'h' : '')];
       return h('div.ca-stage' + (open ? '' : '.locked') + (hard ? '.hard' : ''),
         h('div.ca-num', h('small', 'Stage'), h('b', String(sg.n))),
-        h('div.ca-main', h('b', sg.name), h('small', open ? `${sg.place} · best ${fmtInt(c.best[sg.n] || 0)}` : `Clear stage ${sg.n - 1} to unlock`),
+        h('div.ca-main', h('b', sg.name), h('small', open ? `${sg.place} · ` + (c.best[sg.n] ? `best ${fmtInt(c.best[sg.n])}` : 'not yet flown') : `Clear stage ${sg.n - 1} to unlock`),
           h('div.ca-stars', [1, 2, 3].map((i) => h('i' + (i <= got ? '.on' : ''), '★')), open ? h('span.ca-rec' + (ok ? '.ok' : '.low'), `Power ${power}/${rec}`) : null)),
         open && cp ? h('button.btn.ghost.ca-cp', { onclick: () => launchCounter({ counter: sg.n, hard, checkpoint: true }), title: 'Resume from the checkpoint (clear star only)' }, h('small', 'Checkpoint'), h('b', 'Resume')) : null,
         open ? h('button.btn.' + (hard ? 'danger' : 'primary') + '.ca-go', { onclick: () => launchCounter({ counter: sg.n, hard }) }, uiIcon('launch')) : uiIcon('lock'));
@@ -434,7 +434,7 @@ export function createHangar(hooks) {
     return SIEGE_TIERS.map((t) => {
       const open = siegeOpen(st, t.n), got = sg.stars[t.n] || 0;
       return h('div.ca-stage' + (open ? '' : '.locked'), h('div.ca-num', h('small', 'Tier'), h('b', String(t.n))),
-        h('div.ca-main', h('b', t.name), h('small', open ? `Waves ${t.first}–${t.last} · best ${fmtInt(sg.best[t.n] || 0)}` : `Clear Counterattack stage ${t.n} first`), h('div.ca-stars', [1, 2, 3].map((i) => h('i' + (i <= got ? '.on' : ''), '★')))),
+        h('div.ca-main', h('b', t.name), h('small', open ? `Waves ${t.first}–${t.last} · ` + (sg.best[t.n] ? `best ${fmtInt(sg.best[t.n])}` : 'not yet flown') : `Clear Counterattack stage ${t.n} first`), h('div.ca-stars', [1, 2, 3].map((i) => h('i' + (i <= got ? '.on' : ''), '★')))),
         open ? h('button.btn.primary.ca-go', { onclick: () => { hooks.closeOverlays?.(); launchSiege(t.n); }, 'aria-label': 'Defend against ' + t.name }, uiIcon('launch')) : uiIcon('lock'));
     });
   }

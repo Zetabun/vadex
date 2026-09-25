@@ -694,11 +694,13 @@ button.stat-row{width:100%;text-align:left}
 .in-skip{position:absolute;right:max(18px,calc(env(safe-area-inset-right,0px) + 12px));top:calc(max(var(--st),20px) + 22px);padding:8px 14px;border-radius:99px;background:rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.25);color:#cfd8ea;font:700 11px var(--cond);letter-spacing:.2em;text-transform:uppercase;cursor:pointer}
 #intro.titled .in-skip{display:none}
 /* The station AI's comms panel. */
-#comms{position:absolute;left:12px;right:12px;top:calc(env(safe-area-inset-top,0px) + 78px);z-index:40;display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:14px;background:rgba(6,12,30,.92);border:1px solid rgba(94,230,255,.35);box-shadow:0 8px 30px rgba(0,0,0,.45),0 0 20px rgba(94,230,255,.12);transform:translateY(-12px);opacity:0;pointer-events:none;transition:opacity .35s,transform .35s}
+#comms{position:absolute;left:12px;right:12px;top:calc(var(--st) + 78px);z-index:40;display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:14px;background:rgba(6,12,30,.92);border:1px solid rgba(94,230,255,.35);box-shadow:0 8px 30px rgba(0,0,0,.45),0 0 20px rgba(94,230,255,.12);transform:translateY(-12px);opacity:0;pointer-events:none;transition:opacity .35s,transform .35s}
 #comms.on{opacity:1;transform:none;pointer-events:auto}
 .cm-av{flex:none;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 40% 35%,#9ff0ff,#1a6c8f 60%,#08203a);box-shadow:0 0 14px rgba(94,230,255,.5)}.cm-av i{width:13px;height:13px;border-radius:50%;background:#e8fbff;box-shadow:0 0 10px #5ee6ff;animation:inPulse 1.2s ease-in-out infinite}
 .cm-main{min-width:0}.cm-who{font:700 9px var(--cond);letter-spacing:.22em;text-transform:uppercase;color:var(--cyan)}.cm-text{font:600 14px/1.35 var(--body);color:var(--ink);margin-top:2px;min-height:19px}
 #app[data-mode="sortie"] #comms{display:none}
+/* in a room aboard, ORBIT speaks from the bottom, clear of the room's title and Exit */
+#app[data-room] #comms{top:auto;bottom:calc(var(--sb) + 92px)}
 
 /* The station callout on the launch screen: text on the left, a hairline to the station's hub. */
 .st-callout{position:absolute;left:14px;top:12%;z-index:2;display:none;flex-direction:column;align-items:flex-start;gap:1px;max-width:46%;padding:4px 10px 5px 0;background:none;border:0;border-left:2px solid rgba(94,230,255,.55);padding-left:9px;text-align:left;cursor:pointer;line-height:1.1}

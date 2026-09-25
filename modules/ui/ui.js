@@ -54,7 +54,7 @@ export function initUI(app, hooks) {
   function setMode(mode, tab) {
     G.mode = mode; app.dataset.mode = mode;
     if (mode === 'hangar') { hangar.show(tab || 'launch', true); G.renderer?.setView('hangar'); setThrust(0); }
-    else { hud.reset(); G.renderer?.setView('field'); }
+    else { hud.reset(); G.renderer?.setView('field'); G.room = null; }
     $.scan.classList.toggle('off', !G.state.settings.scanlines);
     measure();
   }

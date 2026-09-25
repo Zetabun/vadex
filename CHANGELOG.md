@@ -12,6 +12,9 @@
   - An alert beacon turns amber over the table while a siege is massing, and glows green when all is quiet.
 - **Siege panel:** an "Enter Defence Control" button, and the defences list is now grouped by console with the station's totals at the top. Everywhere a defence is offline, it names the Workshop upgrade (or Alien Tech) that brings it online.
 - **Fix:** long lists in information panels (the defences, the medal wall) no longer squash the panel's stats into a thin line.
+- **New doors aboard:** every door in the station's rooms is now a proper bulkhead: a chamfered frame with a glowing trim in the room's colour, two leaves with frosted windows and hazard-striped kick plates, a lit sign above and a status panel beside it. Walk up to one and it slides open onto a lit corridor. A sealed door glows red, is taped across and shows a padlock.
+- **ORBIT in the rooms** now speaks from the bottom of the screen, so its messages never cover the room's title or the Exit button.
+- **Missions:** siege tiers and Counterattack stages you haven't flown say "not yet flown" instead of "best 0".
 
 ## v2.10.1 — 2026-09-25
 

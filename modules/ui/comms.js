@@ -33,9 +33,9 @@ export const LINES = [
 export function createComms(app) {
   const text = h('div.cm-text'), el = h('div#comms', { role: 'status', onclick: () => hide() }, h('div.cm-av', h('i')), h('div.cm-main', h('div.cm-who', 'ORBIT · station AI'), text));
   app.append(el); let hideT = 0, busy = false;
-  function hide() { clearTimeout(hideT); el.classList.remove('on'); busy = false; }
+  function hide() { clearTimeout(hideT); clearTimeout(text._tt); el.classList.remove('on'); busy = false; }
   function say(line) {
-    busy = true; el.classList.add('on'); const n = G.state.pilot.name || 'Pilot';
+    clearTimeout(hideT); busy = true; el.classList.add('on'); const n = G.state.pilot.name || 'Pilot';
     typeText(text, line.replace('{n}', n), { speed: 36, onDone: () => { clearTimeout(hideT); hideT = setTimeout(hide, 4200); } });
   }
   /** Deliver the next milestone line not yet heard. Pilots already past milestones when this arrived only hear the welcome. */
