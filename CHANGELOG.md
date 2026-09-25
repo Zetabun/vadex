@@ -3,6 +3,7 @@
 ## v2.9.1 — 2026-09-25
 
 - **Fix (iPhone):** the station on the home screen could sit under the header on tall phones, so the callout overlapped your name and a tap on Settings opened the station instead. The header now always sits above the station's tap area, and the station is placed in the room between the header and your ship on every screen (a little smaller on short phones), with its tap area and callout following it.
+- **Fix (iPhone):** the cinematics' Skip button sat under the Dynamic Island and could be clipped; it now sits clear of it and of the screen's rounded corner.
 
 ## v2.9.0 — 2026-09-25
 
