@@ -15,6 +15,12 @@ const W = 4, FRONT = -6, BACK = 3, H = 3, DOME = { z: -1.5, r: 3.9 }, SKY = 480,
 const BRASS = 0xd9a441, CYAN = 0x9ff0ff;
 /** A point in the dome's sky: azimuth (0 ahead, towards the window; positive to the right) and height, in degrees. */
 function sky(az, h, r = SKY) { const THREE = T(), a = (az * Math.PI) / 180, e = (h * Math.PI) / 180; return new THREE.Vector3(Math.sin(a) * Math.cos(e) * r, H + Math.sin(e) * r, DOME.z - Math.cos(a) * Math.cos(e) * r); }
+/** The middle of a constellation, as [azimuth, height] in degrees (its stars' directions averaged, each star once). */
+function centre(m) {
+  const THREE = T(), seen = new Set(), v = new THREE.Vector3(), o = new THREE.Vector3(0, H, DOME.z);
+  for (const [az, h] of m.stars) { if (seen.has(az + ',' + h)) continue; seen.add(az + ',' + h); v.add(sky(az, h, 1).sub(o)); }
+  v.normalize(); return [(Math.atan2(v.x, -v.z) * 180) / Math.PI, (Math.asin(v.y) * 180) / Math.PI];
+}
 
 export class ObservatoryRoom extends Room {
   constructor() {
@@ -53,7 +59,8 @@ export class ObservatoryRoom extends Room {
     const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.6, 1.1, 24), metal); ped.position.y = 0.55; tel.add(ped);
     const band = new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.03, 8, 32), brass); band.rotation.x = Math.PI / 2; band.position.y = 1.02; tel.add(band);
     this.telYaw = new THREE.Group(); this.telYaw.position.y = 1.15; tel.add(this.telYaw);
-    for (const s of [-1, 1]) { const arm = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.6, 0.2), metal); arm.position.set(s * 0.4, 0.3, 0); this.telYaw.add(arm); }
+    for (const s of [-1, 1]) { const arm = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.6, 0.2), metal); arm.position.set(s * 0.4, 0.3, 0); this.telYaw.add(arm);
+      const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.05, 24), brass); hub.rotation.z = Math.PI / 2; hub.position.set(s * 0.465, 0.5, 0); this.telYaw.add(hub); } /* the bearings the tube turns in */
     this.telPitch = new THREE.Group(); this.telPitch.position.y = 0.5; this.telYaw.add(this.telPitch);
     const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.32, 2.6, 28), Ph({ color: 0xe8e2d4, specular: 0xffffff, shininess: 60 })); tube.rotation.x = Math.PI / 2; tube.position.z = -0.5; this.telPitch.add(tube);
     for (const z of [-1.75, 0.7]) { const r = new THREE.Mesh(new THREE.TorusGeometry(z < 0 ? 0.27 : 0.33, 0.04, 8, 28), brass); r.position.z = z; this.telPitch.add(r); }
@@ -72,7 +79,7 @@ export class ObservatoryRoom extends Room {
     const earth = new THREE.Mesh(new THREE.SphereGeometry(0.07, 16, 12), new THREE.MeshBasicMaterial({ color: 0x5ea8ff })); this.orrery.add(earth);
     this.orbits = [];
     for (let i = 0; i < 9; i++) { const r = 0.14 + i * 0.07, m = new THREE.Mesh(new THREE.TorusGeometry(r, 0.006, 4, 64), new THREE.MeshBasicMaterial({ color: i < 6 ? 0x5ee6ff : 0xb69cff, transparent: true, opacity: 0.5, ...add })); m.rotation.x = Math.PI / 2; this.orrery.add(m); this.orbits.push(m); }
-    this.marker = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffd27a })); this.orrery.add(this.marker);
+    this.deepest = new THREE.Mesh(new THREE.SphereGeometry(0.035, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffd27a })); this.orrery.add(this.deepest);
     const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.4, 0.7, 32, 1, true), new THREE.MeshBasicMaterial({ color: 0xb69cff, opacity: 0.05, side: THREE.DoubleSide, ...add })); beam.position.y = 1.25; orr.add(beam);
     this.hitBox(orr, 1.6, 2, 1.6, 0, 1, 0); this.tag(orr, 'orrery');
     // the doors, on the back wall
@@ -126,30 +133,30 @@ export class ObservatoryRoom extends Room {
     x.fillStyle = '#090a14'; x.fillRect(0, 0, 1024, 720); x.strokeStyle = '#d9a441'; x.lineWidth = 5; x.strokeRect(6, 6, 1012, 708);
     text(x, 'CHART OF THE DEEP VOID', 36, 48, '800 40px sans-serif', '#fff0c8', 'left'); text(x, best > 60 ? `DEEPEST: WAVE ${best}` : 'NOT YET PAST WAVE 60', 988, 48, '700 24px sans-serif', '#d9a441', 'right');
     VOID_MARKS.forEach((m, i) => {
-      const y = 104 + i * 76, done = this.charted[m.wave], ready = !done && best >= m.wave;
-      x.fillStyle = ready ? 'rgba(159,240,255,.1)' : done ? 'rgba(255,200,87,.07)' : 'rgba(255,255,255,.02)'; x.fillRect(24, y, 976, 66);
-      text(x, `VOID ${voidSector(m.wave)}`, 44, y + 33, '800 22px sans-serif', done ? '#d9a441' : ready ? '#9ff0ff' : '#4a4e6a', 'left');
-      text(x, m.name, 170, y + 24, '800 30px sans-serif', done ? '#fff0c8' : ready ? '#e0fbff' : '#6a6e8a', 'left');
-      text(x, `wave ${m.wave} · +${m.bp} Blueprints` + (m.paint ? ` · ${PAINT_BY_ID[m.paint]?.name} paint` : ''), 170, y + 52, '600 20px sans-serif', done ? '#b89a60' : '#6a6e8a', 'left');
-      text(x, done ? 'CHARTED' : ready ? 'READY TO CHART' : best > 60 || i === 0 ? `${Math.max(0, m.wave - best)} WAVES ON` : 'BEYOND WAVE 60', 976, y + 33, '800 22px sans-serif', done ? '#ffc857' : ready ? '#9ff0ff' : '#4a4e6a', 'right');
+      const y = 98 + i * 77, done = this.charted[m.wave], ready = !done && best >= m.wave;
+      x.fillStyle = ready ? 'rgba(159,240,255,.1)' : done ? 'rgba(255,200,87,.07)' : 'rgba(255,255,255,.02)'; x.fillRect(24, y, 976, 71);
+      text(x, `VOID ${voidSector(m.wave)}`, 44, y + 36, '800 24px sans-serif', done ? '#d9a441' : ready ? '#9ff0ff' : '#4a4e6a', 'left');
+      text(x, m.name, 172, y + 25, '800 34px sans-serif', done ? '#fff0c8' : ready ? '#e0fbff' : '#6a6e8a', 'left');
+      text(x, `wave ${m.wave} · +${m.bp} Blueprints` + (m.paint ? ` · ${PAINT_BY_ID[m.paint]?.name} paint` : ''), 172, y + 56, '600 23px sans-serif', done ? '#b89a60' : '#6a6e8a', 'left');
+      text(x, done ? 'CHARTED' : ready ? 'READY TO CHART' : best > 60 || i === 0 ? `${Math.max(0, m.wave - best)} WAVES ON` : 'BEYOND WAVE 60', 976, y + 36, '800 24px sans-serif', done ? '#ffc857' : ready ? '#9ff0ff' : '#4a4e6a', 'right');
     });
     face.material.map.needsUpdate = true;
   }
   /** Turn the view up to a depth's constellation (just charted: it draws itself in). */
-  showMark(wave) { const m = VOID_MARKS.find((x) => x.wave === wave); if (!m) return; const [a, hh] = m.stars[Math.floor(m.stars.length / 2)]; this.lookTo = { yaw: (-a * Math.PI) / 180, pitch: Math.min(0.75, (hh * Math.PI) / 180), t: 0 }; this.aim = m; }
+  showMark(wave) { const m = VOID_MARKS.find((x) => x.wave === wave); if (!m) return; const [a, hh] = centre(m); this.lookTo = { yaw: (-a * Math.PI) / 180, pitch: Math.min(0.75, (hh * Math.PI) / 180), t: 0 }; this.aim = m; }
   // ---------------------------------------------------------------- every frame
   update(dt) {
     this.walk(dt); const t = this.t;
     if (this.lookTo) { const L = this.lookTo; L.t += dt; let d = L.yaw - this.yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); const k = Math.min(1, dt * 3); this.yaw += d * k; this.pitch += (L.pitch - this.pitch) * k; if (L.t > 1.6) this.lookTo = null; }
     // the telescope tracks its constellation, drifting a little as if following it across the sky
-    if (this.aim) { const [a, hh] = this.aim.stars[Math.floor(this.aim.stars.length / 2)], wantYaw = (-a * Math.PI) / 180 + Math.sin(t * 0.07) * 0.03, wantPitch = (hh * Math.PI) / 180 * 0.85;
+    if (this.aim) { if (this.aimAt?.m !== this.aim) this.aimAt = { m: this.aim, at: centre(this.aim) }; const [a, hh] = this.aimAt.at, wantYaw = (-a * Math.PI) / 180 + Math.sin(t * 0.07) * 0.03, wantPitch = (hh * Math.PI) / 180 * 0.85;
       this.telYaw.rotation.y += (wantYaw - this.telYaw.rotation.y) * Math.min(1, t > 0.5 ? 0.02 : 1); this.telPitch.rotation.x += (wantPitch - this.telPitch.rotation.x) * 0.02; }
     // stars waiting to be charted pulse; one just charted draws itself in, gold
     for (const l of this.lines || []) {
       if (l.ready) l.line.material.opacity = 0.18 + 0.2 * (0.5 + 0.5 * Math.sin(t * 2.4));
       if (this.flash?.wave === l.wave) { this.flash.t += dt; const k = Math.min(1, this.flash.t / 2.2); l.line.geometry.setDrawRange(0, Math.max(2, Math.ceil(l.n * k))); l.line.material.opacity = 0.4 + 0.5 * k; if (k >= 1) this.flash = null; }
     }
-    this.orrery.rotation.y = t * 0.25; const rr = 0.14 + (this.markRing || 0) * 0.07; this.marker.position.set(Math.cos(t * 0.8) * rr, 0, Math.sin(t * 0.8) * rr);
+    this.orrery.rotation.y = t * 0.25; const rr = 0.14 + (this.markRing || 0) * 0.07; this.deepest.position.set(Math.cos(t * 0.8) * rr, 0, Math.sin(t * 0.8) * rr);
     this.galaxy.rotation.z = t * 0.01;
   }
 }

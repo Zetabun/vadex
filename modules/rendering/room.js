@@ -17,6 +17,14 @@ export function drawArt(key, ctx, x, y, s, done) {
 }
 export function text(ctx, str, x, y, font, color, align = 'center') { ctx.font = font; ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'middle'; ctx.fillText(str, x, y); }
 const hexCss = (n) => '#' + n.toString(16).padStart(6, '0');
+/** A sign over a room's window, drawn into a 768 x 96 canvas (for a 2.4 x 0.3 plane): the room's name and a line under
+ *  it on a dark plate edged in its colour, so both read against whatever is behind (a lamp's glint on the frame). */
+export function drawSign(x, title, sub, ink, accent) {
+  x.fillStyle = 'rgba(5,7,15,.86)'; x.beginPath(); if (x.roundRect) x.roundRect(3, 3, 762, 90, 16); else x.rect(3, 3, 762, 90); x.fill();
+  x.strokeStyle = accent; x.globalAlpha = 0.55; x.lineWidth = 3; x.stroke(); x.globalAlpha = 1;
+  const fit = (str, px, wt) => { let s = px; do x.font = `${wt} ${s}px sans-serif`; while (x.measureText(str).width > 724 && (s -= 2) > 12); return x.font; }; /* a long station name shrinks to fit */
+  text(x, title, 384, 38, fit(title, 40, 800), ink); text(x, sub, 384, 74, fit(sub, 19, 700), accent);
+}
 
 export class Room {
   /** w: half the width (x -w..w); front: the window wall's z; back: the back wall's z; h: the ceiling. start: [x, z, yaw]. */
@@ -65,7 +73,9 @@ export class Room {
     for (const s of [-1, 1]) box(0.05, 0.04, D, s * (W - 0.03), 0.06, (FRONT + BACK) / 2, strip);
     box(2 * hw, 0.04, 0.05, 0, y0 + 0.02, FRONT + 0.17, strip); box(2 * hw, 0.04, 0.05, 0, y1 - 0.02, FRONT + 0.17, strip);
     // ceiling light panels
-    const lightMat = (this.lightMat = new THREE.MeshBasicMaterial({ color: L.panel ?? 0xfff1d8 }));
+    const pc = canvas(256, 64), px = pc.getContext('2d'), pg = px.createLinearGradient(0, 7, 0, 57); px.fillStyle = '#262c3a'; px.fillRect(0, 0, 256, 64); /* a diffuser in its frame, brightest down the middle */
+    pg.addColorStop(0, '#c4c4c4'); pg.addColorStop(0.5, '#ffffff'); pg.addColorStop(1, '#c4c4c4'); px.fillStyle = pg; px.fillRect(7, 7, 242, 50); px.fillStyle = 'rgba(0,0,0,.16)'; for (let i = 1; i < 8; i++) px.fillRect(7 + i * 30.25 - 1, 7, 2, 50);
+    const lightMat = (this.lightMat = new THREE.MeshBasicMaterial({ color: L.panel ?? 0xfff1d8, map: tex(pc) }));
     if (!L.open) for (const z of L.lamps) { const p = new THREE.Mesh(new THREE.PlaneGeometry(L.panelW ?? 2.4, 0.5), lightMat); p.rotation.x = Math.PI / 2; p.position.set(0, H - 0.025, z); S.add(p); }
     // structure: ribs down the side walls, beams across the ceiling, and a cove light along the top of the walls
     const rib = Ph({ color: L.rib ?? 0x323c55, specular: 0x4a5a78, shininess: 30 }), cove = (this.coveMat = new THREE.MeshBasicMaterial({ color: L.cove ?? L.strip ?? 0x5ee6ff, transparent: true, opacity: 0.7 }));

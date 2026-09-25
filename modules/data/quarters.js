@@ -39,10 +39,10 @@ export const PHOTOS = [
 
 // The lights, set to a mood (the switch by the door): the lamps, the strips, the cove.
 export const MOODS = [
-  { id: 'warm', name: 'Warm', lamp: 0xffd2a0, lampI: 0.5, strip: 0xffb070, cove: 0xffb070, hemi: 0.5 },
-  { id: 'cool', name: 'Cool', lamp: 0xd6ecff, lampI: 0.5, strip: 0x5ee6ff, cove: 0x5ee6ff, hemi: 0.52 },
-  { id: 'night', name: 'Night', lamp: 0x7080d0, lampI: 0.28, strip: 0x5a5aff, cove: 0x3a3ad0, hemi: 0.3 },
-  { id: 'neon', name: 'Neon', lamp: 0xffb8ec, lampI: 0.45, strip: 0xff5fd2, cove: 0x5ee6ff, hemi: 0.45 },
+  { id: 'warm', name: 'Warm', lamp: 0xffd2a0, lampI: 0.5, strip: 0xffb070, cove: 0xffb070, hemi: 0.5, panel: 0xfff0dc },
+  { id: 'cool', name: 'Cool', lamp: 0xd6ecff, lampI: 0.5, strip: 0x5ee6ff, cove: 0x5ee6ff, hemi: 0.52, panel: 0xeaf6ff },
+  { id: 'night', name: 'Night', lamp: 0x7080d0, lampI: 0.28, strip: 0x5a5aff, cove: 0x3a3ad0, hemi: 0.3, panel: 0x464e86 },
+  { id: 'neon', name: 'Neon', lamp: 0xffb8ec, lampI: 0.45, strip: 0xff5fd2, cove: 0x5ee6ff, hemi: 0.45, panel: 0xffc4ee },
 ];
 export const MOOD_BY_ID = Object.fromEntries(MOODS.map((m) => [m.id, m]));
 

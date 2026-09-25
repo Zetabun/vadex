@@ -10,7 +10,7 @@
 - Boss kills are now counted boss by boss, for the hunting record.
 - **The Pilot's quarters (new room aboard):** your own cabin in the Outer ring. It opens with the ring, at Overhaul rank 5. Walk out to it from the Trophy Hall (a new door on its left wall), or from the station card.
   - **Your bunk** sits under the window, with the Earth beyond and your callsign and rank over it. Rest in it once a day and you're well rested: your next sortie banks 10% more salvage, and the debrief says so.
-  - **Keepsakes:** twelve to find as you play, each lit and turning on its shelf in the cabinet. They run from your first salvage chip and a scorched hull plate off your first lost ship to a Singularity shard and a Void compass. The ones still to find stand as dark shapes; tap the cabinet to see how to get them.
+  - **Keepsakes:** twelve to find as you play, each turning on its own stand on a lit shelf in the cabinet. They run from your first salvage chip and a scorched hull plate off your first lost ship to a Singularity shard and a Void compass. The ones still to find stand as dark shapes; tap the cabinet to see how to get them.
   - **The pilot's log** on the wall over your desk gets a new entry, in your own words, every time something goes on the shelf.
   - **Photos** of the big moments are pinned up between the doors: first launch, first boss down, your best wave, the Counterattack, the first rebuild, the first siege held.
   - **A switch by the door** sets the lights' mood: Warm, Cool, Night or Neon.
@@ -28,6 +28,14 @@
   - **All three done in a day pays a Blueprint.** You can swap one bounty you don't fancy, once a day.
   - **Collecting:** tap Collect in Missions (the new panel at the top) or at the bounty board in the Comms room. The debrief tells you when a sortie or a siege finishes one, and the Missions tab lights up while pay is waiting. Anything done but not collected is paid when the next day's bounties arrive, so nothing is lost.
   - **In the room:** the radio console carries a live waveform and ORBIT's listening post; tap it for what the spire is picking up. The bounty board is on one wall and a system map of the sectors you've reached on the other. Through the window, the spire's mast with its beacon, a big dish sweeping the sky and sending out rings, and the Earth below.
+- **Polish across the rooms aboard:**
+  - **Ceiling lights** are proper fittings now, a framed diffuser rather than a flat white slab. A soft shade under the header keeps the room's name and Exit readable when a light is behind them.
+  - **The signs over the windows** sit on a dark plate, so they read against the glint off the frame. Defence Control's no longer hides behind a ceiling beam.
+  - **Comms room:** the microphone has moved to the front of the desk, clear of the frequency readout. A clock between the doors shows the station's time and when the next bounties post, and the system map's labels are bigger.
+  - **Pilot's quarters:** the keepsakes stand on little turntables, and the stray light floating over the cabinet is gone. The ceiling lights follow the mood, and go down with the rest for a night in the bunk. The reading lamp is on a gooseneck over the pillow. A softer pillow, a striped blanket with the sheet turned down, a braided rug, and a mug that looks like a mug.
+  - **Observatory:** tapping the floor shows where you're walking again. Charting a depth centres your view on its constellation, and the telescope aims at the middle of it. Bigger type on the chart, and brass bearings on the telescope's mount.
+  - **New icons** for the Comms room and the Observatory.
+  - **Toasts** no longer let what's under them show through.
 
 ## v2.14.0 — 2026-09-25
 

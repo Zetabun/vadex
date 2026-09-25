@@ -3,8 +3,8 @@
 // waveform, the frequency, a microphone (tap it for what the spire is picking up). The bounty board on the left wall
 // lists the day's three bounties with their progress; the system map on the right pings the sectors and keeps the
 // tally. Through the window: the spire's mast with its beacon, the big dish sweeping the sky and sending out rings, and
-// the Earth below. Doors lead back to the Trophy Hall and out to the hangar.
-import { Room, canvas, tex, text, EYE } from '@last-orbit/rendering/room.js';
+// the Earth below. Doors lead back to the Trophy Hall and out to the hangar, a clock between them.
+import { Room, canvas, tex, text, drawSign, EYE } from '@last-orbit/rendering/room.js';
 import { earthMaterial, nightAmount } from '@last-orbit/rendering/background.js';
 import { bountyProgress, bountyText, untilNextPost } from '@last-orbit/progression/bounties.js';
 import { BOUNTY_BONUS_BP } from '@last-orbit/data/bounties.js';
@@ -40,14 +40,19 @@ export class CommsRoom extends Room {
       const b = new THREE.Mesh(new THREE.BoxGeometry(0.86, 0.54, 0.05), dark); g.add(b); const f = new THREE.Mesh(new THREE.PlaneGeometry(0.78, 0.46), new THREE.MeshBasicMaterial({ map })); f.position.z = -0.03; f.rotation.y = Math.PI; g.add(f);
       const st = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.42, 8), metal); st.position.y = -0.42; g.add(st); return g; };
     scr(this.wave.tex, -0.62); scr(this.dial.tex, 0); this.mapMini = { c: canvas(512, 256) }; this.mapMini.tex = tex(this.mapMini.c); scr(this.mapMini.tex, 0.62);
-    // the microphone, on a boom over the desk
-    const boom = new THREE.Mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.7, 8), metal); boom.position.set(0.45, 1.12, 1.05); boom.rotation.set(0.9, 0, 0.5); cg.add(boom);
-    const mic = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.16, 12), dark); mic.position.set(0.28, 1.28, 1.3); mic.rotation.x = 0.9; cg.add(mic);
-    this.micLight = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff4d6a })); this.micLight.position.set(0.28, 1.37, 1.36); cg.add(this.micLight);
+    // the microphone, on a stand at the front of the desk (low, under the screens, clear of what they show), its on-air light on the foot
+    const mg = new THREE.Group(); mg.position.set(0.42, 0.84, 1.36); cg.add(mg);
+    const foot = new THREE.Mesh(new THREE.CylinderGeometry(0.055, 0.065, 0.02, 16), dark); foot.position.y = 0.01; mg.add(foot);
+    const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.16, 6), metal); stalk.position.set(0, 0.09, 0.01); stalk.rotation.x = 0.2; mg.add(stalk);
+    const mic = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.025, 0.1, 12), dark); mic.position.set(0, 0.19, 0.04); mic.rotation.x = 0.6; mg.add(mic);
+    const grille = new THREE.Mesh(new THREE.SphereGeometry(0.031, 12, 8), metal); grille.position.set(0, 0.232, 0.068); mg.add(grille);
+    this.micLight = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff4d6a })); this.micLight.position.set(0, 0.024, 0.05); mg.add(this.micLight);
     this.hitBox(cg, 3, 1.9, 1.6, 0, 0.95, 0.9); this.tag(cg, 'radio');
     // the bounty board on the left wall, the system map on the right (both drawn in sync)
     this.board = this.screen(S, canvas(1024, 600), 2.7, 1.58, -W + 0.03, 1.8, -1.9, Math.PI / 2, 0x1a2624); this.tag(this.board, 'bounties');
     this.map = this.screen(S, canvas(1024, 600), 2.7, 1.58, W - 0.03, 1.8, -1.9, -Math.PI / 2, 0x1a2624); this.tag(this.map, 'log');
+    // a clock on the back wall between the doors: the station's time, and when the next bounties post
+    this.clock = this.screen(S, canvas(768, 320), 1.7, 0.71, 0, 1.95, BACK - 0.03, Math.PI, 0x1a2624); this.tag(this.clock, 'bounties');
     // racks of radio gear in the back corners, their lights blinking
     this.leds = [];
     for (const s of [-1, 1]) {
@@ -58,7 +63,7 @@ export class CommsRoom extends Room {
     }
     // a sign over the window
     const sc = canvas(768, 96), sx = sc.getContext('2d');
-    text(sx, 'COMMS SPIRE', 384, 40, '800 42px sans-serif', '#d8fff0'); text(sx, 'RADIO ROOM · LISTENING ON ALL FREQUENCIES', 384, 80, '700 19px sans-serif', '#6dffc8');
+    drawSign(sx, 'COMMS SPIRE', 'RADIO ROOM · LISTENING ON ALL FREQUENCIES', '#d8fff0', '#6dffc8');
     const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.3), new THREE.MeshBasicMaterial({ map: tex(sc), transparent: true })); sign.position.set(0, 3.6, FRONT + 0.17); S.add(sign);
     // the doors, on the back wall
     this.door(S, 2.4, BACK, 0, 'HANGAR  ›', 'exit', { sign: '#d8fff0', edge: MINT });
@@ -96,7 +101,7 @@ export class CommsRoom extends Room {
     const bt = state.bounties || {}, list = bt.list || [], prog = list.map((b) => bountyProgress(state, b));
     const sig = [bt.day, list.map((b, i) => `${b.id}:${prog[i]}/${b.goal}:${b.done ? 1 : 0}${b.claimed ? 1 : 0}`).join(','), bt.done || 0, bt.days || 0, Math.floor(Date.now() / 60000)].join('|');
     if (sig === this.sig) return; this.sig = sig;
-    this.drawBoard(state, list, prog, bt); this.drawMap(state, bt);
+    this.drawBoard(state, list, prog, bt); this.drawMap(state, bt); this.drawClock(bt);
   }
   drawBoard(state, list, prog, bt) {
     const face = this.board.userData.face, c = face.material.map.image, x = c.getContext('2d');
@@ -119,11 +124,19 @@ export class CommsRoom extends Room {
     const face = this.map.userData.face, c = face.material.map.image, x = c.getContext('2d');
     x.fillStyle = '#07100f'; x.fillRect(0, 0, 1024, 600); x.strokeStyle = '#6dffc8'; x.lineWidth = 5; x.strokeRect(6, 6, 1012, 588);
     text(x, 'SYSTEM MAP', 36, 50, '800 44px sans-serif', '#d8fff0', 'left'); text(x, `BOUNTIES DONE ${bt.done || 0} · FULL DAYS ${bt.days || 0}`, 988, 50, '700 26px sans-serif', '#6dffc8', 'right');
-    const cx = 512, cy = 330; x.strokeStyle = 'rgba(109,255,200,.25)'; x.lineWidth = 2; for (const r of [70, 140, 210]) { x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.stroke(); }
-    x.fillStyle = '#5ee6ff'; x.beginPath(); x.arc(cx, cy, 16, 0, Math.PI * 2); x.fill(); text(x, 'EARTH', cx, cy + 36, '700 20px sans-serif', '#5ee6ff');
+    const cx = 512, cy = 322; x.strokeStyle = 'rgba(109,255,200,.25)'; x.lineWidth = 2; for (const r of [66, 133, 200]) { x.beginPath(); x.arc(cx, cy, r, 0, Math.PI * 2); x.stroke(); }
+    x.fillStyle = '#5ee6ff'; x.beginPath(); x.arc(cx, cy, 18, 0, Math.PI * 2); x.fill(); text(x, 'EARTH', cx, cy + 42, '800 24px sans-serif', '#5ee6ff');
     const reached = state.stats.bestSector || 1;
-    SECTORS.slice(0, 6).forEach((s, i) => { const a = -Math.PI / 2 + (i / 6) * Math.PI * 2, px = cx + Math.cos(a) * 210, py = cy + Math.sin(a) * 210, on = i < reached;
-      x.fillStyle = on ? '#6dffc8' : '#2a4a40'; x.beginPath(); x.arc(px, py, 11, 0, Math.PI * 2); x.fill(); text(x, s.name.toUpperCase(), px, py + (Math.sin(a) > 0 ? 34 : -28), '700 20px sans-serif', on ? '#bfffe6' : '#3a5a50'); });
+    SECTORS.slice(0, 6).forEach((s, i) => { const a = -Math.PI / 2 + (i / 6) * Math.PI * 2, px = cx + Math.cos(a) * 200, py = cy + Math.sin(a) * 200, on = i < reached;
+      x.fillStyle = on ? '#6dffc8' : '#2a4a40'; x.beginPath(); x.arc(px, py, 14, 0, Math.PI * 2); x.fill(); text(x, s.name.toUpperCase(), px, py + (Math.sin(a) > 0 ? 40 : -34), '800 26px sans-serif', on ? '#bfffe6' : '#4a6a60'); });
+    face.material.map.needsUpdate = true;
+  }
+  /** The clock by the doors: the time aboard (your own), and the countdown to the next bounties (they post at midnight). */
+  drawClock(bt) {
+    const face = this.clock.userData.face, c = face.material.map.image, x = c.getContext('2d'), now = new Date(), two = (n) => String(n).padStart(2, '0');
+    x.fillStyle = '#07100f'; x.fillRect(0, 0, 768, 320); x.strokeStyle = '#6dffc8'; x.lineWidth = 5; x.strokeRect(6, 6, 756, 308);
+    text(x, 'STATION TIME', 384, 50, '800 28px sans-serif', '#6dffc8'); text(x, `${two(now.getHours())}:${two(now.getMinutes())}`, 384, 150, '800 118px monospace', '#d8fff0');
+    text(x, bt.day ? `NEW BOUNTIES IN ${untilNextPost(now).toUpperCase()}` : 'LISTENING FOR BOUNTIES', 384, 262, '800 32px sans-serif', '#ffc857');
     face.material.map.needsUpdate = true;
   }
   /** The live displays on the console: the waveform, the dial, the mini map with its sweep. */

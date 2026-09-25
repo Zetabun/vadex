@@ -139,7 +139,7 @@ select{background:var(--solid);color:var(--ink);border:1px solid var(--line2);bo
 #banner .k{font:700 11px var(--cond);letter-spacing:.32em;color:var(--dim);text-transform:uppercase;margin-bottom:6px}
 #toasts{position:absolute;left:12px;right:12px;top:calc(var(--st) + 112px);z-index:35;display:flex;flex-direction:column;align-items:stretch;gap:6px;pointer-events:none}
 #app[data-mode="hangar"] #toasts{top:calc(var(--st) + 70px)}
-.toast{display:flex;align-items:center;gap:12px;width:100%;box-sizing:border-box;padding:10px 14px;border-radius:14px;font:600 14px/1.3 var(--body);background:rgba(10,16,44,.96);border:1px solid var(--line2);box-shadow:0 10px 30px rgba(0,0,0,.55);animation:tin .28s cubic-bezier(.2,.8,.3,1.2)}
+.toast{display:flex;align-items:center;gap:12px;width:100%;box-sizing:border-box;padding:10px 14px;border-radius:14px;font:600 14px/1.3 var(--body);background:rgba(10,16,44,.99);border:1px solid var(--line2);box-shadow:0 10px 30px rgba(0,0,0,.55);animation:tin .28s cubic-bezier(.2,.8,.3,1.2)}
 .toast-text{flex:1;min-width:0;overflow-wrap:anywhere}
 @keyframes tin{from{opacity:0;transform:translateY(-10px) scale(.97)}}
 .toast.out{opacity:0;transform:translateY(-6px);transition:.3s}
@@ -663,9 +663,11 @@ button.stat-row{width:100%;text-align:left}
 #hangar[data-tab="deck"] .hg-body,#hangar[data-tab="control"] .hg-body,#hangar[data-tab="gunner"] .hg-body,#hangar[data-tab="hall"] .hg-body,#hangar[data-tab="comms"] .hg-body,#hangar[data-tab="quarters"] .hg-body,#hangar[data-tab="observatory"] .hg-body{background:none;backdrop-filter:none;overflow:hidden}
 .deck3d{position:relative;height:100%;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
 .d3-top{position:absolute;left:12px;right:12px;top:10px;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none}
-.d3-title{display:flex;flex-direction:column;line-height:1.1;padding:7px 12px;border-radius:12px;background:rgba(6,10,24,.6);border:1px solid rgba(94,230,255,.25);backdrop-filter:blur(4px)}
+.d3-title{display:flex;flex-direction:column;line-height:1.1;padding:7px 12px;border-radius:12px;background:rgba(6,10,24,.74);border:1px solid rgba(94,230,255,.25);backdrop-filter:blur(4px)}
 .d3-title small{font:700 9px var(--cond);letter-spacing:.2em;text-transform:uppercase;color:var(--cyan)}.d3-title b{font:800 16px var(--disp);letter-spacing:.08em;text-transform:uppercase;color:var(--ink)}
-.d3-exit{pointer-events:auto;display:inline-flex;align-items:center;gap:4px;background:rgba(6,10,24,.6)}
+.d3-exit{pointer-events:auto;display:inline-flex;align-items:center;gap:4px;background:rgba(6,10,24,.78);backdrop-filter:blur(4px)}
+#hangar[data-tab="deck"] .hg-top,#hangar[data-tab="control"] .hg-top,#hangar[data-tab="hall"] .hg-top,#hangar[data-tab="comms"] .hg-top,#hangar[data-tab="quarters"] .hg-top,#hangar[data-tab="observatory"] .hg-top{background:linear-gradient(180deg,rgba(3,5,18,.92),rgba(3,5,18,.62) 75%,rgba(3,5,18,.5))}
+.deck3d:not(.gunner)::before{content:'';position:absolute;left:0;right:0;top:0;height:130px;background:linear-gradient(180deg,rgba(3,5,18,.5),rgba(3,5,18,0));pointer-events:none}.deck3d.watching::before{display:none}
 .d3-hint{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);max-width:90%;padding:8px 14px;border-radius:99px;background:rgba(6,10,24,.72);border:1px solid rgba(94,230,255,.3);font:600 12px var(--body);color:#cfeaff;text-align:center;pointer-events:none;transition:opacity .6s}
 .d3-hint.off{opacity:0}
 .deck3d.watching{cursor:default}

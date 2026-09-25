@@ -5,7 +5,7 @@
 // the main-game bosses you have faced (the hunting record). The window looks back at the station's hub with the captured
 // bosses held in its tractor fields, the view turning slowly as the ring spins. Doors lead to the Command Deck, out to
 // the hangar, and (once they are back) up to the Comms room and out to the Pilot's quarters. Tapping an exhibit names it (the UI shows the details).
-import { Room, canvas, tex, text } from '@last-orbit/rendering/room.js';
+import { Room, canvas, tex, text, drawSign } from '@last-orbit/rendering/room.js';
 import { Station } from '@last-orbit/rendering/station.js';
 import { shapeGeometry } from '@last-orbit/rendering/geometry.js';
 import { BOSSES } from '@last-orbit/data/bosses.js';
@@ -74,7 +74,7 @@ export class HallRoom extends Room {
     this.hitBox(hp, 1.3, 3, 1.3, 0, 1.5, 0); this.tag(hp, 'hunt'); this.huntAt = hp;
     // a sign over the window
     const sc = canvas(768, 96), sx = sc.getContext('2d');
-    text(sx, 'TROPHY HALL', 384, 40, '800 42px sans-serif', '#ffe2b0'); text(sx, 'HABITAT RING · CAPTURED IN THE COUNTERATTACK', 384, 80, '700 19px sans-serif', '#c18cff');
+    drawSign(sx, 'TROPHY HALL', 'HABITAT RING · CAPTURED IN THE COUNTERATTACK', '#ffe2b0', '#c18cff');
     const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.3), new THREE.MeshBasicMaterial({ map: tex(sc), transparent: true })); sign.position.set(0, 3.36, FRONT + 0.17); S.add(sign);
     // the doors, on the back wall
     this.door(S, 2.5, BACK, 0, 'HANGAR  ›', 'exit', { sign: '#ffd9a0', edge: GOLD });

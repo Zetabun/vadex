@@ -142,8 +142,8 @@ function runScene(scene, hooks, ui) {
     return; }
   // hall[:captures[:hard[:view]]]: the Trophy Hall at Overhaul rank 2, with that many Counterattack bosses captured (default
   // 4), that many hard stages cleared, and the main-game bosses met. view: left, right, front (the window), back (the doors),
-  // hunt (the hologram), plaque (close on a plaque), or tap:<exhibit> to open one's panel.
-  if (name === 'hall') { const caps = arg == null ? 4 : +arg, hard = +arg2 || 0; st.pilot.name = 'Adam'; st.seen.callsign = true; st.seen.hall = true; st.prestige.level = arg3 === 'spire' ? 3 : 2; st.stationName = 'Halcyon';
+  // hunt (the hologram), plaque (close on a plaque), tap:<exhibit> to open one's panel, or intro (a first visit).
+  if (name === 'hall') { const caps = arg == null ? 4 : +arg, hard = +arg2 || 0; st.pilot.name = 'Adam'; st.seen.callsign = true; st.seen.hall = arg3 !== 'intro'; st.prestige.level = arg3 === 'spire' ? 3 : 2; st.stationName = 'Halcyon';
     for (const l of LINES) st.seen.comms[l.id] = 1; st.seen.commsInit = true;
     WORKSHOP.forEach((u, i) => { st.stationPeak[u.id] = u.max; st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.7 - (i % 5) * 0.12))); });
     st.counter.unlocked = true; for (let k = 1; k <= caps; k++) { st.counter.stars[k] = 1 + (k % 3); st.counter.best[k] = 18000 + k * 7400; if (k <= hard) st.counter.hard[k] = 1 + (k % 2); }
@@ -155,8 +155,8 @@ function runScene(scene, hooks, ui) {
     return; }
   // spire[:view[:state]]: the Comms room at Overhaul rank 3 with today's bounties posted: the first done, the second half
   // way, the third just started (state 'paid': the first collected; 'all': all three done and collected). view: board,
-  // map, radio, window, back, or tap:<exhibit>. Also missions: the Missions tab with the same bounties.
-  if (name === 'spire') { st.pilot.name = 'Adam'; st.seen.callsign = true; st.seen.commsRoom = true; st.seen.hall = true; st.prestige.level = 3; st.stationName = 'Halcyon'; st.counter.unlocked = true; st.counter.stars[1] = 2;
+  // map, radio, window, back, tap:<exhibit> or intro (a first visit). Also missions: the Missions tab with the same bounties.
+  if (name === 'spire') { st.pilot.name = 'Adam'; st.seen.callsign = true; st.seen.commsRoom = arg !== 'intro'; st.seen.hall = true; st.prestige.level = 3; st.stationName = 'Halcyon'; st.counter.unlocked = true; st.counter.stars[1] = 2;
     for (const l of LINES) st.seen.comms[l.id] = 1; st.seen.commsInit = true; st.stats.sorties = 30; st.stats.kills = 9000; st.stats.wavesCleared = 700; st.stats.dodges = 900; st.stats.eliteKills = 120; st.stats.bossKills = 40; st.stats.flawless = 160;
     st.history = [900, 1200, 1100, 1400, 1300].map((salvage) => ({ salvage, score: 1, wave: 30 })); st.bounties = { day: '', list: [], rerolled: false, bonus: false, done: 11, days: 3 };
     WORKSHOP.forEach((u, i) => { st.stationPeak[u.id] = u.max; st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.7 - (i % 5) * 0.12))); });
@@ -168,8 +168,8 @@ function runScene(scene, hooks, ui) {
     if (arg === 'tap') setTimeout(() => ui.tap?.(arg2 || 'bounties'), 1500);
     return; }
   // quarters[:view[:mood]]: the Pilot's quarters at Overhaul rank 5, with ten of the twelve keepsakes found and most of the
-  // photos up. view: bunk, shelf, desk, photos, window, or tap:<exhibit>. mood: warm, cool, night, neon.
-  if (name === 'quarters') { st.pilot.name = 'Adam'; st.pilot.rank = 12; st.seen.callsign = true; st.seen.quarters = true; st.prestige.level = 5; st.stationName = 'Halcyon';
+  // photos up. view: bunk, shelf, desk, photos, window, tap:<exhibit> or intro (a first visit). mood: warm, cool, night, neon.
+  if (name === 'quarters') { st.pilot.name = 'Adam'; st.pilot.rank = 12; st.seen.callsign = true; st.seen.quarters = arg !== 'intro'; st.prestige.level = 5; st.stationName = 'Halcyon';
     for (const l of LINES) st.seen.comms[l.id] = 1; st.seen.commsInit = true; Object.assign(st.stats, { sorties: 40, deaths: 12, sectorBosses: 5, bestSector: 5, sectorsCleared: 4, bestWave: 48, siegeWins: 1 });
     st.counter.unlocked = true; st.counter.stars[1] = 2; st.quarters = { restDay: '', rested: false, mood: ['warm', 'cool', 'night', 'neon'].includes(arg2) ? arg2 : 'warm' };
     WORKSHOP.forEach((u, i) => { st.stationPeak[u.id] = u.max; st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.7 - (i % 5) * 0.12))); });
@@ -179,13 +179,13 @@ function runScene(scene, hooks, ui) {
     if (arg === 'tap') setTimeout(() => ui.tap?.(arg2 || 'shelf'), 1500);
     return; }
   // observatory[:view|tap[:best wave[:charted]]]: the Observatory at Overhaul rank 6, the best wave (default 94) and how many
-  // depths already charted (default 2). view: telescope, chart, orrery, dome, window, or tap:<exhibit>.
-  if (name === 'observatory') { const best = +arg2 || 94, done = arg3 == null ? 2 : +arg3; st.pilot.name = 'Adam'; st.seen.callsign = true; st.seen.observatory = true; st.prestige.level = 6; st.stationName = 'Halcyon';
+  // depths already charted (default 2). view: telescope, chart, orrery, dome, window, tap:<exhibit> or intro (a first visit).
+  if (name === 'observatory') { const best = +arg2 || 94, done = arg3 == null ? 2 : +arg3; st.pilot.name = 'Adam'; st.seen.callsign = true; st.seen.observatory = arg !== 'intro'; st.prestige.level = 6; st.stationName = 'Halcyon';
     for (const l of LINES) st.seen.comms[l.id] = 1; st.seen.commsInit = true; st.stats.bestWave = best; st.stats.bestSector = 6; st.stats.sectorsCleared = 6; st.observatory = { charted: {} };
     [61, 71, 81, 91, 101, 121, 151, 201].slice(0, done).forEach((w) => { if (w <= best) st.observatory.charted[w] = Date.now(); });
     WORKSHOP.forEach((u, i) => { st.stationPeak[u.id] = u.max; st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.7 - (i % 5) * 0.12))); });
     recalc(); hooks.toHangar('observatory');
-    const view = { telescope: [0.8, 0.2, 0.3, 0.1], chart: [1.8, 0.55, 1.5708, 0.02], orrery: [0.9, -2.0, -1.2, -0.12], dome: [0, 0.4, 0, 0.72], window: [1.7, -1.4, 0.3, 0.08] }[arg];
+    const view = { telescope: [0.8, 0.2, 0.3, 0.1], chart: [1.8, 0.55, 1.5708, 0.02], orrery: [1.2, -1.6, -0.55, -0.15], dome: [0, 0.4, 0, 0.72], window: [1.7, -1.4, 0.3, 0.08] }[arg];
     if (view) { let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 60) setTimeout(place, 100); return; } r.pos.set(view[0], 0, view[1]); r.yaw = view[2]; r.pitch = view[3]; }; place(); }
     if (arg === 'tap') setTimeout(() => ui.tap?.(arg2 && isNaN(+arg2) ? arg2 : 'telescope'), 1500);
     if (arg === 'charting') setTimeout(() => { ui.tap?.('chart'); setTimeout(() => document.querySelector('.obs-go')?.click(), 400); }, 1500); /* chart the next depth: the view turns up to it */

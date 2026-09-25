@@ -5,7 +5,7 @@
 // station under a radar sweep with the invaders closing in. The threat board on the back wall lists every siege tier,
 // with its stars and best score. ORBIT's terminal answers when tapped. Doors lead back to the hangar and through to
 // the Command Deck. Tapping an exhibit names it (the UI shows the details).
-import { Room, canvas, tex, text } from '@last-orbit/rendering/room.js';
+import { Room, canvas, tex, text, drawSign } from '@last-orbit/rendering/room.js';
 import { Station } from '@last-orbit/rendering/station.js';
 import { nightAmount } from '@last-orbit/rendering/background.js';
 import { SIEGE_TIERS, SIEGE_CONSOLES, siegeOpen, siegeSystems, nextSiege } from '@last-orbit/data/siege.js';
@@ -207,8 +207,8 @@ export class ControlRoom extends Room {
   }
   nameSign(state) {
     const THREE = T(), c = canvas(768, 96), x = c.getContext('2d');
-    text(x, 'DEFENCE CONTROL', 384, 40, '800 42px sans-serif', '#ffe2b0'); text(x, (state.stationName ? state.stationName.toUpperCase() + ' · ' : '') + 'STATION DEFENCE GRID', 384, 80, '700 20px sans-serif', '#ffb547');
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.3), new THREE.MeshBasicMaterial({ map: tex(c), transparent: true })); m.position.set(0, 3.03, FRONT + 0.17); this.show.add(m);
+    drawSign(x, 'DEFENCE CONTROL', (state.stationName ? state.stationName.toUpperCase() + ' · ' : '') + 'STATION DEFENCE GRID', '#ffe2b0', '#ffb547');
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(2.1, 0.2625), new THREE.MeshBasicMaterial({ map: tex(c), transparent: true })); m.position.set(0, 2.995, FRONT + 0.17); this.show.add(m); /* low enough to clear the first ceiling beam */
   }
   // ---------------------------------------------------------------- every frame
   update(dt) {

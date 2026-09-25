@@ -3,7 +3,7 @@
 // their ships stand on pedestals to the right, banners hang from the ceiling, the records screen and the way out are
 // behind, Overhaul trophies sit on a shelf under the window, and a hologram of the station turns on the table in the
 // middle. A door on the right leads to Defence Control once the invaders have struck back.
-import { Room, canvas, tex, drawArt, text, EYE } from '@last-orbit/rendering/room.js';
+import { Room, canvas, tex, drawArt, text, drawSign, EYE } from '@last-orbit/rendering/room.js';
 import { Station } from '@last-orbit/rendering/station.js';
 import { earthMaterial, nightAmount } from '@last-orbit/rendering/background.js';
 import { playerParts } from '@last-orbit/rendering/geometry.js';
@@ -223,7 +223,7 @@ export class DeckRoom extends Room {
   }
   nameSign(state, rank) {
     const THREE = T(), c = canvas(768, 96), x = c.getContext('2d'), p = state.pilot;
-    text(x, state.stationName ? `${state.stationName.toUpperCase()} · COMMAND DECK` : `${(p.name || rankTitle(p.rank)).toUpperCase()}'S COMMAND DECK`, 384, 40, '800 40px sans-serif', '#e8fbff'); text(x, `${(p.name || rankTitle(p.rank)).toUpperCase()} · ${rankTitle(p.rank).toUpperCase()} · OVERHAUL RANK ${rank}`, 384, 80, '700 20px sans-serif', '#5ee6ff');
+    drawSign(x, state.stationName ? `${state.stationName.toUpperCase()} · COMMAND DECK` : `${(p.name || rankTitle(p.rank)).toUpperCase()}'S COMMAND DECK`, `${(p.name || rankTitle(p.rank)).toUpperCase()} · ${rankTitle(p.rank).toUpperCase()} · OVERHAUL RANK ${rank}`, '#e8fbff', '#5ee6ff');
     const m = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.3), new THREE.MeshBasicMaterial({ map: tex(c), transparent: true })); m.position.set(0, 3.225, FRONT + 0.17); this.show.add(m); /* fits the band between the window's top strip and the ceiling */
   }
   /** The way through to Defence Control: sealed until the invaders strike back (the first Counterattack clear). */

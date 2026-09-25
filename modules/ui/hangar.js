@@ -110,11 +110,11 @@ export function createHangar(hooks) {
   const HALL_LOCK = 'The Trophy Hall is in the Habitat ring: it opens at Overhaul rank 2.';
   const HALL_INTRO = { icon: 'awards', kicker: 'New room aboard', title: 'Trophy Hall', text: 'The Habitat ring is turning again, and inside it a hall for everything you have beaten. Every boss you capture in the Counterattack hangs in a stasis cradle here, its record on the plaque, and the hologram keeps the hunting record of every sector boss you have faced.' };
   const COMMS_LOCK = `The Comms room is up the Comms spire: it opens at Overhaul rank ${COMMS_RANK}.`;
-  const COMMS_INTRO = { icon: 'missions', kicker: 'New room aboard', title: 'Comms room', text: 'The Comms spire is back, and with it the radio room at the top. ORBIT listens on every frequency: each day the miners and trawlers post three bounties, one easy, one harder, one hard, sized to how you fly. Finish them for salvage, and all three in a day for a Blueprint. They are in Missions too.' };
+  const COMMS_INTRO = { icon: 'comms', kicker: 'New room aboard', title: 'Comms room', text: 'The Comms spire is back, and with it the radio room at the top. ORBIT listens on every frequency: each day the miners and trawlers post three bounties, one easy, one harder, one hard, sized to how you fly. Finish them for salvage, and all three in a day for a Blueprint. They are in Missions too.' };
   const QUARTERS_LOCK = `Your quarters are in the Outer ring: they open at Overhaul rank ${QUARTERS_RANK}.`;
   const QUARTERS_INTRO = { icon: 'home', kicker: 'New room aboard', title: 'Pilot\'s quarters', text: `The Outer ring is sealed, and there is a room in it with your name on the door. Rest in your bunk once a day and your next sortie banks ${Math.round(REST_BONUS * 100)}% more salvage. The keepsakes you pick up on the way end up on your shelf, the big moments on your wall. Oh, and Bolt lives here now.` };
   const OBS_LOCK = `The Observatory is the glass dome under the hub: it opens at Overhaul rank ${OBSERVATORY_RANK}.`;
-  const OBS_INTRO = { icon: 'records', kicker: 'New room aboard', title: 'Observatory', text: 'The dome under the hub is open to the stars again. Past wave 60 there are no charts: every depth of the Deep Void you reach waits here to be charted, and charting it lights its constellation in the dome and pays Blueprints, some of them a paint job found nowhere else.' };
+  const OBS_INTRO = { icon: 'observatory', kicker: 'New room aboard', title: 'Observatory', text: 'The dome under the hub is open to the stars again. Past wave 60 there are no charts: every depth of the Deep Void you reach waits here to be charted, and charting it lights its constellation in the dome and pays Blueprints, some of them a paint job found nowhere else.' };
   let outside = 'launch'; // the hangar tab the rooms lead back to
   let gunTier = 1, gunFrom = 'control'; // the siege in the gunner seat, and where leaving it goes
   function show(id, quiet) {
@@ -441,7 +441,7 @@ export function createHangar(hooks) {
     const bt = st.bounties || { list: [] };
     return h('section.panel.ca-panel.bn-panel', h('div.ca-head', h('div', h('div.kicker', 'Daily bounties'), h('h3', 'Jobs on the radio'))),
       bountyList(() => render()), bountyFoot(bt),
-      h('button.btn.ghost.wide.sg-room.bn-room', { onclick: () => show('comms') }, uiIcon('missions'), h('span', 'Enter the Comms room'), uiIcon('chevron')));
+      h('button.btn.ghost.wide.sg-room.bn-room', { onclick: () => show('comms') }, uiIcon('comms'), h('span', 'Enter the Comms room'), uiIcon('chevron')));
   }
   /** The bounty board in the Comms room, as a panel. */
   function bountyBoard() {
