@@ -21,24 +21,29 @@ import { ANOMALIES, ANOMALY_BY_ID, ANOMALY_CHOICES, anomalyCounts } from '@last-
 import { SYNERGIES, synergyOf, synergyCount } from '@last-orbit/data/synergies.js';
 import { STAGE_BY_N, STAR_HITS, STAR_KILLS, CORES_PER_STAR, clearBounty } from '@last-orbit/data/counter.js';
 import { unlockCounter } from '@last-orbit/progression/meta.js';
+import { TIER_BY_N, siegeSystems, SIEGE_STARS, SIEGE_BLUEPRINTS, SIEGE_CORES_PER_STAR } from '@last-orbit/data/siege.js';
 
 // ---------------------------------------------------------------- sortie lifecycle
 export function startSortie(opts = {}) {
   const st = G.state, ship = SHIP_BY_ID[st.ship] || SHIP_BY_ID.vanguard;
   // A Daily Sortie uses the day's shared seed and mutator, at no threat. It can be flown once a day.
   const counter = opts.counter ? STAGE_BY_N[opts.counter] : null;
-  const daily = opts.daily && !counter ? dailyToday() : null;
+  const siege = opts.siege && !counter ? TIER_BY_N[opts.siege] : null;
+  const daily = opts.daily && !counter && !siege ? dailyToday() : null;
   if (daily && daily.done) return null;
   st.run = newRun(ship, { ...opts, seed: daily ? daily.seed : opts.seed }); st.run.prevBest = st.stats.bestWave || 0; st.run.prevScore = st.stats.bestScore || 0; G.mode = 'sortie';
   const run = st.run;
   run.threat = daily ? 0 : Math.max(0, Math.min(threatMax(), st.threat || 0));
   if (daily) { run.daily = daily.key; run.mutator = daily.mutator.id; st.daily.done = true; }
   // Warp start: begin at an unlocked sector with catch-up upgrades and relics for the sectors skipped.
-  const warp = daily || counter ? 1 : Math.max(1, Math.min(warpMax(), opts.warp ?? st.warp ?? 1));
+  const warp = daily || counter || siege ? 1 : Math.max(1, Math.min(warpMax(), opts.warp ?? st.warp ?? 1));
   if (warp > 1) { run.warp = warp; run.wave = (warp - 1) * BAL.sectorWaves + 1; run.level = 1 + (warp - 1) * BAL.warpCards; }
   // Counterattack: a stage of the vertical shooter. It gets the same catch-up as a warp to its sector.
   if (counter) st.stats.counterRuns = (st.stats.counterRuns || 0) + 1;
   if (counter) { run.mode = 'counter'; run.stage = counter.n; run.hard = !!opts.hard; run.threat = 0; run.wave = counter.wave; run.level = 1 + (counter.n - 1) * BAL.warpCards; run.catchUp = counter.n; }
+  // Station Siege: the tier's sector from its third wave, the same catch-up, and what the station's systems give the pilot.
+  if (siege) { const sys = siegeSystems(st).on; st.stats.siegeRuns = (st.stats.siegeRuns || 0) + 1; run.mode = 'siege'; run.siege = siege.n; run.threat = 0; run.wave = siege.first; run.level = 1 + siege.sector * BAL.warpCards; run.catchUp = siege.sector + 1;
+    run.siegeWingmen = sys.w_xp || 0; run.siegeCargo = sys.w_salvage || 0; run.siegeCards = sys.w_choice || 0; run.siegeHull = 1; }
   // A checkpoint resume starts at the level the pilot had reached, with those cards to pick again.
   const cpLevel = counter && opts.checkpoint ? st.counter.checkpoints?.[counter.n + (opts.hard ? 'h' : '')] : 0, cpExtra = cpLevel ? Math.max(0, cpLevel - run.level) : 0;
   if (cpLevel) { run.fromCheckpoint = true; run.level += cpExtra; }
@@ -46,8 +51,8 @@ export function startSortie(opts = {}) {
   if (start?.weapon) { const pool = WEAPON_ORDER.filter((id) => !run.weapons[id]); const id = pool[Math.floor(rand() * pool.length)]; run.weapons[id] = 1; run.order.push(id); }
   recalc();
   run.rerolls = Math.round(G.sheet.n('rerolls'));
-  const skipped = counter ? counter.n - 1 : warp - 1, perSector = BAL.warpCards + Math.round(G.sheet.n('warpCards'));
-  run.pendingLevels = Math.round(G.sheet.n('startLevels')) + (start?.cards || 0) + skipped * perSector + (cpExtra || 0);
+  const skipped = counter ? counter.n - 1 : siege ? siege.sector : warp - 1, perSector = BAL.warpCards + Math.round(G.sheet.n('warpCards'));
+  run.pendingLevels = Math.round(G.sheet.n('startLevels')) + (start?.cards || 0) + skipped * perSector + (cpExtra || 0) + (run.siegeCards || 0);
   run.pendingRelics = skipped * BAL.warpRelics;
   count('sorties'); checkContracts();
   bus.emit('sortieStart', run);
@@ -63,18 +68,18 @@ export function endSortie(reason = 'destroyed') {
   const summary = {
     reason, ship: run.ship, wave: reached, sector: sec.idx + 1, sectorName: sec.def.name, level: run.level, kills: run.stats.kills || 0,
     bosses: run.stats.bossKills || 0, time: Math.round(run.time), salvage: banked, cards: run.stats.cards || 0, relics: run.relics.slice(),
-    weapons: run.order.map((id) => [id, run.weapons[id]]), best: run.mode !== 'counter' && reached > (run.prevBest || 0), date: Date.now(),
+    weapons: run.order.map((id) => [id, run.weapons[id]]), best: !run.mode && reached > (run.prevBest || 0), date: Date.now(),
   };
   st.run = null; G.mode = 'hangar';
   const bannersBefore = { ...st.banners };
   summary.threat = run.threat || 0; summary.mutator = run.mutator || null;
-  if (run.mode === 'counter') Object.assign(summary, recordCounter(st, run, summary, reason)); else Object.assign(summary, recordSortie(st, run, summary));
+  if (run.mode === 'counter') Object.assign(summary, recordCounter(st, run, summary, reason)); else if (run.mode === 'siege') Object.assign(summary, recordSiege(st, run, summary, reason)); else Object.assign(summary, recordSortie(st, run, summary));
   if (run.daily) {
     const d = st.daily; d.streak = d.lastDay === prevDayKey(run.daily) ? d.streak + 1 : d.lastDay === run.daily ? d.streak : 1; d.lastDay = run.daily;
     d.wave = reached; d.score = summary.score; d.mutator = run.mutator; d.best = Math.max(d.best || 0, reached); count('dailies'); maxStat('bestStreak', d.streak);
     const bonus = dailyBonus(reached, d.streak); st.salvage += bonus; summary.daily = { bonus, streak: d.streak };
   }
-  const flown = run.mode === 'counter' ? Math.round(3 + run.stage * 2 * (summary.counter?.cleared ? 1 : 0.5)) : Math.max(1, reached - (run.warp ? (run.warp - 1) * BAL.sectorWaves : 0)); summary.warp = run.warp || 1;
+  const flown = run.mode === 'counter' ? Math.round(3 + run.stage * 2 * (summary.counter?.cleared ? 1 : 0.5)) : run.mode === 'siege' ? Math.max(1, reached - TIER_BY_N[run.siege].first + 1) : Math.max(1, reached - (run.warp ? (run.warp - 1) * BAL.sectorWaves : 0)); summary.warp = run.warp || 1;
   summary.mastery = addMastery(run.ship, flown);
   // Contracts finished mid-sortie were announced as they happened; the debrief lists them all.
   summary.contracts = (run.contractsDone || []).concat(checkContracts({ silent: true, medals: false }));
@@ -92,7 +97,7 @@ export function endSortie(reason = 'destroyed') {
   summary.medals = (run.medalsDone || []).concat(medals);
   if (run.intelGained) summary.intel = { id: run.intelGained, level: st.intel[run.intelGained] };
   summary.banners = (run.bannersDone || []).concat(Object.keys(st.banners).filter((id) => !bannersBefore[id]));
-  if (run.mode !== 'counter') st.history.unshift({ score: summary.score, wave: summary.wave, level: summary.level, ship: summary.ship, salvage: banked, time: summary.time, date: summary.date }); st.history.length = Math.min(st.history.length, 12);
+  if (!run.mode) st.history.unshift({ score: summary.score, wave: summary.wave, level: summary.level, ship: summary.ship, salvage: banked, time: summary.time, date: summary.date }); st.history.length = Math.min(st.history.length, 12);
   recalc(); bus.emit('sortieEnded', summary);
   return summary;
 }
@@ -127,7 +132,20 @@ function recordCounter(st, run, s, reason) {
   const bounty = first ? clearBounty(n, run.hard) : 0; st.salvage += bounty;
   if (cleared) { maxStat('counterBest', n); if (run.hard) maxStat('counterHard', n); if (n === 6) st.paints.xeno ||= Date.now(); }
   const score = Math.round(run.score || 0), best = c.best[n] || 0; if (score > best) c.best[n] = score;
-  return { score, counter: { stage: n, hard: !!run.hard, cleared, checkpoint: !cleared && !!c.checkpoints[cpKey], resumed: !!run.fromCheckpoint, stars: earned, gained, cores, bounty, hits, killed, trophy: towed ? n : 0, newBest: score > best && score > 0 } };
+  return { score, counter: { stage: n, hard: !!run.hard, cleared, checkpoint: !cleared && !!c.checkpoints[cpKey], resumed: !!run.fromCheckpoint, stars: earned, gained, cores, bounty, hits, killed, trophy: towed ? n : 0, siegeUnlocked: towed && n === 1, newBest: score > best && score > 0 } };
+}
+
+/** File a Station Siege: stars (held, above half, nearly untouched), an Alien Core for each new one, Blueprints on the
+ *  tier's first win, and the tier's best score. */
+function recordSiege(st, run, s, reason) {
+  const sg = (st.siege ||= { stars: {}, best: {}, wins: 0 }), n = run.siege, won = reason === 'cleared' && !!run.siegeWon, hull = Math.max(0, run.siegeHull ?? 0);
+  const earned = won ? SIEGE_STARS.filter(([, need]) => hull >= need).length : 0, prev = sg.stars[n] || 0, gained = Math.max(0, earned - prev), first = won && !sg.won?.[n];
+  if (earned > prev) sg.stars[n] = earned;
+  const cores = gained * SIEGE_CORES_PER_STAR; st.counter.cores += cores;
+  const bp = first ? SIEGE_BLUEPRINTS : 0; if (bp) { st.prestige.bp += bp; st.prestige.bpEarned = (st.prestige.bpEarned || 0) + bp; }
+  if (won) { (sg.won ||= {})[n] = 1; sg.wins = (sg.wins || 0) + 1; count('siegeWins'); maxStat('siegeBest', n); }
+  const score = Math.round(run.score || 0), best = sg.best[n] || 0; if (score > best) sg.best[n] = score;
+  return { score, siege: { tier: n, won, lost: reason === 'stationLost', hull, stars: earned, gained, cores, bp, newBest: score > best && score > 0 } };
 }
 
 /** A saved sortie found at boot (closed or discarded tab) cannot be resumed: bank its salvage and drop it. */
@@ -150,7 +168,7 @@ export const xpProgress = (run) => run ? Math.min(1, run.xp / xpToNext(run.level
 
 export function grantSalvage(v) {
   const run = G.state.run; if (!run || !(v > 0)) return 0;
-  const got = v * G.sheet.n('salvageGain'); run.salvage += got; return got;
+  const got = v * G.sheet.n('salvageGain') * (1 + (run.siegeCargo || 0)); run.salvage += got; return got;
 }
 
 // ---------------------------------------------------------------- card offers

@@ -32,6 +32,7 @@ export function newState() {
     stationName: '', // what the pilot calls the station they are rebuilding
     stationPeak: {}, // the highest level each Workshop upgrade has ever reached: the station never un-builds a module
     counter: { unlocked: false, stars: {}, hard: {}, best: {}, cores: 0, tech: {}, checkpoints: {} }, // checkpoints: '6' / '6h' → pilot level saved past the mini-boss
+    siege: { stars: {}, best: {}, won: {}, wins: 0 }, // Station Siege: stars and best score per tier, tiers won
     // Overhaul (prestige): rank, unspent Blueprints, blueprint levels, escorts flown, deepest wave since the last Overhaul.
     prestige: { level: 0, bp: 0, bpEarned: 0, tech: {}, escorts: [], cycleBest: 0 },
     trail: 'none',

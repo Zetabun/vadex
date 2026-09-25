@@ -36,6 +36,8 @@ export const ENEMIES = {
   splitter:  { name: 'Mitosid', hp: 1.6, reward: 1.6, r: 4, cost: 2, prio: 1, color: 0x8affd0, shape: 'splitter', split: { type: 'splitling', n: 2 }, fire: { every: 8, kind: 'bolt', speed: 38, dmg: 1 }, desc: 'Bursts into two smaller ones.' },
   splitling: { name: 'Mitosid Spawn', hp: 0.45, reward: 0.5, r: 2.4, cost: 0.5, prio: 0, color: 0x8affd0, shape: 'swarm', weave: 4, fire: { every: 9, kind: 'bolt', speed: 40, dmg: 0.6 }, desc: '' },
   rocket:    { name: 'Rocket', hp: 0.18, reward: 0, r: 1.8, cost: 0, prio: 3, color: 0xff8a3d, shape: 'rocket', projectile: true, desc: '' },
+  siegeshell: { name: 'Siege shell', hp: 0.45, reward: 0, r: 2.1, cost: 0, prio: 3, color: 0xff7a3d, shape: 'rocket', desc: 'Lobbed at your station by bombards in a Station Siege. Shoot it down before it lands.' },
+  raider:    { name: 'Raider', hp: 1.1, reward: 1.2, r: 3.2, cost: 1.4, prio: 2, color: 0xff5a4d, shape: 'diver', desc: 'Dives past you at your station in a Station Siege.' },
   treasure:  { name: 'Salvage Hauler', hp: 5, reward: 30, r: 5, cost: 0, prio: 10, color: 0xffd700, shape: 'treasure', cruiser: true, scrap: 12, desc: 'Unarmed, fast and full of loot.' },
 };
 

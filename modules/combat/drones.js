@@ -23,6 +23,8 @@ export function syncDrones(w) {
   for (let i = 0, n = Math.min(8, Math.floor(G.sheet.n('drones'))); i < n; i++) want.push(i % 3 === 2 ? 'missile' : 'attack');
   // Overhaul escorts: the types flown in the pilot's escort bays (see data/prestige.js).
   const pr = G.state.prestige; if (pr && G.state.run) for (const t of pr.escorts.slice(0, pr.tech.bp_bay || 0)) want.push(t);
+  // Station Siege: the station's flight school sends wingmen up with the pilot.
+  for (let i = 0; i < (G.state.run?.siegeWingmen || 0); i++) want.push('attack');
   const keep = w.drones.filter((d) => d.temp);
   const perm = w.drones.filter((d) => !d.temp);
   const next = [];
