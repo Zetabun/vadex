@@ -66,7 +66,8 @@ export function playSfx(id, vol = 1, pitch = 1) {
 // Most sounds are synthesised; these are recordings, loaded once sound starts. Several files for one id are variations,
 // played in turn at random. playSample returns false until they have loaded, so the caller can fall back to a synth one.
 const VER = import.meta.url.split('?')[1] || ''; // the build's cache-bust, so a changed file is fetched afresh
-const SAMPLES = { turretShot: { files: ['turret-shot-1', 'turret-shot-2', 'turret-shot-3', 'turret-shot-4'], gap: 0.05, spread: 0.04 }, turretReady: { files: ['turret-ready'], gap: 0.3, spread: 0 } };
+// wet: how much goes to the reverb (so a burst rings out when it stops instead of cutting dead)
+const SAMPLES = { turretShot: { files: ['turret-shot-1', 'turret-shot-2', 'turret-shot-3', 'turret-shot-4'], gap: 0.05, spread: 0.04, wet: 0.4 }, turretReady: { files: ['turret-ready'], gap: 0.3, spread: 0, wet: 0.2 } };
 const bufs = {}; let fetching = null;
 function loadSamples() {
   if (fetching || !ctx) return; const c = ctx;
@@ -78,7 +79,20 @@ export function playSample(id, vol = 1, pitch = 1) {
   if (!ctx || ctx.state !== 'running') return false; const list = bufs[id], d = SAMPLES[id]; if (!list?.length) { loadSamples(); return false; }
   const now = ctx.currentTime, prev = last['s:' + id] || 0; if ((now - prev < d.gap && prev <= now) || voices >= MAX_VOICES) return true; last['s:' + id] = now;
   const src = ctx.createBufferSource(), g = ctx.createGain(); src.buffer = list[Math.floor(Math.random() * list.length)]; src.playbackRate.value = pitch * (1 + (Math.random() * 2 - 1) * d.spread);
-  g.gain.value = vol; src.connect(g); g.connect(sfxBus); src.start(now); voices++; src.onended = () => { voices = Math.max(0, voices - 1); g.disconnect(); }; return true;
+  g.gain.value = vol; src.connect(g); g.connect(sfxBus); sendToReverb(g, d.wet); src.start(now); voices++; src.onended = () => { voices = Math.max(0, voices - 1); g.disconnect(); }; return true;
+}
+// A short, dark reverb (a synthesised impulse: decaying noise, a little pre-delay, the highs rolled off) that sounds
+// can send to, so they ring out as if fired from a steel mount rather than stopping dead. One per audio context.
+let verb = null;
+function sendToReverb(node, wet) {
+  if (!wet || !ctx) return;
+  if (!verb || verb.ctx !== ctx) {
+    const sr = ctx.sampleRate, len = Math.floor(sr * 1.4), ir = ctx.createBuffer(2, len, sr);
+    for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < len; i++) { const t = i / sr; d[i] = (Math.random() * 2 - 1) * Math.exp(-t * 3.6) * Math.min(1, t / 0.01); } }
+    const conv = ctx.createConvolver(), pre = ctx.createDelay(0.1), lp = ctx.createBiquadFilter(), out = ctx.createGain(); conv.buffer = ir; pre.delayTime.value = 0.025; lp.type = 'lowpass'; lp.frequency.value = 2800; out.gain.value = 0.9;
+    pre.connect(conv); conv.connect(lp); lp.connect(out); out.connect(sfxBus); verb = { ctx, input: pre };
+  }
+  const w = ctx.createGain(); w.gain.value = wet; node.connect(w); w.connect(verb.input);
 }
 
 // ------------------------------------------------------------------ the station AI's voice, and big explosions
@@ -129,7 +143,7 @@ export function whoosh(vol = 1) {
   bp.frequency.setValueAtTime(500, now); bp.frequency.exponentialRampToValueAtTime(2600, now + 0.18); bp.frequency.exponentialRampToValueAtTime(420, now + dur); n.connect(bp); bp.connect(g); n.start(now); n.stop(now + dur + 0.02);
   const o = ctx.createOscillator(), og = ctx.createGain(); o.type = 'sawtooth'; o.frequency.setValueAtTime(110, now); o.frequency.exponentialRampToValueAtTime(55, now + dur); og.gain.value = 0.25; const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 300;
   o.connect(lp); lp.connect(og); og.connect(g); o.start(now); o.stop(now + dur + 0.02);
-  voices++; n.onended = () => { voices = Math.max(0, voices - 1); g.disconnect(); };
+  sendToReverb(g, 0.3); voices++; n.onended = () => { voices = Math.max(0, voices - 1); g.disconnect(); };
 }
 // A missile seeker's lock: a steady high tone while it holds (the gunner seat). on: true or false.
 let lock = null;
