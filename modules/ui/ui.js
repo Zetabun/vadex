@@ -11,6 +11,7 @@ import { art } from '@last-orbit/ui/art.js';
 import { createIntro } from '@last-orbit/ui/intro.js';
 import { createComms } from '@last-orbit/ui/comms.js';
 import { pieceAt } from '@last-orbit/data/station.js';
+import { roomAt } from '@last-orbit/data/rooms.js';
 
 export function initUI(app, hooks) {
   const $ = {};
@@ -38,9 +39,9 @@ export function initUI(app, hooks) {
     closeOverlays: () => overlays.close(),
     stationComplete: () => overlays.showStationComplete(),
     callsignSet: (name, first) => { if (G.mode === 'hangar') hangar.render(); if (first) greet(true); },
-    // An Overhaul that adds a station piece shows it being built first; then the banner.
+    // An Overhaul that adds a station piece shows it being built first; then the banner, and the room it opens.
     overhauled: (bp) => {
-      const after = () => { hooks.celebrate?.('#ff9f43'); banner('Overhaul complete', `Rank ${G.state.prestige.level}`, `+${bp} Blueprints`, '#ff9f43', 2200); if (G.mode === 'hangar') hangar.render(); };
+      const after = () => { hooks.celebrate?.('#ff9f43'); banner('Overhaul complete', `Rank ${G.state.prestige.level}`, `+${bp} Blueprints`, '#ff9f43', 2200); if (G.mode === 'hangar') hangar.render(); offerRoom(); };
       if (pieceAt(G.state.prestige.level)) intro.play({ rebuild: true, done: after }); else after();
     },
     pause: () => { if (G.mode === 'sortie' && !overlays.blocking()) { playSfx('tab'); overlays.showPause(); } },
@@ -51,6 +52,12 @@ export function initUI(app, hooks) {
   const hud = createHud(uiHooks), hangar = createHangar(uiHooks), overlays = createOverlays($.layer, uiHooks);
   const intro = createIntro(app), comms = createComms(app); let commsT = 0;
   app.append($.scan, hud.el, hangar.el, $.vig, $.banner, $.toasts, $.layer, $.flash);
+
+  /** A room aboard that an Overhaul has just opened offers the way there, once the banner has had its moment. */
+  function offerRoom(rank = G.state.prestige.level, wait = 1700) {
+    const r = roomAt(rank); if (!r || (r.seen && G.state.seen[r.seen])) return;
+    setTimeout(() => { if (G.mode === 'hangar') overlays.showRoomOffer(r, () => hangar.board(r.id)); }, wait);
+  }
 
   // ------------------------------------------------------------ mode
   function setMode(mode, tab) {
@@ -109,7 +116,7 @@ export function initUI(app, hooks) {
     else if (e.k === 'newBest') { banner('New best', `Wave ${e.a}`, 'Further than you have ever flown', 'var(--gold)', 2600); flash('#ffc857'); }
     else if (e.k === 'sector') banner('Sector ' + (e.a + 1), e.b, e.c, 'var(--cyan)', 3200);
     else if (e.k === 'stationDown') flash('#ff4d7a');
-    else if (e.k === 'bossIntro') banner(e.b, e.a, null, typeof e.c === 'number' ? '#' + e.c.toString(16).padStart(6, '0') : e.c, 2600);
+    else if (e.k === 'bossIntro') banner(e.b, e.a, e.d || null, typeof e.c === 'number' ? '#' + e.c.toString(16).padStart(6, '0') : e.c, e.d ? 3600 : 2600); /* e.d: how to beat it, until you have */
     else if (e.k === 'sectorClear') { const vb = G.state.run?.voidBeaten?.at(-1), first = vb && !vb.told; if (first) vb.told = true; /* a Void boss beaten for the first time says so here, where it is seen */
       banner('Sector cleared', e.b, first ? `${vb.name} beaten for the first time: +${vb.bp} Blueprints` : 'Hull restored', first ? '#c9b6ff' : 'var(--green)', first ? 3400 : 2400); flash(first ? '#b69cff' : '#6dffc8'); }
     else if (e.k === 'hurt') { $.vig.classList.add('on'); requestAnimationFrame(() => requestAnimationFrame(() => $.vig.classList.remove('on'))); }
@@ -134,7 +141,7 @@ export function initUI(app, hooks) {
   addEventListener('resize', () => setTimeout(measure, 50));
   return {
     update, setMode, measure, banner, nextChoice, greet, siege: (n) => hangar.siege(n), tap: (kind) => hangar.tap(kind),
-    intro: (o) => intro.play(o), comms,
+    intro: (o) => intro.play(o), comms, offerRoom: (rank) => offerRoom(rank, 0),
     callsign: (o) => overlays.showCallsign(o),
     blocking: () => overlays.blocking(),
     showDebrief: (s) => { clear($.toasts); $.banner.classList.remove('on'); overlays.showDebrief(s); },

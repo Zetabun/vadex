@@ -5,6 +5,8 @@
 //  hbeam{rows,telegraph,dur}  sweep{arc,telegraph,dur}  mines{n}  wave{n,speed}  split{n,spread,speed}  gapwall{speed,gap}
 //  veil{dur}  ambush{type,n} (enemies that come at you from behind or from the walls)
 // weak: periodically exposes a weak point (offset x from centre). Hits landing on it deal BAL.weakMult damage.
+// tip: how to beat it, in a line: the banner says it as the boss arrives, until you have beaten it once (a boss
+// without one, a mini boss, says to hit its weak point).
 export const BOSSES = {
   // ---- sector bosses ----
   broodcarrier: { name: 'Broodcarrier Ixa', title: 'Sector boss', hp: 70, r: 13, shape: 'bossCarrier', color: 0xd48cff, move: 'hover', y: 118,
@@ -13,34 +15,34 @@ export const BOSSES = {
       { at: 1, attacks: [{ kind: 'summon', type: 'grunt', n: 4, every: 8 }, { kind: 'aimed', n: 3, spread: 0.25, speed: 46, every: 3.2 }] },
       { at: 0.6, attacks: [{ kind: 'summon', type: 'diver', n: 3, every: 9 }, { kind: 'ring', n: 12, speed: 34, every: 4.5 }] },
       { at: 0.25, attacks: [{ kind: 'summon', type: 'lancer', n: 4, every: 7 }, { kind: 'aimed', n: 5, spread: 0.4, speed: 52, every: 2.4 }, { kind: 'ring', n: 16, speed: 38, every: 5 }] }] },
-  bastion: { name: 'Bastion Halcyon', title: 'Sector boss', hp: 90, r: 12, shape: 'bossBastion', color: 0x7aa2ff, move: 'hover', y: 116,
+  bastion: { name: 'Bastion Halcyon', title: 'Sector boss', tip: 'Shoot down its three shield generators first', hp: 90, r: 12, shape: 'bossBastion', color: 0x7aa2ff, move: 'hover', y: 116,
     parts: [{ kind: 'gen', n: 3, orbit: 22, speed: 0.7, hp: 0.08, r: 4, shape: 'aegis', shieldsParent: true, respawnPhase: true }],
     weak: { every: 11, dur: 4, x: 0, r: 4.5 }, cores: 2,
     phases: [
       { at: 1, attacks: [{ kind: 'aimed', n: 1, spread: 0, speed: 70, every: 1.6 }, { kind: 'ring', n: 10, speed: 30, every: 5 }] },
       { at: 0.55, attacks: [{ kind: 'beam', cols: 2, telegraph: 1.3, dur: 1, every: 6 }, { kind: 'aimed', n: 3, spread: 0.3, speed: 60, every: 2.2 }] },
       { at: 0.2, attacks: [{ kind: 'beam', cols: 3, telegraph: 1.1, dur: 1, every: 5 }, { kind: 'spiral', arms: 3, dur: 3, rate: 0.12, speed: 36, every: 7 }] }] },
-  wyrm: { name: 'The Nebula Wyrm', title: 'Sector boss', hp: 60, r: 8, shape: 'bossWyrm', color: 0xff7a5c, move: 'worm', y: 105,
+  wyrm: { name: 'The Nebula Wyrm', title: 'Sector boss', tip: 'Every segment you hit wounds the head', hp: 60, r: 8, shape: 'bossWyrm', color: 0xff7a5c, move: 'worm', y: 105,
     parts: [{ kind: 'segment', n: 9, hp: 0.12, r: 6, shape: 'wyrmSeg', chain: true, parentDamage: 0.6 }],
     cores: 2,
     phases: [
       { at: 1, attacks: [{ kind: 'rain', n: 6, speed: 40, every: 3 }] },
       { at: 0.5, speed: 1.4, attacks: [{ kind: 'rain', n: 9, speed: 46, every: 2.6 }, { kind: 'summon', type: 'phantom', n: 2, every: 10 }] },
       { at: 0.2, speed: 1.9, attacks: [{ kind: 'rain', n: 12, speed: 52, every: 2.2 }, { kind: 'ring', n: 14, speed: 36, every: 4 }] }] },
-  dreadnought: { name: 'Dreadnought KILN-9', title: 'Sector boss', hp: 120, r: 16, shape: 'bossDread', color: 0x3dffb5, move: 'slow', y: 120, armour: 0.75, armourWhileParts: true,
+  dreadnought: { name: 'Dreadnought KILN-9', title: 'Sector boss', tip: 'Armoured while its turrets stand: knock them out first', hp: 120, r: 16, shape: 'bossDread', color: 0x3dffb5, move: 'slow', y: 120, armour: 0.75, armourWhileParts: true,
     parts: [{ kind: 'turret', offsets: [[-20, -4], [-9, -9], [9, -9], [20, -4]], hp: 0.1, r: 3.6, shape: 'turret', fire: { every: 2.6, kind: 'aimed', speed: 58, dmg: 1.2 }, respawnPhase: true }],
     weak: { every: 10, dur: 5, x: 0, r: 5 }, cores: 3,
     phases: [
       { at: 1, attacks: [{ kind: 'shell', n: 2, radius: 11, telegraph: 1.5, every: 5 }] },
       { at: 0.6, attacks: [{ kind: 'shell', n: 3, radius: 12, telegraph: 1.3, every: 4.5 }, { kind: 'beam', cols: 2, telegraph: 1.2, dur: 1.2, every: 7 }, { kind: 'summon', type: 'plate', n: 2, every: 12 }] },
       { at: 0.25, attacks: [{ kind: 'shell', n: 4, radius: 12, telegraph: 1.2, every: 4 }, { kind: 'beam', cols: 3, telegraph: 1, dur: 1.2, every: 5.5 }, { kind: 'spiral', arms: 2, dur: 4, rate: 0.1, speed: 40, every: 8 }] }] },
-  oracle: { name: 'Hive Oracle Ssyl', title: 'Sector boss', hp: 110, r: 11, shape: 'bossOracle', color: 0xc77dff, move: 'teleport', y: 110,
+  oracle: { name: 'Hive Oracle Ssyl', title: 'Sector boss', tip: 'It blinks about: keep moving, and hit the amber target', hp: 110, r: 11, shape: 'bossOracle', color: 0xc77dff, move: 'teleport', y: 110,
     weak: { every: 7, dur: 3, x: 0, r: 5 }, cores: 3,
     phases: [
       { at: 1, attacks: [{ kind: 'teleport', every: 6 }, { kind: 'spiral', arms: 4, dur: 3, rate: 0.14, speed: 34, every: 6 }, { kind: 'summon', type: 'swarmling', n: 8, every: 9 }] },
       { at: 0.6, attacks: [{ kind: 'teleport', every: 4.5 }, { kind: 'ring', n: 20, speed: 36, every: 3 }, { kind: 'summon', type: 'splitter', n: 3, every: 10 }] },
       { at: 0.25, attacks: [{ kind: 'teleport', every: 3.2 }, { kind: 'spiral', arms: 6, dur: 4, rate: 0.1, speed: 40, every: 6 }, { kind: 'aimed', n: 7, spread: 0.6, speed: 56, every: 2.2 }, { kind: 'summon', type: 'lancer', n: 5, every: 8 }] }] },
-  singularity: { name: 'The Singularity', title: 'Final boss', hp: 130, r: 14, shape: 'bossSing', color: 0xffd166, move: 'hover', y: 114,
+  singularity: { name: 'The Singularity', title: 'Final boss', tip: 'Its plates block your shots. Fight the pull of its wells', hp: 130, r: 14, shape: 'bossSing', color: 0xffd166, move: 'hover', y: 114,
     parts: [{ kind: 'plate', n: 4, orbit: 20, speed: 1.1, hp: 0.3, r: 5, shape: 'armourPlate', armour: 0.8, blocker: true, respawnPhase: true }],
     weak: { every: 8, dur: 3.5, x: 0, r: 5 }, cores: 5,
     phases: [
@@ -50,34 +52,34 @@ export const BOSSES = {
       { at: 0.15, attacks: [{ kind: 'well', dur: 6, pull: 40, every: 9 }, { kind: 'spiral', arms: 6, dur: 5, rate: 0.08, speed: 44, every: 6.5 }, { kind: 'aimed', n: 7, spread: 0.8, speed: 58, every: 2.2 }, { kind: 'beam', cols: 3, telegraph: 1, dur: 1.2, every: 5 }] }] },
 
   // ---- Counterattack bosses (the end of stages 2-6) ----
-  scrapking: { name: 'Scrapmonger Vorr', title: 'Counterattack boss', hp: 90, r: 13, shape: 'bossScrap', color: 0xffb070, move: 'hover', y: 116,
+  scrapking: { name: 'Scrapmonger Vorr', title: 'Counterattack boss', tip: 'Knock off its claws, and watch for the mines', hp: 90, r: 13, shape: 'bossScrap', color: 0xffb070, move: 'hover', y: 116,
     parts: [{ kind: 'claw', offsets: [[-17, -5], [17, -5]], hp: 0.12, r: 4.4, shape: 'claw', fire: { every: 2.8, kind: 'aimed', speed: 48, dmg: 1 }, respawnPhase: true }],
     weak: { every: 9, dur: 4, x: 0, r: 5 }, cores: 2,
     phases: [
       { at: 1, attacks: [{ kind: 'mines', n: 3, every: 6 }, { kind: 'aimed', n: 3, spread: 0.25, speed: 46, every: 3 }] },
       { at: 0.6, attacks: [{ kind: 'sweep', arc: 1.7, telegraph: 1.1, dur: 2.2, every: 7 }, { kind: 'mines', n: 4, every: 6 }, { kind: 'summon', type: 'scrapper', n: 2, every: 12 }] },
       { at: 0.25, attacks: [{ kind: 'sweep', arc: 2.2, telegraph: 0.9, dur: 2, every: 5.5 }, { kind: 'gapwall', speed: 30, gap: 16, every: 6 }, { kind: 'mines', n: 5, every: 5 }] }] },
-  shroud: { name: 'The Red Shroud', title: 'Counterattack boss', hp: 85, r: 11, shape: 'bossShroud', color: 0xff4d6d, move: 'teleport', y: 112,
+  shroud: { name: 'The Red Shroud', title: 'Counterattack boss', tip: 'It fades out of reach, then strikes from somewhere new', hp: 85, r: 11, shape: 'bossShroud', color: 0xff4d6d, move: 'teleport', y: 112,
     weak: { every: 8, dur: 3, x: 0, r: 5 }, cores: 2,
     phases: [
       { at: 1, attacks: [{ kind: 'split', n: 3, spread: 0.5, speed: 32, every: 3.4 }, { kind: 'veil', dur: 2.2, every: 10 }] },
       { at: 0.6, attacks: [{ kind: 'wave', n: 4, speed: 30, every: 4 }, { kind: 'veil', dur: 2, every: 8 }, { kind: 'summon', type: 'stalker', n: 2, every: 11 }] },
       { at: 0.25, attacks: [{ kind: 'split', n: 5, spread: 0.8, speed: 36, every: 3 }, { kind: 'wave', n: 5, speed: 34, every: 3.6 }, { kind: 'hbeam', rows: 1, telegraph: 1.2, dur: 1, every: 7 }] }] },
-  admiral: { name: 'Iron Admiral Kross', title: 'Counterattack boss', hp: 125, r: 15, shape: 'bossAdmiral', color: 0x3dffb5, move: 'slow', y: 120, armour: 0.7, armourWhileParts: true,
+  admiral: { name: 'Iron Admiral Kross', title: 'Counterattack boss', tip: 'Armoured while its deck guns stand: knock them out first', hp: 125, r: 15, shape: 'bossAdmiral', color: 0x3dffb5, move: 'slow', y: 120, armour: 0.7, armourWhileParts: true,
     parts: [{ kind: 'turret', offsets: [[-19, -3], [-8, -10], [8, -10], [19, -3]], hp: 0.09, r: 3.8, shape: 'deckgun', fire: { every: 2.8, kind: 'aimed', speed: 54, dmg: 1.1 }, respawnPhase: true }],
     weak: { every: 10, dur: 5, x: 0, r: 5 }, cores: 3,
     phases: [
       { at: 1, attacks: [{ kind: 'hbeam', rows: 1, telegraph: 1.4, dur: 1.1, every: 6 }, { kind: 'gapwall', speed: 28, gap: 18, every: 7 }] },
       { at: 0.6, attacks: [{ kind: 'hbeam', rows: 2, telegraph: 1.3, dur: 1.1, every: 6 }, { kind: 'ambush', type: 'flanker', n: 2, every: 10 }, { kind: 'sweep', arc: 1.6, telegraph: 1.1, dur: 2, every: 8 }] },
       { at: 0.25, attacks: [{ kind: 'hbeam', rows: 2, telegraph: 1.1, dur: 1.2, every: 5 }, { kind: 'sweep', arc: 2.1, telegraph: 0.9, dur: 2, every: 6.5 }, { kind: 'gapwall', speed: 32, gap: 16, every: 6 }] }] },
-  hiveheart: { name: 'The Hive Heart', title: 'Counterattack boss', hp: 115, r: 12, shape: 'bossHeart', color: 0xff5fd2, move: 'hover', y: 114,
+  hiveheart: { name: 'The Hive Heart', title: 'Counterattack boss', tip: 'Lungers strike from the walls: keep clear of the edges', hp: 115, r: 12, shape: 'bossHeart', color: 0xff5fd2, move: 'hover', y: 114,
     parts: [{ kind: 'tendril', n: 6, orbit: 19, speed: 0.8, hp: 0.07, r: 3.6, shape: 'tendril', respawnPhase: true }],
     weak: { every: 7, dur: 3.5, x: 0, r: 5 }, cores: 3,
     phases: [
       { at: 1, attacks: [{ kind: 'hbeam', rows: 1, telegraph: 1.3, dur: 0.9, every: 6 }, { kind: 'split', n: 3, spread: 0.5, speed: 30, every: 3.5 }, { kind: 'summon', type: 'swarmling', n: 8, every: 10 }] },
       { at: 0.6, attacks: [{ kind: 'hbeam', rows: 2, telegraph: 1.2, dur: 0.9, every: 5.5 }, { kind: 'ambush', type: 'lunger', n: 2, every: 8 }, { kind: 'rain', n: 8, speed: 40, every: 3.5 }] },
       { at: 0.25, attacks: [{ kind: 'hbeam', rows: 2, telegraph: 1, dur: 1, every: 4.5 }, { kind: 'split', n: 5, spread: 0.9, speed: 34, every: 3 }, { kind: 'ambush', type: 'lunger', n: 3, every: 7 }] }] },
-  unmaker: { name: 'The Unmaker', title: 'Final boss', hp: 140, r: 14, shape: 'bossUnmaker', color: 0xffd166, move: 'teleport', y: 100,
+  unmaker: { name: 'The Unmaker', title: 'Final boss', tip: 'Its shards block your shots: fire between them', hp: 140, r: 14, shape: 'bossUnmaker', color: 0xffd166, move: 'teleport', y: 100,
     parts: [{ kind: 'plate', n: 3, orbit: 21, speed: 1.2, hp: 0.25, r: 5, shape: 'shard', armour: 0.8, blocker: true, respawnPhase: true }],
     weak: { every: 8, dur: 3.5, x: 0, r: 5 }, cores: 5,
     phases: [
@@ -88,39 +90,39 @@ export const BOSSES = {
 
   // ---- Void bosses: what answers the station's beacons (data/beacons.js). One ends each Deep Void sector once the
   // beacons are lit, in turn and then round again. ----
-  watcher: { name: 'The Pale Watcher', title: 'Void boss', hp: 110, r: 12, shape: 'bossWatcher', color: 0xdfe8ff, move: 'hover', y: 114,
+  watcher: { name: 'The Pale Watcher', title: 'Void boss', tip: 'Keep out of its sweeping gaze. It vanishes, then returns', hp: 110, r: 12, shape: 'bossWatcher', color: 0xdfe8ff, move: 'hover', y: 114,
     weak: { every: 8, dur: 3.5, x: 0, r: 5 }, cores: 3,
     phases: [
       { at: 1, attacks: [{ kind: 'sweep', arc: 1.6, telegraph: 1.2, dur: 2.2, every: 6.5 }, { kind: 'aimed', n: 3, spread: 0.25, speed: 52, every: 2.8 }] },
       { at: 0.6, attacks: [{ kind: 'veil', dur: 2.2, every: 9 }, { kind: 'sweep', arc: 2, telegraph: 1, dur: 2.2, every: 5.5 }, { kind: 'ring', n: 16, speed: 36, every: 4.5 }] },
       { at: 0.25, attacks: [{ kind: 'sweep', arc: 2.4, telegraph: 0.9, dur: 2, every: 4.6 }, { kind: 'split', n: 3, spread: 0.5, speed: 40, every: 5 }, { kind: 'veil', dur: 2, every: 8 }] }] },
-  leviathan: { name: 'Umbra Leviathan', title: 'Void boss', hp: 90, r: 9, shape: 'bossEel', color: 0x7a5cff, move: 'worm', y: 104,
+  leviathan: { name: 'Umbra Leviathan', title: 'Void boss', tip: 'Find the gap in each wall. Every segment you hit wounds it', hp: 90, r: 9, shape: 'bossEel', color: 0x7a5cff, move: 'worm', y: 104,
     parts: [{ kind: 'segment', n: 11, hp: 0.1, r: 6, shape: 'voidSeg', chain: true, parentDamage: 0.6 }], cores: 3,
     phases: [
       { at: 1, attacks: [{ kind: 'gapwall', speed: 30, gap: 18, every: 6 }, { kind: 'rain', n: 7, speed: 42, every: 3.2 }] },
       { at: 0.55, speed: 1.4, attacks: [{ kind: 'gapwall', speed: 34, gap: 17, every: 5.2 }, { kind: 'split', n: 2, spread: 0.3, speed: 40, every: 4.5 }, { kind: 'summon', type: 'phantom', n: 2, every: 11 }] },
       { at: 0.2, speed: 1.8, attacks: [{ kind: 'gapwall', speed: 38, gap: 16, every: 4.4 }, { kind: 'rain', n: 11, speed: 50, every: 2.6 }, { kind: 'wave', n: 3, speed: 34, every: 6 }] }] },
-  choir: { name: 'The Choir', title: 'Void boss', hp: 115, r: 10, shape: 'bossChoir', color: 0x9ff0ff, move: 'hover', y: 116,
+  choir: { name: 'The Choir', title: 'Void boss', tip: 'Silence its four singers to break the shield', hp: 115, r: 10, shape: 'bossChoir', color: 0x9ff0ff, move: 'hover', y: 116,
     parts: [{ kind: 'gen', n: 4, orbit: 21, speed: 0.9, hp: 0.07, r: 4, shape: 'voidSinger', shieldsParent: true, respawnPhase: true }],
     weak: { every: 9, dur: 4, x: 0, r: 4.5 }, cores: 3,
     phases: [
       { at: 1, attacks: [{ kind: 'wave', n: 3, speed: 30, every: 5 }, { kind: 'ring', n: 14, speed: 32, every: 4 }] },
       { at: 0.6, attacks: [{ kind: 'spiral', arms: 4, dur: 3.5, rate: 0.12, speed: 34, every: 6.5 }, { kind: 'wave', n: 4, speed: 32, every: 5 }, { kind: 'aimed', n: 3, spread: 0.3, speed: 54, every: 3 }] },
       { at: 0.25, attacks: [{ kind: 'spiral', arms: 6, dur: 4, rate: 0.1, speed: 38, every: 6 }, { kind: 'ring', n: 20, speed: 38, every: 3.6 }, { kind: 'hbeam', rows: 1, telegraph: 1.2, dur: 1, every: 7 }] }] },
-  colossus: { name: 'Grave Colossus', title: 'Void boss', hp: 120, r: 16, shape: 'bossColossus', color: 0xcdb48a, move: 'slow', y: 120, armour: 0.7, armourWhileParts: true,
+  colossus: { name: 'Grave Colossus', title: 'Void boss', tip: 'Armoured while its turrets stand: knock them out first', hp: 120, r: 16, shape: 'bossColossus', color: 0xcdb48a, move: 'slow', y: 120, armour: 0.7, armourWhileParts: true,
     parts: [{ kind: 'turret', offsets: [[-22, -2], [-11, -8], [11, -8], [22, -2]], hp: 0.09, r: 3.6, shape: 'turret', fire: { every: 2.4, kind: 'aimed', speed: 60, dmg: 1.2 }, respawnPhase: true }],
     weak: { every: 10, dur: 5, x: 0, r: 5 }, cores: 4,
     phases: [
       { at: 1, attacks: [{ kind: 'shell', n: 2, radius: 11, telegraph: 1.4, every: 5 }, { kind: 'mines', n: 3, every: 7 }] },
       { at: 0.6, attacks: [{ kind: 'hbeam', rows: 2, telegraph: 1.3, dur: 1, every: 6.5 }, { kind: 'shell', n: 3, radius: 12, telegraph: 1.2, every: 4.6 }, { kind: 'summon', type: 'plate', n: 2, every: 12 }] },
       { at: 0.25, attacks: [{ kind: 'hbeam', rows: 2, telegraph: 1.1, dur: 1.1, every: 5.2 }, { kind: 'shell', n: 4, radius: 12, telegraph: 1.1, every: 4 }, { kind: 'mines', n: 5, every: 6 }] }] },
-  mirrorhost: { name: 'The Mirror Host', title: 'Void boss', hp: 110, r: 11, shape: 'bossMirror', color: 0xffb8ee, move: 'teleport', y: 112,
+  mirrorhost: { name: 'The Mirror Host', title: 'Void boss', tip: 'Its reflections come at you from the sides: watch your flanks', hp: 110, r: 11, shape: 'bossMirror', color: 0xffb8ee, move: 'teleport', y: 112,
     weak: { every: 7, dur: 3, x: 0, r: 5 }, cores: 4,
     phases: [
       { at: 1, attacks: [{ kind: 'teleport', every: 5 }, { kind: 'split', n: 3, spread: 0.35, speed: 42, every: 4 }, { kind: 'ambush', type: 'flanker', n: 3, every: 10 }] },
       { at: 0.6, attacks: [{ kind: 'veil', dur: 2.4, every: 8 }, { kind: 'split', n: 4, spread: 0.5, speed: 44, every: 3.6 }, { kind: 'ambush', type: 'riftling', n: 4, every: 10 }] },
       { at: 0.25, attacks: [{ kind: 'teleport', every: 3.4 }, { kind: 'split', n: 5, spread: 0.6, speed: 46, every: 3.2 }, { kind: 'sweep', arc: 1.8, telegraph: 1, dur: 2, every: 6 }, { kind: 'ambush', type: 'lunger', n: 3, every: 9 }] }] },
-  maw: { name: 'The Maw', title: 'Void boss', hp: 130, r: 15, shape: 'bossMaw', color: 0xff5d8f, move: 'hover', y: 114,
+  maw: { name: 'The Maw', title: 'Void boss', tip: 'Fly against the pull of its wells, and keep the swarm off you', hp: 130, r: 15, shape: 'bossMaw', color: 0xff5d8f, move: 'hover', y: 114,
     weak: { every: 8, dur: 3.5, x: 0, r: 6 }, cores: 5,
     phases: [
       { at: 1, attacks: [{ kind: 'well', dur: 5, pull: 28, every: 10 }, { kind: 'ring', n: 18, speed: 34, every: 4 }, { kind: 'summon', type: 'swarmling', n: 8, every: 9 }] },

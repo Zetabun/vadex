@@ -23,6 +23,7 @@ import { kitFrom } from '@last-orbit/data/turret.js';
 import { SIEGE_TIERS } from '@last-orbit/data/siege.js';
 import { refreshBounties, checkBounties, claimBounty } from '@last-orbit/progression/bounties.js';
 import { BOUNTY_BY_ID } from '@last-orbit/data/bounties.js';
+import { ROOMS_ABOARD, roomAt } from '@last-orbit/data/rooms.js';
 
 export async function initDebug(app, { hooks, ui } = {}) {
   // &st=<px>: pretend to have a notch (the top safe-area inset), to check layouts the way a phone shows them
@@ -209,6 +210,17 @@ function runScene(scene, hooks, ui) {
   // beacons[:beaten[:met]] or beacons:<view>[:beaten] or beacons:tap:<exhibit>[:beaten]: the Beacon array at Overhaul rank 8,
   // that many Void bosses beaten (default 2) and that many more met (default 1). view: lamp, left, right, log, window;
   // intro (a first visit).
+  // aboard:<rank>[:card|offer|launch|door]: a save just Overhauled to that rank, every room before it visited and the one
+  // it opens not yet: the station card (default), the offer after the rebuild reel, the NEW callout on Launch, or the door
+  // to it with its NEW tag
+  if (name === 'aboard') { const rank = Math.max(1, Math.min(10, +arg || 7)), mode = arg2 || 'card', fresh = roomAt(rank);
+    st.pilot.name = 'Adam'; st.seen.callsign = true; st.stationName = 'Halcyon'; st.prestige.level = rank; st.stats.bestWave = 74; st.stats.bestSector = 8; st.counter.unlocked = true; st.counter.stars[1] = 2; st.counter.stars[2] = 1;
+    for (const l of LINES) st.seen.comms[l.id] = 1; st.seen.commsInit = true; refreshMenus(); if (fresh?.id !== 'deck') st.seen.menus.deck = true;
+    for (const r of ROOMS_ABOARD) if (r.seen) st.seen[r.seen] = r !== fresh; st.seen.gunnerIntro = true;
+    WORKSHOP.forEach((u, i) => { st.stationPeak[u.id] = u.max; st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.6 - (i % 5) * 0.12))); }); recalc();
+    if (mode === 'door') { const at = { hall: ['deck', -1.8, 0, Math.PI / 2], comms: ['hall', 1.2, 1.75, -Math.PI / 2], quarters: ['hall', -1.2, 1.75, Math.PI / 2], observatory: ['quarters', -0.2, 1.15, -Math.PI / 2], yard: ['observatory', 0.8, 0.6, -Math.PI / 2], beacons: ['yard', -2.3, -9.9, Math.PI / 2] }[fresh?.id];
+      if (!at) { hooks.toHangar('launch'); return; } hooks.toHangar(at[0]); let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 60) setTimeout(place, 100); return; } r.pos.set(at[1], 0, at[2]); r.yaw = at[3]; r.pitch = 0.1; }; place(); return; }
+    hooks.toHangar('launch'); if (mode === 'offer') setTimeout(() => ui.offerRoom(rank), 600); else if (mode === 'card') setTimeout(() => document.querySelector('.st-callout')?.click(), 900); return; }
   if (name === 'beacons') { const num = (v) => v != null && v !== '' && !isNaN(+v), won = num(arg) ? +arg : arg === 'tap' ? (num(arg3) ? +arg3 : 2) : num(arg2) ? +arg2 : 2, more = num(arg) && num(arg2) ? +arg2 : 1;
     st.pilot.name = 'Adam'; st.seen.callsign = true; st.seen.beacons = arg !== 'intro'; st.prestige.level = 8; st.stationName = 'Halcyon'; st.stats.bestWave = 96; st.stats.bestSector = 9;
     for (const l of LINES) st.seen.comms[l.id] = 1; st.seen.commsInit = true; st.beacons = { beaten: {} };
@@ -298,9 +310,10 @@ function runScene(scene, hooks, ui) {
   else if (name === 'anomaly') { const run = st.run; run.offer = null; run.pendingLevels = 0; run.wave = 71; run.anomalies = arg ? arg.split(',') : ['hardened']; run.pendingAnomaly = true; recalc(); ui.closeOverlays(); ui.nextChoice(); }
   else if (name === 'void') { const run = st.run; run.offer = null; run.pendingLevels = 0; ui.closeOverlays(); run.wave = +(arg2 || 62); run.anomalies = (arg || 'lances').split(','); for (const id of ['laser', 'tesla']) { run.order.push(id); run.weapons[id] = 6; } run.weapons.cannon = 7; recalc(); bus.emit('anomalyPicked'); debugSetWave(run.wave);
     setInterval(() => { const w = G.world; if (!w?.player || !st.run) return; if (st.run.offer || st.run.relicOffer) { st.run.offer = st.run.relicOffer = null; st.run.pendingLevels = st.run.pendingRelics = 0; ui.closeOverlays(); } w.player.hull = 1; const s = Math.sin(performance.now() / 1300); w.input.hold = s > 0.35 ? 1 : s < -0.35 ? -1 : 0; }, 100); }
-  // voidboss:<1-6>[:look]: the beacons lit and a sortie jumped to that Void boss's wave (the ship does not die; look: hold fire)
+  // voidboss:<1-6>[:look|:sector]: the beacons lit and a sortie jumped to that Void boss's wave (the ship does not die; look:
+  // hold fire; sector: jump to the first wave of its Deep Void sector instead, to see the sector banner name it)
   else if (name === 'voidboss') { const run = st.run, n = Math.max(1, Math.min(6, +arg || 1)); run.offer = null; run.pendingLevels = 0; ui.closeOverlays(); st.prestige.level = Math.max(8, st.prestige.level || 0);
-    for (const id of ['laser', 'tesla', 'missile']) { run.order.push(id); run.weapons[id] = 9; } run.weapons.cannon = 9; recalc(); debugSetWave(60 + n * 10);
+    for (const id of ['laser', 'tesla', 'missile']) { run.order.push(id); run.weapons[id] = 9; } run.weapons.cannon = 9; recalc(); debugSetWave(arg2 === 'sector' ? 51 + n * 10 : 60 + n * 10);
     setInterval(() => { const w = G.world; if (!w?.player || !st.run) return; if (st.run.offer || st.run.relicOffer || st.run.pendingAnomaly) { st.run.offer = st.run.relicOffer = null; st.run.pendingLevels = st.run.pendingRelics = 0; st.run.pendingAnomaly = false; ui.closeOverlays(); } w.player.hull = 1; if (arg2 === 'look') w.shots.length = 0; const s = Math.sin(performance.now() / 1300); w.input.hold = s > 0.35 ? 1 : s < -0.35 ? -1 : 0; }, 100); }
   // mainfoe:<type>[:wave]: a formation of one enemy type, to see it (the ship does not die)
   else if (name === 'mainfoe') { const run = st.run, def = ENEMIES[arg]; run.offer = null; run.pendingLevels = 0; ui.closeOverlays(); debugSetWave(+(arg2 || 24));

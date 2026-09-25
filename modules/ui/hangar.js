@@ -37,22 +37,23 @@ import { SIEGE_TIERS, SIEGE_SYSTEMS, SIEGE_CONSOLES, CONSOLE_BY_ID, TIER_BY_N, S
 import { settleSiege, repairStation } from '@last-orbit/progression/siege.js';
 import { commsOpen, refreshBounties, bountyProgress, bountyText, claimBounty, rerollBounty, bountyClaimable, untilNextPost } from '@last-orbit/progression/bounties.js';
 import { COMMS_RANK, BOUNTY_BONUS_BP, TRANSMISSIONS } from '@last-orbit/data/bounties.js';
-import { QUARTERS_RANK, REST_BONUS, KEEPSAKES, PHOTOS, BOLT_LINES, quartersOpen } from '@last-orbit/data/quarters.js';
+import { REST_BONUS, KEEPSAKES, PHOTOS, BOLT_LINES } from '@last-orbit/data/quarters.js';
 import { rest, nextMood } from '@last-orbit/progression/quarters.js';
-import { OBSERVATORY_RANK, VOID_MARKS, MARK_BY_WAVE, SKY_LINES, observatoryOpen, voidSector } from '@last-orbit/data/observatory.js';
+import { VOID_MARKS, MARK_BY_WAVE, SKY_LINES, voidSector } from '@last-orbit/data/observatory.js';
 import { chartable, chartMark, isCharted } from '@last-orbit/progression/observatory.js';
 import { YARD_RANK, YARD_STAGES, YARD_SHIP, YARD_LINES, yardOpen, stageSalvage } from '@last-orbit/data/shipyard.js';
 import { yardStage, yardDone, nextStage, stageBlock, buildStage } from '@last-orbit/progression/shipyard.js';
-import { BEACON_RANK, VOID_BOSSES, VOID_BOSS_BP, VOID_LORE, BEACON_LINES, beaconsLit, firstWaveOf } from '@last-orbit/data/beacons.js';
+import { VOID_BOSSES, VOID_BOSS_BP, VOID_LORE, BEACON_LINES, firstWaveOf } from '@last-orbit/data/beacons.js';
 import { beaten as voidBeaten, allBeaten as voidAllBeaten } from '@last-orbit/progression/beacons.js';
 import { BOSSES } from '@last-orbit/data/bosses.js';
 import { STATION_CORE, MODULE_BY_ID, ALIEN_BY_ID, TROPHY_BY_ID, REBUILD_PARTS, rebuildPct, rebuildParts, stationSnapshot, caughtStages, hallOpen, STATION_TROPHIES, trophyWon, HUNTED } from '@last-orbit/data/station.js';
+import { ROOMS_ABOARD, ROOM_BY_ID, roomOpen, roomFresh, roomIntro } from '@last-orbit/data/rooms.js';
 import { stationBlueprint, pieceThumb } from '@last-orbit/ui/stationArt.js';
 import { replayTitle, replayEnding } from '@last-orbit/rendering/replay.js';
 import { TURRET_MOD, TURRET_RARITY, turretKit } from '@last-orbit/data/turret.js';
 import { nightAmount } from '@last-orbit/rendering/background.js';
 import { DRONES } from '@last-orbit/data/drones.js';
-import { MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
+import { MUTATOR_BY_ID, dayKey } from '@last-orbit/data/daily.js';
 
 const TABS = [['launch', 'Launch'], ['missions', 'Missions'], ['workshop', 'Workshop'], ['armory', 'Armory'], ['ships', 'Ships'], ['contracts', 'Career'], ['records', 'Records'], ['awards', 'Awards'], ['deck', 'Deck']];
 // The tab bar holds five buttons. With more tabs than fit it pages: the first page has four tabs and More, the last
@@ -104,50 +105,21 @@ export function createHangar(hooks) {
   $.coSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); $.coSvg.setAttribute('class', 'co-svg'); $.coSvg.append($.coLine, $.coDot);
   // The rebuild bar: one segment per 5%, grouped by part (modules, core pieces, captures), each group filling on its own.
   $.coBar = h('div.co-bar', { 'aria-hidden': 'true' }, REBUILD_PARTS.map((r) => h('div.g-' + r.id, { style: `--n:${r.weight / 5}` }, Array.from({ length: r.weight / 5 }, () => h('i')))));
-  $.callout = h('button.st-callout', { onclick: () => stationCard() }, h('small', 'Your station'), $.coName = h('b'), $.coBar, $.coSub = h('span'));
+  $.callout = h('button.st-callout', { onclick: () => stationCard() }, h('small', 'Your station', h('em.co-new', 'NEW')), $.coName = h('b'), $.coBar, $.coSub = h('span'));
   const el = h('div#hangar', top, $.body, $.coSvg, $.stationHot, $.callout, $.nav);
 
   // The rooms aboard the station: 3D spaces to walk round, each reached from the hangar and left the way you came.
   const ROOMS = { deck: 'Command Deck', control: 'Defence Control', gunner: 'Gunner seat', hall: 'Trophy Hall', comms: 'Comms room', quarters: 'Pilot\'s quarters', observatory: 'Observatory', yard: 'Shipyard', beacons: 'Beacon array' };
-  const CONTROL_LOCK = 'Defence Control opens when the invaders strike back: clear Counterattack stage 1.';
-  const CONTROL_INTRO = { icon: 'control', kicker: 'New room aboard', title: 'Defence Control', text: 'The station\'s war room. Its consoles run every defence you have built, the tactical table adds them up, and the threat board is where you launch a siege. Tap ORBIT\'s terminal for advice.' };
-  const HALL_LOCK = 'The Trophy Hall is in the Habitat ring: it opens at Overhaul rank 2.';
-  const HALL_INTRO = { icon: 'awards', kicker: 'New room aboard', title: 'Trophy Hall', text: 'The Habitat ring is turning again, and inside it a hall for everything you have beaten. Every boss you capture in the Counterattack hangs in a stasis cradle here, its record on the plaque, and the hologram keeps the hunting record of every sector boss you have faced.' };
-  const COMMS_LOCK = `The Comms room is up the Comms spire: it opens at Overhaul rank ${COMMS_RANK}.`;
-  const COMMS_INTRO = { icon: 'comms', kicker: 'New room aboard', title: 'Comms room', text: 'The Comms spire is back, and with it the radio room at the top. ORBIT listens on every frequency: each day the miners and trawlers post three bounties, one easy, one harder, one hard, sized to how you fly. Finish them for salvage, and all three in a day for a Blueprint. They are in Missions too.' };
-  const QUARTERS_LOCK = `Your quarters are in the Outer ring: they open at Overhaul rank ${QUARTERS_RANK}.`;
-  const QUARTERS_INTRO = { icon: 'home', kicker: 'New room aboard', title: 'Pilot\'s quarters', text: `The Outer ring is sealed, and there is a room in it with your name on the door. Rest in your bunk once a day and your next sortie banks ${Math.round(REST_BONUS * 100)}% more salvage. The keepsakes you pick up on the way end up on your shelf, the big moments on your wall. Oh, and Bolt lives here now.` };
-  const YARD_LOCK = `The Shipyard is the frame at the station's rim: it opens at Overhaul rank ${YARD_RANK}.`;
-  const YARD_INTRO = { icon: 'yard', kicker: 'New room aboard', title: 'Shipyard', text: 'The shipyard frame is up, and for the first time since the Fall the station can build its own ships. The crews have laid out the plans for the first: the Chimera, plated in the alien hulls you towed home. Fund her four stages here and watch her come together on the cradle. When she is done she joins your hangar.' };
-  const BEACON_LOCK = `The Beacon array lights every tip of the station: it opens at Overhaul rank ${BEACON_RANK}.`;
-  const BEACON_INTRO = { icon: 'beacon', kicker: 'New room aboard', title: 'Beacon array', text: 'The beacons are lit at every tip of the station, calling out into the Deep Void, and something out there is answering. From now on each Deep Void sector ends on a Void boss of its own: six of them, in turn. Beat each one for Blueprints; beat all six for the Lightkeeper paint. Their record is kept here, under the great beacon.' };
-  const OBS_LOCK = `The Observatory is the glass dome under the hub: it opens at Overhaul rank ${OBSERVATORY_RANK}.`;
-  const OBS_INTRO = { icon: 'observatory', kicker: 'New room aboard', title: 'Observatory', text: 'The dome under the hub is open to the stars again. Past wave 60 there are no charts: every depth of the Deep Void you reach waits here to be charted, and charting it lights its constellation in the dome and pays Blueprints, some of them a paint job found nowhere else.' };
   let outside = 'launch'; // the hangar tab the rooms lead back to
   let gunTier = 1, gunFrom = 'control'; // the siege in the gunner seat, and where leaving it goes
   function show(id, quiet) {
-    // Defence Control stays sealed until the invaders first strike back.
-    if (id === 'control' && !siegeUnlocked(G.state)) { if (!quiet) { playSfx('deny'); hooks.toast?.(CONTROL_LOCK, 'info'); } if (tab !== id) return; id = 'launch'; }
-    if (id === 'control' && !G.state.seen.control) { G.state.seen.control = true; setTimeout(() => hooks.menuIntro?.(CONTROL_INTRO), 150); }
-    // The Trophy Hall opens with the Habitat ring.
-    if (id === 'hall' && !hallOpen(G.state)) { if (!quiet) { playSfx('deny'); hooks.toast?.(HALL_LOCK, 'info'); } if (tab !== id) return; id = 'launch'; }
-    if (id === 'hall' && !G.state.seen.hall) { G.state.seen.hall = true; setTimeout(() => hooks.menuIntro?.(HALL_INTRO), 150); }
-    // The Comms room opens with the spire; today's bounties are posted when you arrive.
-    if (id === 'comms' && !commsOpen(G.state)) { if (!quiet) { playSfx('deny'); hooks.toast?.(COMMS_LOCK, 'info'); } if (tab !== id) return; id = 'launch'; }
-    if (id === 'comms' && !G.state.seen.commsRoom) { G.state.seen.commsRoom = true; setTimeout(() => hooks.menuIntro?.(COMMS_INTRO), 150); }
+    // A room aboard stays sealed until whatever opens it (data/rooms.js: an Overhaul rank, or for Defence Control the
+    // invaders' first strike back), and explains itself on the first visit.
+    const room = ROOM_BY_ID[id];
+    if (room?.seen && !roomOpen(room, G.state)) { if (!quiet) { playSfx('deny'); hooks.toast?.(room.lock, 'info'); } if (tab !== id) return; id = 'launch'; }
+    else if (room?.seen && !G.state.seen[room.seen]) { G.state.seen[room.seen] = true; setTimeout(() => hooks.menuIntro?.(roomIntro(room)), 150); }
+    // Today's bounties are posted when you arrive in the Comms room (or look in Missions).
     if (id === 'comms' || id === 'missions') postBounties();
-    // Your quarters open with the Outer ring.
-    if (id === 'quarters' && !quartersOpen(G.state)) { if (!quiet) { playSfx('deny'); hooks.toast?.(QUARTERS_LOCK, 'info'); } if (tab !== id) return; id = 'launch'; }
-    if (id === 'quarters' && !G.state.seen.quarters) { G.state.seen.quarters = true; setTimeout(() => hooks.menuIntro?.(QUARTERS_INTRO), 150); }
-    // The Observatory opens with the dome.
-    if (id === 'observatory' && !observatoryOpen(G.state)) { if (!quiet) { playSfx('deny'); hooks.toast?.(OBS_LOCK, 'info'); } if (tab !== id) return; id = 'launch'; }
-    if (id === 'observatory' && !G.state.seen.observatory) { G.state.seen.observatory = true; setTimeout(() => hooks.menuIntro?.(OBS_INTRO), 150); }
-    // The Beacon array opens with the beacons.
-    if (id === 'beacons' && !beaconsLit(G.state)) { if (!quiet) { playSfx('deny'); hooks.toast?.(BEACON_LOCK, 'info'); } if (tab !== id) return; id = 'launch'; }
-    if (id === 'beacons' && !G.state.seen.beacons) { G.state.seen.beacons = true; setTimeout(() => hooks.menuIntro?.(BEACON_INTRO), 150); }
-    // The Shipyard opens with the shipyard frame.
-    if (id === 'yard' && !yardOpen(G.state)) { if (!quiet) { playSfx('deny'); hooks.toast?.(YARD_LOCK, 'info'); } if (tab !== id) return; id = 'launch'; }
-    if (id === 'yard' && !G.state.seen.shipyard) { G.state.seen.shipyard = true; setTimeout(() => hooks.menuIntro?.(YARD_INTRO), 150); }
     // A menu the pilot has not earned yet stays shut (with a note on when it opens); a newly opened one explains itself once.
     if (menuState(id) === 'locked') { if (!quiet) { playSfx('deny'); hooks.toast?.(menuLockText(id), 'info'); } if (tab !== id) return; id = 'launch'; }
     if (menuState(id) === 'new') { menuSeen(id); setTimeout(() => hooks.menuIntro?.(MENU_BY_ID[id]), 150); }
@@ -283,12 +255,12 @@ export function createHangar(hooks) {
       h('div.oh-perks', h('span', `Each rank: +10% salvage, +2% damage${rank >= OVERHAUL_FX_CAP ? ' (maxed)' : ''}`), h('span', `Workshop costs +${Math.round(OVERHAUL_COST_STEP * 100)}% per rank`)),
       ready ? h('button.btn.gold.oh-go', { onclick: () => hooks.confirmOverhaul() }, 'Overhaul') : null);
   }
-  /** Rank by rank: the station piece, the Command Deck and the engine trails each Overhaul brings. */
+  /** Rank by rank: the station piece each Overhaul brings, the room aboard it opens, and its engine trail. */
   function roadmap(rank) {
     const cards = STATION_CORE.filter((c) => c.at >= 1).map((c) => {
-      const trail = TRAILS.find((t) => t.at === c.at), state = c.at <= rank ? 'done' : c.at === rank + 1 ? 'next' : 'later';
+      const trail = TRAILS.find((t) => t.at === c.at), room = ROOMS_ABOARD.find((r) => r.rank === c.at), state = c.at <= rank ? 'done' : c.at === rank + 1 ? 'next' : 'later';
       return h('div.rm-card.' + state, h('div.rm-top', h('small', 'Rank ' + c.at), state === 'done' ? h('i.rm-tick', '✓') : state === 'next' ? h('b.rm-next', 'NEXT') : null),
-        h('div.rm-thumb', { html: pieceThumb(c.id) }), h('b.rm-piece', c.name), h('span.rm-desc', c.line || ''), trail ? h('span.rm-trail', trailSwatch(trail), trail.name + ' trail') : null);
+        h('div.rm-thumb', { html: pieceThumb(c.id) }), h('b.rm-piece', c.name), h('span.rm-desc', c.line || ''), room ? h('span.rm-room', { style: `--c:${hex(room.color)}` }, uiIcon(room.icon), 'Room: ' + room.name) : null, trail ? h('span.rm-trail', trailSwatch(trail), trail.name + ' trail') : null);
     });
     const el = h('div.oh-road', h('h4.oh-sub', 'Station roadmap'), h('div.rm-list', cards));
     // Start the strip at the next rank, so what is coming is in view.
@@ -619,6 +591,7 @@ export function createHangar(hooks) {
   function answerPanel(n) {
     const st = G.state, id = VOID_BOSSES[n - 1]; if (!id) return; const b = BOSSES[id], beat = voidBeaten(st), met = st.seen?.bosses?.[id], kills = st.stats?.bossBy?.[id] || 0; playSfx('tab');
     hooks.panel?.({ kicker: 'Beacon array', title: met ? b.name : 'Unknown signal', body: [h('p.sub-note', met ? VOID_LORE[id] : 'Something out in the Deep Void is on this frequency. It has not answered yet: fly deeper.'),
+      met && b.tip ? h('p.boss-tip', h('b', 'How to beat it'), b.tip) : null,
       h('div.deck-board', [['Waits at', `Wave ${firstWaveOf(id)}, then every 60`], ['Beaten', kills ? `${kills}×` : '—'], ['First beaten', beat[id] ? dayOf(beat[id]) : '—'], ['First kill pays', `+${VOID_BOSS_BP} Blueprints`]].map(([k, v]) => h('div.db-row', h('small', k), h('b', v))))] });
   }
   /** Tapping something in the Beacon array: the great beacon, a Void boss's pedestal, the signal log, the window, or a door. */
@@ -1042,8 +1015,9 @@ export function createHangar(hooks) {
     // the bar follows the count: from the old shares to the new as the figure climbs
     const now = rebuildParts(st), to = c._sh1 && c._pct < pct ? c._sh1 : null, k = to ? (c._pct - c._b0) / Math.max(1, pct - c._b0) : 1;
     paintBar(Object.fromEntries(REBUILD_PARTS.map((r) => [r.id, to ? c._sh0[r.id] + (to[r.id] - c._sh0[r.id]) * k : now[r.id].share])));
-    const sig = (st.stationName || '') + '|' + c._pct + '|' + deck;
-    if (c._sig !== sig) { c._sig = sig; setText($.coName, st.stationName || 'Unnamed'); setClass(c, 'unnamed', !st.stationName); setText($.coSub, `${c._pct}% rebuilt` + (deck ? ' · Command Deck ›' : '')); }
+    // a room that has opened says so until you go aboard
+    const fresh = freshAboard(st), sig = (st.stationName || '') + '|' + c._pct + '|' + deck + '|' + fresh;
+    if (c._sig !== sig) { c._sig = sig; setText($.coName, st.stationName || 'Unnamed'); setClass(c, 'unnamed', !st.stationName); setClass(c, 'news', fresh); setText($.coSub, `${c._pct}% rebuilt` + (fresh ? ' · New room aboard ›' : deck ? ' · Command Deck ›' : '')); }
     const p = G.renderer?.station?.hubNdc, box = el.getBoundingClientRect(); if (!p || !box.width) return;
     const hx = (p.x + 1) / 2 * box.width, hy = (1 - p.y) / 2 * box.height, ch = c.offsetHeight, cTop = Math.max((G.hangarTop || 0) + 6, hy - ch / 2);
     c.style.top = Math.round(cTop) + 'px';
@@ -1059,27 +1033,50 @@ export function createHangar(hooks) {
   }
   /** How much of the station has been rebuilt: modules, core pieces and captures (data/station.js). */
   const rebuilt = () => rebuildPct(G.state);
+  /** A room aboard has opened and not been visited yet (the Command Deck goes by its menu). */
+  const freshAboard = (st) => menuState('deck') === 'new' || ROOMS_ABOARD.some((r) => roomFresh(r.id, st));
   /** The rebuild part by part, in the bar's colours: what each is, where it comes from, how far along. */
   function overview(st) {
     const p = rebuildParts(st);
     return h('div.sc-rows', REBUILD_PARTS.map((r) => h('div.sc-row.g-' + r.id, h('span', h('b', r.label), h('small', `${r.from} · ${r.weight}% of the rebuild`)), h('em', `${p[r.id].cur}/${p[r.id].goal}`),
       h('div.sc-meter', h('i', { style: `width:${(p[r.id].share * 100).toFixed(1)}%` })))));
   }
-  /** Everything about the station in one card: its blueprint, the rebuild, its name, and the way aboard. */
+  /** Everything about the station in one card: its blueprint, the rebuild, the rooms aboard (the way into each), and
+   *  its name. */
   function stationCard() {
     const st = G.state, rank = st.prestige?.level || 0, deck = menuState('deck') !== 'locked', control = siegeUnlocked(st); playSfx('tab');
     hooks.panel?.({ kicker: 'Your station', title: st.stationName || 'Unnamed station', body: [
       h('div.oh-plan', { html: stationBlueprint(rank, st.workshop, { peak: st.stationPeak, alien: st.counter?.tech, caught: caughtStages(st), name: st.stationName, pct: rebuilt() }) }),
-      overview(st), control ? damageNote() : null,
-      h('div.sc-actions', h('button.btn.ghost', { onclick: () => hooks.nameStation?.() }, st.stationName ? 'Rename' : 'Name it'),
-        deck ? h('button.btn.primary', { onclick: () => { hooks.closeOverlays?.(); show('deck'); } }, control ? 'Command Deck' : 'Board the Command Deck') : h('button.btn.ghost', { onclick: () => { hooks.closeOverlays?.(); show('workshop'); } }, 'Workshop'),
-        control ? h('button.btn.gold.sc-control', { onclick: () => { hooks.closeOverlays?.(); show('control'); } }, 'Defence Control') : null,
-        hallOpen(st) ? h('button.btn.ghost.sc-hall', { onclick: () => { hooks.closeOverlays?.(); show('hall'); } }, 'Trophy Hall') : null,
-        commsOpen(st) ? h('button.btn.ghost.sc-comms', { onclick: () => { hooks.closeOverlays?.(); show('comms'); } }, 'Comms room') : null,
-        quartersOpen(st) ? h('button.btn.ghost.sc-quarters', { onclick: () => { hooks.closeOverlays?.(); show('quarters'); } }, 'Quarters') : null,
-        observatoryOpen(st) ? h('button.btn.ghost.sc-observatory', { onclick: () => { hooks.closeOverlays?.(); show('observatory'); } }, 'Observatory') : null,
-        yardOpen(st) ? h('button.btn.ghost.sc-yard', { onclick: () => { hooks.closeOverlays?.(); show('yard'); } }, 'Shipyard') : null,
-        beaconsLit(st) ? h('button.btn.ghost.sc-beacons', { onclick: () => { hooks.closeOverlays?.(); show('beacons'); } }, 'Beacon array') : null)] });
+      overview(st), control ? damageNote() : null, aboard(st),
+      h('div.sc-actions', h('button.btn.ghost', { onclick: () => hooks.nameStation?.() }, st.stationName ? 'Rename the station' : 'Name the station'),
+        deck ? null : h('button.btn.ghost', { onclick: () => { hooks.closeOverlays?.(); show('workshop'); } }, 'Workshop'))] });
+  }
+  /** The rooms aboard in the order they open, each with what is waiting there (NEW until the first visit), then the
+   *  next one to open and what opens it. */
+  function aboard(st) {
+    const next = ROOMS_ABOARD.find((r) => r.rank && !roomOpen(r, st)), rows = [];
+    for (const r of ROOMS_ABOARD) {
+      const open = r.id === 'deck' ? menuState('deck') !== 'locked' : roomOpen(r, st);
+      if (open) {
+        const fresh = r.id === 'deck' ? menuState('deck') === 'new' : roomFresh(r.id, st), s = roomStatus(r, st);
+        rows.push(h('button.sc-room' + (fresh ? '.new' : s.ready ? '.ready' : ''), { style: `--c:${hex(r.color)}`, onclick: () => { hooks.closeOverlays?.(); show(r.id); } },
+          h('span.sc-ico', uiIcon(r.icon)), h('span.sc-rt', h('b', r.name), h('small', s.text)), fresh ? h('em.sc-new', 'NEW') : h('span.sc-go', uiIcon('chevron'))));
+      } else if (r === next || (r.id === 'control' && st.counter?.unlocked)) rows.push(h('div.sc-room.locked', h('span.sc-ico', uiIcon('lock')), h('span.sc-rt', h('b', r.name), h('small', r.when || (r.rank === 1 ? 'Opens with your first Overhaul' : `Opens at Overhaul rank ${r.rank}`)))));
+    }
+    return h('div.sc-aboard', h('h4.oh-sub', 'Aboard'), rows);
+  }
+  /** What is waiting in a room, in a line, and whether it wants you there (something to claim, build, chart or repair,
+   *  new bounties, a bunk made up). */
+  function roomStatus(r, st) {
+    const pct = Math.round(REST_BONUS * 100), q = st.quarters;
+    if (r.id === 'control') { const d = siegeDamage(st), n = nextSiege(st); if (d) return { text: `${d.ids.length} system${d.ids.length > 1 ? 's' : ''} down: repair them here`, ready: true }; return { text: n ? `Next siege: ${n.name}` : r.for }; }
+    if (r.id === 'hall') { const n = caughtStages(st).length; return { text: n ? `${n} of ${STATION_TROPHIES.length} Counterattack bosses captured` : r.for }; }
+    if (r.id === 'comms') { if (bountyClaimable(st)) return { text: 'A bounty is done: claim it', ready: true }; const bt = st.bounties; if (bt?.day !== dayKey()) return { text: 'Today\'s bounties are posted', ready: true }; return { text: `Today's bounties: ${bt.list.filter((b) => b.done).length} of ${bt.list.length} done` }; }
+    if (r.id === 'quarters') return q?.rested ? { text: `Rested: +${pct}% salvage next sortie` } : q?.restDay === dayKey() ? { text: 'Rested today: the bunk is yours tomorrow' } : { text: `Your bunk is made: rest for +${pct}% salvage`, ready: true };
+    if (r.id === 'observatory') { const n = chartable(st).length, done = VOID_MARKS.filter((m) => isCharted(st, m)).length; return n ? { text: `${n} new ${n > 1 ? 'depths' : 'depth'} to chart`, ready: true } : { text: done ? `${done} of ${VOID_MARKS.length} depths charted` : r.for }; }
+    if (r.id === 'yard') { if (yardDone(st)) return { text: 'The Chimera is built: try her paints in the dock' }; const n = nextStage(st), step = `stage ${n.n} of ${YARD_STAGES.length}, ${n.name.toLowerCase()}`; return stageBlock(st) ? { text: `The Chimera, ${step}` } : { text: `Ready to build ${step}`, ready: true }; }
+    if (r.id === 'beacons') { const n = VOID_BOSSES.filter((id) => voidBeaten(st)[id]).length; return { text: n ? `${n} of ${VOID_BOSSES.length} Void bosses beaten` : r.for }; }
+    return { text: r.for };
   }
 
   // W/A/S/D or the arrows walk the room aboard that is open.
@@ -1097,8 +1094,10 @@ export function createHangar(hooks) {
     setText($.brandName, p.name || rankTitle(p.rank)); setText($.brandRank, p.name ? `${rankTitle(p.rank)} · Rank ${p.rank}` : `Rank ${p.rank}`);
     clear($.brandIns).append(insignia(p.rank, 'rank-ins'));
   }
+  /** Straight aboard a room whose intro has just been read (the Overhaul that opened it offered the way there). */
+  function board(id) { const room = ROOM_BY_ID[id]; if (room?.seen) G.state.seen[room.seen] = true; else menuSeen(id); show(id); }
   bus.on('contract', () => { if (G.mode === 'hangar') render(); });
   bus.on('medal', () => { if (G.mode === 'hangar' && tab === 'awards') { G.state.seen.medals = medalTotal().earned; render(); } });
   layoutNav();
-  return { el, top, nav: $.nav, show, render, update, siege: (n) => launchSiege(n), tap: (kind) => ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit, quarters: quartersExhibit, observatory: observatoryExhibit, yard: yardExhibit, beacons: beaconExhibit }[G.room] || exhibit)(kind), get tab() { return tab; } };
+  return { el, top, nav: $.nav, show, board, render, update, siege: (n) => launchSiege(n), tap: (kind) => ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit, quarters: quartersExhibit, observatory: observatoryExhibit, yard: yardExhibit, beacons: beaconExhibit }[G.room] || exhibit)(kind), get tab() { return tab; } };
 }

@@ -14,7 +14,7 @@ import { genWave } from '@last-orbit/combat/waves.js';
 import { updateFormation, updateEnemies, updateRockets, updateBullets, updateHazards } from '@last-orbit/combat/enemies.js';
 import { updateWeapons } from '@last-orbit/combat/weapons.js';
 import { spawnBoss, updateBoss } from '@last-orbit/combat/bosses.js';
-import { beaconsLit, voidBossAt } from '@last-orbit/data/beacons.js';
+import { beaconsLit, voidBossAt, VOID_BOSS_BP } from '@last-orbit/data/beacons.js';
 import { BOSSES } from '@last-orbit/data/bosses.js';
 import { updateDrones, syncDrones } from '@last-orbit/combat/drones.js';
 import { updateAbilities } from '@last-orbit/combat/abilities.js';
@@ -148,9 +148,15 @@ export function startWave(w) {
     for (let i = 0; i < elites && placed.length; i++) { const cand = placed.filter((e) => !e.elite && !e.def.aura && e.def.cost >= 1); if (!cand.length) break; makeElite(w, cand[Math.floor(rng() * cand.length)], ELITE_MODS[Math.floor(rng() * ELITE_MODS.length)]); }
     for (let i = 0; i < info.haulers; i++) ws.pending.push({ t: 1.5 + i * 2.2, type: 'treasure' });
   }
-  if (newSector) fx(w, 'sector', sec.idx, sec.def.name, sec.def.intro);
+  if (newSector) fx(w, 'sector', sec.idx, sec.def.name, voidAhead(st, run, sec) || sec.def.intro);
   fx(w, 'wave', run.wave, info.label, info.kind);
   bus.emit('waveStart', w, info);
+}
+
+/** With the beacons lit, a Deep Void sector opens by naming the Void boss at its end (and what the first kill pays). */
+function voidAhead(st, run, sec) {
+  if (!sec.endless || run.mode || !beaconsLit(st)) return null; const end = sec.start + sec.len - 1, id = voidBossAt(end);
+  return `${BOSSES[id].name} waits at wave ${end}` + (st.beacons?.beaten?.[id] ? '' : `: +${VOID_BOSS_BP} Blueprints the first time`);
 }
 
 function spawnPending(w, dt) {

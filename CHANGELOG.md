@@ -14,7 +14,13 @@
   - **The great beacon:** a crystal lens turning in a brass cage, sweeping its beam out into the Void.
   - **What has answered:** six hologram pedestals, one for each Void boss. Each shows static until its boss answers, a flickering outline once you've met it, and a solid hologram in its own colour once you've beaten it, with a light of that colour out in the Void too. Tap one for what it is and how the hunt has gone.
   - **The signal log** between the doors keeps the record.
-- The Overhaul roadmap's beacon card says what the beacons bring.
+- **Finding your way aboard:** the new rooms are easier to find, and easier to understand once you are there.
+  - **After an Overhaul that opens a room,** once the rebuild reel is done, the room introduces itself, says where its door is, and offers **Go aboard** (or Later).
+  - **The station card lists every room aboard,** with what is waiting in each: a bounty to claim, new bounties posted, your bunk made up, depths to chart, a Shipyard stage you can build, systems down. The next room to open and what opens it are at the bottom.
+  - **NEW until you visit:** a room that has opened and not been visited is marked NEW on the station card, on the station on the Launch screen ("New room aboard"), and on the doors that lead to it, with its threshold glowing.
+  - **The Overhaul roadmap says what each piece brings** (daily bounties, a bunk that pays salvage, charts of the Deep Void, the Chimera, Void bosses) and names the room it opens. The Overhaul confirmation lists the room too.
+- **Every boss says how to beat it** as it arrives, until you have beaten it once: "Silence its four singers to break the shield", "Armoured while its turrets stand: knock them out first", and so on (bosses with only a weak point say to hit the amber target). A Void boss's pedestal in the Beacon array says the same once it has answered.
+- **With the beacons lit, each Deep Void sector opens by naming the Void boss at its end,** and what the first kill pays ("The Pale Watcher waits at wave 70: +3 Blueprints the first time").
 
 ## v2.16.0 — 2026-09-25
 

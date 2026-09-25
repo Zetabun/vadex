@@ -10,6 +10,8 @@ import { squadPaths } from '@last-orbit/combat/paths.js';
 
 /** Seconds before an attack in which the boss visibly winds up (drawn by the renderer from boss.boss.charge). */
 const TELL = 0.7;
+/** What a boss with no tip of its own says, if it has a weak point. */
+const WEAK_TIP = `Hit the amber target when it opens: ${BAL.weakMult}× damage`;
 const TELL_COL = { hbeam: 0xff4d5e, sweep: 0xff4d5e, beam: 0xff3df0, mines: 0xffb070, gapwall: 0xffd166, split: 0xff5d8f, wave: 0xb69cff, ring: 0xd17bff, spiral: 0xd17bff, well: 0xb69cff, shell: 0xffa94d, ambush: 0x7dffcf, veil: 0xff4d6d };
 
 export function spawnBoss(w, id) {
@@ -18,8 +20,8 @@ export function spawnBoss(w, id) {
   e.boss = { id, def, phase: -1, timers: [], t: 0, enter: 2.4, weakT: def.weak ? def.weak.every * 0.6 : 0, parts: [], enraged: false, homeY: def.y, tpFlash: 0 };
   e.weak = def.weak ? { x: 0, r: def.weak.r } : null; e.baseArmour = e.armour;
   w.wave.boss = e; w.wave.bossDamaged = false;
-  const intel = def.mini ? 0 : G.state.intel?.[id] || 0;
-  fx(w, 'bossIntro', def.name, intel ? `${def.title} · Intel ${intel}: +${Math.round(intel * BAL.intelStep * 100)}% damage` : def.title, def.color); sfx(w, 'bossintro'); fx(w, 'shake', 0.5);
+  const intel = def.mini ? 0 : G.state.intel?.[id] || 0, tip = G.state.stats?.bossBy?.[id] ? null : def.tip || (def.weak ? WEAK_TIP : null); /* how to beat it, until you have */
+  fx(w, 'bossIntro', def.name, intel ? `${def.title} · Intel ${intel}: +${Math.round(intel * BAL.intelStep * 100)}% damage` : def.title, def.color, tip); sfx(w, 'bossintro'); fx(w, 'shake', 0.5);
   spawnParts(w, e);
   return e;
 }

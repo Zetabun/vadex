@@ -635,6 +635,22 @@ assert.throws(() => parseSave('{"run":{},"cur":{}}'), /Not a Last Orbit v2 save/
   fresh(); G.state.prestige.level = D.BEACON_RANK; launch(); G.state.run.wave = 70; startWave(G.world); const boss = G.world.wave.boss; assert.equal(boss.boss.id, 'watcher');
   killEnemy(G.world, boss, null, false, 0); assert.ok(B.beaten(G.state).watcher, 'Beaten'); const sum = endSortie('abandoned'); assert.equal(sum.voidBeaten?.[0]?.id, 'watcher', 'and said so in the debrief'); }
 
+// ---- v2.17: finding your way aboard, and how to beat each boss ----
+{ const R = await import('@last-orbit/data/rooms.js'); const { STATION_CORE } = await import('@last-orbit/data/station.js'); const { BOSSES } = await import('@last-orbit/data/bosses.js');
+  for (const r of R.ROOMS_ABOARD) { assert.ok(r.name && r.icon && r.color && r.for, `${r.id} says what it is for`); if (r.seen) assert.ok(r.lock && r.intro && r.door, `${r.id} says how to find it`); }
+  for (const c of STATION_CORE.filter((c) => c.at >= 1 && c.at <= 8)) assert.equal(!!R.roomAt(c.at), c.id !== 'solar', `Overhaul rank ${c.at} opens a room (the Solar wings do not)`);
+  fresh(); G.state.prestige.level = 7; assert.ok(R.roomFresh('yard', G.state), 'A room just opened is new until visited'); assert.ok(!R.roomFresh('beacons', G.state), 'one still sealed is not');
+  G.state.seen.shipyard = true; assert.ok(!R.roomFresh('yard', G.state), 'Visited'); assert.ok(!R.roomFresh('control', G.state), 'Defence Control waits for the invaders to strike back');
+  G.state.counter.stars[1] = 1; assert.ok(R.roomFresh('control', G.state));
+  // every boss says how to beat it as it arrives, until you have beaten it once
+  for (const [id, b] of Object.entries(BOSSES)) assert.ok(b.tip || b.weak, `${id} has a tip`);
+  const bossIntro = () => G.world.fx.find((f) => f.k === 'bossIntro');
+  fresh(); launch(); G.state.run.wave = 20; startWave(G.world); const id = G.world.wave.boss.boss.id; assert.equal(bossIntro().a, BOSSES[id].name); assert.equal(bossIntro().d, BOSSES[id].tip, 'A boss not yet beaten arrives with its tip');
+  G.state.stats.bossBy[id] = 1; G.world.fx.length = 0; startWave(G.world); assert.equal(bossIntro().d, null, 'and once beaten, without'); endSortie('abandoned');
+  // with the beacons lit, a Deep Void sector opens by naming the Void boss at its end
+  const sectorLine = (rank) => { fresh(); G.state.prestige.level = rank; launch(); G.state.run.wave = 61; startWave(G.world); const f = G.world.fx.find((x) => x.k === 'sector'); endSortie('abandoned'); return f.c; };
+  assert.match(sectorLine(8), /^The Pale Watcher waits at wave 70: \+3 Blueprints/); assert.doesNotMatch(sectorLine(7), /waits at wave/, 'Before the beacons, the sector reads as it did'); }
+
 // ---- v2.11: save backup codes ----
 { const S = await import('@last-orbit/save/save.js'); fresh(); G.state.pilot.name = 'Adam ✦'; G.state.salvage = 12345; G.state.stats.bestWave = 74; G.state.prestige.level = 3;
   const code = S.exportSave(); assert.ok(code.startsWith(S.BACKUP_TAG), 'A backup code is tagged so it can be recognised');

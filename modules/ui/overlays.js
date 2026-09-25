@@ -12,6 +12,8 @@ import { CONTRACT_BY_ID } from '@last-orbit/data/contracts.js';
 import { describeCard, pickCard, reroll, pickRelic, pickRoute, pickAnomaly, autoPickIndex } from '@last-orbit/progression/run.js';
 import { ANOMALY_BY_ID, anomalyCounts, anomalyPay, anomalyName } from '@last-orbit/data/anomalies.js';
 import { STATION_CORE, TROPHY_BY_ID, caughtStages } from '@last-orbit/data/station.js';
+import { roomAt } from '@last-orbit/data/rooms.js';
+import { MENU_BY_ID } from '@last-orbit/data/menus.js';
 import { TIER_BY_N, SIEGE_STARS, SIEGE_BLUEPRINTS, SYSTEM_BY_ID, listNames } from '@last-orbit/data/siege.js';
 import { TURRET_MOD } from '@last-orbit/data/turret.js';
 import { bountyText } from '@last-orbit/progression/bounties.js';
@@ -366,13 +368,25 @@ export function createOverlays(layer, hooks) {
     playSfx('unlock', 0.7);
   }
 
+  // ------------------------------------------------------------ a room aboard, opened by the Overhaul just made
+  /** The room's intro, where its door is, and the way straight there (go), or Later: the room waits, marked NEW. */
+  function showRoomOffer(r, go) {
+    if (!r || open) return;
+    const where = r.door ? `Its door is ${r.door}, or tap your station on the Launch screen.` : 'Tap your station on the Launch screen to come aboard any time.';
+    const el = h('div.modal.confirm.menu-intro.room-offer', { role: 'dialog', 'aria-label': r.name },
+      h('div.mi-icon', uiIcon(r.icon)), h('div.modal-head', h('div.kicker', 'New room aboard'), h('h2', r.name), h('p', r.intro || MENU_BY_ID[r.id]?.text || r.for), h('p.ro-where', where)),
+      h('div.modal-actions', h('button.btn.primary', { onclick: () => { close(); go?.(); }, 'data-autofocus': '' }, 'Go aboard'), h('button.btn.ghost', { onclick: close }, 'Later')));
+    mount('menu-intro', el, (e) => { if (e.key === 'Escape') { close(); return true; } if (e.key === 'Enter') { close(); go?.(); return true; } return false; });
+    playSfx('unlock', 0.7);
+  }
+
   // ------------------------------------------------------------ overhaul
   function showOverhaul() {
-    const st = G.state, bp = overhaulReward(), head = blueprintLevel('bp_head'), rank = st.prestige.level + 1, trail = TRAILS.find((t) => t.at === rank), piece = STATION_CORE.find((c) => c.at === rank);
+    const st = G.state, bp = overhaulReward(), head = blueprintLevel('bp_head'), rank = st.prestige.level + 1, trail = TRAILS.find((t) => t.at === rank), piece = STATION_CORE.find((c) => c.at === rank), room = roomAt(rank);
     const list = (title, items, cls) => h('div.oh-col' + cls, h('b', title), h('ul', items.map((t) => h('li', t))));
     const el = h('div.modal.confirm.oh-confirm', { role: 'alertdialog', 'aria-label': 'Overhaul the Workshop?' },
       h('div.modal-head', h('div.kicker', `Overhaul rank ${rank}`), h('h2', 'Overhaul?'), h('p', `Every Workshop upgrade goes back to ${head ? 'level ' + head + ' (Head Start)' : 'zero'}. Your next few sorties will be tougher while you rebuild, and each rank makes the Workshop ${Math.round(OVERHAUL_COST_STEP * 100)}% dearer.`)),
-      h('div.oh-cols', list('You get', [`${bp} Blueprints`, piece ? `Station: the ${piece.name}` : null, 'Overhaul rank ' + rank + ': +10% salvage, +2% damage', trail ? `${trail.name} engine trail` : null, rank === 1 ? 'Overhaul Log legendary banner' : null].filter(Boolean), '.get'),
+      h('div.oh-cols', list('You get', [`${bp} Blueprints`, piece ? `Station: the ${piece.name}` : null, room ? `${room.name}: ${room.for[0].toLowerCase() + room.for.slice(1)}` : null, 'Overhaul rank ' + rank + ': +10% salvage, +2% damage', trail ? `${trail.name} engine trail` : null, rank === 1 ? 'Overhaul Log legendary banner' : null].filter(Boolean), '.get'),
         list('You keep', ['Your station: every module stays built', 'Salvage in the bank', 'Ships, weapons and abilities', 'Paints, banners and ranks', 'Mastery, medals and records', 'Counterattack and Alien Tech', 'Blueprints and escorts'], '.keep')),
       h('div.modal-actions', h('button.btn.ghost', { onclick: close, 'data-autofocus': '' }, 'Not yet'),
         h('button.btn.gold', { onclick: () => { const got = overhaul(); close(); if (got) hooks.overhauled?.(got); } }, 'Overhaul')));
@@ -500,7 +514,7 @@ export function createOverlays(layer, hooks) {
   };
 
   return {
-    showOffer, showRelics, showRoutes, showAnomalies, showPause, showSettings, showDebrief, showLoadout, showCounterIntro, showOverhaul, showMenuIntro, showCallsign, showStationComplete, showPanel, showStationName, showSiegeIntro, showConfirm, showSiegeDebrief, close,
+    showOffer, showRelics, showRoutes, showAnomalies, showPause, showSettings, showDebrief, showLoadout, showCounterIntro, showOverhaul, showMenuIntro, showRoomOffer, showCallsign, showStationComplete, showPanel, showStationName, showSiegeIntro, showConfirm, showSiegeDebrief, close,
     get kind() { return open?.kind || null; },
     /** Combat freezes while any overlay is up. */
     blocking: () => !!open,

@@ -3,6 +3,8 @@
 // exhibit to inspect it (the UI shows the details). W/A/S/D walk. Each room builds its exhibits on top.
 import { artSvg } from '@last-orbit/ui/art.js';
 import { playSfx } from '@last-orbit/audio/audio.js';
+import { G } from '@last-orbit/core/game.js';
+import { ROOM_BY_ID, roomFresh } from '@last-orbit/data/rooms.js';
 const T = () => window.THREE;
 export const EYE = 1.6, SPEED = 2.4;
 
@@ -87,7 +89,8 @@ export class Room {
   /** A door set into a wall, facing into the room along ry (0: the back wall, π/2: the right wall, -π/2: the left wall),
    *  at (x, z) on the floor: a chamfered frame with a glowing inner trim, two leaves that slide apart onto a lit corridor
    *  as you walk up, its sign above and a control panel beside it. sealed: shut and lit red, taped across, a padlock on
-   *  the panel. edge: the trim's colour, sign: the sign's. Tapping it is exhibit kind. */
+   *  the panel. edge: the trim's colour, sign: the sign's. Tapping it is exhibit kind. A door to a room aboard
+   *  (data/rooms.js) wears a NEW tag on its sign while that room is open and not yet visited, its threshold glowing. */
   door(parent, x, z, ry, label, kind, { sealed = false, sign = '#9ff0ff', edge = 0x5ee6ff } = {}) {
     const THREE = T(), g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry; parent.add(g);
     const f = new THREE.Group(); f.rotation.y = Math.PI; g.add(f); // built facing +z, into the room; the wall is at z 0
@@ -141,13 +144,18 @@ export class Room {
     // a strip of light on the floor at the threshold
     const fc = canvas(8, 64), fx = fc.getContext('2d'), fg = fx.createLinearGradient(0, 0, 0, 64); fg.addColorStop(0, css); fg.addColorStop(1, css + '00'); fx.fillStyle = fg; fx.fillRect(0, 0, 8, 64);
     const strip = put(new THREE.PlaneGeometry(2 * OW, 0.5), new THREE.MeshBasicMaterial({ map: tex(fc), transparent: true, opacity: 0.35, depthWrite: false }), 0, 0.012, 0.25); strip.rotation.x = -Math.PI / 2;
+    let news = null;
+    if (ROOM_BY_ID[kind]?.seen) {
+      const nc = canvas(128, 64), nx = nc.getContext('2d'); nx.fillStyle = '#ffc857'; nx.beginPath(); if (nx.roundRect) nx.roundRect(4, 6, 120, 52, 12); else nx.rect(4, 6, 120, 52); nx.fill(); text(nx, 'NEW', 64, 33, '900 32px sans-serif', '#1a1300');
+      news = put(new THREE.PlaneGeometry(0.34, 0.17), new THREE.MeshBasicMaterial({ map: tex(nc), transparent: true }), sw / 2 - 0.1, OH + F + 0.35, 0.08); news.rotation.z = -0.12; news.visible = false;
+    }
     // clip the leaves (and the tape) to the doorway, in world space
     g.updateWorldMatrix(true, true);
     const planes = [[1, 0, -OW, 0], [-1, 0, OW, 0], [0, -1, 0, OH], [1, -1, -OW, OH - C], [-1, -1, OW, OH - C]].map(([nx, ny, ax, ay]) => {
       const n = new THREE.Vector3(nx, ny, 0).normalize().transformDirection(f.matrixWorld), pt = f.localToWorld(new THREE.Vector3(ax, ay, 0)); return new THREE.Plane().setFromNormalAndCoplanarPoint(n, pt); });
     for (const m of mats) m.clippingPlanes = planes;
     this.hitBox(g, 2.1, 3.1, 0.4, 0, 1.55, -0.2); this.tag(g, kind);
-    Object.assign(g.userData, { sealed, trim, slit, acc, leaves, open: 0, OW }); (this.doors ||= []).push(g); return g;
+    Object.assign(g.userData, { sealed, trim, slit, acc, leaves, open: 0, OW, news, strip, room: kind }); (this.doors ||= []).push(g); return g;
   }
   /** Doors breathe their light, and slide open as you walk up to one (sealed ones stay shut). */
   animateDoors(dt) {
@@ -157,6 +165,7 @@ export class Room {
       u.open += ((near ? 1 : 0) - u.open) * Math.min(1, dt * 5); if (near && was < 0.02 && u.open >= 0.02) playSfx('dash', 0.22, 0.5);
       const s = u.open * u.OW * 0.97; u.leaves[0].position.x = -s; u.leaves[1].position.x = s;
       const k = (u.sealed ? 0.55 + 0.35 * Math.sin(this.t * 1.3) : 0.8 + 0.2 * Math.sin(this.t * 2.2)) + u.open * 0.25; u.trim.color.setHex(u.acc).multiplyScalar(k); u.slit.color.setHex(u.acc).multiplyScalar(0.6 + 0.4 * k);
+      if (u.news) { const fresh = !u.sealed && !!G.state && roomFresh(u.room, G.state), p = 0.5 + 0.5 * Math.sin(this.t * 4); u.news.visible = fresh; if (fresh) u.news.scale.setScalar(1 + 0.08 * p); u.strip.material.opacity = fresh ? 0.35 + 0.4 * p : 0.35; }
     }
   }
   /** An invisible box that makes a whole exhibit easy to tap (gaps and all). */
