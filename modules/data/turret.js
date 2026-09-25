@@ -7,7 +7,7 @@ import { siegeSystems } from '@last-orbit/data/siege.js';
 export function turretKit(state) {
   const { on, list } = siegeSystems(state), lvl = (id) => list.find((x) => x.sys.id === id)?.state || 0;
   return {
-    dmg: (1 + lvl('w_dmg') * 0.25) * (1 + (on.x_charts || 0) * 0.5), // the weapon battery (a quarter harder built, a half maxed); star charts
+    dmg: (1 + lvl('w_dmg') * 0.25) * (1 + (on.x_charts || 0) * 0.5), // the weapon battery, a quarter harder built and a half maxed, and the star charts
     fireEvery: 0.11 * [1, 0.9, 0.8][lvl('w_rate')], // the cycler drum
     cone: 0.09, speed: 520, pierce: 0, splash: 0, tesla: 0, flak: 0,
     missiles: 2, lockTime: 1.5, missileDmg: 20, missileBlast: 0, reload: 7,
