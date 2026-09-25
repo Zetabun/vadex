@@ -31,6 +31,7 @@ export function initUI(app, hooks) {
     replayIntro: () => { overlays.close(); intro.play({ tap: false }); },
     panel: (o) => overlays.showPanel(o),
     nameStation: () => overlays.showStationName(),
+    say: (text) => comms.say(text),
     stationNamed: () => { if (G.mode === 'hangar') hangar.render(); },
     closeOverlays: () => overlays.close(),
     stationComplete: () => overlays.showStationComplete(),

@@ -62,8 +62,16 @@ function runScene(scene, hooks, ui) {
   if (name === 'comms') { st.pilot.name = 'Adam'; st.seen.callsign = true; hooks.toHangar('launch'); setTimeout(() => { const l = LINES.find((x) => x.id === (arg || 'welcome')); if (l) ui.comms.say(l.text); }, 600); return; }
   if (name === 'deck') { st.prestige.level = +arg || 3; st.pilot.name = 'Adam'; st.seen.callsign = true; for (const id of ['signal', 'checker', 'ember', 'royal']) st.banners[id] = 1; st.unlocked.ships.bulwark = 1; st.stats.bestWave = 74; st.stats.maxAnomalies = 2; st.counter.stars = { 1: 3, 2: 2, 3: 1 }; refreshMenus(); st.seen.menus.deck = true; recalc(); hooks.toHangar('deck');
     // deck:<rank>:<view>: stand somewhere and look at something (window, medals, ships, back, table)
-    const V = { window: [0, 1.5, 0, -0.08], medals: [-1.2, -2.2, 1.35, 0], ships: [1.4, -2.2, -1.35, -0.1], back: [0, -1.5, Math.PI, -0.05], table: [0, 0.2, 0, -0.35] }[arg2];
-    if (V) { let n = 0; const iv = setInterval(() => { const d = G.renderer?.deck; if (d) { d.pos.x = V[0]; d.pos.z = V[1]; d.yaw = V[2]; d.pitch = V[3]; } if (++n > 20) clearInterval(iv); }, 100); }
+    const V = { window: [0, 1.5, 0, -0.08], medals: [-1.2, -2.2, 1.35, 0], ships: [1.4, -2.2, -1.35, -0.1], back: [0, -1.5, Math.PI, -0.05], table: [0, 0.2, 0, -0.35], door: [1.4, 2.0, -1.62, 0] }[arg2];
+    if (V) { let n = 0; const iv = setInterval(() => { const d = G.renderer?.room; if (d) { d.pos.x = V[0]; d.pos.z = V[1]; d.yaw = V[2]; d.pitch = V[3]; } if (++n > 20) clearInterval(iv); }, 100); }
+    return; }
+  // control:<stages cleared>[:<view>[:<tiers held>]]: Defence Control, with that many Counterattack stages (and so siege
+  // tiers) open, half the Workshop built and a few tiers held; view: window, left, right, back, table, orbit
+  if (name === 'control') { const n = Math.min(6, +arg || 3), held = arg3 == null ? Math.max(0, n - 2) : +arg3; st.pilot.name = 'Adam'; st.seen.callsign = true; st.counter.unlocked = true; for (let k = 1; k <= n; k++) st.counter.stars[k] = st.counter.stars[k] || 2; st.counter.tech.x_alloy = 1; st.counter.tech.x_phase = 1;
+    WORKSHOP.forEach((u, i) => { st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.9 - (i % 5) * 0.22))); }); st.siege = { stars: {}, best: {}, won: {}, wins: held }; for (let k = 1; k <= held; k++) { st.siege.stars[k] = 1 + (k % 3); st.siege.best[k] = 20000 + k * 7000; st.siege.won[k] = 1; }
+    st.seen.control = true; recalc(); hooks.toHangar('control');
+    const V = { window: [0, -4.8, 0, -0.06], left: [0.6, -3.6, 1.45, -0.05], right: [-0.6, -3.6, -1.45, -0.05], back: [0.2, -0.4, Math.PI, 0], table: [0, 0.2, 0, -0.42], orbit: [-2.4, 1.2, 1.5, -0.05] }[arg2];
+    if (V) { let k = 0; const iv = setInterval(() => { const d = G.renderer?.room; if (d) { d.pos.x = V[0]; d.pos.z = V[1]; d.yaw = V[2]; d.pitch = V[3]; } if (++k > 20) clearInterval(iv); }, 100); }
     return; }
   if (name === 'station') { st.prestige.level = +arg || 0; const f = arg2 == null ? 0.5 : +arg2; WORKSHOP.forEach((u, i) => { st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, f * 1.6 - (i % 5) * 0.15))); }); if (arg4) { const n = Math.min(6, +arg4 || 0); st.counter.unlocked = true; ALIEN_TECH.forEach((a, i) => { if (i < n) st.counter.tech[a.id] = 1; }); for (let k = 1; k <= n; k++) st.counter.stars[k] = 1; } recalc(); hooks.toHangar(arg3 === 'card' ? 'launch' : arg3 || 'launch'); if (arg3 === 'card') setTimeout(() => document.querySelector('.st-callout')?.click(), 900); return; }
   if (name === 'callsign') { st.pilot.name = arg || ''; st.seen.callsign = !!arg; hooks.toHangar('launch'); setTimeout(() => (arg2 === 'greet' ? ui.greet() : ui.callsign({ first: !arg })), 400); return; }

@@ -7,6 +7,8 @@
 import { STAGES } from '@last-orbit/data/counter.js';
 import { STATION_MODULES, STATION_ALIEN, stationSnapshot, trophyWon } from '@last-orbit/data/station.js';
 import { BAL } from '@last-orbit/data/balance.js';
+import { WORKSHOP } from '@last-orbit/data/workshop.js';
+import { ALIEN_TECH } from '@last-orbit/data/alientech.js';
 
 const NAMES = ['First Reprisal', 'Scrap Storm', 'Red Tide', 'Iron Fist', 'Swarm Front', 'The Unmaking'];
 /** One tier per Counterattack stage, fought one sector deeper than the stage (a pilot who has just cleared it is well past
@@ -69,3 +71,43 @@ export function siegeSystems(state) {
 }
 /** The module or alien piece a system belongs to (for names on the station). */
 export const systemPart = (id) => STATION_MODULES.find((m) => m.id === id) || STATION_ALIEN.find((a) => a.id === id);
+
+/** Defence Control's four consoles, two down each side wall, and which systems each one runs. */
+export const SIEGE_CONSOLES = [
+  { id: 'weapons', name: 'Weapons', color: '#ff8a5e', ids: ['w_dmg', 'w_rate', 'w_crit', 'w_xp'] },
+  { id: 'hull', name: 'Protection', color: '#5ee6ff', ids: ['w_shield', 'w_hull', 'w_regen', 'w_speed', 'w_barrier', 'w_revive'] },
+  { id: 'ops', name: 'Operations', color: '#6dffc8', ids: ['w_magnet', 'w_reroll', 'w_choice', 'w_start', 'w_salvage'] },
+  { id: 'alien', name: 'Alien hardware', color: '#c77dff', ids: ['x_alloy', 'x_phase', 'x_charts', 'x_siphon'] },
+];
+export const CONSOLE_BY_ID = Object.fromEntries(SIEGE_CONSOLES.map((c) => [c.id, c]));
+const won = (state, n) => !!state.siege?.won?.[n];
+/** The siege the invaders are massing for: the lowest open tier not yet held (null when all is quiet). */
+export const nextSiege = (state) => SIEGE_TIERS.find((t) => siegeOpen(state, t.n) && !won(state, t.n)) || null;
+/** The first tier still to be provoked (its Counterattack stage not yet cleared). */
+export const lockedSiege = (state) => SIEGE_TIERS.find((t) => !siegeOpen(state, t.n)) || null;
+
+// ORBIT's tips in Defence Control, after the advice about the station itself.
+const TIPS = [
+  'Shells fall at the station, not at you. Shoot them down before they reach the line and it never feels them.',
+  'Raiders dive past you for the station. Turn on them fast: they are fragile.',
+  'Hold the station above 85% for all three stars. Every new star pays an Alien Core.',
+  'The first time you hold each tier pays Blueprints.',
+  'Maxed modules work harder in a siege, {n}. The Workshop is our armoury.',
+];
+/** What ORBIT says when its terminal is tapped (the k-th time): the next threat, then a system worth building or
+ *  maxing, then the general tips, round and round. */
+export function siegeAdvice(state, k = 0) {
+  const lines = [], next = nextSiege(state), locked = lockedSiege(state), { list } = siegeSystems(state);
+  if (next) lines.push(`${next.name} is massing for waves ${next.first} to ${next.last}. Tap the threat board when you are ready, {n}.`);
+  else if (locked) lines.push(`All quiet. Clear Counterattack stage ${locked.n} and they will answer with ${locked.name}.`);
+  else lines.push('Every siege held. The station has never been safer, {n}.');
+  const off = list.find((x) => !x.state), soft = list.find((x) => x.state === 1 && x.sys.at[0] !== x.sys.at[1]);
+  if (off) lines.push(`${systemSource(off.sys.id)} to bring our ${off.sys.name.toLowerCase()} online. ${off.sys.desc(off.value)}`);
+  if (soft) lines.push(`Our ${soft.sys.name.toLowerCase()} could do more. Max ${sourceName(soft.sys.id)} in the Workshop: ${soft.sys.desc(soft.sys.at[1]).replace(/^./, (c) => c.toLowerCase())}`);
+  if (!off && !soft) lines.push('Every system online and maxed. Let them come, {n}.');
+  lines.push(...TIPS);
+  return lines[((k % lines.length) + lines.length) % lines.length];
+}
+/** The upgrade that brings a system online, by the name the Workshop shows it under. */
+export const sourceName = (id) => (WORKSHOP.find((u) => u.id === id) || ALIEN_TECH.find((u) => u.id === id))?.name || id;
+export const systemSource = (id) => SYSTEM_BY_ID[id]?.alien ? `Fit ${sourceName(id)} (Alien Tech)` : `Upgrade ${sourceName(id)} in the Workshop`;

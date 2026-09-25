@@ -27,7 +27,7 @@ export const LINES = [
   ...STATION_CORE.filter((c) => c.say).map((c) => ({ id: 'core_' + c.id, when: (s) => (s.prestige?.level || 0) >= c.at, text: c.say })),
   ...STATION_ALIEN.map((a) => ({ id: 'alien_' + a.id, when: (s) => (s.counter?.tech?.[a.id] || 0) >= 1, text: a.say })),
   ...STATION_TROPHIES.map((t) => ({ id: 'trophy_' + t.stage, when: (s) => trophyWon(s, t.stage), text: t.say })),
-  { id: 'siege', when: (s) => trophyWon(s, 1), text: 'Our counterattack stung them, {n}. They are coming for the station. Station Siege is in Missions.' },
+  { id: 'siege', when: (s) => trophyWon(s, 1), text: 'Our counterattack stung them, {n}. They are coming for the station. Meet me in Defence Control: you will find it in Missions.' },
 ];
 
 export function createComms(app) {

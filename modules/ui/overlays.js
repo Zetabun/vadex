@@ -295,7 +295,7 @@ export function createOverlays(layer, hooks) {
   function showMenuIntro(m) {
     if (!m || open) return;
     const el = h('div.modal.confirm.menu-intro', { role: 'dialog', 'aria-label': m.title },
-      h('div.mi-icon', uiIcon(m.icon)), h('div.modal-head', h('div.kicker', 'New menu'), h('h2', m.title), h('p', m.text)),
+      h('div.mi-icon', uiIcon(m.icon)), h('div.modal-head', h('div.kicker', m.kicker || 'New menu'), h('h2', m.title), h('p', m.text)),
       h('div.modal-actions', h('button.btn.primary', { onclick: close, 'data-autofocus': '' }, 'Got it')));
     mount('menu-intro', el, (e) => { if (e.key === 'Escape' || e.key === 'Enter') { close(); return true; } return false; });
     playSfx('unlock', 0.7);
@@ -369,7 +369,7 @@ export function createOverlays(layer, hooks) {
       s.daily ? h('button.btn.gold.share-btn.wide', { onclick: async () => { const r = await shareText(dailyShareText({ key: G.state.daily.lastDay, mutator: MUTATOR_BY_ID[s.mutator]?.name, wave: s.wave, score: s.score, streak: s.daily.streak })); if (r === 'copied') hooks.toast?.('Result copied. Paste it to a friend!'); else if (r === 'failed') hooks.toast?.('Could not share from this browser.'); } }, uiIcon('share'), 'Share daily result') : null,
       sg ? h('div.modal-actions', h('button.btn.primary', { onclick: () => { close(); hooks.relaunch(false); }, 'data-autofocus': '' }, uiIcon('reroll'), sg.won ? 'Fly it again' : 'Retry the siege'),
           sg.won && TIER_BY_N[sg.tier + 1] && siegeOpen(G.state, sg.tier + 1) ? h('button.btn.gold', { onclick: () => { close(); hooks.relaunch(true); } }, uiIcon('launch'), 'Next siege') : null,
-          h('button.btn.ghost.wide', { onclick: () => { close(); hooks.toHangar('missions'); } }, uiIcon('missions'), 'Missions')) :
+          h('button.btn.ghost.wide', { onclick: () => { close(); hooks.toHangar('control'); } }, uiIcon('control'), 'Defence Control')) :
       ca ? h('div.modal-actions', h('button.btn.primary', { onclick: () => { close(); hooks.relaunch(false); }, 'data-autofocus': '' }, uiIcon('reroll'), 'Retry stage'),
           ca.checkpoint ? h('button.btn.gold', { onclick: () => { close(); hooks.relaunch(false, { checkpoint: true }); } }, uiIcon('launch'), 'From checkpoint') : null,
           ca.cleared && ca.stage < 6 && !ca.hard ? h('button.btn.gold', { onclick: () => { close(); hooks.relaunch(true); } }, uiIcon('launch'), 'Next stage') : null,

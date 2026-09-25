@@ -1,5 +1,18 @@
 # Changelog
 
+## v2.11.0 — 2026-09-25
+
+- **Defence Control (new room aboard):** the station's war room, a second room to walk round like the Command Deck. It opens when the invaders first strike back (your first Counterattack clear): enter it from the Station Siege panel in Missions, from the station card, through its door in the Command Deck, or straight from a siege debrief. A short briefing explains it on your first visit.
+- **What's in it:**
+  - **The window** looks out past the station's own guns into deep space. A turret stands on the hull for each gun you have built (gold-trimmed once maxed), and an empty mount for each you haven't. The fleet massing for each open siege gathers out there as red running lights. Tap the window for what's coming and to defend against it.
+  - **Four consoles** (Weapons, Protection, Operations, Alien hardware) run every defence you've built. Each screen lists its systems as online, maxed or offline; tap one for what each does and which upgrade brings the rest online.
+  - **The tactical table** turns a hologram of your station under a radar sweep, with the invaders closing in as red blips. Tap it for the station's defences in numbers (damage taken, hits that miss, shield and repairs each wave, guns) and the full list.
+  - **The threat board** lists all six siege tiers with their stars and whether each is held or massing. Tap it for your siege record and to launch any open siege.
+  - **ORBIT's terminal:** tap it and the station AI tells you what's massing, which system to build or max next, and siege tips.
+  - An alert beacon turns amber over the table while a siege is massing, and glows green when all is quiet.
+- **Siege panel:** an "Enter Defence Control" button, and the defences list is now grouped by console with the station's totals at the top. Everywhere a defence is offline, it names the Workshop upgrade (or Alien Tech) that brings it online.
+- **Fix:** long lists in information panels (the defences, the medal wall) no longer squash the panel's stats into a thin line.
+
 ## v2.10.1 — 2026-09-25
 
 - **Fix: sound after the phone sleeps.** Waking the phone rebuilt the sound engine, but its clock started again at zero while each sound's repeat limit still remembered the old clock, so anything played before sleep (gunfire above all) stayed silent until the new clock caught up. The limits now reset with the engine.

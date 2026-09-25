@@ -13,6 +13,7 @@ import { SpriteBatch, Particles, Transients, makeTextures, rgb, css, jagged, WHI
 import { Background } from '@last-orbit/rendering/background.js';
 import { Station } from '@last-orbit/rendering/station.js';
 import { DeckRoom } from '@last-orbit/rendering/deck.js';
+import { ControlRoom } from '@last-orbit/rendering/control.js';
 import { IntroScene } from '@last-orbit/rendering/intro.js';
 import { RebuildScene } from '@last-orbit/rendering/rebuild.js';
 import { Banner } from '@last-orbit/rendering/banner.js';
@@ -184,14 +185,17 @@ export class Renderer {
   }
   addText(x, y, v, color, size) { if (v == null || v === 'null' || v === 'undefined') return; const T = this.texts; if (T.length >= 70) { if (!size) return; T.shift(); } T.push({ x: x + (Math.random() - 0.5) * (size ? 0 : 4), y, s: v instanceof Big ? (size === 2 ? '+' : '') + fmt(v) : String(v), c: css(color ?? 0xffffff), size, t: 0, life: size ? 1.5 : 0.7 }); }
 
+  /** The room aboard that is open (G.room: 'deck' or 'control'), built the first time it is visited. */
+  get room() { if (G.mode !== 'hangar' || !G.room) return null; const R = (this.rooms ||= {}); return (R[G.room] ||= G.room === 'control' ? new ControlRoom() : new DeckRoom()); }
+
   // ------------------------------------------------------------------ frame
   render(dt, w, speedMul = 1) {
     const st = G.state, t0 = performance.now(); if (!w) return;
     // The opening cinematic, while it plays (paused on its title card until the first tap).
     if (G.introPlaying && this.intro) { const s = this.w + 'x' + this.h; if (this.intro.size !== s) { this.intro.size = s; this.intro.resize(this.w, this.h); } this.intro.render(this.gl, G.introPaused ? 0 : Math.min(dt, 0.05)); this.ctx2d.clearRect(0, 0, this.overlay.width, this.overlay.height); return; }
-    // The Command Deck replaces the hangar view while it is open (built the first time it is visited).
-    if (G.mode === 'hangar' && G.deckOpen) {
-      const d = (this.deck ||= new DeckRoom()), size = this.w + 'x' + this.h; if (d.size !== size) { d.size = size; d.resize(this.w, this.h); }
+    // A room aboard (the Command Deck, Defence Control) replaces the hangar view while it is open (built on the first visit).
+    if (this.room) {
+      const d = this.room, size = this.w + 'x' + this.h; if (d.size !== size) { d.size = size; d.resize(this.w, this.h); }
       d.sync(st); d.render(this.gl, Math.min(dt, 0.05)); this.ctx2d.clearRect(0, 0, this.overlay.width, this.overlay.height); return;
     }
     this.gl.setClearColor(0x050a24, 1);

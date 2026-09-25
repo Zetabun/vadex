@@ -33,7 +33,7 @@ import { menuState, menuSeen, menuLockText } from '@last-orbit/progression/meta.
 import { MENU_BY_ID } from '@last-orbit/data/menus.js';
 import { techLevel, buyTech, powerRating, workshopMaxed, workshopProgress, overhaulReward, blueprintLevel, blueprintNext, buyBlueprint, blueprintLocked, escortSlots, escortTypes, toggleEscort, trailUnlocked, selectTrail } from '@last-orbit/progression/meta.js';
 import { BLUEPRINTS, TRAILS, BP_BASE, OVERHAUL_FX_CAP, OVERHAUL_COST_STEP } from '@last-orbit/data/prestige.js';
-import { SIEGE_TIERS, SIEGE_SYSTEMS, siegeOpen, siegeUnlocked, siegeSystems, systemPart } from '@last-orbit/data/siege.js';
+import { SIEGE_TIERS, SIEGE_SYSTEMS, SIEGE_CONSOLES, CONSOLE_BY_ID, siegeOpen, siegeUnlocked, siegeSystems, systemPart, systemSource, sourceName, nextSiege, lockedSiege, siegeAdvice } from '@last-orbit/data/siege.js';
 import { STATION_CORE, MODULE_BY_ID, ALIEN_BY_ID, TROPHY_BY_ID, REBUILD_PARTS, rebuildPct, rebuildParts, stationSnapshot, caughtStages } from '@last-orbit/data/station.js';
 import { stationBlueprint, pieceThumb } from '@last-orbit/ui/stationArt.js';
 import { nightAmount } from '@last-orbit/rendering/background.js';
@@ -93,13 +93,21 @@ export function createHangar(hooks) {
   $.callout = h('button.st-callout', { onclick: () => stationCard() }, h('small', 'Your station'), $.coName = h('b'), $.coBar, $.coSub = h('span'));
   const el = h('div#hangar', top, $.body, $.coSvg, $.stationHot, $.callout, $.nav);
 
+  // The rooms aboard the station: 3D spaces to walk round, each reached from the hangar and left the way you came.
+  const ROOMS = { deck: 'Command Deck', control: 'Defence Control' };
+  const CONTROL_LOCK = 'Defence Control opens when the invaders strike back: clear Counterattack stage 1.';
+  const CONTROL_INTRO = { icon: 'control', kicker: 'New room aboard', title: 'Defence Control', text: 'The station\'s war room. Its consoles run every defence you have built, the tactical table adds them up, and the threat board is where you launch a siege. Tap ORBIT\'s terminal for advice.' };
+  let outside = 'launch'; // the hangar tab the rooms lead back to
   function show(id, quiet) {
+    // Defence Control stays sealed until the invaders first strike back.
+    if (id === 'control' && !siegeUnlocked(G.state)) { if (!quiet) { playSfx('deny'); hooks.toast?.(CONTROL_LOCK, 'info'); } if (tab !== id) return; id = 'launch'; }
+    if (id === 'control' && !G.state.seen.control) { G.state.seen.control = true; setTimeout(() => hooks.menuIntro?.(CONTROL_INTRO), 150); }
     // A menu the pilot has not earned yet stays shut (with a note on when it opens); a newly opened one explains itself once.
     if (menuState(id) === 'locked') { if (!quiet) { playSfx('deny'); hooks.toast?.(menuLockText(id), 'info'); } if (tab !== id) return; id = 'launch'; }
     if (menuState(id) === 'new') { menuSeen(id); setTimeout(() => hooks.menuIntro?.(MENU_BY_ID[id]), 150); }
     if (!quiet && id !== tab) playSfx('tab');
     if (shownTabs().join() !== navSig) layoutNav();
-    G.deckOpen = id === 'deck'; setClass($.stationHot, 'on', id === 'launch'); setClass($.callout, 'on', id === 'launch'); setClass($.coSvg, 'on', id === 'launch'); if (id === 'launch') stationNews();
+    if (ROOMS[id] && !ROOMS[tab]) outside = tab; G.room = ROOMS[id] ? id : null; setClass($.stationHot, 'on', id === 'launch'); setClass($.callout, 'on', id === 'launch'); setClass($.coSvg, 'on', id === 'launch'); if (id === 'launch') stationNews();
     tab = id; if (pageOf(id) !== page) { page = pageOf(id); layoutNav(); }
     for (const k in navBtns) { setClass(navBtns[k], 'on', k === id); navBtns[k].setAttribute('aria-selected', String(k === id)); }
     if (id === 'awards') G.state.seen.medals = medalTotal().earned;
@@ -110,7 +118,7 @@ export function createHangar(hooks) {
    *  on a list (Workshop upgrades) stay on the row under the finger; switching tabs starts at the top. */
   function render(top = false) {
     const y = $.body.scrollTop; clear($.body);
-    const view = { launch: launchView, missions: missionsView, workshop: workshopView, armory: armoryView, ships: shipsView, contracts: contractsView, records: recordsView, awards: awardsView, deck: deckView }[tab]();
+    const view = { launch: launchView, missions: missionsView, workshop: workshopView, armory: armoryView, ships: shipsView, contracts: contractsView, records: recordsView, awards: awardsView, deck: () => roomView('deck'), control: () => roomView('control') }[tab]();
     $.body.append(view); $.body.scrollTop = top ? 0 : y;
   }
 
@@ -413,27 +421,38 @@ export function createHangar(hooks) {
     if (!siegeUnlocked(st)) return h('section.panel.ca-panel.sg-panel.locked', h('div.ca-head', h('div', h('div.kicker', 'New mode'), h('h3', 'Station Siege')), uiIcon('lock')),
       h('p', 'Clear Counterattack stage 1 and the invaders will strike back at your station.'));
     const sys = siegeSystems(st), stars = Object.values(sg.stars).reduce((a, b) => a + b, 0);
-    const rows = SIEGE_TIERS.map((t) => {
-      const open = siegeOpen(st, t.n), got = sg.stars[t.n] || 0;
-      return h('div.ca-stage' + (open ? '' : '.locked'), h('div.ca-num', h('small', 'Tier'), h('b', String(t.n))),
-        h('div.ca-main', h('b', t.name), h('small', open ? `Waves ${t.first}–${t.last} · best ${fmtInt(sg.best[t.n] || 0)}` : `Clear Counterattack stage ${t.n} first`), h('div.ca-stars', [1, 2, 3].map((i) => h('i' + (i <= got ? '.on' : ''), '★')))),
-        open ? h('button.btn.primary.ca-go', { onclick: () => launchSiege(t.n), 'aria-label': 'Defend against ' + t.name }, uiIcon('launch')) : uiIcon('lock'));
-    });
     return h('section.panel.ca-panel.sg-panel',
       h('div.ca-head', h('div', h('div.kicker', 'Station Siege', h('button.ca-how', { onclick: () => hooks.siegeIntro(null) }, 'How it works')), h('h3', 'Hold the station')),
         h('button.sg-sys', { onclick: () => defences(), title: 'The station\'s defences' }, h('b', `${sys.count}/${SIEGE_SYSTEMS.length}`), h('small', 'defences'))),
       h('p', 'Every Counterattack stage you clear brings a siege on your station. Shoot down the shells and raiders aimed at it: anything that reaches the line hits the station. It fights back with everything you have built.'),
-      h('div.ca-meta', h('span', `★ ${stars}/${SIEGE_TIERS.length * 3}`)), h('div.ca-list', rows));
+      h('button.btn.ghost.wide.sg-room', { onclick: () => show('control') }, uiIcon('control'), h('span', 'Enter Defence Control'), uiIcon('chevron')),
+      h('div.ca-meta', h('span', `★ ${stars}/${SIEGE_TIERS.length * 3}`)), h('div.ca-list', siegeRows()));
   }
-  /** The station's systems in a siege: which are online (and maxed), what each does, and how to get the rest. */
+  /** One row per siege tier: its name, waves, best score and stars, and a launch button once it is open. */
+  function siegeRows() {
+    const st = G.state, sg = st.siege || { stars: {}, best: {} };
+    return SIEGE_TIERS.map((t) => {
+      const open = siegeOpen(st, t.n), got = sg.stars[t.n] || 0;
+      return h('div.ca-stage' + (open ? '' : '.locked'), h('div.ca-num', h('small', 'Tier'), h('b', String(t.n))),
+        h('div.ca-main', h('b', t.name), h('small', open ? `Waves ${t.first}–${t.last} · best ${fmtInt(sg.best[t.n] || 0)}` : `Clear Counterattack stage ${t.n} first`), h('div.ca-stars', [1, 2, 3].map((i) => h('i' + (i <= got ? '.on' : ''), '★')))),
+        open ? h('button.btn.primary.ca-go', { onclick: () => { hooks.closeOverlays?.(); launchSiege(t.n); }, 'aria-label': 'Defend against ' + t.name }, uiIcon('launch')) : uiIcon('lock'));
+    });
+  }
+  /** The station's systems in a siege, console by console: which are online (and maxed), what each does, how to get the rest. */
   function defences() {
-    const { list, count } = siegeSystems(G.state); playSfx('tab');
-    hooks.panel?.({ kicker: 'Station Siege', title: `Station defences · ${count}/${list.length}`, body: [
+    const st = G.state, { on, list, count } = siegeSystems(st), pc = (v) => (v ? Math.round(v * 100) + '%' : '—'); playSfx('tab');
+    const cut = 1 - 1 / (1 + (on.w_hull || 0) + (on.x_alloy || 0)), guns = ['w_dmg', 'w_rate', 'w_crit'].filter((id) => on[id]).length;
+    const stats = [['Damage taken', cut ? '−' + pc(cut) : '—'], ['Hits that miss', pc(on.w_speed)], ['Shield each wave', pc(on.w_shield)], ['Repairs each wave', pc(on.w_regen)], ['Station guns', `${guns}/3`], ['Systems online', `${count}/${list.length}`]];
+    hooks.panel?.({ kicker: G.room === 'control' ? 'Defence Control' : 'Station Siege', title: 'Station defences', body: [
       h('p.sub-note', 'Every module you build is a defence in a siege; a maxed module works harder. Alien Tech fits alien hardware with defences of its own.'),
-      h('div.sg-defs', list.map(({ sys, state, value }) => { const part = systemPart(sys.id);
-        return h('div.sg-def.s' + state, h('i.sg-dot'), h('div', h('b', sys.name), h('small', sys.desc(value)),
-          h('em', state === 2 ? (sys.alien ? `${part.name} · fitted` : `${part.name} · maxed`) : state ? `${part.name} · online · max it for more` : sys.alien ? `Fit the ${part.name} with Alien Tech` : `Build the ${part.name} in the Workshop`))); }))] });
+      h('div.deck-board', stats.map(([k, v]) => h('div.db-row', h('small', k), h('b', v)))),
+      ...SIEGE_CONSOLES.flatMap((cn) => { const rows = list.filter((x) => cn.ids.includes(x.sys.id));
+        return [h('h4.sg-group', { style: `--c:${cn.color}` }, h('span', cn.name), h('small', `${rows.filter((r) => r.state).length}/${rows.length} online`)), defList(rows)]; })] });
   }
+  /** Systems as a list: a status light, what each does, and where it comes from (or how to bring it online). */
+  const defList = (rows) => h('div.sg-defs', rows.map(({ sys, state, value }) => { const part = systemPart(sys.id);
+    return h('div.sg-def.s' + state, h('i.sg-dot'), h('div', h('b', sys.name), h('small', sys.desc(value)),
+      h('em', state === 2 ? `${part.name} · ${sys.alien ? 'fitted' : 'maxed'}` : state ? `${part.name} · online · max ${sourceName(sys.id)} for more` : `${systemSource(sys.id)} to bring it online`))); }));
 
   // ------------------------------------------------------------ contracts
   function contractsView() {
@@ -475,31 +494,64 @@ export function createHangar(hooks) {
   }
   const dateLabel = (t) => { const d = new Date(t), now = new Date(); return d.toDateString() === now.toDateString() ? 'Today' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); };
 
-  // ------------------------------------------------------------ command deck: the pilot's room aboard the station
-  function deckView() {
-    // The room itself is 3D (rendering/deck.js, drawn while G.deckOpen); this is the touch layer over it.
+  // ------------------------------------------------------------ the rooms aboard: the Command Deck and Defence Control
+  function roomView(id) {
+    // The room itself is 3D (rendering/deck.js and control.js, drawn while G.room is set); this is the touch layer over it.
     const p = G.state.pilot, hint = h('div.d3-hint', 'Drag to look around · Tap the floor to walk · Tap anything to inspect');
-    const el = h('div.deck3d', { 'aria-label': 'Command Deck. Drag to look around, tap the floor to walk, tap an exhibit to inspect it.' },
-      h('div.d3-top', h('div.d3-title', h('small', 'Command Deck'), h('b', p.name || rankTitle(p.rank))), h('button.btn.ghost.small.d3-exit', { onclick: () => show('launch') }, uiIcon('back'), 'Exit')), hint);
+    const el = h('div.deck3d' + (id === 'control' ? '.control' : ''), { 'aria-label': `${ROOMS[id]}. Drag to look around, tap the floor to walk, tap an exhibit to inspect it.` },
+      h('div.d3-top', h('div.d3-title', h('small', ROOMS[id]), h('b', id === 'deck' ? p.name || rankTitle(p.rank) : G.state.stationName || 'Station defence')), h('button.btn.ghost.small.d3-exit', { onclick: () => show(outside) }, uiIcon('back'), 'Exit')), hint);
     let down = null;
     el.addEventListener('pointerdown', (e) => { if (e.target.closest('button')) return; down = { id: e.pointerId, x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, t: performance.now(), moved: false }; try { el.setPointerCapture(e.pointerId); } catch { /* not every pointer can be captured */ } });
     el.addEventListener('pointermove', (e) => {
       if (!down || e.pointerId !== down.id) return;
       if (!down.moved && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 8) down.moved = true;
       const dx = e.clientX - down.lx, dy = e.clientY - down.ly; // a jump this big in one event is a glitch, not a drag
-      if (down.moved && Math.abs(dx) + Math.abs(dy) < 120) G.renderer?.deck?.look(dx, dy); down.lx = e.clientX; down.ly = e.clientY;
+      if (down.moved && Math.abs(dx) + Math.abs(dy) < 120) G.renderer?.room?.look(dx, dy); down.lx = e.clientX; down.ly = e.clientY;
     });
     const up = (e) => {
       if (!down || e.pointerId !== down.id) return; const tap = !down.moved && performance.now() - down.t < 450; down = null; hint.classList.add('off');
-      if (!tap) return; const r = G.renderer.canvas.getBoundingClientRect(), res = G.renderer.deck?.pick(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-      if (res?.exhibit) exhibit(res.exhibit); else if (res?.walk) playSfx('tab', 0.4);
+      if (!tap) return; const r = G.renderer.canvas.getBoundingClientRect(), res = G.renderer.room?.pick(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+      if (res?.exhibit) (id === 'control' ? controlExhibit : exhibit)(res.exhibit); else if (res?.walk) playSfx('tab', 0.4);
     };
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', () => { down = null; });
     return el;
   }
+  /** Tapping something in Defence Control: a console's systems, the tactical table's totals, the threat board (where a
+   *  siege is launched), the view outside, ORBIT's advice, or a door. */
+  let orbitTalk = 0;
+  function controlExhibit(kind) {
+    const st = G.state;
+    if (kind === 'exit') { show(outside); return; }
+    if (kind === 'deck') { show('deck'); return; }
+    playSfx('tab');
+    if (kind === 'orbit') { hooks.say?.(siegeAdvice(st, orbitTalk++)); return; }
+    if (kind === 'table') { defences(); return; }
+    const panel = (title, ...body) => hooks.panel?.({ kicker: 'Defence Control', title, body });
+    if (CONSOLE_BY_ID[kind]) {
+      const cn = CONSOLE_BY_ID[kind], rows = siegeSystems(st).list.filter((x) => cn.ids.includes(x.sys.id));
+      panel(`${cn.name} · ${rows.filter((r) => r.state).length}/${rows.length} online`, h('p.sub-note', CONSOLE_NOTE[kind]), defList(rows));
+    } else if (kind === 'board') {
+      const sg = st.siege || {}, stars = Object.values(sg.stars || {}).reduce((a, b) => a + b, 0), next = nextSiege(st);
+      panel('Threat board', h('div.deck-board', [['Sieges held', fmtInt(sg.wins || 0)], ['Stars', `${stars}/${SIEGE_TIERS.length * 3}`], ['Highest tier held', SIEGE_TIERS.filter((t) => sg.won?.[t.n]).at(-1)?.n || '—'], ['Massing now', next ? next.name : 'None']].map(([k, v]) => h('div.db-row', h('small', k), h('b', String(v))))),
+        h('div.ca-list.sg-ops', siegeRows()));
+    } else if (kind === 'window') {
+      const next = nextSiege(st), locked = lockedSiege(st), guns = siegeSystems(st).list.filter((x) => ['w_dmg', 'w_rate', 'w_crit'].includes(x.sys.id));
+      panel(next ? `${next.name} is massing` : 'All quiet',
+        h('p.sub-note', next ? `Those red lights are the ${next.name} fleet, gathering for waves ${next.first} to ${next.last}: bombards to shell the station, raiders to dive at it.` : locked ? `Nothing out there yet. Clear Counterattack stage ${locked.n} and they will answer with ${locked.name}.` : 'Every siege has been held. Nothing out there but stars.'),
+        h('h4.sg-group', { style: '--c:#ff8a5e' }, h('span', 'The guns on the hull'), h('small', `${guns.filter((g) => g.state).length}/3 mounted`)), defList(guns),
+        next ? h('button.btn.gold.wide.sg-defend', { onclick: () => { hooks.closeOverlays?.(); launchSiege(next.n); } }, uiIcon('launch'), `Defend against ${next.name}`) : null);
+    }
+  }
+  const CONSOLE_NOTE = {
+    weapons: 'The station\'s own guns, and the wingmen who fly with you. They fire on whatever comes for the station.',
+    hull: 'Everything between the invaders and the hull: shields, armour, repairs, and a beacon for when all else fails.',
+    ops: 'Slowing their shells, tracking their raiders, and making every siege pay.',
+    alien: 'Hardware fitted with Alien Tech. It fights in every siege from the moment it is fitted.',
+  };
   /** Tapping an exhibit on the deck: its details, as a panel. */
   function exhibit(kind) {
-    if (kind === 'exit') { show('launch'); return; }
+    if (kind === 'exit') { show(outside); return; }
+    if (kind === 'control') { show('control'); return; }
     const st = G.state, s = st.stats, rank = st.prestige?.level || 0; playSfx('tab');
     const panel = (kicker, title, ...body) => hooks.panel?.({ kicker, title, body });
     if (kind === 'records') {
@@ -617,17 +669,18 @@ export function createHangar(hooks) {
   }
   /** Everything about the station in one card: its blueprint, the rebuild, its name, and the way aboard. */
   function stationCard() {
-    const st = G.state, rank = st.prestige?.level || 0, deck = menuState('deck') !== 'locked'; playSfx('tab');
+    const st = G.state, rank = st.prestige?.level || 0, deck = menuState('deck') !== 'locked', control = siegeUnlocked(st); playSfx('tab');
     hooks.panel?.({ kicker: 'Your station', title: st.stationName || 'Unnamed station', body: [
       h('div.oh-plan', { html: stationBlueprint(rank, st.workshop, { peak: st.stationPeak, alien: st.counter?.tech, caught: caughtStages(st), name: st.stationName, pct: rebuilt() }) }),
       overview(st),
       h('div.sc-actions', h('button.btn.ghost', { onclick: () => hooks.nameStation?.() }, st.stationName ? 'Rename' : 'Name it'),
-        deck ? h('button.btn.primary', { onclick: () => { hooks.closeOverlays?.(); show('deck'); } }, 'Board the Command Deck') : h('button.btn.ghost', { onclick: () => { hooks.closeOverlays?.(); show('workshop'); } }, 'Workshop'))] });
+        deck ? h('button.btn.primary', { onclick: () => { hooks.closeOverlays?.(); show('deck'); } }, control ? 'Command Deck' : 'Board the Command Deck') : h('button.btn.ghost', { onclick: () => { hooks.closeOverlays?.(); show('workshop'); } }, 'Workshop'),
+        control ? h('button.btn.gold.sc-control', { onclick: () => { hooks.closeOverlays?.(); show('control'); } }, 'Defence Control') : null)] });
   }
 
-  // W/A/S/D or the arrows walk the Command Deck.
+  // W/A/S/D or the arrows walk the room aboard that is open.
   const DECK_KEYS = { KeyW: 'f', ArrowUp: 'f', KeyS: 'b', ArrowDown: 'b', KeyA: 'l', ArrowLeft: 'l', KeyD: 'r', ArrowRight: 'r' };
-  for (const [type, on] of [['keydown', true], ['keyup', false]]) addEventListener(type, (e) => { const k = DECK_KEYS[e.code], d = G.renderer?.deck; if (!k || !d || !G.deckOpen || G.mode !== 'hangar' || (on && hooks.blocking?.())) return; d.keys[k] = on; e.preventDefault(); });
+  for (const [type, on] of [['keydown', true], ['keyup', false]]) addEventListener(type, (e) => { const k = DECK_KEYS[e.code], d = G.renderer?.room; if (!k || !d || (on && hooks.blocking?.())) return; d.keys[k] = on; e.preventDefault(); });
   /** Finishing the station (every Workshop upgrade maxed) gets its moment, once per Overhaul cycle. */
   function stationDone() { const st = G.state, lv = st.prestige?.level || 0; if (st.seen.stationDone === lv || !workshopMaxed() || hooks.blocking?.()) return; st.seen.stationDone = lv; hooks.stationComplete?.(); }
   function pilotId() {

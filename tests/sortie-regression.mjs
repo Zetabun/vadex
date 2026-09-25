@@ -510,4 +510,18 @@ assert.throws(() => parseSave('{"run":{},"cur":{}}'), /Not a Last Orbit v2 save/
 // ---- v2.10.1: the opening tips play once ----
 { fresh(); G.state.stats.sorties = 1; assert.ok(!G.state.seen.steerTip, 'A new pilot has not seen the steering tip'); }
 
+// ---- v2.11: Defence Control, the station's war room ----
+{ const S = await import('@last-orbit/data/siege.js'); fresh();
+  const ids = S.SIEGE_CONSOLES.flatMap((c) => c.ids); assert.equal(new Set(ids).size, ids.length, 'No system sits on two consoles');
+  assert.deepEqual([...ids].sort(), S.SIEGE_SYSTEMS.map((x) => x.id).sort(), 'Every siege system has a console');
+  for (const x of S.SIEGE_SYSTEMS) assert.ok(!/undefined|x_|w_/.test(S.systemSource(x.id)), `${x.id} names the upgrade that brings it online`);
+  assert.equal(S.nextSiege(G.state), null, 'Nothing massing before the first Counterattack clear'); assert.equal(S.lockedSiege(G.state).n, 1);
+  G.state.counter.unlocked = true; G.state.counter.stars[1] = 1; G.state.counter.stars[2] = 1; assert.equal(S.nextSiege(G.state).n, 1, 'The lowest open tier not yet held is next');
+  G.state.siege.won[1] = 1; assert.equal(S.nextSiege(G.state).n, 2); G.state.siege.won[2] = 1; assert.equal(S.nextSiege(G.state), null, 'All open tiers held: all quiet'); assert.equal(S.lockedSiege(G.state).n, 3);
+  const lines = Array.from({ length: 12 }, (_, k) => S.siegeAdvice(G.state, k)); assert.ok(lines.every((l) => l && !/undefined|NaN/.test(l)), 'ORBIT always has something sensible to say');
+  assert.ok(lines.some((l) => l.includes('Counterattack stage 3')), 'ORBIT points at what provokes the next siege');
+  for (const u of S.SIEGE_SYSTEMS.filter((x) => !x.alien)) G.state.workshop[u.id] = 1; assert.ok(Array.from({ length: 10 }, (_, k) => S.siegeAdvice(G.state, k)).some((l) => l.startsWith('Our ')), 'Once a module is built, ORBIT suggests maxing it');
+  for (const u of WORKSHOP) G.state.workshop[u.id] = u.max; for (const a of ['x_alloy', 'x_phase', 'x_charts', 'x_siphon']) G.state.counter.tech[a] = 1;
+  assert.equal(S.siegeSystems(G.state).count, S.SIEGE_SYSTEMS.length); assert.ok(S.siegeAdvice(G.state, 1).includes('maxed'), 'and says so when every system is maxed'); }
+
 console.log('Sortie, cards, relics, contracts, workshop, ships, pickups, revive and save checks pass.');
