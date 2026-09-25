@@ -33,7 +33,7 @@ function text(ctx, str, x, y, font, color, align = 'center') { ctx.font = font; 
 
 export class DeckRoom {
   constructor() {
-    const THREE = T(); this.scene = new THREE.Scene(); this.cam = new THREE.PerspectiveCamera(72, 1, 0.05, 5000); this.cam.rotation.order = 'YXZ';
+    const THREE = T(); this.scene = new THREE.Scene(); this.cam = new THREE.PerspectiveCamera(72, 1, 0.1, 2200); this.cam.rotation.order = 'YXZ';
     this.pos = new THREE.Vector3(0, 0, 3.2); this.yaw = 0; this.pitch = 0.02; this.target = null; this.keys = {}; this.t = 0; this.sig = ''; this.exhibits = []; this.ray = new THREE.Raycaster();
     this.shell(); this.outside();
     this.station = new Station(this.scene); this.station.group.visible = true; this.station.group.position.set(TABLE.x, 1.55, TABLE.z); this.station.group.scale.setScalar(0.042);
@@ -63,7 +63,8 @@ export class DeckRoom {
     wall(BACK - FRONT, H, -W, H / 2, (FRONT + BACK) / 2, Math.PI / 2); wall(BACK - FRONT, H, W, H / 2, (FRONT + BACK) / 2, -Math.PI / 2); wall(2 * W, H, 0, H / 2, BACK, Math.PI);
     // the window wall: an opening from x -4.3..4.3, y 0.45..3.05, framed, with two struts and faint glass
     const frame = Ph({ color: 0x3a4560, specular: 0x556680, shininess: 50 }), box = (w, h, d, x, y, z, m = frame) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); S.add(b); return b; };
-    box(2 * W, 0.45, 0.3, 0, 0.225, FRONT); box(2 * W, H - 3.05, 0.3, 0, (3.05 + H) / 2, FRONT); for (const s of [-1, 1]) { box(W - 4.3, H, 0.3, s * (4.3 + (W - 4.3) / 2), H / 2, FRONT); box(0.16, 2.6, 0.24, s * 1.45, 1.75, FRONT); }
+    // (a centimetre short of the walls, floor and ceiling so no two faces share a plane and flicker)
+    box(2 * W - 0.02, 0.44, 0.3, 0, 0.23, FRONT); box(2 * W - 0.02, H - 3.06, 0.3, 0, (3.05 + H) / 2, FRONT); for (const s of [-1, 1]) { box(W - 4.31, H - 0.02, 0.3, s * (4.3 + (W - 4.3) / 2), H / 2, FRONT); box(0.16, 2.6, 0.24, s * 1.45, 1.75, FRONT); }
     const glass = new THREE.Mesh(new THREE.PlaneGeometry(8.6, 2.6), Ph({ color: 0x9fd8ff, transparent: true, opacity: 0.06, specular: 0xffffff, shininess: 120, depthWrite: false })); glass.position.set(0, 1.75, FRONT + 0.02); S.add(glass);
     // glowing strips along the floor edges and round the window
     const strip = new THREE.MeshBasicMaterial({ color: 0x5ee6ff });
@@ -71,7 +72,7 @@ export class DeckRoom {
     box(8.6, 0.04, 0.05, 0, 0.47, FRONT + 0.17, strip); box(8.6, 0.04, 0.05, 0, 3.03, FRONT + 0.17, strip);
     // ceiling light panels
     const lightMat = (this.lightMat = new THREE.MeshBasicMaterial({ color: 0xfff1d8 }));
-    for (const z of [-5.8, -2.4, 1]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.5), lightMat); p.rotation.x = Math.PI / 2; p.position.set(0, H - 0.01, z); S.add(p); }
+    for (const z of [-5.8, -2.4, 1]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.5), lightMat); p.rotation.x = Math.PI / 2; p.position.set(0, H - 0.025, z); S.add(p); }
     // the holo-table
     const tbl = new THREE.Group(); tbl.position.set(TABLE.x, 0, TABLE.z); S.add(tbl);
     const base = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.8, 0.85, 24), Ph({ color: 0x2c3650, specular: 0x4a5a78, shininess: 40 })); base.position.y = 0.42; tbl.add(base);
@@ -95,7 +96,7 @@ export class DeckRoom {
     this.hitBox(doorG, 1.6, 2.8, 0.4, 0, 1.4, -0.2); this.tag(doorG, 'exit');
     // structure: ribs down the side walls, beams across the ceiling, and a cove light along the top of the walls
     const rib = Ph({ color: 0x323c55, specular: 0x4a5a78, shininess: 30 }), cove = new THREE.MeshBasicMaterial({ color: 0x5ee6ff, transparent: true, opacity: 0.7 });
-    for (const z of [-6.9, -0.9, 1.9]) { for (const s of [-1, 1]) box(0.14, H, 0.22, s * (W - 0.07), H / 2, z, rib); box(2 * W, 0.16, 0.22, 0, H - 0.08, z, rib); }
+    for (const z of [-6.9, -0.9, 0.5]) { for (const s of [-1, 1]) box(0.14, H, 0.22, s * (W - 0.07), H / 2, z, rib); /* clear of the medal wall and the lounge screen */ box(2 * W, 0.16, 0.22, 0, H - 0.08, z, rib); }
     for (const s of [-1, 1]) box(0.03, 0.03, BACK - FRONT, s * (W - 0.05), H - 0.2, (FRONT + BACK) / 2, cove); box(2 * W, 0.03, 0.03, 0, H - 0.2, BACK - 0.05, cove);
     // a lounge in the back-left corner: a couch, a plant, and a wall screen with the station roadmap
     const lounge = new THREE.Group(); lounge.position.set(-W, 0, 2.2); S.add(lounge);
@@ -105,7 +106,7 @@ export class DeckRoom {
     const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.15, 0.4, 16), Ph({ color: 0xd9dee8, shininess: 40 })); pot.position.set(0.35, 0.2, 1.55); lounge.add(pot);
     const leafMat = Ph({ color: 0x3f9a56, specular: 0x224422, shininess: 10, side: THREE.DoubleSide });
     for (let i = 0; i < 9; i++) { const lf = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.7, 5), leafMat), a = (i / 9) * Math.PI * 2; lf.position.set(0.35 + Math.cos(a) * 0.1, 0.72, 1.55 + Math.sin(a) * 0.1); lf.rotation.set(Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5); lounge.add(lf); }
-    this.roadmapScreen = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 1.05), new THREE.MeshBasicMaterial({ color: 0xffffff })); this.roadmapScreen.position.set(0.04, 1.85, 0); this.roadmapScreen.rotation.y = Math.PI / 2; lounge.add(this.roadmapScreen);
+    this.roadmapScreen = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 1.05), new THREE.MeshBasicMaterial({ color: 0xffffff })); this.roadmapScreen.position.set(0.07, 1.85, 0); this.roadmapScreen.rotation.y = Math.PI / 2; lounge.add(this.roadmapScreen);
     lp(0.03, 1.13, 1.98, 0.02, 1.85, 0, frame); this.tag(this.roadmapScreen, 'station');
     // where a tap on the floor is taking you
     this.marker = new THREE.Mesh(new THREE.RingGeometry(0.18, 0.24, 32), new THREE.MeshBasicMaterial({ color: 0x5ee6ff, transparent: true, opacity: 0 })); this.marker.rotation.x = -Math.PI / 2; this.marker.position.y = 0.02; S.add(this.marker);
@@ -120,7 +121,7 @@ export class DeckRoom {
       fragmentShader: 'varying vec3 vN, vV; void main(){ float k = pow(1. - abs(dot(vN, vV)), 3.5); gl_FragColor = vec4(vec3(.3, .6, 1.) * k * 1.4, k); }' }));
     atmo.position.copy(this.earth.position); S.add(atmo);
     const n = 900, pos = new Float32Array(n * 3);
-    for (let i = 0; i < n; i++) { const u = Math.random() * 2 - 1, a = Math.random() * Math.PI * 2, r = Math.sqrt(1 - u * u); pos.set([Math.cos(a) * r * 2500, Math.abs(u) * 2500 - 200, -Math.abs(Math.sin(a) * r) * 2500 - 300], i * 3); }
+    for (let i = 0; i < n; i++) { const u = Math.random() * 2 - 1, a = Math.random() * Math.PI * 2, r = Math.sqrt(1 - u * u); pos.set([Math.cos(a) * r * 1800, Math.abs(u) * 1800 - 150, -Math.abs(Math.sin(a) * r) * 1800 - 250], i * 3); }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     S.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffffff, size: 2.2, sizeAttenuation: false })));
     const sunC = canvas(128, 128), s = sunC.getContext('2d'), gr = s.createRadialGradient(64, 64, 0, 64, 64, 64); gr.addColorStop(0, 'rgba(255,255,240,1)'); gr.addColorStop(0.15, 'rgba(255,240,200,.9)'); gr.addColorStop(1, 'rgba(255,200,120,0)'); s.fillStyle = gr; s.fillRect(0, 0, 128, 128);
@@ -152,7 +153,7 @@ export class DeckRoom {
       const c = canvas(128, 128), x = c.getContext('2d'), t = tex(c);
       x.beginPath(); x.arc(64, 64, 56, 0, Math.PI * 2); x.fillStyle = tier ? '#0c1330' : '#141a2a'; x.fill(); x.lineWidth = 8; x.strokeStyle = tier ? (feat ? FEAT_COL : TIER_COL[tier - 1]) : '#2a3244'; x.stroke();
       if (tier) drawArt(a.art, x, 30, 34, 68, () => { t.needsUpdate = true; });
-      const disc = new THREE.Mesh(new THREE.CircleGeometry(0.22, 32), new THREE.MeshBasicMaterial({ map: t, transparent: true, opacity: tier ? 1 : 0.5 })); disc.position.set(cx + 3.8, cy, 0.045); g.add(disc);
+      const disc = new THREE.Mesh(new THREE.CircleGeometry(0.22, 32), new THREE.MeshBasicMaterial({ map: t, transparent: true, opacity: tier ? 1 : 0.5 })); disc.position.set(cx + 3.8, cy, 0.06); g.add(disc);
     }
     const sign = this.label('MEDALS', 3.2, 0.3, '#ffd99a'); sign.position.set(3.8, 3.05, 0.03); g.add(sign); this.hitBox(g, 4.8, 2.6, 0.2, 3.8, 1.65, 0.1);
     this.tag(g, 'medals');
@@ -196,23 +197,30 @@ export class DeckRoom {
     const deep = Math.max(0, (s.bestWave || 0) - 60), cs = Object.values(state.counter.stars || {}).reduce((a, b) => a + b, 0);
     const rows = [['Furthest wave', s.bestWave || '—'], ['High score', s.bestScore ? Math.round(s.bestScore).toLocaleString() : '—'], ['Deep Void', deep ? `+${deep} waves` : '—'], ['Counterattack', cs + ' ★'], ['Sorties', s.sorties || 0], ['Invaders', (s.kills || 0).toLocaleString()]];
     rows.forEach(([k, v], i) => { const y = 78 + Math.floor(i / 2) * 64, col = i % 2 ? 272 : 26; text(x, k.toUpperCase(), col, y, '700 15px sans-serif', '#7f8bb0', 'left'); text(x, String(v), col, y + 26, '800 26px sans-serif', '#e8fbff', 'left'); });
-    const scr = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.75), new THREE.MeshBasicMaterial({ map: tex(c) })); scr.position.set(-1.2, 1.75, BACK - 0.06); scr.rotation.y = Math.PI; this.show.add(scr);
-    const bezel = new THREE.Mesh(new THREE.BoxGeometry(3.36, 1.91, 0.06), new THREE.MeshPhongMaterial({ color: 0x1a2030, shininess: 40 })); bezel.position.set(-1.2, 1.75, BACK - 0.03); this.show.add(bezel);
+    const scr = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.75), new THREE.MeshBasicMaterial({ map: tex(c) })); scr.position.set(-1.2, 1.75, BACK - 0.085); scr.rotation.y = Math.PI; this.show.add(scr);
+    const bezel = new THREE.Mesh(new THREE.BoxGeometry(3.36, 1.91, 0.06), new THREE.MeshPhongMaterial({ color: 0x1a2030, shininess: 40 })); bezel.position.set(-1.2, 1.75, BACK - 0.04); this.show.add(bezel);
     this.tag(scr, 'records');
   }
   trophyShelf(rank) {
-    const THREE = T(), g = new THREE.Group(); g.position.set(0, 0, FRONT + 0.55); this.show.add(g);
-    const shelf = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.08, 0.5), new THREE.MeshPhongMaterial({ color: 0x3a4560, shininess: 50 })); shelf.position.y = 0.72; g.add(shelf); this.hitBox(g, 6.6, 0.7, 0.6, 0, 0.95, 0);
+    // a low display cabinet standing on the floor against the window sill, the cups along its top
+    const THREE = T(), g = new THREE.Group(); g.position.set(0, 0, FRONT + 0.41); this.show.add(g);
+    const body = new THREE.MeshPhongMaterial({ color: 0x2a3348, specular: 0x4a5a78, shininess: 30 }), top = new THREE.MeshPhongMaterial({ color: 0x3a4560, specular: 0x7a8aa8, shininess: 60 });
+    const cab = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.68, 0.5), body); cab.position.y = 0.34; g.add(cab);
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(6.52, 0.06, 0.56), top); slab.position.y = 0.71; g.add(slab);
+    const kick = new THREE.Mesh(new THREE.BoxGeometry(6.3, 0.08, 0.46), new THREE.MeshPhongMaterial({ color: 0x151b2a })); kick.position.set(0, 0.04, 0.03); g.add(kick);
+    const trim = new THREE.Mesh(new THREE.BoxGeometry(6.2, 0.025, 0.02), new THREE.MeshBasicMaterial({ color: 0xffc857 })); trim.position.set(0, 0.6, 0.26); g.add(trim);
+    for (let i = -2; i <= 2; i++) { const seam = new THREE.Mesh(new THREE.BoxGeometry(0.015, 0.5, 0.02), new THREE.MeshPhongMaterial({ color: 0x1a2030 })); seam.position.set(i * 1.28, 0.3, 0.26); g.add(seam); }
+    this.hitBox(g, 6.6, 1.3, 0.7, 0, 0.65, 0);
     const gold = new THREE.MeshPhongMaterial({ color: 0xffc857, emissive: 0x3a2600, specular: 0xfff0c0, shininess: 90, side: THREE.DoubleSide });
     const ghost = new THREE.LineBasicMaterial({ color: 0x5ee6ff, transparent: true, opacity: 0.25 });
     // a cup in profile, turned: foot, stem, and a bowl closed at the bottom
     const prof = [[0, 0], [0.12, 0], [0.12, 0.03], [0.05, 0.05], [0.025, 0.08], [0.025, 0.17], [0.05, 0.2], [0.11, 0.26], [0.135, 0.36], [0.14, 0.42], [0.125, 0.42], [0.12, 0.37], [0.1, 0.28], [0, 0.25]].map(([x, y]) => new THREE.Vector2(x, y));
     const cupGeo = new THREE.LatheGeometry(prof, 24), handleGeo = new THREE.TorusGeometry(0.06, 0.012, 6, 16, Math.PI);
     for (let i = 0; i < 10; i++) {
-      const x = (i - 4.5) * 0.62, won = i < rank, cup = new THREE.Group(); cup.position.set(x, 0.76, 0); g.add(cup);
+      const x = (i - 4.5) * 0.62, won = i < rank, cup = new THREE.Group(); cup.position.set(x, 0.74, 0); g.add(cup);
       if (won) { cup.add(new THREE.Mesh(cupGeo, gold)); for (const s of [-1, 1]) { const hd = new THREE.Mesh(handleGeo, gold); hd.position.set(s * 0.13, 0.33, 0); hd.rotation.z = s > 0 ? -Math.PI / 2 : Math.PI / 2; cup.add(hd); } }
       else cup.add(new THREE.LineSegments(new THREE.EdgesGeometry(cupGeo, 40), ghost));
-      const l = this.label(['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][i], 0.36, 0.13, won ? '#ffd99a' : '#3e4a66'); l.position.set(0, -0.02, 0.26); cup.add(l);
+      const l = this.label(['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][i], 0.36, 0.13, won ? '#ffd99a' : '#3e4a66'); l.position.set(0, -0.3, 0.262); cup.add(l); // on the cabinet front
     }
     this.tag(g, 'trophies');
   }
@@ -228,7 +236,7 @@ export class DeckRoom {
   nameSign(state, rank) {
     const THREE = T(), c = canvas(768, 96), x = c.getContext('2d'), p = state.pilot;
     text(x, `${(p.name || rankTitle(p.rank)).toUpperCase()}'S COMMAND DECK`, 384, 40, '800 40px sans-serif', '#e8fbff'); text(x, `${rankTitle(p.rank).toUpperCase()} · OVERHAUL RANK ${rank}`, 384, 80, '700 20px sans-serif', '#5ee6ff');
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(4, 0.5), new THREE.MeshBasicMaterial({ map: tex(c), transparent: true })); m.position.set(0, 3.2, FRONT + 0.17); this.show.add(m);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.3), new THREE.MeshBasicMaterial({ map: tex(c), transparent: true })); m.position.set(0, 3.225, FRONT + 0.17); this.show.add(m); /* fits the band between the window's top strip and the ceiling */
   }
   label(str, w, h, color) {
     const THREE = T(), c = canvas(512, Math.max(32, Math.round(512 * h / w))); text(c.getContext('2d'), str, 256, c.height / 2, `800 ${Math.round(c.height * 0.62)}px sans-serif`, color);
