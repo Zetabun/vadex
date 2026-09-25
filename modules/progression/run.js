@@ -22,6 +22,7 @@ import { SYNERGIES, synergyOf, synergyCount } from '@last-orbit/data/synergies.j
 import { STAGE_BY_N, STAR_HITS, STAR_KILLS, CORES_PER_STAR, clearBounty } from '@last-orbit/data/counter.js';
 import { unlockCounter } from '@last-orbit/progression/meta.js';
 import { patchStation } from '@last-orbit/progression/siege.js';
+import { checkBounties } from '@last-orbit/progression/bounties.js';
 
 // ---------------------------------------------------------------- sortie lifecycle
 export function startSortie(opts = {}) {
@@ -95,6 +96,7 @@ export function endSortie(reason = 'destroyed') {
   summary.medals = (run.medalsDone || []).concat(medals);
   if (run.intelGained) summary.intel = { id: run.intelGained, level: st.intel[run.intelGained] };
   summary.banners = (run.bannersDone || []).concat(Object.keys(st.banners).filter((id) => !bannersBefore[id]));
+  summary.bounties = checkBounties(st, summary); // the daily bounties this sortie finished
   if (!run.mode) st.history.unshift({ score: summary.score, wave: summary.wave, level: summary.level, ship: summary.ship, salvage: banked, time: summary.time, date: summary.date }); st.history.length = Math.min(st.history.length, 12);
   recalc(); bus.emit('sortieEnded', summary);
   return summary;

@@ -35,6 +35,8 @@ import { techLevel, buyTech, powerRating, workshopMaxed, workshopProgress, overh
 import { BLUEPRINTS, TRAILS, BP_BASE, OVERHAUL_FX_CAP, OVERHAUL_COST_STEP } from '@last-orbit/data/prestige.js';
 import { SIEGE_TIERS, SIEGE_SYSTEMS, SIEGE_CONSOLES, CONSOLE_BY_ID, TIER_BY_N, SYSTEM_BY_ID, siegeOpen, siegeUnlocked, siegeSystems, systemPart, systemSource, sourceName, nextSiege, lockedSiege, siegeAdvice, siegeGuns, siegeDamage, tierSummary, tierPhrase, listNames } from '@last-orbit/data/siege.js';
 import { settleSiege, repairStation } from '@last-orbit/progression/siege.js';
+import { commsOpen, refreshBounties, bountyProgress, bountyText, claimBounty, rerollBounty, bountyClaimable, untilNextPost } from '@last-orbit/progression/bounties.js';
+import { COMMS_RANK, BOUNTY_BONUS_BP, TRANSMISSIONS } from '@last-orbit/data/bounties.js';
 import { BOSSES } from '@last-orbit/data/bosses.js';
 import { STATION_CORE, MODULE_BY_ID, ALIEN_BY_ID, TROPHY_BY_ID, REBUILD_PARTS, rebuildPct, rebuildParts, stationSnapshot, caughtStages, hallOpen, STATION_TROPHIES, trophyWon, HUNTED } from '@last-orbit/data/station.js';
 import { stationBlueprint, pieceThumb } from '@last-orbit/ui/stationArt.js';
@@ -98,11 +100,13 @@ export function createHangar(hooks) {
   const el = h('div#hangar', top, $.body, $.coSvg, $.stationHot, $.callout, $.nav);
 
   // The rooms aboard the station: 3D spaces to walk round, each reached from the hangar and left the way you came.
-  const ROOMS = { deck: 'Command Deck', control: 'Defence Control', gunner: 'Gunner seat', hall: 'Trophy Hall' };
+  const ROOMS = { deck: 'Command Deck', control: 'Defence Control', gunner: 'Gunner seat', hall: 'Trophy Hall', comms: 'Comms room' };
   const CONTROL_LOCK = 'Defence Control opens when the invaders strike back: clear Counterattack stage 1.';
   const CONTROL_INTRO = { icon: 'control', kicker: 'New room aboard', title: 'Defence Control', text: 'The station\'s war room. Its consoles run every defence you have built, the tactical table adds them up, and the threat board is where you launch a siege. Tap ORBIT\'s terminal for advice.' };
   const HALL_LOCK = 'The Trophy Hall is in the Habitat ring: it opens at Overhaul rank 2.';
   const HALL_INTRO = { icon: 'awards', kicker: 'New room aboard', title: 'Trophy Hall', text: 'The Habitat ring is turning again, and inside it a hall for everything you have beaten. Every boss you capture in the Counterattack hangs in a stasis cradle here, its record on the plaque, and the hologram keeps the hunting record of every sector boss you have faced.' };
+  const COMMS_LOCK = `The Comms room is up the Comms spire: it opens at Overhaul rank ${COMMS_RANK}.`;
+  const COMMS_INTRO = { icon: 'missions', kicker: 'New room aboard', title: 'Comms room', text: 'The Comms spire is back, and with it the radio room at the top. ORBIT listens on every frequency: each day the miners and trawlers post three bounties, one easy, one harder, one hard, sized to how you fly. Finish them for salvage, and all three in a day for a Blueprint. They are in Missions too.' };
   let outside = 'launch'; // the hangar tab the rooms lead back to
   let gunTier = 1, gunFrom = 'control'; // the siege in the gunner seat, and where leaving it goes
   function show(id, quiet) {
@@ -112,6 +116,10 @@ export function createHangar(hooks) {
     // The Trophy Hall opens with the Habitat ring.
     if (id === 'hall' && !hallOpen(G.state)) { if (!quiet) { playSfx('deny'); hooks.toast?.(HALL_LOCK, 'info'); } if (tab !== id) return; id = 'launch'; }
     if (id === 'hall' && !G.state.seen.hall) { G.state.seen.hall = true; setTimeout(() => hooks.menuIntro?.(HALL_INTRO), 150); }
+    // The Comms room opens with the spire; today's bounties are posted when you arrive.
+    if (id === 'comms' && !commsOpen(G.state)) { if (!quiet) { playSfx('deny'); hooks.toast?.(COMMS_LOCK, 'info'); } if (tab !== id) return; id = 'launch'; }
+    if (id === 'comms' && !G.state.seen.commsRoom) { G.state.seen.commsRoom = true; setTimeout(() => hooks.menuIntro?.(COMMS_INTRO), 150); }
+    if (id === 'comms' || id === 'missions') postBounties();
     // A menu the pilot has not earned yet stays shut (with a note on when it opens); a newly opened one explains itself once.
     if (menuState(id) === 'locked') { if (!quiet) { playSfx('deny'); hooks.toast?.(menuLockText(id), 'info'); } if (tab !== id) return; id = 'launch'; }
     if (menuState(id) === 'new') { menuSeen(id); setTimeout(() => hooks.menuIntro?.(MENU_BY_ID[id]), 150); }
@@ -128,7 +136,7 @@ export function createHangar(hooks) {
    *  on a list (Workshop upgrades) stay on the row under the finger; switching tabs starts at the top. */
   function render(top = false) {
     const y = $.body.scrollTop; clear($.body);
-    const view = { launch: launchView, missions: missionsView, workshop: workshopView, armory: armoryView, ships: shipsView, contracts: contractsView, records: recordsView, awards: awardsView, deck: () => roomView('deck'), control: () => roomView('control'), hall: () => roomView('hall'), gunner: () => gunnerView() }[tab]();
+    const view = { launch: launchView, missions: missionsView, workshop: workshopView, armory: armoryView, ships: shipsView, contracts: contractsView, records: recordsView, awards: awardsView, deck: () => roomView('deck'), control: () => roomView('control'), hall: () => roomView('hall'), comms: () => roomView('comms'), gunner: () => gunnerView() }[tab]();
     $.body.append(view); $.body.scrollTop = top ? 0 : y;
   }
 
@@ -387,7 +395,7 @@ export function createHangar(hooks) {
       }
     }
     return h('div.screen', h('div.screen-head', h('h2', 'Missions'), h('p', 'Counterattack, a fresh Daily Sortie every day, and Threat levels for when the sectors stop being scary.')),
-      counterPanel(), siegePanel(), daily, h('h3', 'Threat level'), threat);
+      bountyPanel(), counterPanel(), siegePanel(), daily, h('h3', 'Threat level'), threat);
   }
 
   async function shareDaily() {
@@ -395,6 +403,59 @@ export function createHangar(hooks) {
     if (r === 'copied') hooks.toast?.('Result copied. Paste it to a friend!'); else if (r === 'failed') hooks.toast?.('Could not share from this browser.');
   }
 
+  // ------------------------------------------------------------ daily bounties (the Comms room)
+  /** Post today's bounties if they are not up yet (paying any of yesterday's left unclaimed). */
+  function postBounties() {
+    const paid = refreshBounties(G.state); if (!paid) return; hooks.saveNow?.('bounties');
+    hooks.toast?.(`Yesterday's bounties paid: +${fmtInt(paid.salvage)} salvage` + (paid.bp ? ` · +${paid.bp} Blueprint${paid.bp > 1 ? 's' : ''}` : ''), 'good');
+  }
+  /** Today's bounties as rows: how hard, what, how far along, the pay, and collecting or rerolling. again: redraw. */
+  function bountyList(again) {
+    const st = G.state, bt = st.bounties || { list: [] };
+    return h('div.bn-list', bt.list.map((b, i) => { const p = bountyProgress(st, b), k = Math.min(1, p / b.goal);
+      return h('div.bn-row' + (b.claimed ? '.paid' : b.done ? '.done' : ''), h('div.bn-tier', [3, 2, 1].map((t) => h('i' + (t <= b.tier ? '.on' : '')))),
+        h('div.bn-main', h('b', bountyText(b)), h('div.bn-bar', h('i', { style: `width:${(k * 100).toFixed(1)}%` })), h('small', b.claimed ? 'Paid' : b.done ? 'Done: collect your pay' : `${fmtInt(p)} / ${fmtInt(b.goal)}`)),
+        h('div.bn-side', h('span.bn-pay', art('cur:salvage', 'cur-ico'), fmtInt(b.reward)),
+          b.done && !b.claimed ? h('button.btn.gold.small', { onclick: () => { const r = claimBounty(st, i); playSfx('loot'); hooks.toast?.(`+${fmtInt(r.salvage)} salvage` + (r.bp ? ` · all three done: +${r.bp} Blueprint${r.bp > 1 ? 's' : ''}!` : ''), 'good'); if (r.bp) hooks.celebrate?.('#6dffc8'); hooks.saveNow?.('bounty'); again(); } }, 'Collect')
+            : !b.done && !bt.rerolled ? h('button.btn.ghost.small', { onclick: () => { if (rerollBounty(st, i)) { playSfx('tab'); hooks.saveNow?.('bounty'); again(); } }, title: 'Swap it for another (once a day)' }, uiIcon('reroll')) : null)); }));
+  }
+  const bountyFoot = (bt) => h('div.bn-foot', h('span', `New bounties in ${untilNextPost()}`), h('b' + (bt.bonus ? '.got' : ''), bt.bonus ? `All three done · +${BOUNTY_BONUS_BP} Blueprint` : `All three: +${BOUNTY_BONUS_BP} Blueprint`));
+  function bountyPanel() {
+    const st = G.state; if ((st.prestige?.level || 0) < 1) return null;
+    if (!commsOpen(st)) return h('section.panel.ca-panel.bn-panel.locked', h('div.ca-head', h('div', h('div.kicker', 'Daily bounties'), h('h3', 'Comms spire offline')), uiIcon('lock')),
+      h('p', `Rebuild the Comms spire (Overhaul rank ${COMMS_RANK}) and ORBIT will pick up three bounties a day from the miners and trawlers, for salvage and Blueprints.`));
+    const bt = st.bounties || { list: [] };
+    return h('section.panel.ca-panel.bn-panel', h('div.ca-head', h('div', h('div.kicker', 'Daily bounties'), h('h3', 'Jobs on the radio'))),
+      bountyList(() => render()), bountyFoot(bt),
+      h('button.btn.ghost.wide.sg-room.bn-room', { onclick: () => show('comms') }, uiIcon('missions'), h('span', 'Enter the Comms room'), uiIcon('chevron')));
+  }
+  /** The bounty board in the Comms room, as a panel. */
+  function bountyBoard() {
+    const st = G.state, bt = st.bounties || { list: [] }, body = h('div');
+    const draw = () => { clear(body).append(bountyList(draw), bountyFoot(bt)); };
+    draw(); hooks.panel?.({ kicker: 'Comms room', title: 'Daily bounties', body: [h('p.sub-note', 'Posted each day by the miners and trawlers ORBIT listens to: one easy, one harder, one hard, sized to how you fly. Swap one you do not fancy, once a day.'), body] });
+  }
+  /** Tapping something in the Comms room: the radio (ORBIT's word on what the spire hears), the bounty board, the system
+   *  map, the window, or a door. */
+  let radioTalk = 0;
+  function commsExhibit(kind) {
+    const st = G.state;
+    if (kind === 'exit') { show(outside); return; }
+    if (kind === 'hall') { show('hall'); return; }
+    playSfx('tab');
+    if (kind === 'bounties') { bountyBoard(); return; }
+    if (kind === 'radio') {
+      const open = (st.bounties?.list || []).filter((b) => !b.done), ready = (st.bounties?.list || []).filter((b) => b.done && !b.claimed);
+      const lead = ready.length ? `${ready.length > 1 ? `${ready.length} bounties are` : 'A bounty is'} done and waiting to be paid, {n}. The board, on your left.` : open.length ? `${open.length} bount${open.length > 1 ? 'ies' : 'y'} still open today. The best pays ${fmtInt(Math.max(...open.map((b) => b.reward)))} salvage.` : 'Every bounty done today. The miners are talking about you, {n}.';
+      const lines = [lead, ...TRANSMISSIONS]; hooks.say?.(lines[radioTalk++ % lines.length]); return;
+    }
+    if (kind === 'window') { hooks.say?.('The dish is sweeping the belt, {n}. Anyone out there with a job, we will hear them.'); return; }
+    if (kind === 'log') {
+      const bt = st.bounties || {};
+      hooks.panel?.({ kicker: 'Comms room', title: 'Radio log', body: [h('div.deck-board', [['Bounties done', fmtInt(bt.done || 0)], ['Days all three', fmtInt(bt.days || 0)], ['Today', `${(bt.list || []).filter((b) => b.done).length}/3 done`], ['Next bounties', untilNextPost()]].map(([k, v]) => h('div.db-row', h('small', k), h('b', v)))),
+        h('p.sub-note', 'The map pings every sector you have reached. The further out you fly, the more the spire can hear.')] });
+    }
+  }
   // ------------------------------------------------------------ counterattack
   let counterHard = false;
   // The first Counterattack launch opens the briefing; launching from it marks it seen.
@@ -536,8 +597,8 @@ export function createHangar(hooks) {
   function roomView(id) {
     // The room itself is 3D (rendering/deck.js and control.js, drawn while G.room is set); this is the touch layer over it.
     const p = G.state.pilot, hint = h('div.d3-hint', 'Drag to look around · Tap the floor to walk · Tap anything to inspect');
-    const el = h('div.deck3d' + (id === 'control' ? '.control' : id === 'hall' ? '.hall' : ''), { 'aria-label': `${ROOMS[id]}. Drag to look around, tap the floor to walk, tap an exhibit to inspect it.` },
-      h('div.d3-top', h('div.d3-title', h('small', ROOMS[id]), h('b', id === 'deck' ? p.name || rankTitle(p.rank) : id === 'hall' ? `${caughtStages(G.state).length}/6 captured` : G.state.stationName || 'Station defence')), h('button.btn.ghost.small.d3-exit', { onclick: () => show(outside) }, uiIcon('back'), 'Exit')), hint);
+    const el = h('div.deck3d' + (id === 'control' ? '.control' : id === 'hall' ? '.hall' : id === 'comms' ? '.comms' : ''), { 'aria-label': `${ROOMS[id]}. Drag to look around, tap the floor to walk, tap an exhibit to inspect it.` },
+      h('div.d3-top', h('div.d3-title', h('small', ROOMS[id]), h('b', id === 'deck' ? p.name || rankTitle(p.rank) : id === 'hall' ? `${caughtStages(G.state).length}/6 captured` : id === 'comms' ? `${(G.state.bounties?.list || []).filter((b) => b.done).length}/3 bounties done` : G.state.stationName || 'Station defence')), h('button.btn.ghost.small.d3-exit', { onclick: () => show(outside) }, uiIcon('back'), 'Exit')), hint);
     let down = null;
     if (watch && id === 'deck') { el.append(watch.el); el.classList.add('watching'); }
     el.addEventListener('pointerdown', (e) => { if (e.target.closest('button, input') || watch) return; down = { id: e.pointerId, x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, t: performance.now(), moved: false }; try { el.setPointerCapture(e.pointerId); } catch { /* not every pointer can be captured */ } });
@@ -550,7 +611,7 @@ export function createHangar(hooks) {
     const up = (e) => {
       if (!down || e.pointerId !== down.id) return; const tap = !down.moved && performance.now() - down.t < 450; down = null; hint.classList.add('off');
       if (!tap) return; const r = G.renderer.canvas.getBoundingClientRect(), res = G.renderer.room?.pick(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-      if (res?.exhibit) ({ control: controlExhibit, hall: hallExhibit }[id] || exhibit)(res.exhibit); else if (res?.walk) playSfx('tab', 0.4);
+      if (res?.exhibit) ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit }[id] || exhibit)(res.exhibit); else if (res?.walk) playSfx('tab', 0.4);
     };
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', () => { down = null; });
     return el;
@@ -589,6 +650,7 @@ export function createHangar(hooks) {
     const st = G.state;
     if (kind === 'exit') { show(outside); return; }
     if (kind === 'deck') { show('deck'); return; }
+    if (kind === 'comms') { show('comms'); return; }
     playSfx('tab');
     if (kind === 'window') { hooks.say?.('The ring turns once every seven and a half minutes, {n}. Out there: our hub, and everything we have towed home.'); return; }
     const panel = (title, ...body) => hooks.panel?.({ kicker: 'Trophy Hall', title, body });
@@ -773,7 +835,7 @@ export function createHangar(hooks) {
   function badges() {
     const st = G.state, canBuy = WORKSHOP.some((u) => { const c = workshopNext(u.id); return c != null && st.salvage >= c; });
     const ship = SHIPS.some((s) => shipStatus(s.id) === 'buyable' && st.salvage >= s.cost);
-    const daily = (st.stats.sorties > 0 && !dailyToday().done) || (st.counter.unlocked && !Object.keys(st.counter.stars).length);
+    const daily = (st.stats.sorties > 0 && !dailyToday().done) || (st.counter.unlocked && !Object.keys(st.counter.stars).length) || bountyClaimable(st);
     setClass(navBtns.records, 'badged', !st.seen.records); setClass(navBtns.awards, 'badged', medalTotal().earned > (st.seen.medals || 0));
     setClass(navBtns.workshop, 'badged', canBuy); setClass(navBtns.ships, 'badged', ship); setClass(navBtns.missions, 'badged', daily);
     for (const [id] of TABS) { const m = menuState(id); setClass(navBtns[id], 'locked', m === 'locked'); setClass(navBtns[id], 'fresh', m === 'new'); if (m === 'locked') setClass(navBtns[id], 'badged', false); }
@@ -838,7 +900,8 @@ export function createHangar(hooks) {
       h('div.sc-actions', h('button.btn.ghost', { onclick: () => hooks.nameStation?.() }, st.stationName ? 'Rename' : 'Name it'),
         deck ? h('button.btn.primary', { onclick: () => { hooks.closeOverlays?.(); show('deck'); } }, control ? 'Command Deck' : 'Board the Command Deck') : h('button.btn.ghost', { onclick: () => { hooks.closeOverlays?.(); show('workshop'); } }, 'Workshop'),
         control ? h('button.btn.gold.sc-control', { onclick: () => { hooks.closeOverlays?.(); show('control'); } }, 'Defence Control') : null,
-        hallOpen(st) ? h('button.btn.ghost.sc-hall', { onclick: () => { hooks.closeOverlays?.(); show('hall'); } }, 'Trophy Hall') : null)] });
+        hallOpen(st) ? h('button.btn.ghost.sc-hall', { onclick: () => { hooks.closeOverlays?.(); show('hall'); } }, 'Trophy Hall') : null,
+        commsOpen(st) ? h('button.btn.ghost.sc-comms', { onclick: () => { hooks.closeOverlays?.(); show('comms'); } }, 'Comms room') : null)] });
   }
 
   // W/A/S/D or the arrows walk the room aboard that is open.
@@ -859,5 +922,5 @@ export function createHangar(hooks) {
   bus.on('contract', () => { if (G.mode === 'hangar') render(); });
   bus.on('medal', () => { if (G.mode === 'hangar' && tab === 'awards') { G.state.seen.medals = medalTotal().earned; render(); } });
   layoutNav();
-  return { el, top, nav: $.nav, show, render, update, siege: (n) => launchSiege(n), tap: (kind) => ({ control: controlExhibit, hall: hallExhibit }[G.room] || exhibit)(kind), get tab() { return tab; } };
+  return { el, top, nav: $.nav, show, render, update, siege: (n) => launchSiege(n), tap: (kind) => ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit }[G.room] || exhibit)(kind), get tab() { return tab; } };
 }

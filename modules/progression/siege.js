@@ -6,6 +6,7 @@
 import { G, count, maxStat } from '@last-orbit/core/game.js';
 import { TIER_BY_N, SIEGE_STARS, SIEGE_BLUEPRINTS, SIEGE_CORES_PER_STAR, SYSTEM_BY_ID, siegePay, siegeSystems } from '@last-orbit/data/siege.js';
 import { checkContracts, checkAchievements } from '@last-orbit/progression/meta.js';
+import { checkBounties } from '@last-orbit/progression/bounties.js';
 
 /** How long a sortie must last for the crews to finish their repairs while the pilot is out (seconds). */
 export const PATCH_TIME = 60;
@@ -35,7 +36,7 @@ export function settleSiege(result, pick = Math.random) {
     count('siegeLosses');
     Object.assign(out, { stars: 0, broke, cost: sg.damage?.cost || 0 });
   }
-  checkContracts(); checkAchievements();
+  checkContracts(); checkAchievements(); out.bounties = checkBounties(st);
   return out;
 }
 

@@ -546,6 +546,34 @@ assert.throws(() => parseSave('{"run":{},"cur":{}}'), /Not a Last Orbit v2 save/
   launch(); const e = spawnBoss(G.world, 'bastion'); killEnemy(G.world, e, null); assert.equal(G.state.stats.bossBy.bastion, 1, 'Each boss kill is tallied by boss');
   endSortie('abandoned'); }
 
+// ---- v2.15: daily bounties (the Comms room) ----
+{ const B = await import('@last-orbit/progression/bounties.js'), D = await import('@last-orbit/data/bounties.js');
+  fresh(); G.state.stats.sorties = 20; G.state.stats.kills = 6000; G.state.stats.bestWave = 30; G.state.history = [800, 1000, 1200, 900].map((salvage) => ({ salvage }));
+  assert.equal(B.refreshBounties(G.state, '2030-01-01'), null); assert.equal(G.state.bounties.list.length, 0, 'No bounties before the Comms spire is back');
+  G.state.prestige.level = D.COMMS_RANK; B.refreshBounties(G.state, '2030-01-01'); const L = G.state.bounties.list;
+  assert.equal(L.length, 3); assert.deepEqual(L.map((b) => b.tier), [1, 2, 3], 'One easy, one harder, one hard');
+  assert.ok(L.every((b) => b.goal > 0 && b.reward > 0 && !b.done), 'Each has a goal and pay, and starts open'); assert.ok(L[2].reward > L[0].reward, 'Harder pays more');
+  assert.equal(B.refreshBounties(G.state, '2030-01-01'), null, 'The same day keeps the same three'); assert.equal(G.state.bounties.list, L);
+  // a job sized to the pilot, counted from when it was posted
+  const kills = B.makeBounty(G.state, D.BOUNTY_BY_ID.kills); assert.equal(kills.goal, 450, 'Kills: one and a half sorties of the pilot\'s average'); assert.equal(B.bountyProgress(G.state, kills), 0);
+  G.state.stats.kills += 200; assert.equal(B.bountyProgress(G.state, kills), 200);
+  const reach = B.makeBounty(G.state, D.BOUNTY_BY_ID.reach); assert.equal(reach.goal, 26);
+  // finish all three (whatever they are), collect, and the day's Blueprint
+  G.state.bounties.list = [B.makeBounty(G.state, D.BOUNTY_BY_ID.kills), B.makeBounty(G.state, D.BOUNTY_BY_ID.bosses), reach];
+  assert.equal(B.rerollBounty(G.state, 1), true, 'One swap a day'); assert.notEqual(G.state.bounties.list[1].id, 'bosses'); assert.equal(B.rerollBounty(G.state, 0), false, 'and only one');
+  const [a, b] = G.state.bounties.list, stat = (x) => D.BOUNTY_BY_ID[x.id].stat; G.state.stats[stat(a)] = (G.state.stats[stat(a)] || 0) + a.goal;
+  if (D.BOUNTY_BY_ID[b.id].best) b.best = b.goal; else G.state.stats[stat(b)] = (G.state.stats[stat(b)] || 0) + b.goal;
+  let done = B.checkBounties(G.state, { wave: 25, ship: 'vanguard' }); assert.equal(done.length, 2, 'Two done'); assert.equal(reach.best, 25);
+  assert.equal(B.bountyClaimable(G.state), true); const s0 = G.state.salvage, bp0 = G.state.prestige.bp;
+  assert.equal(B.claimBounty(G.state, 0).salvage, a.reward); assert.equal(G.state.salvage, s0 + a.reward); assert.equal(B.claimBounty(G.state, 0).salvage, 0, 'Paid once');
+  done = B.checkBounties(G.state, { wave: 27, ship: 'vanguard' }); assert.deepEqual(done, [reach], 'A sortie deep enough finishes the reach job');
+  B.claimBounty(G.state, 2); assert.equal(G.state.prestige.bp, bp0, 'No bonus until all three are paid'); const r = B.claimBounty(G.state, 1); assert.equal(r.bp, D.BOUNTY_BONUS_BP, 'All three: the Blueprint'); assert.equal(G.state.bounties.days, 1);
+  // a new day pays anything done but not collected, and posts three new
+  G.state.stats.kills += 99999; const k2 = B.makeBounty(G.state, D.BOUNTY_BY_ID.kills); G.state.bounties.list = [k2]; G.state.stats.kills += k2.goal; B.checkBounties(G.state); const s1 = G.state.salvage;
+  const paid = B.refreshBounties(G.state, '2030-01-02'); assert.equal(paid.salvage, k2.reward, 'Nothing earned is lost overnight'); assert.equal(G.state.salvage, s1 + k2.reward); assert.equal(G.state.bounties.list.length, 3); assert.equal(G.state.bounties.day, '2030-01-02');
+  // and a sortie's end reports what it finished
+  G.state.bounties.list = [B.makeBounty(G.state, D.BOUNTY_BY_ID.waves)]; launch(); G.state.stats.wavesCleared = (G.state.stats.wavesCleared || 0) + 9999; const sum = endSortie('abandoned'); assert.ok(sum.bounties.length === 1, 'The debrief lists the bounties a sortie finished'); }
+
 // ---- v2.11: save backup codes ----
 { const S = await import('@last-orbit/save/save.js'); fresh(); G.state.pilot.name = 'Adam ✦'; G.state.salvage = 12345; G.state.stats.bestWave = 74; G.state.prestige.level = 3;
   const code = S.exportSave(); assert.ok(code.startsWith(S.BACKUP_TAG), 'A backup code is tagged so it can be recognised');

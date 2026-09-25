@@ -21,6 +21,8 @@ import { LINES } from '@last-orbit/ui/comms.js';
 import { powerRating, refreshMenus } from '@last-orbit/progression/meta.js';
 import { kitFrom } from '@last-orbit/data/turret.js';
 import { SIEGE_TIERS } from '@last-orbit/data/siege.js';
+import { refreshBounties, checkBounties, claimBounty } from '@last-orbit/progression/bounties.js';
+import { BOUNTY_BY_ID } from '@last-orbit/data/bounties.js';
 
 export async function initDebug(app, { hooks, ui } = {}) {
   // &st=<px>: pretend to have a notch (the top safe-area inset), to check layouts the way a phone shows them
@@ -141,15 +143,29 @@ function runScene(scene, hooks, ui) {
   // hall[:captures[:hard[:view]]]: the Trophy Hall at Overhaul rank 2, with that many Counterattack bosses captured (default
   // 4), that many hard stages cleared, and the main-game bosses met. view: left, right, front (the window), back (the doors),
   // hunt (the hologram), plaque (close on a plaque), or tap:<exhibit> to open one's panel.
-  if (name === 'hall') { const caps = arg == null ? 4 : +arg, hard = +arg2 || 0; st.pilot.name = 'Adam'; st.seen.callsign = true; st.seen.hall = true; st.prestige.level = 2; st.stationName = 'Halcyon';
+  if (name === 'hall') { const caps = arg == null ? 4 : +arg, hard = +arg2 || 0; st.pilot.name = 'Adam'; st.seen.callsign = true; st.seen.hall = true; st.prestige.level = arg3 === 'spire' ? 3 : 2; st.stationName = 'Halcyon';
     for (const l of LINES) st.seen.comms[l.id] = 1; st.seen.commsInit = true;
     WORKSHOP.forEach((u, i) => { st.stationPeak[u.id] = u.max; st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.7 - (i % 5) * 0.12))); });
     st.counter.unlocked = true; for (let k = 1; k <= caps; k++) { st.counter.stars[k] = 1 + (k % 3); st.counter.best[k] = 18000 + k * 7400; if (k <= hard) st.counter.hard[k] = 1 + (k % 2); }
     for (const [i, b] of ['broodcarrier', 'bastion', 'wyrm', 'dreadnought', 'oracle'].entries()) { st.seen.bosses[b] = 1; if (i < 4) st.stats.bossBy[b] = 6 - i; } st.stats.sectorsCleared = 4; st.intel.oracle = 3; st.intel.dreadnought = 1;
     recalc(); hooks.toHangar('hall');
-    const view = { left: [0.2, -2.9, 1.25, -0.08], right: [-0.2, -2.9, -1.25, -0.08], front: [0, -5.2, 0, 0.12], back: [0, -6.8, Math.PI, 0.06], hunt: [0, -0.6, Math.PI, 0.04], plaque: [-1.55, -1.5, 1.57, -0.55] }[arg3];
+    const view = { left: [0.2, -2.9, 1.25, -0.08], right: [-0.2, -2.9, -1.25, -0.08], front: [0, -5.2, 0, 0.12], back: [0, -6.8, Math.PI, 0.06], hunt: [0, -0.6, Math.PI, 0.04], spire: [-1.6, 1.4, -1.5708, 0.05], plaque: [-1.55, -1.5, 1.57, -0.55] }[arg3];
     if (view) { let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 60) setTimeout(place, 100); return; } r.pos.set(view[0], 0, view[1]); r.yaw = view[2]; r.pitch = view[3]; }; place(); } /* once the room is built */
     if (arg3 === 'tap') setTimeout(() => ui.tap?.(arg4 || 'cradle1'), 1500);
+    return; }
+  // spire[:view[:state]]: the Comms room at Overhaul rank 3 with today's bounties posted: the first done, the second half
+  // way, the third just started (state 'paid': the first collected; 'all': all three done and collected). view: board,
+  // map, radio, window, back, or tap:<exhibit>. Also missions: the Missions tab with the same bounties.
+  if (name === 'spire') { st.pilot.name = 'Adam'; st.seen.callsign = true; st.seen.commsRoom = true; st.seen.hall = true; st.prestige.level = 3; st.stationName = 'Halcyon'; st.counter.unlocked = true; st.counter.stars[1] = 2;
+    for (const l of LINES) st.seen.comms[l.id] = 1; st.seen.commsInit = true; st.stats.sorties = 30; st.stats.kills = 9000; st.stats.wavesCleared = 700; st.stats.dodges = 900; st.stats.eliteKills = 120; st.stats.bossKills = 40; st.stats.flawless = 160;
+    st.history = [900, 1200, 1100, 1400, 1300].map((salvage) => ({ salvage, score: 1, wave: 30 })); st.bounties = { day: '', list: [], rerolled: false, bonus: false, done: 11, days: 3 };
+    WORKSHOP.forEach((u, i) => { st.stationPeak[u.id] = u.max; st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.7 - (i % 5) * 0.12))); });
+    refreshBounties(st); const L = st.bounties.list, push = (b, k) => { const d = BOUNTY_BY_ID[b.id]; if (d.best) b.best = Math.round(b.goal * k); else st.stats[d.stat] = (st.stats[d.stat] || 0) + (k >= 1 ? b.goal : Math.floor(b.goal * k)); };
+    const all = arg2 === 'all'; L.forEach((b, i) => push(b, all ? 1 : [1, 0.5, 0.12][i])); checkBounties(st); if (arg2 === 'paid' || all) L.forEach((b, i) => { if (all || i === 0) claimBounty(st, i); });
+    recalc(); hooks.toHangar(arg === 'missions' ? 'missions' : 'comms');
+    const view = { board: [1.6, -1.9, 1.5708, 0.02], map: [-1.6, -1.9, -1.5708, 0.02], radio: [0, -1.0, 0, -0.1], window: [0, -1.2, 0, 0.16], back: [0, -3, Math.PI, 0.04] }[arg];
+    if (view) { let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 60) setTimeout(place, 100); return; } r.pos.set(view[0], 0, view[1]); r.yaw = view[2]; r.pitch = view[3]; }; place(); }
+    if (arg === 'tap') setTimeout(() => ui.tap?.(arg2 || 'bounties'), 1500);
     return; }
   // sgdamage[:tab]: a station left damaged by a lost siege (three systems out), seen from a tab or room (default Defence Control)
   if (name === 'sgdamage') { st.pilot.name = 'Adam'; st.seen.callsign = true; st.counter.unlocked = true; st.counter.stars[1] = 2; st.counter.stars[2] = 1; st.seen.control = true; st.seen.gunnerIntro = true; st.stationName = 'Halcyon';

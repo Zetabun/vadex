@@ -16,6 +16,7 @@ import { DeckRoom } from '@last-orbit/rendering/deck.js';
 import { ControlRoom } from '@last-orbit/rendering/control.js';
 import { GunnerScene } from '@last-orbit/rendering/gunner.js';
 import { HallRoom } from '@last-orbit/rendering/hall.js';
+import { CommsRoom } from '@last-orbit/rendering/commsroom.js';
 import { IntroScene } from '@last-orbit/rendering/intro.js';
 import { RebuildScene } from '@last-orbit/rendering/rebuild.js';
 import { Banner } from '@last-orbit/rendering/banner.js';
@@ -182,8 +183,8 @@ export class Renderer {
   }
   addText(x, y, v, color, size) { if (v == null || v === 'null' || v === 'undefined') return; const T = this.texts; if (T.length >= 70) { if (!size) return; T.shift(); } T.push({ x: x + (Math.random() - 0.5) * (size ? 0 : 4), y, s: v instanceof Big ? (size === 2 ? '+' : '') + fmt(v) : String(v), c: css(color ?? 0xffffff), size, t: 0, life: size ? 1.5 : 0.7 }); }
 
-  /** The room aboard that is open (G.room: 'deck', 'control', 'hall' or 'gunner'), built the first time it is visited. */
-  get room() { if (G.mode !== 'hangar' || !G.room) return null; const R = (this.rooms ||= {}); return (R[G.room] ||= G.room === 'control' ? new ControlRoom() : G.room === 'gunner' ? new GunnerScene() : G.room === 'hall' ? new HallRoom() : new DeckRoom()); }
+  /** The room aboard that is open (G.room: 'deck', 'control', 'hall', 'comms' or 'gunner'), built the first time it is visited. */
+  get room() { if (G.mode !== 'hangar' || !G.room) return null; const R = (this.rooms ||= {}); return (R[G.room] ||= G.room === 'control' ? new ControlRoom() : G.room === 'gunner' ? new GunnerScene() : G.room === 'hall' ? new HallRoom() : G.room === 'comms' ? new CommsRoom() : new DeckRoom()); }
 
   // ------------------------------------------------------------------ frame
   render(dt, w, speedMul = 1) {

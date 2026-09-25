@@ -14,6 +14,7 @@ import { ANOMALY_BY_ID, anomalyCounts, anomalyPay, anomalyName } from '@last-orb
 import { STATION_CORE, TROPHY_BY_ID, caughtStages } from '@last-orbit/data/station.js';
 import { TIER_BY_N, SIEGE_STARS, SIEGE_BLUEPRINTS, SYSTEM_BY_ID, listNames } from '@last-orbit/data/siege.js';
 import { TURRET_MOD } from '@last-orbit/data/turret.js';
+import { bountyText } from '@last-orbit/progression/bounties.js';
 import { stationBlueprint } from '@last-orbit/ui/stationArt.js';
 import { SYNERGIES, synergyOf, synergyCount, activeTiers } from '@last-orbit/data/synergies.js';
 import { ROUTE_BY_ID } from '@last-orbit/data/routes.js';
@@ -414,6 +415,7 @@ export function createOverlays(layer, hooks) {
       h('div.score-row', h('small', 'Score'), h('b', fmtInt(s.score || 0)), s.place ? h('span', `#${s.place} of your top 10`) : s.prevScore ? h('span', `Best ${fmtInt(s.prevScore)}`) : null),
       h('div.stat-grid', stat('Level', s.level), stat('Kills', fmtInt(s.kills)), stat('Bosses', s.bosses), stat('Time', fmtTime(s.time))),
       s.daily ? h('div.earned.daily-earned', h('small', `Daily bonus · ${s.daily.streak}-day streak`), h('div', art('cur:salvage', 'cur-ico'), '+' + fmtInt(s.daily.bonus))) : null,
+      ...(s.bounties || []).map((b) => h('div.pilot-row.bounty-row', h('span', `Bounty done: ${bountyText(b)}`), h('b', `+${fmtInt(b.reward)} · collect in Missions`))),
       s.repaired?.length ? h('div.pilot-row.sg-fixed', h('span', 'Station repaired while you were out'), h('b', `${s.repaired.length} system${s.repaired.length > 1 ? 's' : ''} back online`)) : null,
       s.repaired === null ? h('div.pilot-row.sg-short', h('span', 'Too short for the repair crews'), h('b', 'Stay out a minute or more')) : null,
       s.mastery ? h('div.pilot-row.mastery-row', h('span', `${SHIP_BY_ID[s.ship].name} mastery ${s.mastery.to}` + (s.mastery.to > s.mastery.from ? ' · level up!' : '')), h('b', '+' + s.mastery.gained)) : null,
@@ -467,6 +469,7 @@ export function createOverlays(layer, hooks) {
         h('div.earned', h('small', won && r.first ? 'Salvage · doubled' : 'Salvage'), h('div', art('cur:salvage', 'cur-ico'), salvageEl))),
       h('div.score-row', h('small', 'Score'), h('b', fmtInt(r.score)), h('span', `${fmtInt(r.kills)} invaders downed`)),
       m ? h('div.unlocks.medals.sg-gun', h('div.kicker', 'New for your guns, for good'), h('div.unlock', art(m.art, 'build-icon'), h('b', m.name), h('small', m.desc))) : null,
+      ...(r.bounties || []).map((b) => h('div.pilot-row.bounty-row', h('span', `Bounty done: ${bountyText(b)}`), h('b', `+${fmtInt(b.reward)} · collect in Missions`))),
       r.repaired?.length ? h('div.pilot-row.sg-fixed', h('span', 'Repairs done'), h('b', `${r.repaired.length} system${r.repaired.length > 1 ? 's' : ''} back online`)) : null,
       !won ? h('div.sg-broke', h('div.kicker', 'Damage report'),
         broke.length ? h('div.sg-defs', broke.map((id) => h('div.sg-def.s0.dmg', h('i.sg-dot'), h('div', h('b', sys(id)?.name || id), h('small', 'Offline until repaired'))))) : null,

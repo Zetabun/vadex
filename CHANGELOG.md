@@ -8,6 +8,12 @@
   - **The hunting record:** a hologram between the doors turns through every main-game sector boss you've faced. Tap it for how each hunt has gone: which you've beaten and how many times, and which have beaten you (and so taught you their moves).
   - **The window** looks back at your station's hub, with the bosses you've towed home held in its tractor fields. The view turns slowly as the ring spins.
 - Boss kills are now counted boss by boss, for the hunting record.
+- **The Comms room and daily bounties (new room aboard):** the radio room at the top of the Comms spire. It opens with the spire, at Overhaul rank 3. Go up from the Trophy Hall (a new door on its right wall), or from the station card or Missions.
+  - **Three bounties a day,** picked up over the radio from the miners and trawlers: one easy, one harder, one hard. Examples: "Down 450 invaders", "Hit bosses' weak points 10 times", "Reach wave 26 in one sortie", "Reach wave 16 flying the Striker", "Hold a Station Siege".
+  - **Sized to how you fly:** each goal is based on your own average per sortie, and each pays salvage based on what one of your sorties earns. Harder bounties pay more.
+  - **All three done in a day pays a Blueprint.** You can swap one bounty you don't fancy, once a day.
+  - **Collecting:** tap Collect in Missions (the new panel at the top) or at the bounty board in the Comms room. The debrief tells you when a sortie or a siege finishes one, and the Missions tab lights up while pay is waiting. Anything done but not collected is paid when the next day's bounties arrive, so nothing is lost.
+  - **In the room:** the radio console carries a live waveform and ORBIT's listening post; tap it for what the spire is picking up. The bounty board is on one wall and a system map of the sectors you've reached on the other. Through the window, the spire's mast with its beacon, a big dish sweeping the sky and sending out rings, and the Earth below.
 
 ## v2.14.0 — 2026-09-25
 

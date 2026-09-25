@@ -32,6 +32,7 @@ export function newState() {
     stationName: '', // what the pilot calls the station they are rebuilding
     stationPeak: {}, // the highest level each Workshop upgrade has ever reached: the station never un-builds a module
     counter: { unlocked: false, stars: {}, hard: {}, best: {}, cores: 0, tech: {}, checkpoints: {} }, // checkpoints: '6' / '6h' → pilot level saved past the mini-boss
+    bounties: { day: '', list: [], rerolled: false, bonus: false, done: 0, days: 0 }, // daily bounties (progression/bounties.js): today's three, and how many ever done
     siege: { stars: {}, best: {}, won: {}, wins: 0, kills: 0, damage: null }, // Station Siege: stars and best score per tier, tiers won, invaders downed, and the damage a lost one left ({ ids, tier, cost } until repaired)
     // Overhaul (prestige): rank, unspent Blueprints, blueprint levels, escorts flown, deepest wave since the last Overhaul.
     prestige: { level: 0, bp: 0, bpEarned: 0, tech: {}, escorts: [], cycleBest: 0 },
@@ -44,7 +45,7 @@ export function newState() {
     stats: { kills: 0, bossKills: 0, bossBy: {}, sectorBosses: 0, bestWave: 0, bestSector: 1, sectorsCleared: 0, sorties: 0, maxLevel: 1, flawless: 0, maxRank: 1, maxDrones: 0, maxWeapons: 1, bestSalvage: 0, totalSalvage: 0, deaths: 0, cards: 0, threatClear: 0, dailies: 0, bestStreak: 0, maxMastery: 1, shipsOwned: 1,
       bestScore: 0, bestKills: 0, longestRun: 0, perfectSectors: 0, flawlessBosses: 0, soloWave: 0, maxedWeapons: 0, maxRelics: 0, fusions: 0, signatures: 0, counterStars: 0, counterBest: 0, counterHard: 0, overhauls: 0 },
     // menus: hangar menu id → 'new' (opened, explainer not yet shown) or true (seen); see data/menus.js
-    seen: { enemies: {}, bosses: {}, elites: {}, medals: 0, records: true, menus: {}, menusInit: false, callsign: false, stationDone: null, intro: false, comms: {}, commsInit: false, gunnerIntro: false, hall: false }, // stationDone: Overhaul rank the finished station was last celebrated at
+    seen: { enemies: {}, bosses: {}, elites: {}, medals: 0, records: true, menus: {}, menusInit: false, callsign: false, stationDone: null, intro: false, comms: {}, commsInit: false, gunnerIntro: false, hall: false, commsRoom: false }, // stationDone: Overhaul rank the finished station was last celebrated at
     // Records: the local top 10 sorties by score and each ship's best. Medals: achievement id → tiers earned.
     records: { top: [], ships: {} },
     medals: {},

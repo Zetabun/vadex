@@ -3,14 +3,15 @@
 // boss you have captured (its stage cleared) hangs in its cradle's field, turning slowly in its own colour, its record on
 // the plaque in front; one still at large shows as a flickering red outline. Between the doors a hologram cycles through
 // the main-game bosses you have faced (the hunting record). The window looks back at the station's hub with the captured
-// bosses held in its tractor fields, the view turning slowly as the ring spins. Doors lead to the Command Deck and out
-// to the hangar. Tapping an exhibit names it (the UI shows the details).
+// bosses held in its tractor fields, the view turning slowly as the ring spins. Doors lead to the Command Deck, out to
+// the hangar, and (once the spire is back) up to the Comms room. Tapping an exhibit names it (the UI shows the details).
 import { Room, canvas, tex, text } from '@last-orbit/rendering/room.js';
 import { Station } from '@last-orbit/rendering/station.js';
 import { shapeGeometry } from '@last-orbit/rendering/geometry.js';
 import { BOSSES } from '@last-orbit/data/bosses.js';
 import { STAGES } from '@last-orbit/data/counter.js';
 import { trophyWon, HUNTED } from '@last-orbit/data/station.js';
+import { COMMS_RANK } from '@last-orbit/data/bounties.js';
 const T = () => window.THREE;
 
 // Room: x -4.4..4.4, z -10 (window) .. 3.4 (back wall, the doors), height 3.6.
@@ -98,6 +99,9 @@ export class HallRoom extends Room {
     const c = state.counter || {}, rec = (tbl) => STAGES.map((s) => tbl?.[s.n] || 0).join('');
     const sig = [STAGES.map((s) => (trophyWon(state, s.n) ? 1 : 0)).join(''), rec(c.stars), rec(c.hard), JSON.stringify(c.best || {}), HUNTED.map((b) => (state.seen?.bosses?.[b.id] ? 1 : 0)).join(''), state.prestige?.level || 0].join('|');
     if (sig === this.sig) return; this.sig = sig; const THREE = T();
+    // the lift up the Comms spire, on the right wall by the doors
+    if (this.spire) { this.scene.remove(this.spire); this.untag(this.spire); } this.spire = new THREE.Group(); this.scene.add(this.spire);
+    this.door(this.spire, W, 1.75, Math.PI / 2, 'COMMS SPIRE  ›', 'comms', { sealed: (state.prestige?.level || 0) < COMMS_RANK, sign: '#d8fff0', edge: 0x6dffc8 });
     for (let n = 1; n <= 6; n++) {
       const cr = this.cradles[n], stage = STAGES[n - 1], b = BOSSES[stage.boss] || {}, won = trophyWon(state, n), col = new THREE.Color(won ? b.color ?? 0x9fb0c8 : 0xff4d6a);
       if (cr.holder) cr.g.remove(cr.holder); const holder = (cr.holder = new THREE.Group()); holder.position.y = 1.72; cr.g.add(holder);
