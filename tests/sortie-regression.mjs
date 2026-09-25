@@ -495,4 +495,19 @@ assert.throws(() => parseSave('{"run":{},"cur":{}}'), /Not a Last Orbit v2 save/
   sum = endSortie('cleared'); assert.equal(sum.siege.stars, 3); assert.equal(G.state.prestige.bp - bp0, SIEGE_BLUEPRINTS); assert.equal(G.state.counter.cores - cores0, 3);
   launch({ siege: 1 }); G.state.run.siegeWon = true; G.state.run.siegeHull = 0.9; sum = endSortie('cleared'); assert.equal(sum.siege.bp, 0, 'Blueprints only on the first win'); assert.equal(sum.siege.cores, 0, 'and cores only for new stars'); }
 
+// ---- v2.10.1: sounds come back after the phone sleeps (a new audio context's clock starts again at zero) ----
+{ let clock = 500, oscs = 0; const node = () => ({ connect() {}, disconnect() {}, gain: { value: 0, setValueAtTime() {}, exponentialRampToValueAtTime() {}, linearRampToValueAtTime() {}, setTargetAtTime() {} } });
+  class FakeCtx { constructor() { this.currentTime = clock; this.state = 'running'; this.sampleRate = 8000; this.destination = {}; }
+    createGain() { return node(); } createDynamicsCompressor() { return { ...node(), threshold: {}, ratio: {} }; } createBuffer() { return { getChannelData: () => new Float32Array(8) }; }
+    createBiquadFilter() { return { ...node(), frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {}, value: 0 } }; } createBufferSource() { return { ...node(), playbackRate: {}, start() {} }; }
+    createOscillator() { oscs++; return { ...node(), frequency: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, start() {}, stop() {} }; } resume() { return Promise.resolve(); } close() { return Promise.resolve(); } }
+  globalThis.window ||= {}; const had = window.AudioContext; window.AudioContext = FakeCtx;
+  const A = await import('@last-orbit/audio/audio.js'); fresh();
+  A.initAudio(); A.playSfx('cannon'); assert.equal(oscs, 1, 'A gunshot plays');
+  A.suspendAudio(true); clock = 0.5; A.initAudio(); A.playSfx('cannon'); assert.equal(oscs, 2, 'and still plays on the fresh context after the phone slept');
+  A.suspendAudio(true); window.AudioContext = had; }
+
+// ---- v2.10.1: the opening tips play once ----
+{ fresh(); G.state.stats.sorties = 1; assert.ok(!G.state.seen.steerTip, 'A new pilot has not seen the steering tip'); }
+
 console.log('Sortie, cards, relics, contracts, workshop, ships, pickups, revive and save checks pass.');

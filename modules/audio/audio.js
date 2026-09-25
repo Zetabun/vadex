@@ -27,6 +27,9 @@ export function initAudio() {
   if (ctx) { resumeAudio(); return; }
   const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return;
   try { ctx = new AC(); } catch { return; }
+  // A new context's clock starts again at zero: forget when each sound last played on the old one, or its rate limit
+  // would hold it silent until the new clock caught up (every gun after the phone slept).
+  for (const k in last) delete last[k];
   master = ctx.createGain(); comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 6;
   sfxBus = ctx.createGain(); musicBus = ctx.createGain(); sfxBus.connect(master); musicBus.connect(master); master.connect(comp); comp.connect(ctx.destination);
   noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
@@ -50,7 +53,7 @@ if (typeof document !== 'undefined') for (const ev of ['pointerdown', 'touchend'
 
 export function playSfx(id, vol = 1, pitch = 1) {
   if (!ctx || ctx.state !== 'running') return; const d = S[id]; if (!d) return;
-  const now = ctx.currentTime; if (now - (last[id] || 0) < d[5] || voices >= MAX_VOICES) return; last[id] = now;
+  const now = ctx.currentTime, prev = last[id] || 0; if ((now - prev < d[5] && prev <= now) || voices >= MAX_VOICES) return; last[id] = now;
   const [type, f0, f1, dur, v, , nz, spread] = d, p = (1 + (Math.random() * 2 - 1) * spread) * pitch;
   const g = ctx.createGain(); g.gain.setValueAtTime(0.0001, now); g.gain.exponentialRampToValueAtTime(v * vol, now + 0.006); g.gain.exponentialRampToValueAtTime(0.0001, now + dur); g.connect(sfxBus);
   const o = ctx.createOscillator(); o.type = type; o.frequency.setValueAtTime(f0 * p, now); o.frequency.exponentialRampToValueAtTime(Math.max(10, f1 * p), now + dur); o.connect(g); o.start(now); o.stop(now + dur + 0.02);

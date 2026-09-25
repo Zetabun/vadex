@@ -104,9 +104,12 @@ export function createHud(hooks) {
     // that the ship flies up and down too, for the first few stages flown.
     const ca = !!w.counter, kind = ca ? 'ca' : 'main';
     if (kind !== hintKind) { hintKind = kind; setText($.hintB, ca ? 'Drag to fly anywhere' : 'Hold a side or drag to steer'); setText($.hintS, ca ? 'Up and down too. Fly higher to hit harder; climb or dive out of beams and lungers.' : 'Double-tap a side to dash through fire. Your guns shoot on their own; tap an enemy to focus it.'); }
-    let lesson = ca ? (G.state.stats.counterRuns || 0) <= 3 && hintT < 9 : G.state.stats.sorties <= 2 && run.wave <= 2 && hintT < 14;
-    // The dodge lesson: the first two sorties after it arrives, once the steering tip (if any) has had its turn.
-    const seen = G.state.seen, dodgeOn = (seen.dodgeTips || 0) < 2 && hintT > (lesson ? 15 : 3) && hintT < (lesson ? 24 : 12);
+    // The steering tip plays once, in the pilot's first sortie (decided as the sortie starts, so it runs its full time).
+    const seen = G.state.seen; if ($.steerThis == null) $.steerThis = !seen.steerTip && (G.state.stats.sorties || 0) <= 1;
+    let lesson = ca ? (G.state.stats.counterRuns || 0) <= 3 && hintT < 9 : $.steerThis && run.wave <= 2 && hintT < 14;
+    if (lesson && !ca && hintT > 5) seen.steerTip = true;
+    // The dodge lesson: once, after the steering tip (if any) has had its turn.
+    const dodgeOn = (seen.dodgeTips || 0) < 1 && hintT > (lesson ? 15 : 3) && hintT < (lesson ? 24 : 12);
     if (dodgeOn && !lesson) { if (hintKind !== 'dodge') { hintKind = 'dodge'; setText($.hintB, 'Dodge'); setText($.hintS, 'Double-tap a side to dash that way. You cannot be hit mid-dash. The » chip by your hull bar lights up when it is ready.'); } lesson = true; if (!$.dodgeCounted) { $.dodgeCounted = true; seen.dodgeTips = (seen.dodgeTips || 0) + 1; } }
     hintT += dt; setClass($.hint, 'on', lesson && w.wave.state !== 'dead' && !hooks.blocking?.());
     // dash readiness
@@ -114,7 +117,7 @@ export function createHud(hooks) {
     const deg = Math.round(dk * 90) * 4; if (deg !== $.dashDeg) { $.dashDeg = deg; $.dashRing.style.setProperty('--p', deg + 'deg'); } setClass($.dash, 'ready', dk >= 1 && p.alive);
     const th = p.alive && w.wave.state !== 'dead' && !hooks.blocking?.() ? Math.round(Math.min(1, Math.abs(p.vx || 0) / 70) * 20) / 20 : 0; if (th !== $.thrust) { $.thrust = th; setThrust(th); }
   }
-  function reset() { pipSig = loadSig = abilSig = hintKind = ''; hintT = 0; $.dodgeCounted = false; $.thrust = 0; $.dashDeg = -1; setThrust(0); for (const k in abilBtns) delete abilBtns[k]; }
+  function reset() { pipSig = loadSig = abilSig = hintKind = ''; hintT = 0; $.dodgeCounted = false; $.steerThis = null; $.thrust = 0; $.dashDeg = -1; setThrust(0); for (const k in abilBtns) delete abilBtns[k]; }
   /** The loadout icon under a screen point (a tap there explains the loadout), padded to be easy to hit. */
   function loadoutAt(x, y) {
     for (const c of $.loadout.children) { const r = c.getBoundingClientRect(); if (x >= r.left - 4 && x <= r.right + 4 && y >= r.top - 8 && y <= r.bottom + 8) return c.dataset.key || null; }

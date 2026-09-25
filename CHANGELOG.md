@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.10.1 — 2026-09-25
+
+- **Fix: sound after the phone sleeps.** Waking the phone rebuilt the sound engine, but its clock started again at zero while each sound's repeat limit still remembered the old clock, so anything played before sleep (gunfire above all) stayed silent until the new clock caught up. The limits now reset with the engine.
+- **Fix: the flight tips play once.** The steering tip now shows in your first sortie only, and the dodge tip once after it, instead of each playing across two sorties.
+
 ## v2.10.0 — 2026-09-25
 
 - **Counterattack builds the station too:** the boss of each Counterattack stage is towed home on your first clear (either difficulty) and held off the station in a glowing tractor field: the Broodcarrier, Scrapmonger Vorr, the Red Shroud, Iron Admiral Kross, the Hive Heart and the Unmaker. The debrief says so, the station glows where it arrived, the blueprint marks it, and ORBIT has a line for each.
