@@ -535,7 +535,7 @@ export function createHangar(hooks) {
     const hidden = (p) => (pages[p] || []).some((id) => navBtns[id].classList.contains('badged') || navBtns[id].classList.contains('fresh'));
     setClass($.next, 'badged', hidden(page + 1)); setClass($.prev, 'badged', page > 0 && hidden(page - 1));
   }
-  function update() { setText($.salvage, fmtInt(G.state.salvage)); badges(); pilotId(); stationDone(); stationTag(); }
+  function update() { setText($.salvage, fmtInt(G.state.salvage)); badges(); pilotId(); stationDone(); G.hangarTop = top.getBoundingClientRect().bottom; stationTag(); }
   /** Keep the label's text current, and its tap target over wherever the renderer drew it. */
   /** A buy that changed the station says so: a module rebuilt for the first time, lit once maxed, alien hardware fitted. */
   function stationNote(id, was) {
@@ -563,9 +563,11 @@ export function createHangar(hooks) {
     const sig = (st.stationName || '') + '|' + c._pct + '|' + deck;
     if (c._sig !== sig) { c._sig = sig; setText($.coName, st.stationName || 'Unnamed'); setClass(c, 'unnamed', !st.stationName); setText($.coSub, `${c._pct}% rebuilt` + (deck ? ' · Command Deck ›' : '')); }
     const p = G.renderer?.station?.hubNdc, box = el.getBoundingClientRect(); if (!p || !box.width) return;
-    const hx = (p.x + 1) / 2 * box.width, hy = (1 - p.y) / 2 * box.height;
-    c.style.top = Math.round(hy - c.offsetHeight / 2) + 'px';
-    const ax = c.offsetLeft + c.offsetWidth + 6, ay = Math.round(hy);
+    const hx = (p.x + 1) / 2 * box.width, hy = (1 - p.y) / 2 * box.height, ch = c.offsetHeight, cTop = Math.max((G.hangarTop || 0) + 6, hy - ch / 2);
+    c.style.top = Math.round(cTop) + 'px';
+    // the tap target over the station follows it (it stands 27 units tall, 16 above the hub, 46 wide)
+    const u = (G.renderer.station.screenPx || 200) / 46, hs = $.stationHot.style; hs.left = Math.round(hx - 23 * u) + 'px'; hs.top = Math.round(hy - 16 * u) + 'px'; hs.width = Math.round(46 * u) + 'px'; hs.height = Math.round(27 * u) + 'px';
+    const ax = c.offsetLeft + c.offsetWidth + 6, ay = Math.round(Math.min(Math.max(hy, cTop + 10), cTop + ch - 10));
     $.coLine.setAttribute('x1', ax); $.coLine.setAttribute('y1', ay); $.coLine.setAttribute('x2', Math.round(hx - 7)); $.coLine.setAttribute('y2', Math.round(hy)); $.coDot.setAttribute('cx', Math.round(hx)); $.coDot.setAttribute('cy', Math.round(hy));
   }
   /** Light the rebuild bar's segments: each part's share across its own group, the one still filling pulsing. */

@@ -210,15 +210,18 @@ export class Station {
     s.position.set(x, y, z); s.lookAt(x - Math.sin(a) * R, y + Math.cos(a * 2) * 4.4 * 0.35, z + Math.cos(a) * R * 0.6); s.rotateX(Math.PI / 2);
     this.flame.scale.y = 0.4 + 0.2 * Math.random();
   }
-  /** Place it in the sky: a fixed spot on screen (upper right), a fixed size, at a distance behind everything. */
-  update(dt, camera, show, night, w, h) {
+  /** Place it in the sky, upper right, at a distance behind everything: in the room between the hangar's header and the
+   *  ship (room.top, room.low: screen pixels), as big as fits there and at most 260px wide. */
+  update(dt, camera, show, night, w, h, room = null) {
     const THREE = T(); this.fade += ((show ? 1 : 0) - this.fade) * Math.min(1, dt * 3);
     const g = this.group; g.visible = this.fade > 0.02; if (!g.visible) return;
     this.animate(dt, night);
-    const D = 420, v = (this._v ||= new THREE.Vector3()).set(0.47, 0.7, 0.5).unproject(camera).sub(camera.position).normalize();
-    g.position.copy(camera.position).addScaledVector(v, D);
-    // px: on-screen width of the station at full size (46 units with its solar wings).
-    const perPx = 2 * D * Math.tan((camera.fov * Math.PI) / 360) / Math.max(1, h), px = Math.min(w * 0.5, 260);
+    // px: on-screen width of the station at full size (46 units with its solar wings); it stands about 27 units tall, 16 of
+    // them above the hub, so the hub sits that far below the header.
+    const top = room?.top ?? h * 0.13, low = room?.low ?? h * 0.33, px = Math.max(110, Math.min(w * 0.5, 260, ((low - top - 12) / 27) * 46)), hubY = top + 8 + (16 * px) / 46;
+    const D = 420, v = (this._v ||= new THREE.Vector3()).set(0.47, 1 - (2 * hubY) / Math.max(1, h), 0.5).unproject(camera).sub(camera.position).normalize();
+    g.position.copy(camera.position).addScaledVector(v, D); this.screenPx = px;
+    const perPx = 2 * D * Math.tan((camera.fov * Math.PI) / 360) / Math.max(1, h);
     g.scale.setScalar((px * perPx / 46) * (0.85 + 0.15 * this.fade));
     g.quaternion.copy(camera.quaternion); // face the camera, then turn a little to show depth
     // where the hub is on screen (the hangar's callout points at it)

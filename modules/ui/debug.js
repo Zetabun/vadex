@@ -18,6 +18,8 @@ import { LINES } from '@last-orbit/ui/comms.js';
 import { powerRating, refreshMenus } from '@last-orbit/progression/meta.js';
 
 export async function initDebug(app, { hooks, ui } = {}) {
+  // &st=<px>: pretend to have a notch (the top safe-area inset), to check layouts the way a phone shows them
+  { const st = new URLSearchParams(location.search).get('st'); if (st) document.documentElement.style.setProperty('--st', st + 'px'); }
   await enterSandbox(); if (!location.search.includes('scene=')) toast('Debug sandbox: progress here is kept apart from your real save.', 'warn');
   const btn = (label, fn) => h('button', { onclick: () => { fn(); recalc(); } }, label);
   const panel = h('div', { style: 'position:absolute;right:6px;top:50%;z-index:70;display:flex;flex-direction:column;gap:4px;font:600 11px monospace;opacity:.85' },
