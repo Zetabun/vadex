@@ -92,7 +92,7 @@ function autoY(w, p) {
 
 export function autopilot(w, p, dodge, dt) {
   dodge = Math.max(0, Math.min(3, Number(dodge) || 0));
-  const t = pickTarget(w); let desired = t ? t.x : 0;
+  const t = pickTarget(w, null, null, 0, G.siegeMovePrio ?? G.siegePrio ?? 60); let desired = t ? t.x : 0; /* the probes' pilot: how hard it chases shells */
   if (t && t.state === 'form') desired += (t.lastVx || 0) * 0.35;
   if (w.painted?.alive) desired = w.painted.x;
   desired = Math.max(-HALF, Math.min(HALF, desired));

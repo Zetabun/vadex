@@ -20,8 +20,8 @@ import { ROUTES, ROUTE_BY_ID } from '@last-orbit/data/routes.js';
 import { ANOMALIES, ANOMALY_BY_ID, ANOMALY_CHOICES, anomalyCounts } from '@last-orbit/data/anomalies.js';
 import { SYNERGIES, synergyOf, synergyCount } from '@last-orbit/data/synergies.js';
 import { STAGE_BY_N, STAR_HITS, STAR_KILLS, CORES_PER_STAR, clearBounty } from '@last-orbit/data/counter.js';
-import { unlockCounter } from '@last-orbit/progression/meta.js';
-import { TIER_BY_N, siegeSystems, SIEGE_STARS, SIEGE_BLUEPRINTS, SIEGE_CORES_PER_STAR } from '@last-orbit/data/siege.js';
+import { unlockCounter, powerRating } from '@last-orbit/progression/meta.js';
+import { TIER_BY_N, siegeSystems, siegeToughness, SIEGE_STARS, SIEGE_BLUEPRINTS, SIEGE_CORES_PER_STAR } from '@last-orbit/data/siege.js';
 
 // ---------------------------------------------------------------- sortie lifecycle
 export function startSortie(opts = {}) {
@@ -43,7 +43,7 @@ export function startSortie(opts = {}) {
   if (counter) { run.mode = 'counter'; run.stage = counter.n; run.hard = !!opts.hard; run.threat = 0; run.wave = counter.wave; run.level = 1 + (counter.n - 1) * BAL.warpCards; run.catchUp = counter.n; }
   // Station Siege: the tier's sector from its third wave, the same catch-up, and what the station's systems give the pilot.
   if (siege) { const sys = siegeSystems(st).on; st.stats.siegeRuns = (st.stats.siegeRuns || 0) + 1; run.mode = 'siege'; run.siege = siege.n; run.threat = 0; run.wave = siege.first; run.level = 1 + siege.sector * BAL.warpCards; run.catchUp = siege.sector + 1;
-    run.siegeWingmen = sys.w_xp || 0; run.siegeCargo = sys.w_salvage || 0; run.siegeCards = sys.w_choice || 0; run.siegeHull = 1; }
+    run.siegeWingmen = sys.w_xp || 0; run.siegeCargo = sys.w_salvage || 0; run.siegeCards = sys.w_choice || 0; run.siegeHull = 1; run.siegeTough = siegeToughness(powerRating(), siege.n); }
   // A checkpoint resume starts at the level the pilot had reached, with those cards to pick again.
   const cpLevel = counter && opts.checkpoint ? st.counter.checkpoints?.[counter.n + (opts.hard ? 'h' : '')] : 0, cpExtra = cpLevel ? Math.max(0, cpLevel - run.level) : 0;
   if (cpLevel) { run.fromCheckpoint = true; run.level += cpExtra; }

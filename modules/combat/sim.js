@@ -123,6 +123,7 @@ export function startWave(w) {
   const prevSector = ws.num ? sectorOf(ws.num).idx : -1;
   ws.num = run.wave; ws.info = info; ws.state = 'fighting'; ws.t = 0; ws.damaged = false; ws.bossDamaged = false; ws.kills = 0; ws.boss = null; ws.pending = []; ws.shotsFired = 0;
   setWaveBase(w, run.wave, sec.idx);
+  if (w.siege && run.siegeTough > 1) w.base.hp = w.base.hp.mul(run.siegeTough); // the invaders adapt to the pilot (set at launch)
   const ep = sec.idx === 0 ? earlyPressure(run.wave) : 0; ws.fire = 1 + BAL.earlyPressure.fire * ep; ws.march = 1 + BAL.earlyPressure.march * ep; // the opening waves press harder
   if (!w.siege) { maxStat('bestWave', run.wave); maxStat('bestSector', sec.idx + 1); if (run.order.length === 1) maxStat('soloWave', run.wave); } // a siege's waves are not a run's depth
   w.enemies = w.enemies.filter((e) => e.alive && e.def.cruiser); w.ebullets.length = 0; w.hazards = w.hazards.filter((h) => h.kind === 'pool');

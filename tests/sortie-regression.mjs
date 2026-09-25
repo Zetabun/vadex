@@ -481,7 +481,7 @@ assert.throws(() => parseSave('{"run":{},"cur":{}}'), /Not a Last Orbit v2 save/
   fresh(); assert.equal(SIEGE_TIERS.length, 6); assert.equal(siegeOpen(G.state, 1), false, 'No siege before the first Counterattack clear');
   G.state.counter.unlocked = true; G.state.counter.stars[1] = 1; assert.equal(siegeOpen(G.state, 1), true, 'Clearing stage 1 brings the first siege'); assert.equal(siegeOpen(G.state, 2), false);
   assert.equal(siegeSystems(G.state).count, 0, 'A bare station has no defences');
-  G.state.workshop.w_hull = 1; G.state.workshop.w_shield = 5; const sys = siegeSystems(G.state).on; assert.ok(sys.w_hull > 0 && sys.w_shield === 0.25, 'Built modules are defences; maxed ones work harder');
+  G.state.workshop.w_hull = 1; G.state.workshop.w_shield = 5; const sys = siegeSystems(G.state).on; const shieldAt = (await import('@last-orbit/data/siege.js')).SYSTEM_BY_ID.w_shield.at; assert.ok(sys.w_hull > 0 && sys.w_shield === shieldAt[1] && shieldAt[1] > shieldAt[0], 'Built modules are defences; maxed ones work harder');
   launch({ siege: 1 }); const w = G.world, run = G.state.run, t1 = TIER_BY_N[1];
   assert.equal(run.mode, 'siege'); assert.equal(run.wave, t1.first); assert.ok(w.siege && w.siege.hull === 1); assert.equal(w.barriers.length, 0, 'No bunkers unless the station has built them');
   const best = G.state.stats.bestWave || 0; startWave(w); assert.equal(G.state.stats.bestWave || 0, best, "A siege's waves do not count as a run's depth");

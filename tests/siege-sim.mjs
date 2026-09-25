@@ -19,6 +19,8 @@ const N = Number(process.argv[2] || 40), dodge = Number(process.argv[3] ?? 1), s
 bus.on('stats', () => { G.sheet.totalN['f.autopilot'] = 1; G.sheet.totalN.autoDodge = dodge; });
 // PRIO=0 models a pilot who does not go after shells and raiders first (the bot's autopilot chases them hardest by default).
 if (process.env.PRIO != null) G.siegePrio = +process.env.PRIO;
+// MOVE: how hard the pilot chases shells and raiders (400: an attentive pilot who goes and gets them; 0: one who mostly shoots the formation).
+if (process.env.MOVE != null) G.siegeMovePrio = +process.env.MOVE;
 const pickScore = (c) => c.kind === 'upgrade' ? 10 + (c.rank >= 4 ? 2 : 0) : c.kind === 'weapon' ? 9 : c.kind === 'mod' ? ({ m_dmg: 8, m_rate: 8, m_multi: 9, m_hull: 6, m_shield: 5, m_crit: 5, m_critd: 4 }[c.id] || 3) : 2;
 let reason = null; bus.on('sortieOver', (r) => { reason = r; });
 // per siege: shells and raiders sent, who stopped them (the station's guns and point defence, or the pilot), and hits
