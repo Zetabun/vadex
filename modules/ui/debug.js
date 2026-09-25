@@ -5,7 +5,10 @@ import { bus } from '@last-orbit/core/events.js';
 import { WEAPON_ORDER } from '@last-orbit/data/weapons.js';
 import { ABILITY_ORDER } from '@last-orbit/data/abilities.js';
 import { SHIPS } from '@last-orbit/data/ships.js';
-import { grantXp, nextOffer, nextRelic, pickCard, pickRelic, autoPickIndex } from '@last-orbit/progression/run.js';
+import { grantXp, nextOffer, nextRelic, nextRoute, nextAnomaly, pickCard, pickRelic, pickRoute, pickAnomaly, autoPickIndex, endSortie } from '@last-orbit/progression/run.js';
+import { step } from '@last-orbit/combat/sim.js';
+import { TICK } from '@last-orbit/data/balance.js';
+import { recTick, recStop, lastReplay, replayBytes } from '@last-orbit/progression/recorder.js';
 import { debugSetWave } from '@last-orbit/combat/sim.js';
 import { killEnemy } from '@last-orbit/combat/world.js';
 import { enterSandbox, exportSave } from '@last-orbit/save/save.js';
@@ -64,6 +67,22 @@ function runScene(scene, hooks, ui) {
     // deck:<rank>:<view>: stand somewhere and look at something (window, medals, ships, back, table)
     const V = { window: [0, 1.5, 0, -0.08], medals: [-1.2, -2.2, 1.35, 0], ships: [1.4, -2.2, -1.35, -0.1], back: [0, -1.5, Math.PI, -0.05], table: [0, 0.2, 0, -0.35], door: [1.4, 2.0, -1.62, 0], doornear: [3.3, 2.3, -1.5708, 0.12] }[arg2];
     if (V) { let n = 0; const iv = setInterval(() => { const d = G.renderer?.room; if (d) { d.pos.x = V[0]; d.pos.z = V[1]; d.yaw = V[2]; d.pitch = V[3]; } if (++n > 20) clearInterval(iv); }, 100); }
+    return; }
+  // replay:<start wave>[:<seconds>[:<view>]]: a bot flies a sortie from that wave for that long (headless, in an instant)
+  // with the flight recorder on, then the Command Deck's replay TV; view: tv (close, the default) or room
+  if (name === 'replay') {
+    const from = +arg || 27, secs = +arg2 || 90; st.pilot.name = 'Adam'; st.seen.callsign = true; st.prestige.level = Math.max(1, st.prestige.level || 0); refreshMenus(); st.seen.menus.deck = true;
+    WORKSHOP.forEach((u, i) => { st.workshop[u.id] = Math.round(u.max * Math.min(1, 0.55 - (i % 4) * 0.1)); }); Object.assign(st.stats, { bestWave: 41, bestScore: 182400, sorties: 57, kills: 21840 });
+    const auto = () => { G.sheet.totalN['f.autopilot'] = 1; G.sheet.totalN.autoDodge = 1; }; bus.on('stats', auto); recalc(); auto();
+    hooks.launch({}); const run = st.run; debugSetWave(from); grantXp(1400);
+    const pick = () => { for (let g = 0; g < 120; g++) { if (nextRelic()) pickRelic(0); else if (nextRoute()) pickRoute(0); else if (nextAnomaly()) pickAnomaly(0); else if (nextOffer()) pickCard(autoPickIndex(run)); else break; } };
+    pick(); ui.closeOverlays(); let reason = null; const over = (r) => { reason = r; }; bus.on('sortieOver', over);
+    for (let i = 0, n = Math.round(secs / TICK); i < n && !reason && st.run; i++) { pick(); step(TICK); recTick(G.world, TICK); if (G.world.fx.length > 200) G.world.fx.length = 0; }
+    bus.off?.('sortieOver', over); G.world.fx.length = 0; endSortie(reason || 'abandoned'); recStop({ reason: reason || 'abandoned' }); ui.closeOverlays();
+    console.log('replay', lastReplay().frames.length, 'frames', Math.round(replayBytes(lastReplay()) / 1024) + ' KB', reason);
+    hooks.toHangar('deck');
+    const V = { tv: [-1.2, 1.1, Math.PI, 0.04], room: [0.4, -1.8, Math.PI + 0.2, 0.02], screen: [-1.2, 2.3, Math.PI, 0.09], wide: [-1.2, -1.3, Math.PI, 0.02] }[arg3 || 'tv'];
+    let k = 0; const iv = setInterval(() => { const d = G.renderer?.room; if (d) { d.pos.x = V[0]; d.pos.z = V[1]; d.yaw = V[2]; d.pitch = V[3]; } if (++k > 20) clearInterval(iv); }, 100);
     return; }
   // control:<stages cleared>[:<view>[:<tiers held>]]: Defence Control, with that many Counterattack stages (and so siege
   // tiers) open, half the Workshop built and a few tiers held; view: window, left, right, back, table, orbit

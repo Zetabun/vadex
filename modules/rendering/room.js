@@ -202,5 +202,7 @@ export class Room {
     this.cam.updateMatrixWorld(); this.animateDoors(dt);
   }
   update(dt) { this.walk(dt); }
-  render(gl, dt) { this.update(dt); gl.localClippingEnabled = true; /* the doors' leaves are clipped to their doorways */ gl.setClearColor(0x000000, 1); gl.render(this.scene, this.cam); }
+  /** Anything a room draws off-screen before the room itself (the replay screen). */
+  offscreen() {}
+  render(gl, dt) { this.update(dt); this.offscreen(gl); gl.localClippingEnabled = true; /* the doors' leaves are clipped to their doorways */ gl.setClearColor(0x000000, 1); gl.render(this.scene, this.cam); }
 }

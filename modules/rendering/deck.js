@@ -14,6 +14,9 @@ import { SHIPS } from '@last-orbit/data/ships.js';
 import { PAINT_BY_ID, rankTitle } from '@last-orbit/data/career.js';
 import { STATION_CORE } from '@last-orbit/data/station.js';
 import { siegeUnlocked } from '@last-orbit/data/siege.js';
+import { ReplayScreen } from '@last-orbit/rendering/replay.js';
+import { lastReplay } from '@last-orbit/progression/recorder.js';
+import { SHIP_BY_ID } from '@last-orbit/data/ships.js';
 const T = () => window.THREE;
 
 // Room: x -5..5, z -8 (window) .. 4 (back wall), height 3.4. The pilot's eyes are at 1.6.
@@ -81,7 +84,7 @@ export class DeckRoom extends Room {
   sync(state) {
     const earned = [...ACHIEVEMENTS, ...FEATS].filter((a) => state.medals[a.id]).length, banners = BANNERS.filter((b) => b.shape && state.banners[b.id]).map((b) => b.id);
     const ships = SHIPS.map((s) => (state.unlocked.ships[s.id] ? 1 : 0)).join(''), rank = state.prestige?.level || 0;
-    const sig = [earned, banners.join(), ships, state.ship, state.paint, rank, state.pilot.name, state.pilot.rank, state.stats.bestWave, state.stats.bestScore, state.stationName, siegeUnlocked(state)].join('|');
+    const sig = [earned, banners.join(), ships, state.ship, state.paint, rank, state.pilot.name, state.pilot.rank, state.stats.bestWave, state.stats.bestScore, state.stationName, siegeUnlocked(state), !!lastReplay()].join('|');
     this.station.sync(state);
     if (sig === this.sig) return; this.sig = sig;
     if (this.show) { this.scene.remove(this.show); this.untag(this.show); } const THREE = T(); this.show = new THREE.Group(); this.scene.add(this.show);
@@ -135,6 +138,7 @@ export class DeckRoom extends Room {
     this.tag(g, 'banners');
   }
   recordsScreen(state) {
+    if (lastReplay()) { this.replayTv(state); return; } this.tv = null;
     const THREE = T(), s = state.stats, c = canvas(512, 280), x = c.getContext('2d');
     x.fillStyle = '#050a18'; x.fillRect(0, 0, 512, 280); x.strokeStyle = '#5ee6ff'; x.lineWidth = 3; x.strokeRect(6, 6, 500, 268);
     text(x, 'RECORDS', 256, 34, '800 26px sans-serif', '#9ff0ff');
@@ -145,6 +149,41 @@ export class DeckRoom extends Room {
     const bezel = new THREE.Mesh(new THREE.BoxGeometry(3.36, 1.91, 0.06), new THREE.MeshPhongMaterial({ color: 0x1a2030, shininess: 40 })); bezel.position.set(-1.2, 1.75, BACK - 0.04); this.show.add(bezel);
     this.tag(scr, 'records');
   }
+  /** The records screen as a replay TV: your last sortie playing in the middle, how it is going on the left, your
+   *  records on the right. */
+  replayTv(state) {
+    const THREE = T(), g = new THREE.Group(); g.position.set(-1.2, 1.75, BACK - 0.085); g.rotation.y = Math.PI; this.show.add(g);
+    const hud = canvas(1024, 560), face = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.75), new THREE.MeshBasicMaterial({ map: tex(hud) })); g.add(face);
+    this.replay ||= new ReplayScreen();
+    const field = new THREE.Mesh(new THREE.PlaneGeometry(1.08, 1.62), new THREE.MeshBasicMaterial({ map: this.replay.texture })); field.position.z = 0.004; g.add(field);
+    const scan = canvas(4, 256), sc = scan.getContext('2d'); for (let y = 0; y < 256; y += 4) { sc.fillStyle = 'rgba(0,0,0,.35)'; sc.fillRect(0, y, 4, 2); }
+    const lines = new THREE.Mesh(new THREE.PlaneGeometry(1.08, 1.62), new THREE.MeshBasicMaterial({ map: tex(scan, [1, 1]), transparent: true })); lines.position.z = 0.006; g.add(lines);
+    const bezel = new THREE.Mesh(new THREE.BoxGeometry(3.36, 1.91, 0.06), new THREE.MeshPhongMaterial({ color: 0x1a2030, shininess: 40 })); bezel.position.set(-1.2, 1.75, BACK - 0.04); this.show.add(bezel);
+    this.tag(g, 'records'); this.tv = { hud, face, stats: state.stats, next: 0 };
+  }
+  /** The TV's side panels, redrawn a few times a second as the replay plays. */
+  drawTv() {
+    const tv = this.tv, st = this.replay.status(); if (!st) return; const rep = this.replay.rep, x = tv.hud.getContext('2d'), s = tv.stats;
+    x.fillStyle = '#050a18'; x.fillRect(0, 0, 1024, 560); x.strokeStyle = '#5ee6ff'; x.lineWidth = 3; x.strokeRect(6, 6, 1012, 548);
+    x.strokeStyle = 'rgba(94,230,255,.45)'; x.lineWidth = 2; x.strokeRect(338, 14, 348, 532);
+    // left: the sortie as it plays
+    if (Math.floor(this.t * 1.6) % 2 === 0) { x.fillStyle = '#ff4d6a'; x.beginPath(); x.arc(40, 44, 9, 0, Math.PI * 2); x.fill(); }
+    text(x, 'REPLAY', 58, 45, '800 22px sans-serif', '#ff8a9a', 'left'); text(x, 'LAST SORTIE', 34, 86, '800 30px sans-serif', '#e8fbff', 'left');
+    text(x, (SHIP_BY_ID[rep.meta.ship]?.name || '').toUpperCase() + (rep.meta.sector ? ' · ' + rep.meta.sector.toUpperCase() : ''), 34, 118, '700 16px sans-serif', '#7f8bb0', 'left');
+    text(x, 'WAVE', 34, 172, '700 16px sans-serif', '#7f8bb0', 'left'); text(x, String(st.wave), 34, 214, '800 54px sans-serif', '#9ff0ff', 'left');
+    text(x, 'SCORE', 34, 268, '700 16px sans-serif', '#7f8bb0', 'left'); text(x, st.score.toLocaleString(), 34, 300, '800 32px sans-serif', '#e8fbff', 'left');
+    text(x, 'HULL', 34, 350, '700 16px sans-serif', '#7f8bb0', 'left'); x.fillStyle = '#1a2440'; x.fillRect(34, 366, 270, 14); x.fillStyle = st.hull > 0.35 ? '#6dffc8' : '#ff5d6a'; x.fillRect(34, 366, 270 * Math.max(0, st.hull), 14);
+    x.fillStyle = '#1a2440'; x.fillRect(34, 386, 270, 6); x.fillStyle = '#5ee6ff'; x.fillRect(34, 386, 270 * Math.max(0, Math.min(1, st.shield)), 6);
+    if (st.done) { const end = rep.end || {}, lost = end.reason === 'died' || !st.alive; text(x, lost ? 'SIGNAL LOST' : end.reason === 'cleared' ? 'SECTOR CLEARED' : 'RETURNED HOME', 34, 440, '800 26px sans-serif', lost ? '#ff8a9a' : '#6dffc8', 'left'); text(x, `AT WAVE ${st.wave}`, 34, 472, '700 18px sans-serif', '#9fb0d0', 'left'); }
+    const mm = (v) => `${Math.floor(v / 60)}:${String(Math.floor(v % 60)).padStart(2, '0')}`;
+    x.fillStyle = '#1a2440'; x.fillRect(34, 512, 270, 6); x.fillStyle = '#ff8a9a'; x.fillRect(34, 512, 270 * st.t / st.len, 6); text(x, `${mm(st.t)} / ${mm(st.len)}`, 304, 496, '700 15px sans-serif', '#7f8bb0', 'right');
+    // right: the records it is up against
+    text(x, 'RECORDS', 990, 45, '800 22px sans-serif', '#9ff0ff', 'right');
+    const deep = Math.max(0, (s.bestWave || 0) - 60), rows = [['Furthest wave', s.bestWave || '—'], ['High score', s.bestScore ? Math.round(s.bestScore).toLocaleString() : '—'], ['Deep Void', deep ? `+${deep} waves` : '—'], ['Sorties', s.sorties || 0], ['Invaders', (s.kills || 0).toLocaleString()]];
+    rows.forEach(([k, v], i) => { const y = 100 + i * 84; text(x, k.toUpperCase(), 990, y, '700 15px sans-serif', '#7f8bb0', 'right'); text(x, String(v), 990, y + 30, '800 28px sans-serif', '#e8fbff', 'right'); });
+    tv.face.material.map.needsUpdate = true;
+  }
+  offscreen(gl) { if (this.tv) this.replay.render(gl); }
   trophyShelf(rank) {
     // a low display cabinet standing on the floor against the window sill, the cups along its top
     const THREE = T(), g = new THREE.Group(); g.position.set(0, 0, FRONT + 0.41); this.show.add(g);
@@ -194,6 +233,7 @@ export class DeckRoom extends Room {
     this.holoGrid.rotation.z = this.t * 0.15;
     // the hologram, the ships, the banners
     this.station.animate(dt, night); this.station.body.rotation.set(0.25, this.t * 0.3, 0);
+    if (this.tv) { const r = lastReplay(); if (this.replay.rep !== r) this.replay.load(r); this.replay.update(dt); if (this.t >= this.tv.next) { this.tv.next = this.t + 0.2; this.drawTv(); } }
     for (const p of this.spins || []) { p.rotation.y = this.t * 0.5 + p.userData.spin; p.position.y = 1.35 + Math.sin(this.t * 1.4 + p.userData.spin) * 0.05; }
     for (const [i, f] of (this.flags || []).entries()) { f.rotation.z = Math.sin(this.t * 0.9 + i) * 0.04; f.rotation.y = (f.userData.ry || 0) + Math.sin(this.t * 0.6 + i * 1.7) * 0.12; }
   }
