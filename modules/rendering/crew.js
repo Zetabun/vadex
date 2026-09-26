@@ -1,11 +1,12 @@
-// Survivors: the people the station takes in, a look to try (not in the game yet). Rounded, low-poly and flat-coloured
-// like everything else aboard: coveralls in the colour of the work each does, and a friendly face (eyes that blink,
-// brows, a smile) or, the other look, a helmet with a dark visor. Each is built on a small rig (hips, chest, neck and
-// head; shoulders, elbows and hands; hips, knees and feet) so it can stand, carry, water the beds, work at a bench,
-// read a tablet, sit on a wall or wave, and it breathes, blinks and looks up at you now and then while it does.
+// Survivors: the people the station takes in. Dormant: nothing in the game uses them yet, and only the debug scene
+// crew loads them; they wait here for the survivors' room. The look: rounded, low-poly and flat-coloured like everything
+// else aboard, coveralls in the colour of the work each does; a helmet with a gold visor while someone has just arrived
+// (visor), their face (eyes that blink, brows, a smile) once they have settled in. Each is built on a small rig (hips,
+// chest, neck and head; shoulders, elbows and hands; hips, knees and feet) so it can stand, carry, water the beds, work
+// at a bench, read a tablet, sit on a wall or wave, and it breathes, blinks and looks up at you now and then while it does.
 const T = () => window.THREE;
 
-/** The people in the look test: what they wear, their hair, what they carry. */
+/** The first four: what they wear, their hair, what they carry. */
 export const CREW_LOOKS = [
   { id: 'mara', name: 'Mara', job: 'Botanist', suit: 0x5d8a55, trim: 0xa6e07e, skin: 0x8d5a3b, hair: 'curls', hairCol: 0x1c1410, rolled: true, hold: 'can' },
   { id: 'tomas', name: 'Tomas', job: 'Engineer', suit: 0xc8743a, trim: 0x3a3f48, skin: 0xe8b48a, hair: 'beanie', hairCol: 0xa4522a, hat: 0x3d4656, beard: true, belt: 0x5a4030, hold: 'pot' },
