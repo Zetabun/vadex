@@ -44,6 +44,7 @@ export async function initDebug(app, { hooks, ui } = {}) {
   const scene = new URLSearchParams(location.search).get('scene');
   if (scene) { panel.style.display = 'none'; G.demo = true; runScene(scene, hooks, ui); } // demo scenes never auto-pause
   window.gunnerBot = gunnerBot;
+  window.__lo = { G }; /* for tools/perf.mjs: the renderer's counts, in debug builds only */
   window.roomTap = (kind) => ui.tap?.(kind); // tap an exhibit in the room open, as a finger would (for checks in the console)
 }
 

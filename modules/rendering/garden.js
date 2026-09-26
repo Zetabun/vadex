@@ -4,7 +4,7 @@
 // the herbarium between the doors, and Sprig, the drone that tends it all. A glass partition shuts off the second wing
 // until the Solar wings power it (Overhaul rank 4): six more beds under grow lights, and the old tree at the far end, bare,
 // then in leaf, then (once every kind has grown) in flower. Each plant is built from its kind and how far it has grown.
-import { Room, canvas, tex, text, drawSign } from '@last-orbit/rendering/room.js';
+import { Room, canvas, tex, text, drawSign, bake } from '@last-orbit/rendering/room.js';
 import { earthMaterial, nightAmount } from '@last-orbit/rendering/background.js';
 import { dayKey } from '@last-orbit/data/daily.js';
 import { SEEDS, SEED_BY_ID, BEDS, wingOpen } from '@last-orbit/data/garden.js';
@@ -112,6 +112,12 @@ export class GardenRoom extends Room {
     const c = canvas(64, 64), x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.35, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
     this.glow = tex(c);
     this.roof(); this.partition(); this.furnish(); this.outside(); this.sprig = this.makeSprig();
+    // Still parts merged into a draw call per material (room.js bake): what moves, hides or changes stays apart, and the
+    // groups that hide as one (the tree's leaves and flowers, the new panels, the dry stalks) are merged inside themselves.
+    const stalks = this.scene.children.map((c) => c.userData.stalks).filter(Boolean);
+    for (const o of [this.shut, this.basket, this.waterTop, this.tapLed, this.fan, this.spinner, this.sprig, this.canopy, this.blossom, this.panelsNew, this.floor, this.marker, ...this.leds, ...this.troughSoil, ...stalks]) o.userData.live = true;
+    for (const g of [this.canopy, this.blossom, this.panelsNew, ...stalks]) bake(g);
+    bake(this.scene, new Set(this.exhibits));
     this.plants = Array.from({ length: BEDS }, () => ({ key: '', group: null })); this.puffs = []; this.waterQ = []; this.sprigAt = 0;
     this.solids.push({ x: ISLAND.x, z: ISLAND.z, r: ISLAND.r + 0.1 }, { x: TREE.x, z: TREE.z, r: 0.95 });
     for (const b of BED_AT.slice(3)) this.blocks.push({ x0: b.x - 0.4, x1: b.x + 0.4, z0: b.z - 0.95, z1: b.z + 0.95 });
@@ -193,11 +199,12 @@ export class GardenRoom extends Room {
     for (const sg of [-1, 1]) { const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.2, 6), brass); arm.rotation.z = Math.PI / 2; arm.position.x = sg * 0.1; this.spinner.add(arm); const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.008, 0.035, 8), brass); tip.position.set(sg * 0.2, 0.012, 0); this.spinner.add(tip); }
     // the troughs down the second wing
     this.troughSoil = [];
+    const bandM = Ph({ color: 0x3a3a3a }), straw = Ph({ color: 0x6a5a3a });
     for (const b of BED_AT.slice(3)) { const t = new THREE.Group(); t.position.set(b.x, 0, b.z); S.add(t);
       const body = new THREE.Mesh(new THREE.BoxGeometry(0.72, 0.56, 1.8), wood); body.position.y = 0.28; t.add(body);
-      for (const s of [-1, 1]) { const band = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.04, 0.05), Ph({ color: 0x3a3a3a })); band.position.set(0, 0.46, s * 0.8); t.add(band); }
+      for (const s of [-1, 1]) { const band = new THREE.Mesh(new THREE.BoxGeometry(0.74, 0.04, 0.05), bandM); band.position.set(0, 0.46, s * 0.8); t.add(band); }
       const top = new THREE.Mesh(new THREE.PlaneGeometry(0.62, 1.7), dry); top.rotation.x = -Math.PI / 2; top.position.y = 0.6; t.add(top); this.troughSoil.push(top);
-      const stalks = new THREE.Group(); t.add(stalks); for (let i = 0; i < 4; i++) { const c = new THREE.Mesh(G3.cone, Ph({ color: 0x6a5a3a })); c.scale.set(0.012, 0.18 + Math.random() * 0.12, 0.012); c.position.set((Math.random() - 0.5) * 0.4, 0.68, (Math.random() - 0.5) * 1.4); c.rotation.z = (Math.random() - 0.5) * 0.8; stalks.add(c); } t.userData.stalks = stalks; }
+      const stalks = new THREE.Group(); t.add(stalks); for (let i = 0; i < 4; i++) { const c = new THREE.Mesh(G3.cone, straw); c.scale.set(0.012, 0.18 + Math.random() * 0.12, 0.012); c.position.set((Math.random() - 0.5) * 0.4, 0.68, (Math.random() - 0.5) * 1.4); c.rotation.z = (Math.random() - 0.5) * 0.8; stalks.add(c); } t.userData.stalks = stalks; }
     // each bed: a light that says how it is doing (dark: empty; amber: growing; green, pulsing: in bloom)
     this.leds = BED_AT.map((b, i) => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 8), new THREE.MeshBasicMaterial({ color: 0x223322 })); if (i < 3) { const a = Math.atan2(b.z - ISLAND.z, b.x - ISLAND.x); m.position.set(ISLAND.x + Math.cos(a) * (ISLAND.r + 0.02), 0.34, ISLAND.z + Math.sin(a) * (ISLAND.r + 0.02)); } else m.position.set(b.x - Math.sign(b.x) * 0.37, 0.4, b.z + 0.7); S.add(m); return m; });
     // tapping a bed (the drum's wedges and the troughs are tagged by bed; the drum's middle as the nearest wedge)
@@ -335,11 +342,11 @@ export class GardenRoom extends Room {
     const truss = new THREE.MeshPhongMaterial({ color: 0x9aa4b6, specular: 0x444c5c, shininess: 30 }), cells = canvas(128, 256), cx = cells.getContext('2d');
     cx.fillStyle = '#10244a'; cx.fillRect(0, 0, 128, 256); cx.strokeStyle = '#6aa0e0'; cx.lineWidth = 2; for (let x = 0; x <= 128; x += 32) { cx.beginPath(); cx.moveTo(x, 0); cx.lineTo(x, 256); cx.stroke(); } for (let y = 0; y <= 256; y += 32) { cx.beginPath(); cx.moveTo(0, y); cx.lineTo(128, y); cx.stroke(); }
     const panel = new THREE.MeshPhongMaterial({ map: tex(cells), specular: 0x9fc8ff, shininess: 90 });
-    this.panels = []; this.array = new THREE.Group(); S.add(this.array);
+    this.array = new THREE.Group(); S.add(this.array); this.panelsNew = new THREE.Group(); this.array.add(this.panelsNew); /* the panels the Solar wings add */
     for (const s of [-1, 1]) { const boom = new THREE.Mesh(new THREE.BoxGeometry(34, 0.35, 0.35), truss); boom.position.set(s * (W + 18), -1.4, -4.5); this.array.add(boom);
       for (let i = 0; i < 6; i++) { const x = s * (W + 3.5 + i * 5.2), f = new THREE.Group(); f.position.set(x, -1.2, -4.5); this.array.add(f);
         for (const [w, d, fx, fz] of [[4.6, 0.14, 0, -3.93], [4.6, 0.14, 0, 3.93], [0.14, 8, -2.23, 0], [0.14, 8, 2.23, 0], [4.4, 0.08, 0, 0], [0.08, 7.8, 0, 0]]) { const bar = new THREE.Mesh(new THREE.BoxGeometry(w, 0.1, d), truss); bar.position.set(fx, 0, fz); f.add(bar); }
-        const p = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.12, 7.8), panel); p.position.set(x, -1.14, -4.5); this.array.add(p); this.panels.push({ p, salvaged: i === 1 || (s > 0 && i === 3) }); } }
+        const p = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.12, 7.8), panel); p.position.set(x, -1.14, -4.5); (i === 1 || (s > 0 && i === 3) ? this.array : this.panelsNew).add(p); } }
     this.tag(this.hitBox(S, 2 * W - 0.4, H - 0.6, 0.1, 0, 1.7, FRONT + 0.1), 'window');
   }
   // ---------------------------------------------------------------- what is growing (rebuilt as it changes)
@@ -351,14 +358,14 @@ export class GardenRoom extends Room {
     if (sig === this.sig) return; this.sig = sig;
     beds.forEach((key, i) => { const slot = this.plants[i]; if (slot.key === key) return; slot.key = key; if (slot.group) { this.scene.remove(slot.group); slot.group = null; }
       const p = g.beds?.[i]; if (!p) return; const s = SEED_BY_ID[p.id], b = BED_AT[i], k = growth(state, i, now), grp = new (T().Group)(); grp.position.set(b.x, b.y, b.z);
-      for (let j = 0; j < b.n; j++) { const pl = buildPlant(s, k, this.glow); pl.position.z = (j - (b.n - 1) / 2) * 0.55; pl.rotation.y = b.face + Math.sin(i * 7.1 + j * 2.3) * 0.35; pl.userData.ph = i + j * 1.7; pl.scale.setScalar(b.n > 1 ? 1.4 : 1.55); grp.add(pl); }
+      for (let j = 0; j < b.n; j++) { const pl = buildPlant(s, k, this.glow); pl.position.z = (j - (b.n - 1) / 2) * 0.55; pl.rotation.y = b.face + Math.sin(i * 7.1 + j * 2.3) * 0.35; pl.userData.ph = i + j * 1.7; pl.scale.setScalar(b.n > 1 ? 1.4 : 1.55); bake(pl); grp.add(pl); }
       this.scene.add(grp); slot.group = grp; });
     // the second wing: powered or dark
     this.shut.visible = !wing; const di = this.blocks.indexOf(this.doorway); if (wing && di >= 0) this.blocks.splice(di, 1); else if (!wing && di < 0) this.blocks.push(this.doorway);
     this.untag(this.shut); if (!wing) this.tag(this.shut, 'wing');
     this.growMat.color.setHex(wing ? 0xff7ae0 : 0x2a2230); for (const l of this.wingLights) l.intensity = wing ? 0.45 : 0;
     for (const t of this.troughSoil) t.material = wing ? this.soilMat : this.drySoil; for (const o of this.scene.children) if (o.userData.stalks) o.userData.stalks.visible = !wing;
-    for (const { p, salvaged } of this.panels) p.visible = wing || salvaged;
+    this.panelsNew.visible = wing;
     const sx = this.signC.getContext('2d'); sx.clearRect(0, 0, 768, 96); drawSign(sx, 'GREENHOUSE · SECOND WING', wing ? 'GROW LIGHTS ON · SIX MORE BEDS' : 'NO POWER UNTIL THE SOLAR WINGS · OVERHAUL RANK 4', '#eaffe0', wing ? '#7ddc6f' : '#ffc857'); this.sign.material.map.needsUpdate = true;
     this.canopy.visible = wing || full; this.blossom.visible = full;
     // the door back to the Command Deck, sealed until there is one

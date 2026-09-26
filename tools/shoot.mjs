@@ -28,5 +28,7 @@ for (const scene of scenes) {
   await sleep(+(process.env.WAIT || 3500));
   const shot = await send('Page.captureScreenshot', { format: 'png' });
   const file = resolve(outDir, scene.replace(/[^a-z0-9_-]/gi, '-') + '.png'); writeFileSync(file, Buffer.from(shot.result.data, 'base64')); console.log('captured', file);
+  // AGAIN=ms[,count]: more shots that far apart (<scene>@2.png, @3…), to see what moves between them
+  if (process.env.AGAIN) { const [gap, n = 1] = process.env.AGAIN.split(',').map(Number); for (let k = 2; k <= n + 1; k++) { await sleep(gap); const s2 = await send('Page.captureScreenshot', { format: 'png' }); writeFileSync(file.replace(/[.]png$/, `@${k}.png`), Buffer.from(s2.result.data, 'base64')); } }
 }
 ws.close(); proc.kill();

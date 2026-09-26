@@ -43,6 +43,8 @@ const BULLET_COL = { bolt: rgb(0xff5d8f), heavy: rgb(0xff9f43), orb: rgb(0xd17bf
 export class Renderer {
   constructor(canvas, overlay) {
     const THREE = window.THREE; this.canvas = canvas; this.overlay = overlay; this.ctx2d = overlay.getContext('2d');
+    // Whatever draws on the overlay marks it, so a frame with nothing on it can leave the canvas untouched (drawOverlay)
+    this.ovDrew = true; for (const k of ['fillRect', 'strokeRect', 'fillText', 'strokeText', 'fill', 'stroke', 'drawImage', 'putImageData']) { const f = this.ctx2d[k]; this.ctx2d[k] = (...a) => { this.ovDrew = true; return f.apply(this.ctx2d, a); }; }
     this.gl = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false, powerPreference: 'high-performance' }); this.gl.setClearColor(0x050a24, 1);
     this.scene = new THREE.Scene(); this.camera = new THREE.PerspectiveCamera(38, 1, 10, 1500);
     this.scene.add(new THREE.HemisphereLight(0xbfd8ff, 0x1a1030, 0.85)); const sun = new THREE.DirectionalLight(0xffffff, 0.9); sun.position.set(-40, 60, 120); this.scene.add(sun);
@@ -199,7 +201,7 @@ export class Renderer {
     // A room aboard (the Command Deck, Defence Control) replaces the hangar view while it is open (built on the first visit).
     if (this.room) {
       const d = this.room, size = this.w + 'x' + this.h; if (d.size !== size) { d.size = size; d.resize(this.w, this.h); }
-      const now = performance.now(); if (d !== this.synced || now > (d.syncAt || 0)) { this.synced = d; d.syncAt = now + 500; d.sync(st); } /* what it shows changes rarely */ d.render(this.gl, Math.min(dt, 0.05)); this.ctx2d.setTransform(1, 0, 0, 1, 0, 0); this.ctx2d.clearRect(0, 0, this.overlay.width, this.overlay.height); d.draw2d?.(this.ctx2d, this.overlay.width, this.overlay.height, this.opr || 1); return;
+      const now = performance.now(); if (d !== this.synced || now > (d.syncAt || 0)) { this.synced = d; d.syncAt = now + 500; d.sync(st); } /* what it shows changes rarely */ d.render(this.gl, Math.min(dt, 0.05)); if (this.ovDrew || d.draw2d) { this.ovDrew = false; this.ctx2d.setTransform(1, 0, 0, 1, 0, 0); this.ctx2d.clearRect(0, 0, this.overlay.width, this.overlay.height); d.draw2d?.(this.ctx2d, this.overlay.width, this.overlay.height, this.opr || 1); } return;
     }
     this.gl.setClearColor(0x050a24, 1);
     this.lerpIn(w, renderAlpha());
@@ -440,7 +442,7 @@ export class Renderer {
   }
 
   drawOverlay(w, dt) {
-    const g = this.ctx2d, k = this.opr, s = [0, 0]; g.setTransform(k, 0, 0, k, 0, 0); g.clearRect(0, 0, this.w, this.h);
+    const g = this.ctx2d, k = this.opr, s = [0, 0]; g.setTransform(k, 0, 0, k, 0, 0); if (this.ovDrew) { this.ovDrew = false; g.clearRect(0, 0, this.w, this.h); }
     const unit = this.unitPx();
     // enemy hull bars (only damaged or special)
     for (let i = 0; i < w.enemies.length; i++) { const e = w.enemies[i]; if (!e.alive || e.cloaked || e.veiled || e.def.projectile || (e.boss && !e.boss.def.mini && false)) continue; if (e.hp >= 0.999 && !e.elite) continue; if (e.boss) continue;

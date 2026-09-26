@@ -26,6 +26,7 @@ export class BeaconRoom extends Room {
     this.nearFront = 0.9;
     this.furnish(); this.outside();
     this.solids.push({ ...LAMP, r: 1.45 }); for (let i = 0; i < VOID_BOSSES.length; i++) { const a = answerAt(i); this.solids.push({ x: a.x, z: a.z, r: 0.8 }); }
+    this.bakeStatic(); /* still parts merged into fewer draw calls (room.js) */
   }
   // ---------------------------------------------------------------- the room
   furnish() {

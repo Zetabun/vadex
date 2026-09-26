@@ -48,6 +48,7 @@ export class QuartersRoom extends Room {
     this.nearFront = 0.8;
     this.furnish(); this.outside(); this.bolt = this.makeBolt();
     this.blocks.push({ x0: BUNK.x0 - 0.1, x1: BUNK.x1 + 0.1, z0: FRONT, z1: FRONT + BUNK.d + 0.2 }, { x0: -W, x1: -W + 0.6, z0: SHELF.z - SHELF.w / 2 - 0.05, z1: SHELF.z + SHELF.w / 2 + 0.05 }, { x0: W - 0.85, x1: W, z0: DESK.z - 0.85, z1: DESK.z + 0.85 });
+    this.bakeStatic(); /* still parts merged into fewer draw calls (room.js) */
   }
   // ---------------------------------------------------------------- the room
   furnish() {

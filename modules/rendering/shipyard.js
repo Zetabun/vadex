@@ -34,6 +34,7 @@ export class YardRoom extends Room {
     this.blocks.push({ x0: -2.45, x1: 2.45, z0: CRADLE.z - 3.6, z1: CRADLE.z + 3.6 }); // the cradle
     for (const s of [-1, 1]) this.blocks.push({ x0: s * GANTRY_X - 0.55, x1: s * GANTRY_X + 0.55, z0: GANTRY_Z[0], z1: GANTRY_Z[1] }); // the gantries
     this.solids.push({ x: -2.9, z: -0.9, r: 0.95 }); // the console
+    this.bakeStatic(); /* still parts merged into fewer draw calls (room.js) */
   }
   // ---------------------------------------------------------------- the bay
   furnish() {

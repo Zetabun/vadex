@@ -7,7 +7,58 @@ import { G } from '@last-orbit/core/game.js';
 import { ROOM_BY_ID, roomFresh } from '@last-orbit/data/rooms.js';
 const T = () => window.THREE;
 export const EYE = 1.6, SPEED = 2.4;
+const NOBAKE = typeof location !== 'undefined' && /[?&]nobake=1/.test(location.search); /* debug: compare a room unbaked */
 
+/** Merges the still meshes under root into one mesh per material: the same triangles and materials, in far fewer draw
+ *  calls (each costs a phone real time). Only for what never moves, hides or swaps material by itself: a shared material
+ *  can still change colour. Left as they are: anything under an object marked userData.live, hidden or see-through
+ *  meshes, meshes drawn in a set order, mirrored ones, vertex-coloured ones, and a material used once. A mesh under an
+ *  anchor (a tappable exhibit, say) merges only with others under the same anchor, and the merged mesh stays there, so
+ *  tapping still finds it. Returns how many draw calls it saved. */
+export function bake(root, anchors = new Set()) {
+  if (NOBAKE) return 0;
+  const THREE = T(); root.updateMatrixWorld(true);
+  const sets = new Map(), inv = new Map(), m = new THREE.Matrix4(), nm = new THREE.Matrix3(), v = new THREE.Vector3();
+  const walk = (o, anchor) => {
+    if (!o.visible || (o !== root && o.userData.live)) return;
+    if (o !== root && anchors.has(o)) anchor = o;
+    const mat = o.material, g = o.geometry;
+    if (o.isMesh && !o.isInstancedMesh && g?.isBufferGeometry && g.attributes.position && g.attributes.normal && !g.attributes.color && !g.morphAttributes?.position && !Array.isArray(mat) && !mat.transparent && !mat.vertexColors && !o.renderOrder && o.matrixWorld.determinant() > 0) {
+      const key = mat.uuid + '|' + anchor.uuid, e = sets.get(key) || { mat, anchor, list: [] }; e.list.push(o); sets.set(key, e);
+    }
+    for (const c of [...o.children]) walk(c, anchor);
+  };
+  walk(root, root); let saved = 0;
+  for (const { mat, anchor, list } of sets.values()) {
+    if (list.length < 2) continue;
+    const uv = list.every((o) => o.geometry.attributes.uv); if (mat.map && !uv) continue;
+    if (!inv.has(anchor)) inv.set(anchor, anchor.matrixWorld.clone().invert());
+    // chunks under 65,535 vertices each, so every index fits 16 bits
+    const chunks = [[]]; let n = 0;
+    for (const o of list) { const c = o.geometry.attributes.position.count; if (n + c > 65535 && n) { chunks.push([]); n = 0; } chunks[chunks.length - 1].push(o); n += c; }
+    for (const chunk of chunks) {
+      if (chunk.length < 2) continue;
+      let verts = 0, idx = 0; for (const o of chunk) { const g = o.geometry; verts += g.attributes.position.count; idx += g.index ? g.index.count : g.attributes.position.count; }
+      const P = new Float32Array(verts * 3), N = new Float32Array(verts * 3), U = uv ? new Float32Array(verts * 2) : null, I = new Uint16Array(idx); let vo = 0, io = 0;
+      for (const o of chunk) {
+        const g = o.geometry, pos = g.attributes.position, nor = g.attributes.normal, uvs = g.attributes.uv, c = pos.count;
+        m.multiplyMatrices(inv.get(anchor), o.matrixWorld); nm.getNormalMatrix(m);
+        for (let i = 0; i < c; i++) {
+          v.fromBufferAttribute(pos, i).applyMatrix4(m); P[(vo + i) * 3] = v.x; P[(vo + i) * 3 + 1] = v.y; P[(vo + i) * 3 + 2] = v.z;
+          v.fromBufferAttribute(nor, i).applyMatrix3(nm).normalize(); N[(vo + i) * 3] = v.x; N[(vo + i) * 3 + 1] = v.y; N[(vo + i) * 3 + 2] = v.z;
+          if (U) { U[(vo + i) * 2] = uvs.getX(i); U[(vo + i) * 2 + 1] = uvs.getY(i); }
+        }
+        if (g.index) for (let i = 0; i < g.index.count; i++) I[io++] = g.index.getX(i) + vo; else for (let i = 0; i < c; i++) I[io++] = i + vo;
+        vo += c;
+      }
+      const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.BufferAttribute(P, 3)); geo.setAttribute('normal', new THREE.BufferAttribute(N, 3)); if (U) geo.setAttribute('uv', new THREE.BufferAttribute(U, 2)); geo.setIndex(new THREE.BufferAttribute(I, 1));
+      const merged = new THREE.Mesh(geo, mat), ex = chunk[0].userData.exhibit; if (ex) merged.userData.exhibit = ex;
+      merged.matrixAutoUpdate = false; anchor.add(merged); merged.updateMatrix();
+      for (const o of chunk) o.parent.remove(o); saved += chunk.length - 1;
+    }
+  }
+  return saved;
+}
 export function canvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
 export function tex(c, repeat) { const THREE = T(), t = new THREE.CanvasTexture(c); t.anisotropy = 4; if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(...repeat); } return t; }
 /** An icon from the game's art set, drawn into a canvas once it has loaded (the SVG's colour variables inlined). */
@@ -157,7 +208,7 @@ export class Room {
       const n = new THREE.Vector3(nx, ny, 0).normalize().transformDirection(f.matrixWorld), pt = f.localToWorld(new THREE.Vector3(ax, ay, 0)); return new THREE.Plane().setFromNormalAndCoplanarPoint(n, pt); });
     for (const m of mats) m.clippingPlanes = planes;
     this.hitBox(g, 2.1, 3.1, 0.4, 0, 1.55, -0.2); this.tag(g, kind);
-    Object.assign(g.userData, { sealed, trim, slit, acc, leaves, open: 0, OW, news, strip, room: kind }); (this.doors ||= []).push(g); return g;
+    Object.assign(g.userData, { sealed, trim, slit, acc, leaves, open: 0, OW, news, strip, room: kind, live: true }); /* its leaves slide: never baked */ (this.doors ||= []).push(g); return g;
   }
   /** Doors breathe their light, and slide open as you walk up to one (sealed ones stay shut). */
   animateDoors(dt) {
@@ -171,7 +222,7 @@ export class Room {
     }
   }
   /** An invisible box that makes a whole exhibit easy to tap (gaps and all). */
-  hitBox(parent, w, h, d, x, y, z) { const THREE = T(), m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })); m.position.set(x, y, z); parent.add(m); return m; }
+  hitBox(parent, w, h, d, x, y, z) { const THREE = T(), m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })); m.position.set(x, y, z); m.visible = false; parent.add(m); return m; } /* never drawn: the raycaster still finds it */
   tag(obj, kind) { obj.traverse((o) => { o.userData.exhibit = kind; }); this.exhibits.push(obj); }
   untag(group) { this.exhibits = this.exhibits.filter((o) => o !== group && !group.children.includes(o)); if (this.doors) this.doors = this.doors.filter((d) => d.parent !== group); }
   label(str, w, h, color) {
@@ -225,6 +276,15 @@ export class Room {
   }
   update(dt) { this.walk(dt); }
   /** Anything a room draws off-screen before the room itself (the replay screen). */
+  /** Merges the room's still parts (bake): anything the room keeps a reference to, directly or in a list, stays apart
+   *  (its code may move, hide or change it later), as do the doors; tappable exhibits stay tappable. Call at the end of
+   *  the constructor. A room that finds objects any other way marks them userData.live itself. */
+  bakeStatic() {
+    const skip = new Set(['scene', 'cam', 'exhibits', 'doors']), mark = (v) => { if (v?.isObject3D && v !== this.scene) v.userData.live = true; }, plain = (v) => v && typeof v === 'object' && !v.isMaterial && !v.isTexture && !ArrayBuffer.isView(v);
+    for (const [k, v] of Object.entries(this)) { if (skip.has(k) || !plain(v)) continue; if (v.isObject3D) { mark(v); continue; }
+      for (const x of Array.isArray(v) ? v : v instanceof Map ? [...v.values()] : v instanceof Set ? [...v] : Object.values(v)) { if (x?.isObject3D) mark(x); else if (plain(x)) for (const y of Array.isArray(x) ? x : Object.values(x)) mark(y); } }
+    return bake(this.scene, new Set(this.exhibits));
+  }
   offscreen() {}
   render(gl, dt) { this.update(dt); this.offscreen(gl); gl.localClippingEnabled = true; /* the doors' leaves are clipped to their doorways */ gl.setClearColor(0x000000, 1); gl.render(this.scene, this.cam); }
 }

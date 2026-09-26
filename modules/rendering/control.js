@@ -32,6 +32,7 @@ export class ControlRoom extends Room {
     this.solids.push({ ...TABLE });
     for (const [s, z] of Object.values(CONSOLE_AT)) this.blocks.push(s < 0 ? { x0: -W, x1: -W + 0.95, z0: z - 1.15, z1: z + 1.15 } : { x0: W - 0.95, x1: W, z0: z - 1.15, z1: z + 1.15 });
     this.blocks.push({ x0: -W, x1: -3.75, z0: 1.85, z1: BACK }); // the crates
+    this.bakeStatic(); /* still parts merged into fewer draw calls (room.js) */
   }
   pickExtra() { return [{ obj: this.station.group, kind: 'table' }]; }
   // ---------------------------------------------------------------- the room

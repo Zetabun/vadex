@@ -40,6 +40,7 @@ export class DeckRoom extends Room {
     this.furnish(); this.outside();
     this.solids.push({ ...TABLE }, ...PEDESTAL_Z.map((z) => ({ x: PEDESTAL_X, z, r: 0.85 }))); this.blocks.push({ x0: -W, x1: -3.85, z0: LOUNGE_Z - 1.25, z1: LOUNGE_Z + 1.25 }); /* the couch */
     this.station = new Station(this.scene); this.station.group.visible = true; this.station.group.position.set(TABLE.x, 1.55, TABLE.z); this.station.group.scale.setScalar(0.042);
+    this.bakeStatic(); /* still parts merged into fewer draw calls (room.js) */
   }
   pickExtra() { return [{ obj: this.station.group, kind: 'station' }]; }
   // ---------------------------------------------------------------- the room
@@ -191,7 +192,8 @@ export class DeckRoom extends Room {
     rows.forEach(([k, v], i) => { const y = 100 + i * 84; text(x, k.toUpperCase(), 990, y, '700 15px sans-serif', '#7f8bb0', 'right'); text(x, String(v), 990, y + 30, '800 28px sans-serif', '#e8fbff', 'right'); });
     tv.face.material.map.needsUpdate = true;
   }
-  offscreen(gl) { if (this.tv) this.replay.render(gl); }
+  /** The replay plays on the TV only while the TV is on screen: looking away, it keeps time but is not drawn. */
+  offscreen(gl) { if (!this.tv) return; const THREE = window.THREE, f = (this.frustum ||= new THREE.Frustum()), m = (this.viewProj ||= new THREE.Matrix4()); this.cam.updateMatrixWorld(); m.multiplyMatrices(this.cam.projectionMatrix, this.cam.matrixWorldInverse); f.setFromProjectionMatrix(m); this.tvSeen = f.intersectsObject(this.tv.face); if (this.tvSeen) this.replay.render(gl); }
   resize(w, h) { super.resize(w, h); this.vw = w; this.vh = h; }
   /** Watching the replay: it takes the whole screen (the UI lays its controls over it). */
   render(gl, dt) { if (this.watching && this.replay?.rep) { this.replay.update(dt); this.replay.renderFull(gl, this.vw, this.vh, this.watchInsets); return; } super.render(gl, dt); }
@@ -262,7 +264,7 @@ export class DeckRoom extends Room {
     this.holoGrid.rotation.z = this.t * 0.15;
     // the hologram, the ships, the banners
     this.station.animate(dt, night); this.station.body.rotation.set(0.25, this.t * 0.3, 0);
-    if (this.tv) { const r = lastReplay(); if (this.replay.rep !== r) this.replay.load(r); this.replay.update(dt); if (this.t >= this.tv.next) { this.tv.next = this.t + 0.2; this.drawTv(); } }
+    if (this.tv) { const r = lastReplay(); if (this.replay.rep !== r) this.replay.load(r); this.replay.update(dt); if (this.tvSeen !== false && this.t >= this.tv.next) { this.tv.next = this.t + 0.2; this.drawTv(); } }
     for (const p of this.spins || []) { p.rotation.y = this.t * 0.5 + p.userData.spin; p.position.y = 1.35 + Math.sin(this.t * 1.4 + p.userData.spin) * 0.05; }
     for (const [i, f] of (this.flags || []).entries()) { f.rotation.z = Math.sin(this.t * 0.9 + i) * 0.04; f.rotation.y = (f.userData.ry || 0) + Math.sin(this.t * 0.6 + i * 1.7) * 0.12; }
   }

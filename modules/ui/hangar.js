@@ -133,7 +133,7 @@ export function createHangar(hooks) {
     for (const k in navBtns) { setClass(navBtns[k], 'on', k === id); navBtns[k].setAttribute('aria-selected', String(k === id)); }
     if (id === 'awards') G.state.seen.medals = medalTotal().earned;
     if (id === 'records') G.state.seen.records = true;
-    const changed = el.dataset.tab !== id; el.dataset.tab = id; render(changed || quiet); badges(); hooks.measure?.();
+    const changed = el.dataset.tab !== id; el.dataset.tab = id; lay.dirty = true; render(changed || quiet); badges(); hooks.measure?.();
   }
   /** Rebuild the current tab. Re-renders after a purchase or a choice keep the scroll position, so rapid taps
    *  on a list (Workshop upgrades) stay on the row under the finger; switching tabs starts at the top. */
@@ -1074,7 +1074,12 @@ export function createHangar(hooks) {
     const hidden = (p) => (pages[p] || []).some((id) => navBtns[id].classList.contains('badged') || navBtns[id].classList.contains('fresh'));
     setClass($.next, 'badged', hidden(page + 1)); setClass($.prev, 'badged', page > 0 && hidden(page - 1));
   }
-  function update() { watchTick(); gunnerTick(); setText($.salvage, fmtInt(G.state.salvage)); badges(); pilotId(); stationDone(); G.hangarTop = top.getBoundingClientRect().bottom; stationTag(); }
+  // The sizes the hangar needs every frame (the header's foot, the screen, the station callout) are measured only when
+  // they can have changed (a resize, new text, another tab), so a frame never forces the page to be laid out again.
+  const lay = { dirty: true, top: 0, w: 0, h: 0, ch: 0, cl: 0, cw: 0 }, relayout = () => { lay.dirty = true; };
+  if (typeof ResizeObserver !== 'undefined') { const ro = new ResizeObserver(relayout); ro.observe(el); ro.observe(top); ro.observe($.callout); } addEventListener('resize', relayout);
+  function measureLayout() { lay.dirty = !(typeof ResizeObserver !== 'undefined'); lay.top = top.getBoundingClientRect().bottom; const b = el.getBoundingClientRect(), c = $.callout; lay.w = b.width; lay.h = b.height; lay.ch = c.offsetHeight; lay.cl = c.offsetLeft; lay.cw = c.offsetWidth; }
+  function update() { watchTick(); gunnerTick(); const sv = G.state.salvage; if ($.salvage._v !== sv) { $.salvage._v = sv; setText($.salvage, fmtInt(sv)); } badges(); pilotId(); stationDone(); if (lay.dirty) measureLayout(); G.hangarTop = lay.top; stationTag(); }
   /** Keep the label's text current, and its tap target over wherever the renderer drew it. */
   /** A buy that changed the station says so: a module rebuilt for the first time, lit once maxed, alien hardware fitted. */
   function stationNote(id, was) {
@@ -1101,14 +1106,16 @@ export function createHangar(hooks) {
     paintBar(Object.fromEntries(REBUILD_PARTS.map((r) => [r.id, to ? c._sh0[r.id] + (to[r.id] - c._sh0[r.id]) * k : now[r.id].share])));
     // a room that has opened says so until you go aboard
     const fresh = freshAboard(st), sig = (st.stationName || '') + '|' + c._pct + '|' + deck + '|' + fresh;
-    if (c._sig !== sig) { c._sig = sig; setText($.coName, st.stationName || 'Unnamed'); setClass(c, 'unnamed', !st.stationName); setClass(c, 'news', fresh); setText($.coSub, `${c._pct}% rebuilt` + (fresh ? ' · New room aboard ›' : deck ? ' · Command Deck ›' : '')); }
-    const p = G.renderer?.station?.hubNdc, box = el.getBoundingClientRect(); if (!p || !box.width) return;
-    const hx = (p.x + 1) / 2 * box.width, hy = (1 - p.y) / 2 * box.height, ch = c.offsetHeight, cTop = Math.max((G.hangarTop || 0) + 6, hy - ch / 2);
-    c.style.top = Math.round(cTop) + 'px';
+    if (c._sig !== sig) { c._sig = sig; lay.dirty = true; setText($.coName, st.stationName || 'Unnamed'); setClass(c, 'unnamed', !st.stationName); setClass(c, 'news', fresh); setText($.coSub, `${c._pct}% rebuilt` + (fresh ? ' · New room aboard ›' : deck ? ' · Command Deck ›' : '')); }
+    const p = G.renderer?.station?.hubNdc; if (!p || !lay.w) return;
+    const hx = (p.x + 1) / 2 * lay.w, hy = (1 - p.y) / 2 * lay.h, ch = lay.ch, cTop = Math.max((G.hangarTop || 0) + 6, hy - ch / 2);
+    const px = (o, k, v) => { if (o[k] !== v) o[k] = v; }; /* a style is only written when it changes */
+    px(c.style, 'top', Math.round(cTop) + 'px');
     // the tap target over the station follows it (it stands 27 units tall, 16 above the hub, 46 wide)
-    const u = (G.renderer.station.screenPx || 200) / 46, hs = $.stationHot.style; hs.left = Math.round(hx - 23 * u) + 'px'; hs.top = Math.round(hy - 16 * u) + 'px'; hs.width = Math.round(46 * u) + 'px'; hs.height = Math.round(27 * u) + 'px';
-    const ax = c.offsetLeft + c.offsetWidth + 6, ay = Math.round(Math.min(Math.max(hy, cTop + 10), cTop + ch - 10));
-    $.coLine.setAttribute('x1', ax); $.coLine.setAttribute('y1', ay); $.coLine.setAttribute('x2', Math.round(hx - 7)); $.coLine.setAttribute('y2', Math.round(hy)); $.coDot.setAttribute('cx', Math.round(hx)); $.coDot.setAttribute('cy', Math.round(hy));
+    const u = (G.renderer.station.screenPx || 200) / 46, hs = $.stationHot.style; px(hs, 'left', Math.round(hx - 23 * u) + 'px'); px(hs, 'top', Math.round(hy - 16 * u) + 'px'); px(hs, 'width', Math.round(46 * u) + 'px'); px(hs, 'height', Math.round(27 * u) + 'px');
+    const ax = lay.cl + lay.cw + 6, ay = Math.round(Math.min(Math.max(hy, cTop + 10), cTop + ch - 10));
+    const ls = `${ax},${ay},${Math.round(hx)},${Math.round(hy)}`; if ($.coLine._s !== ls) { $.coLine._s = ls;
+      $.coLine.setAttribute('x1', ax); $.coLine.setAttribute('y1', ay); $.coLine.setAttribute('x2', Math.round(hx - 7)); $.coLine.setAttribute('y2', Math.round(hy)); $.coDot.setAttribute('cx', Math.round(hx)); $.coDot.setAttribute('cy', Math.round(hy)); }
   }
   /** Light the rebuild bar's segments: each part's share across its own group, the one still filling pulsing. */
   function paintBar(sh) {

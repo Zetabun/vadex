@@ -1,5 +1,5 @@
 // CPU profile of a debug scene in headless Chrome: prints the functions with the most self time.
-//   node tools/profile.mjs [scene] [seconds]     (needs a local server; PORT env, default 8177)
+//   node tools/profile.mjs [scene] [seconds]     (needs a local server; PORT env, default 8177; CPU=4 slows it like a phone)
 import { spawn } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -17,6 +17,7 @@ const send = (method, params = {}) => new Promise((r) => { const i = ++id; pendi
 await send('Page.enable'); await send('Profiler.enable');
 await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 2, mobile: true });
 await send('Page.navigate', { url: `http://localhost:${PORT}/?debug=1&scene=${scene}` }); await sleep(4000);
+if (process.env.CPU) await send('Emulation.setCPUThrottlingRate', { rate: +process.env.CPU }); /* CPU=4: roughly a phone */
 await send('Profiler.setSamplingInterval', { interval: 200 }); await send('Profiler.start');
 const t0 = await send('Runtime.evaluate', { expression: 'performance.now()', returnByValue: true });
 await sleep(+secs * 1000);
@@ -27,4 +28,11 @@ for (let i = 0; i < profile.samples.length; i++) dt.set(profile.samples[i], (dt.
 let total = 0; for (const [nid, t] of dt) { const n = byId.get(nid), f = n.callFrame, key = `${f.functionName || '(anon)'} ${f.url.split('/').pop().split('?')[0]}:${f.lineNumber + 1}`; self.set(key, (self.get(key) || 0) + t); total += t; }
 console.log('scene', scene, JSON.stringify(info.result.value));
 for (const [k, t] of [...self].sort((a, b) => b[1] - a[1]).slice(0, 28)) console.log((t / 1000).toFixed(0).padStart(6) + ' ms ' + (100 * t / total).toFixed(1).padStart(5) + '%  ' + k);
+// INCL=1: the game's own functions by inclusive time (their own work and everything they call), per call path collapsed
+if (process.env.INCL) {
+  const kids = new Map(profile.nodes.map((n) => [n.id, n.children || []])), memo = new Map();
+  const incl = (nid) => { if (memo.has(nid)) return memo.get(nid); let t = dt.get(nid) || 0; for (const c of kids.get(nid)) t += incl(c); memo.set(nid, t); return t; };
+  const by = new Map(); for (const n of profile.nodes) { const f = n.callFrame; if (!f.url.includes('/modules/')) continue; const key = `${f.functionName || '(anon)'} ${f.url.split('/').pop().split('?')[0]}:${f.lineNumber + 1}`; by.set(key, (by.get(key) || 0) + incl(n.id)); }
+  console.log('--- inclusive (game code)'); for (const [k, t] of [...by].sort((a, b) => b[1] - a[1]).slice(0, 30)) console.log((t / 1000).toFixed(0).padStart(6) + ' ms ' + (100 * t / total).toFixed(1).padStart(5) + '%  ' + k);
+}
 ws.close(); proc.kill();

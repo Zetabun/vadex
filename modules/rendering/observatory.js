@@ -32,6 +32,7 @@ export class ObservatoryRoom extends Room {
     this.nearFront = 0.9;
     this.roof(); this.furnish(); this.outside();
     this.solids.push({ x: TEL.x, z: TEL.z, r: 1.1 }, { x: 2.6, z: -3.9, r: 0.95 });
+    this.bakeStatic(); /* still parts merged into fewer draw calls (room.js) */
   }
   // ---------------------------------------------------------------- the dome
   roof() {

@@ -33,6 +33,7 @@ export class HallRoom extends Room {
     this.furnish(); this.outside();
     for (let n = 1; n <= 6; n++) { const c = cradleAt(n); this.solids.push({ x: c.x, z: c.z, r: 1 }); }
     this.solids.push({ ...HUNT, r: 1.05 });
+    this.bakeStatic(); /* still parts merged into fewer draw calls (room.js) */
   }
   // ---------------------------------------------------------------- the room
   furnish() {

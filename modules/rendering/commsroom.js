@@ -25,6 +25,7 @@ export class CommsRoom extends Room {
     this.furnish(); this.outside();
     this.solids.push({ x: CONSOLE.x, z: CONSOLE.z - 0.1, r: 1.45 });
     for (const s of [-1, 1]) this.blocks.push({ x0: s < 0 ? -W : W - 0.75, x1: s < 0 ? -W + 0.75 : W, z0: 0.6, z1: 2.6 }); // the racks
+    this.bakeStatic(); /* still parts merged into fewer draw calls (room.js) */
   }
   // ---------------------------------------------------------------- the room
   furnish() {
