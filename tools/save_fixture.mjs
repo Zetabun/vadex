@@ -16,7 +16,7 @@ import { refreshBounties } from '@last-orbit/progression/bounties.js';
 import { useAbility } from '@last-orbit/combat/abilities.js';
 import { TICK } from '@last-orbit/data/balance.js';
 
-const version = process.argv[2] || /\?v=([^"]+)"/.exec(readFileSync('index.html', 'utf8'))[1];
+const version = process.argv[2] || /modules\/[^"]+\?v=([^"]+)"/.exec(readFileSync('index.html', 'utf8'))[1]; /* the import map's, not an icon's ?v= */
 bus.on('stats', () => { G.sheet.totalN['f.autopilot'] = 1; G.sheet.totalN.autoDodge = 1; });
 let over = false; bus.on('sortieOver', () => { over = true; });
 /** A sortie flown by the bot for up to maxT seconds (left in flight if it lasts that long). */

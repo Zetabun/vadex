@@ -1,6 +1,6 @@
 # Changelog
 
-## v2.19.0 — unreleased
+## v2.19.0 — 2026-09-26
 
 - **Fleet Ops (new room aboard, with the Halo ring at Overhaul rank 9):** the ships you are not flying can go out on expeditions. The room is a launch deck in the halo, through a new door on the Shipyard's right wall.
   - **Three berths.** Tap an empty one, choose any ship you own except the one you fly, and choose where it goes: any sector you have cleared, or the Deep Void once you have been past wave 60. Trips take from an hour (sector 1) to eight (the Deep Void), and ships keep flying with the game closed.
@@ -20,6 +20,7 @@
 - **The debrief fits long runs:** a long sortie's time no longer gets cut off (it reads 24:38), a haul in the millions stays beside its coin, and the stat labels read clearly over a bright planet.
 - **Smoother in the rooms aboard, with every effect kept.** Rooms now draw their still parts in far fewer steps: the Greenhouse's second wing needs 128 draw calls a frame instead of 404, the Shipyard 92 instead of 155, and every other room fewer too. The hangar no longer re-measures the page every frame, the effects layer is left alone when there is nothing on it, and the Command Deck's replay TV only plays while it is on screen.
 - **Doors aboard are set into the walls:** every doorway is now recessed, framed by a plate flat on the wall, and its doors slide back into the wall as they open, instead of a frame standing out from it.
+- **Hull never reads 0% while you are still flying:** a sliver of hull under half a percent used to show as 0% while your shield kept you alive. It now shows 1%, and the figure flashes red below 10%. At 0 the ship is destroyed, shield or not, as before.
 - The Greenhouse's seed drawer and potting bench no longer sink into the sill along the glass wall.
 - Saves from every release from now on are kept and checked against each new build, so an update can't stop an old save from loading.
 

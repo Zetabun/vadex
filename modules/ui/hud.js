@@ -85,7 +85,8 @@ export function createHud(hooks) {
     setText($.salvage, fmt(Math.floor(run.salvage)));
     setText($.score, fmtInt(run.score || 0)); setClass($.score, 'hot', !!run.beatBest);
     setText($.level, String(run.level)); setWidth($.xp, xpProgress(run));
-    const p = w.player; setWidth($.hull, p.hull); setText($.hullTxt, Math.max(0, Math.round(p.hull * 100)) + '%'); setClass($.hull.parentNode, 'low', p.hull < 0.3);
+    const p = w.player; setWidth($.hull, p.hull); setText($.hullTxt, (p.hull > 0 ? Math.max(1, Math.round(p.hull * 100)) : 0) + '%'); /* never 0% while there is any hull left: at 0 the ship is gone */
+    setClass($.hull.parentNode, 'low', p.hull < 0.3); setClass($.hullTxt, 'crit', p.alive && p.hull > 0 && p.hull < 0.1);
     const hasShield = !!w.base.hasShield; setClass($.shieldRow, 'off', !hasShield); if (hasShield) { setWidth($.shield, p.shield); setText($.shieldTxt, Math.round(p.shield * 100) + '%'); }
     let boss = null; for (const e of w.enemies) if (e.alive && e.boss && !e.parent) { boss = e; break; }
     $.boss.hidden = !boss; if (boss) { setText($.bossName, boss.boss.def.name); setWidth($.bossHp, boss.hp); setClass($.boss, 'enraged', !!boss.boss.enraged); }
