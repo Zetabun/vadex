@@ -173,9 +173,9 @@ select{background:var(--solid);color:var(--ink);border:1px solid var(--line2);bo
 /* Scrolling panes show no scroll bar (on a phone it sat over the right edge of every panel): the edge with more beyond
    it fades out instead, so the last panel in view trails off (.more-b, .more-t: ui/dom.js scrollHints). */
 .hg-body,.modal,.track,.warp-chips{scrollbar-width:none}.hg-body::-webkit-scrollbar,.modal::-webkit-scrollbar,.track::-webkit-scrollbar,.warp-chips::-webkit-scrollbar{display:none}
-.hg-body.more-b,.modal.more-b{-webkit-mask-image:linear-gradient(#000 calc(100% - 64px),transparent);mask-image:linear-gradient(#000 calc(100% - 64px),transparent)}
+.hg-body.more-b,.modal.more-b{-webkit-mask-image:linear-gradient(#000 calc(100% - 40px),transparent);mask-image:linear-gradient(#000 calc(100% - 40px),transparent)}
 .hg-body.more-t,.modal.more-t{-webkit-mask-image:linear-gradient(transparent,#000 28px);mask-image:linear-gradient(transparent,#000 28px)}
-.hg-body.more-t.more-b,.modal.more-t.more-b{-webkit-mask-image:linear-gradient(transparent,#000 28px,#000 calc(100% - 64px),transparent);mask-image:linear-gradient(transparent,#000 28px,#000 calc(100% - 64px),transparent)}
+.hg-body.more-t.more-b,.modal.more-t.more-b{-webkit-mask-image:linear-gradient(transparent,#000 28px,#000 calc(100% - 40px),transparent);mask-image:linear-gradient(transparent,#000 28px,#000 calc(100% - 40px),transparent)}
 .hg-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 #hangar:not([data-tab="launch"]) .hg-body{background:linear-gradient(180deg,rgba(4,7,22,.55),rgba(4,7,22,.94) 90px);backdrop-filter:blur(3px)}
 .hg-nav{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;padding:6px 8px calc(var(--sb) + 8px);background:rgba(4,7,22,.96);border-top:1px solid var(--line)}

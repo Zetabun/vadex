@@ -14,9 +14,11 @@ export function h(sel, props, ...kids) {
  *  changes size, or gets new content (its children replaced, or the view in it growing), never every frame. */
 export function scrollHints(el) {
   let queued = false;
-  const check = () => { queued = false; const top = el.scrollTop > 4, below = el.scrollTop + el.clientHeight < el.scrollHeight - 4; if (el._mt !== top) { el._mt = top; el.classList.toggle('more-t', top); } if (el._mb !== below) { el._mb = below; el.classList.toggle('more-b', below); } };
+  const check = () => { queued = false; const top = el.scrollTop > 4, below = el.scrollTop + el.clientHeight < el.scrollHeight - 24; /* a few px over (a shadow, a card still sliding in) is not more to see */ if (el._mt !== top) { el._mt = top; el.classList.toggle('more-t', top); } if (el._mb !== below) { el._mb = below; el.classList.toggle('more-b', below); } };
   const soon = () => { if (!queued) { queued = true; requestAnimationFrame(check); } };
   el.addEventListener('scroll', soon, { passive: true });
+  // cards that slide or fade in change the height without resizing anything: look again once they have settled
+  el.addEventListener('animationend', soon); el.addEventListener('transitionend', soon); setTimeout(soon, 500);
   if (typeof ResizeObserver !== 'undefined') { const ro = new ResizeObserver(soon); ro.observe(el); const watchKids = () => { for (const k of el.children) ro.observe(k); soon(); }; new MutationObserver(watchKids).observe(el, { childList: true }); watchKids(); }
   else soon();
   return el;
