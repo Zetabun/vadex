@@ -2,6 +2,17 @@
 
 ## v2.19.0 — unreleased
 
+- **Fleet Ops (new room aboard, with the Halo ring at Overhaul rank 9):** the ships you are not flying can go out on expeditions. The room is a launch deck in the halo, through a new door on the Shipyard's right wall.
+  - **Three berths.** Tap an empty one, choose any ship you own except the one you fly, and choose where it goes: any sector you have cleared, or the Deep Void once you have been past wave 60. Trips take from an hour (sector 1) to eight (the Deep Void), and ships keep flying with the game closed.
+  - **What they bring home:** that stretch's material (Alloy, Crystal or Void shards), salvage in proportion to what your sorties pay, and mastery for the ship that went. Now and then they also find a Greenhouse seed, an Alien Core, or (from sector 3 out) a Blueprint. The Deep Void sometimes gives up a signal fragment that nobody can read yet.
+  - **A ship that is out can't fly** until it is home and unloaded. The Ships menu says where it is and when it is due back. You can call a ship home early, but it comes back with nothing.
+  - **Bring 12 expeditions home for the Pathfinder paint.**
+  - The ring map in the middle shows every destination round the station, with a light for each ship on its way there and back. The routes board lists what each trip brings, and the log shows what came home. A ship you send lifts off and leaves through the force field; one that comes home while you are there flies in and settles on its pad.
+  - The Launch screen has a Fleet shortcut when a ship is home. The station card says when ships are home or a berth is free, and the Shipyard's fleet board shows who is away.
+- **Materials and ship refits.** Each stretch of the invasion now drops its own material: **Alloy** in sectors 1-2, **Crystal** in 3-4, and **Void shards** in 5-6 and the Deep Void (half as many again past wave 60). Bosses always drop some, elites often and other invaders now and then. Warping past a stretch means going without its material.
+  - Spend materials on **ship refits:** five for each ship, bought on its card in the Ships menu: a tuning for its gun, a reinforced frame, capacitors for its ability, a stronger trait, and a Void-tempered hull. A refit counts while you fly that ship, and an Overhaul leaves it alone.
+  - Each sector's banner names its material, and the debrief lists what came home.
+- **See everything you hold:** tap your salvage at the top of the screen for a list of every resource: salvage, the three materials, Blueprints, Alien Cores and seeds, with where each comes from and what it buys.
 - **Healing is less generous early on.** Hull repairs over time (Nanite Swarm, the Repair Bay, Vampire Coil, Ironclad and the Repair Escort) now pause for 3 seconds after each hit, instead of repairing straight through a fight. Nanite Swarm repairs 0.5% a second (was 0.8%), and lifesteal repairs at most 6% a second (was 8%). Repair kits, the repair after each wave, Second Wind and the full repair at the end of each sector are unchanged, so new pilots' first sorties are no harder.
 - **Nothing crowds the right edge on a phone.** The hangar pages, the debrief and pop-ups no longer show a scroll bar (on an iPhone it sat over the right edge of every panel). Instead, when there is more to see, the last panel fades into the bottom of the screen.
 - **The debrief fits long runs:** a long sortie's time no longer gets cut off (it reads 24:38), a haul in the millions stays beside its coin, and the stat labels read clearly over a bright planet.

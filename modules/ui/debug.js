@@ -26,6 +26,8 @@ import { SIEGE_TIERS } from '@last-orbit/data/siege.js';
 import { refreshBounties, checkBounties, claimBounty } from '@last-orbit/progression/bounties.js';
 import { BOUNTY_BY_ID } from '@last-orbit/data/bounties.js';
 import { ROOMS_ABOARD, roomAt } from '@last-orbit/data/rooms.js';
+import { DEST_BY_ID } from '@last-orbit/data/fleet.js';
+import { sendShip } from '@last-orbit/progression/fleet.js';
 
 export async function initDebug(app, { hooks, ui } = {}) {
   // &st=<px>: pretend to have a notch (the top safe-area inset), to check layouts the way a phone shows them
@@ -221,6 +223,30 @@ function runScene(scene, hooks, ui) {
   // beacons[:beaten[:met]] or beacons:<view>[:beaten] or beacons:tap:<exhibit>[:beaten]: the Beacon array at Overhaul rank 8,
   // that many Void bosses beaten (default 2) and that many more met (default 1). view: lamp, left, right, log, window;
   // intro (a first visit).
+  // ops[:view|tap:<exhibit>|intro|launch|return|empty|ships|hangar]: Fleet Ops at Overhaul rank 9 with four ships besides the
+  // one flown: the Striker a third of the way through scouting sector 4, the Bulwark home from the Deep Void, a berth free
+  // and three returns in the log. view: map, berths, routes, log, field, back. launch: the Tempest sent out as you watch;
+  // return: the Bulwark home as you watch; empty: nothing out yet; intro: a first visit; ships: the Ships menu, with the
+  // Striker away; hangar: the Launch screen, with the Fleet shortcut.
+  if (name === 'ops') { const HR = 3600000, now = Date.now();
+    st.pilot.name = 'Adam'; st.seen.callsign = true; st.stationName = 'Halcyon'; st.prestige.level = 9; st.stats.bestWave = 74; st.stats.bestSector = 8; st.stats.sectorsCleared = 6; st.stats.sorties = 60; st.counter.unlocked = true; st.garden.started = true;
+    for (const l of LINES) st.seen.comms[l.id] = 1; st.seen.commsInit = true; refreshMenus(); st.seen.menus.deck = true; for (const r of ROOMS_ABOARD) if (r.seen) st.seen[r.seen] = true; st.seen.ops = arg !== 'intro'; st.seen.gunnerIntro = true;
+    for (const id of ['striker', 'bulwark', 'tempest', 'revenant']) st.unlocked.ships[id] = 1; st.mastery = { vanguard: { level: 7, xp: 0 }, striker: { level: 4, xp: 20 }, bulwark: { level: 3, xp: 0 }, tempest: { level: 5, xp: 0 }, revenant: { level: 2, xp: 0 } };
+    Object.assign(st.materials, { alloy: 40, crystal: 22, shard: 6 }); st.seen.materials = true; st.seen.refits = true;
+    const trip = (ship, dest, done) => { const d = DEST_BY_ID[dest]; return { ship, dest, at: now - done * d.hours * HR, need: d.hours * HR }; };
+    const logged = (ship, dest, ago, got, line) => ({ ship, dest, at: now - ago * HR, got: { seeds: [], cores: 0, bp: 0, fragments: 0, ...got }, line });
+    st.fleet = { out: arg === 'empty' ? [null, null, null] : [trip('striker', 's4', 0.35), trip('bulwark', 'void', 1.02), null], sent: 5, home: 3, fragments: 1,
+      log: arg === 'empty' ? [] : [logged('tempest', 's3', 3, { salvage: 4200, mats: { crystal: 15 }, cores: 1 }, 'found an abandoned relay still broadcasting'), logged('bulwark', 'void', 20, { salvage: 13400, mats: { shard: 31 }, fragments: 1, bp: 1 }, 'heard something singing past the last beacon'), logged('striker', 's1', 30, { salvage: 2600, mats: { alloy: 9 }, seeds: ['sunpetal'] }, 'picked through a wreck field')] };
+    if (arg === 'empty') { st.fleet.sent = 0; st.fleet.home = 0; st.fleet.fragments = 0; }
+    if (arg === 'return') st.fleet.out[1].at = now - st.fleet.out[1].need + 4000; /* home four seconds after you arrive */
+    WORKSHOP.forEach((u, i) => { st.stationPeak[u.id] = u.max; st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.7 - (i % 5) * 0.12))); }); recalc();
+    if (arg === 'ships' || arg === 'hangar') { hooks.toHangar(arg === 'ships' ? 'ships' : 'launch'); if (arg === 'ships') setTimeout(() => document.querySelector('.fl-away')?.scrollIntoView({ block: 'center' }), 1200); return; }
+    hooks.toHangar('ops');
+    const view = { map: [-0.95, 1.0, 0.81, -0.48], berths: [0, -2.4, 0, -0.14], routes: [1.3, -0.7, Math.PI / 2, 0.05], log: [-0.7, -0.7, -Math.PI / 2, 0.05], field: [1.6, -7.8, 0.25, 0.12], back: [0, -3.2, Math.PI, 0.06], launch: [1.2, -1.2, -0.37, -0.06] }[arg];
+    if (view) { let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 60) setTimeout(place, 100); return; } r.pos.set(view[0], 0, view[1]); r.yaw = view[2]; r.pitch = view[3]; }; place(); }
+    if (arg === 'launch') setTimeout(() => { sendShip(st, 2, 'tempest', 's2'); }, 2500);
+    if (arg === 'tap') setTimeout(() => ui.tap?.(arg2 || 'berth3'), 1500);
+    return; }
   // aboard:<rank>[:card|offer|launch|door]: a save just Overhauled to that rank, every room before it visited and the one
   // it opens not yet: the station card (default), the offer after the rebuild reel, the NEW callout on Launch, or the door
   // to it with its NEW tag
@@ -229,7 +255,7 @@ function runScene(scene, hooks, ui) {
     for (const l of LINES) st.seen.comms[l.id] = 1; st.seen.commsInit = true; refreshMenus(); if (fresh?.id !== 'deck') st.seen.menus.deck = true;
     for (const r of ROOMS_ABOARD) if (r.seen) st.seen[r.seen] = r !== fresh; st.seen.gunnerIntro = true;
     WORKSHOP.forEach((u, i) => { st.stationPeak[u.id] = u.max; st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.6 - (i % 5) * 0.12))); }); recalc();
-    if (mode === 'door') { const at = { hall: ['deck', -1.8, 0, Math.PI / 2], comms: ['hall', 1.2, 1.75, -Math.PI / 2], quarters: ['hall', -1.2, 1.75, Math.PI / 2], observatory: ['quarters', -0.2, 1.15, -Math.PI / 2], yard: ['observatory', 0.8, 0.6, -Math.PI / 2], beacons: ['yard', -2.3, -9.9, Math.PI / 2] }[fresh?.id];
+    if (mode === 'door') { const at = { hall: ['deck', -1.8, 0, Math.PI / 2], comms: ['hall', 1.2, 1.75, -Math.PI / 2], quarters: ['hall', -1.2, 1.75, Math.PI / 2], observatory: ['quarters', -0.2, 1.15, -Math.PI / 2], yard: ['observatory', 0.8, 0.6, -Math.PI / 2], beacons: ['yard', -2.3, -9.9, Math.PI / 2], ops: ['yard', 2.3, -9.9, -Math.PI / 2] }[fresh?.id];
       if (!at) { hooks.toHangar('launch'); return; } hooks.toHangar(at[0]); let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 60) setTimeout(place, 100); return; } r.pos.set(at[1], 0, at[2]); r.yaw = at[3]; r.pitch = 0.1; }; place(); return; }
     hooks.toHangar('launch'); if (mode === 'offer') setTimeout(() => ui.offerRoom(rank), 600); else if (mode === 'card') setTimeout(() => document.querySelector('.st-callout')?.click(), 900); return; }
   // garden[:wing][:view[:tap:<exhibit>]|tap:<exhibit>|intro|offer|bloom]: the Greenhouse with a bloom, a bud and a sprout in the old bay

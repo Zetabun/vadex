@@ -70,7 +70,7 @@ export const STATION_CORE = [
   { at: 6, id: 'dome', name: 'Observatory', line: 'A glass dome beneath the hub, to chart the Deep Void for Blueprints', say: 'The observatory is open. Now we see them coming long before they arrive.' },
   { at: 7, id: 'yard', name: 'Shipyard', line: 'A frame for building ships, and the Chimera to build: a sixth ship', say: 'The shipyard frame is up. We build our own ships again.' },
   { at: 8, id: 'beacons', name: 'Beacon array', line: 'Lights at every tip, and Void bosses answering from the Deep Void', say: 'Beacons lit. Anyone still out there will know we are here.' },
-  { at: 9, id: 'halo', name: 'Halo ring', line: 'A holographic halo', say: 'The halo is up. The old station never looked this good.' },
+  { at: 9, id: 'halo', name: 'Halo ring', line: 'A holographic halo, and Fleet Ops: the ships you are not flying go out on expeditions', say: 'The halo is up, {n}. I can hear our ships all the way out now. The ones you are not flying could scout for us.' },
   { at: 10, id: 'crown', name: 'Stellar crown', line: 'The crowning jewel', say: 'The crown is in place. The last orbit is whole again, {n}. Thank you.' },
 ];
 export const coreBuilt = (id, rank) => (STATION_CORE.find((c) => c.id === id)?.at ?? 99) <= (rank || 0);

@@ -10,6 +10,7 @@ import { OBSERVATORY_RANK } from '@last-orbit/data/observatory.js';
 import { YARD_RANK } from '@last-orbit/data/shipyard.js';
 import { BEACON_RANK } from '@last-orbit/data/beacons.js';
 import { gardenOpen, WING_RANK } from '@last-orbit/data/garden.js';
+import { FLEET_RANK, PATHFINDER_AT } from '@last-orbit/data/fleet.js';
 
 /** id: its hangar tab (and the exhibit kind of the doors that lead there). rank: the Overhaul rank that opens it, or
  *  open: what does (when: said while it is shut; announce: it offers the way aboard when it opens, as an Overhaul's room
@@ -51,9 +52,13 @@ export const ROOMS_ABOARD = [
     for: 'Void bosses in the Deep Void, from wave 70', via: 'yard', door: 'the far door on the Shipyard\'s left',
     lock: `The Beacon array lights every tip of the station: it opens at Overhaul rank ${BEACON_RANK}.`,
     intro: 'The beacons are lit at every tip of the station, calling out into the Deep Void, and something out there is answering. From now on each Deep Void sector ends on a Void boss of its own: six of them, in turn. Beat each one for Blueprints; beat all six for the Lightkeeper paint. Their record is kept here, under the great beacon.' },
+  { id: 'ops', name: 'Fleet Ops', icon: 'ops', seen: 'ops', rank: FLEET_RANK, color: 0x6dffc8,
+    for: 'Send the ships you are not flying out on expeditions', via: 'yard', door: 'the far door on the Shipyard\'s right',
+    lock: `Fleet Ops is in the Halo ring: it opens at Overhaul rank ${FLEET_RANK}.`,
+    intro: `The halo is up, and it can hear our ships all the way out. Fleet Ops is its launch deck, with three berths: the ships you are not flying can go out from them on expeditions. Send one to scout a sector you have cleared and it comes back hours later, even with the game closed, bringing that stretch's material, salvage and mastery, and now and then a seed, an Alien Core or a Blueprint. The further out, the longer it is gone. Past wave 60, the Deep Void is on the map too. Bring ${PATHFINDER_AT} home for the Pathfinder paint.` },
 ];
 export const ROOM_BY_ID = Object.fromEntries(ROOMS_ABOARD.map((r) => [r.id, r]));
-/** The room an Overhaul to this rank opens (none at rank 4, the Solar wings, or past the Beacon array). */
+/** The room an Overhaul to this rank opens (none at rank 4, the Solar wings, or at 10, the crown). */
 export const roomAt = (rank) => ROOMS_ABOARD.find((r) => r.rank === rank) || null;
 /** The room an Overhaul to this rank adds to (the Solar wings: the Greenhouse's second wing). */
 export const wingAt = (rank) => ROOMS_ABOARD.find((r) => r.wing?.rank === rank) || null;

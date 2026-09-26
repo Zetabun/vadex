@@ -48,10 +48,13 @@ import { YARD_RANK, YARD_STAGES, YARD_SHIP, YARD_LINES, yardOpen, stageSalvage }
 import { yardStage, yardDone, nextStage, stageBlock, buildStage } from '@last-orbit/progression/shipyard.js';
 import { VOID_BOSSES, VOID_BOSS_BP, VOID_LORE, BEACON_LINES, firstWaveOf } from '@last-orbit/data/beacons.js';
 import { beaten as voidBeaten, allBeaten as voidAllBeaten } from '@last-orbit/progression/beacons.js';
+import { DESTINATIONS, DEST_BY_ID, PATHFINDER_AT, FLEET_PAINT, OPS_LINES, fleetOpen, destOpen, mayFind } from '@last-orbit/data/fleet.js';
+import { fleet, shipAway, tripDone, tripLeft, cannotSend, sendShip, recallShip, collectShip, fleetCounts, nextHome } from '@last-orbit/progression/fleet.js';
+import { sortieWorth } from '@last-orbit/progression/bounties.js';
 import { BOSSES } from '@last-orbit/data/bosses.js';
 import { STATION_CORE, MODULE_BY_ID, ALIEN_BY_ID, TROPHY_BY_ID, REBUILD_PARTS, rebuildPct, rebuildParts, stationSnapshot, caughtStages, hallOpen, STATION_TROPHIES, trophyWon, HUNTED } from '@last-orbit/data/station.js';
 import { ROOMS_ABOARD, ROOM_BY_ID, roomOpen, roomFresh, roomIntro, wingAt } from '@last-orbit/data/rooms.js';
-import { SEEDS, SEED_BY_ID, bedsOpen, wingOpen, WING_RANK, WING_SPEED, WATER_BOOST, SPRIG_LINES, TREE_LINES, seedWhere } from '@last-orbit/data/garden.js';
+import { SEEDS, SEED_BY_ID, gardenOpen, bedsOpen, wingOpen, WING_RANK, WING_SPEED, WATER_BOOST, SPRIG_LINES, TREE_LINES, seedWhere } from '@last-orbit/data/garden.js';
 import { garden, growth, hoursLeft, startGarden, plant, water, wateredToday, harvest, basketNext, gardenCounts, seedCount } from '@last-orbit/progression/garden.js';
 import { stationBlueprint, pieceThumb } from '@last-orbit/ui/stationArt.js';
 import { replayTitle, replayEnding } from '@last-orbit/rendering/replay.js';
@@ -114,7 +117,7 @@ export function createHangar(hooks) {
   const el = h('div#hangar', top, $.body, $.coSvg, $.stationHot, $.callout, $.nav);
 
   // The rooms aboard the station: 3D spaces to walk round, each reached from the hangar and left the way you came.
-  const ROOMS = { deck: 'Command Deck', control: 'Defence Control', gunner: 'Gunner seat', hall: 'Trophy Hall', comms: 'Comms room', quarters: 'Pilot\'s quarters', observatory: 'Observatory', yard: 'Shipyard', beacons: 'Beacon array', garden: 'Greenhouse' };
+  const ROOMS = { deck: 'Command Deck', control: 'Defence Control', gunner: 'Gunner seat', hall: 'Trophy Hall', comms: 'Comms room', quarters: 'Pilot\'s quarters', observatory: 'Observatory', yard: 'Shipyard', beacons: 'Beacon array', garden: 'Greenhouse', ops: 'Fleet Ops' };
   let outside = 'launch'; // the hangar tab the rooms lead back to
   let gunTier = 1, gunFrom = 'control'; // the siege in the gunner seat, and where leaving it goes
   function show(id, quiet) {
@@ -143,7 +146,7 @@ export function createHangar(hooks) {
    *  on a list (Workshop upgrades) stay on the row under the finger; switching tabs starts at the top. */
   function render(top = false) {
     const y = $.body.scrollTop; clear($.body);
-    const view = { launch: launchView, missions: missionsView, workshop: workshopView, armory: armoryView, ships: shipsView, contracts: contractsView, records: recordsView, awards: awardsView, deck: () => roomView('deck'), control: () => roomView('control'), hall: () => roomView('hall'), comms: () => roomView('comms'), quarters: () => roomView('quarters'), observatory: () => roomView('observatory'), yard: () => roomView('yard'), beacons: () => roomView('beacons'), garden: () => roomView('garden'), gunner: () => gunnerView() }[tab]();
+    const view = { launch: launchView, missions: missionsView, workshop: workshopView, armory: armoryView, ships: shipsView, contracts: contractsView, records: recordsView, awards: awardsView, deck: () => roomView('deck'), control: () => roomView('control'), hall: () => roomView('hall'), comms: () => roomView('comms'), quarters: () => roomView('quarters'), observatory: () => roomView('observatory'), yard: () => roomView('yard'), beacons: () => roomView('beacons'), garden: () => roomView('garden'), ops: () => roomView('ops'), gunner: () => gunnerView() }[tab]();
     $.body.append(view); $.body.scrollTop = top ? 0 : y;
   }
 
@@ -171,6 +174,8 @@ export function createHangar(hooks) {
       h('div', h('small', d.done ? 'Daily done' : 'Daily sortie'), h('b', d.done ? 'Back in ' + untilMidnight() : d.mutator.name))));
     if (tmax > 0) items.push(h('button.op', { onclick: () => show('missions') }, art('relic:r_giant', 'op-ico'),
       h('div', h('small', 'Threat'), h('b', st.threat ? `${roman(st.threat)} · +${Math.round((threatSalvage(st.threat) - 1) * 100)}%` : 'Off'))));
+    if (fleetOpen(st) && st.seen.ops) { const c = fleetCounts(st); items.push(h('button.op.fl-op' + (c.ready ? '.hot' : ''), { onclick: () => show('ops') }, h('span.op-ico', uiIcon('ops')),
+      h('div', h('small', 'Fleet'), h('b', c.ready ? `${c.ready} home` : c.out ? `Back in ${hrs(nextHome(st))}` : `${c.free} berth${c.free === 1 ? '' : 's'} free`)))); }
     return items.length ? h('div.ops', items) : null;
   }
   /** Warp start: choose the sector to begin in, once later sectors have been reached. */
@@ -354,7 +359,9 @@ export function createHangar(hooks) {
     for (const s of SHIPS) {
       const status = shipStatus(s.id), sel = st.ship === s.id, c = shipContract(s.id);
       let action;
-      if (status === 'owned') action = h('button.btn' + (sel ? '.ghost' : '.primary'), { disabled: sel, onclick: () => { selectShip(s.id); playSfx('tab'); render(); } }, sel ? 'Selected' : 'Select');
+      const away = status === 'owned' ? shipAway(st, s.id) : -1; /* out on an expedition (Fleet Ops): she cannot fly till she is home */
+      if (away >= 0) action = h('button.btn.ghost.fl-away', { onclick: () => show('ops') }, tripDone(st, away) >= 1 ? 'Home: unload her in Fleet Ops' : `Away · ${DEST_BY_ID[fleet(st).out[away].dest].name} · ${hrs(tripLeft(st, away))}`);
+      else if (status === 'owned') action = h('button.btn' + (sel ? '.ghost' : '.primary'), { disabled: sel, onclick: () => { selectShip(s.id); playSfx('tab'); render(); } }, sel ? 'Selected' : 'Select');
       else if (status === 'buyable') action = h('button.btn.gold', { disabled: st.salvage < s.cost, onclick: () => { if (buyShip(s.id)) { playSfx('unlock'); hooks.flash?.(hex(s.trim)); render(); } else playSfx('deny'); } }, art('cur:salvage', 'cur-ico'), fmt(s.cost));
       else if (status === 'yard') action = yardOpen(st) ? h('button.btn.gold', { onclick: () => show('yard') }, `Build her in the Shipyard · ${yardStage(st)}/${YARD_STAGES.length}`) : h('div.lock-note', uiIcon('lock'), h('span', `Built in the Shipyard, which opens at Overhaul rank ${YARD_RANK}`));
       else action = h('div.lock-note', uiIcon('lock'), h('span', c ? `Contract “${c.name}”: ${c.desc} (${contractProgress(c).cur}/${c.goal})` : 'Locked'));
@@ -370,8 +377,8 @@ export function createHangar(hooks) {
     }
     const paints = h('div.paints', PAINTS.map((pt) => {
       const owned = !!st.paints[pt.id], on = st.paint === pt.id;
-      const how = pt.source === 'garden' ? 'Grow every kind of plant in the Greenhouse' : pt.source === 'beacon' ? 'Beat all six Void bosses in the Deep Void' : pt.source === 'void' ? `Reach wave ${pt.mark} and chart ${MARK_BY_WAVE[pt.mark]?.name} in the Observatory` : pt.source === 'counter' ? 'Clear Counterattack stage 6' : pt.source === 'mastery' ? `${SHIP_BY_ID[pt.ship].name} mastery 10` : pt.source === 'contract' ? `Contract: ${CONTRACTS.find((c) => c.unlock?.paint === pt.id)?.name}` : `Pilot rank ${paintRank(pt.id)}`;
-      const short = pt.source === 'garden' ? 'Greenhouse' : pt.source === 'beacon' ? 'Void bosses' : pt.source === 'void' ? `Void ${voidSector(pt.mark)}` : pt.source === 'counter' ? 'Stage 6' : pt.source === 'mastery' ? 'Mastery 10' : pt.source === 'contract' ? 'Contract' : 'Rank ' + paintRank(pt.id);
+      const how = pt.source === 'garden' ? 'Grow every kind of plant in the Greenhouse' : pt.source === 'fleet' ? `Bring ${PATHFINDER_AT} expeditions home in Fleet Ops` : pt.source === 'beacon' ? 'Beat all six Void bosses in the Deep Void' : pt.source === 'void' ? `Reach wave ${pt.mark} and chart ${MARK_BY_WAVE[pt.mark]?.name} in the Observatory` : pt.source === 'counter' ? 'Clear Counterattack stage 6' : pt.source === 'mastery' ? `${SHIP_BY_ID[pt.ship].name} mastery 10` : pt.source === 'contract' ? `Contract: ${CONTRACTS.find((c) => c.unlock?.paint === pt.id)?.name}` : `Pilot rank ${paintRank(pt.id)}`;
+      const short = pt.source === 'garden' ? 'Greenhouse' : pt.source === 'fleet' ? 'Fleet Ops' : pt.source === 'beacon' ? 'Void bosses' : pt.source === 'void' ? `Void ${voidSector(pt.mark)}` : pt.source === 'counter' ? 'Stage 6' : pt.source === 'mastery' ? 'Mastery 10' : pt.source === 'contract' ? 'Contract' : 'Rank ' + paintRank(pt.id);
       return h('button.paint' + (on ? '.on' : '') + (owned ? '' : '.locked'), { disabled: !owned, title: owned ? pt.name : `${pt.name}: ${how}`, onclick: () => { if (selectPaint(pt.id)) { playSfx('tab'); render(); } } }, swatch(pt.id), h('span', owned ? pt.name : short));
     }));
     const pick = (b) => {
@@ -608,6 +615,7 @@ export function createHangar(hooks) {
     if (kind === 'exit') { show(outside); return; }
     if (kind === 'observatory') { show('observatory'); return; }
     if (kind === 'beacons') { show('beacons'); return; }
+    if (kind === 'ops') { show('ops'); return; }
     if (kind === 'ship' || kind === 'console') { yardPanel(); return; }
     if (kind === 'blueprint') { yardBlueprint(); return; }
     playSfx('tab');
@@ -645,6 +653,87 @@ export function createHangar(hooks) {
     playSfx('tab');
     if (kind === 'beacon') { const met = VOID_BOSSES.filter((id) => st.seen?.bosses?.[id] && !voidBeaten(st)[id]); hooks.say?.(met.length ? `${BOSSES[met[0]].name} answered and is still out there, {n}. The beacon can hear it breathing.` : BEACON_LINES[beaconTalk++ % BEACON_LINES.length]); return; }
     if (kind === 'window') hooks.say?.(VOID_BOSSES.some((id) => voidBeaten(st)[id]) ? 'Every light out there is something that answered, {n}, and that you beat. We leave the beacons burning for the rest.' : 'Watch the dark past the beam, {n}. When something answers, you will see it.');
+  }
+  // ------------------------------------------------------------ Fleet Ops (data/fleet.js)
+  const matOf = (d) => MAT_BY_ID[d.mat];
+  function opsTitle() { const st = G.state, c = fleetCounts(st); return c.ready ? `${c.ready} home to unload` : c.out ? `${c.out} out · back in ${hrs(nextHome(st))}` : `${c.free} berth${c.free === 1 ? '' : 's'} free`; }
+  const sendable = (st) => SHIPS.some((s) => !cannotSend(st, s.id));
+  /** What a trip to a destination brings: its material, salvage (by what your sorties pay), and mastery. */
+  function destGives(d, st) {
+    const worth = Math.max(10, Math.round((sortieWorth(st) * d.worth) / 10) * 10);
+    return h('div.fl-gives', matChip(d.mat, d.matN), h('span.fl-g', art('cur:salvage', 'mat-ico'), `~${fmt(worth)}`), h('span.fl-g', `+${d.mastery} mastery`), d.fragment ? h('span.fl-g.rare', 'Signal fragments') : null);
+  }
+  /** The finds a trip might turn up, in a line. */
+  const finds = (d, st) => { const f = mayFind(st, d, gardenOpen(st)); return f.length ? h('p.sub-note', `Maybe ${f.length > 1 ? f.slice(0, -1).join(', ') + ' or ' + f[f.length - 1] : f[0]} too.`) : null; };
+  /** A destination: where, how long, what it brings (and a Send button, when sending); or what opens it. */
+  function destRow(d, st, send) {
+    const ok = destOpen(st, d);
+    return h('div.fl-dest' + (ok ? '' : '.locked'), { style: `--c:${hex(matOf(d).color)}` },
+      h('div.fl-dt', h('b', d.name), h('small', ok ? `${hrs(d.hours)} there and back` : d.deep ? 'Opens once you have been past wave 60' : `Opens once you have cleared sector ${d.n}`)),
+      ok && send ? h('button.btn.primary.small.fl-go', { onclick: () => send(d) }, 'Send') : ok ? null : h('span.fl-lock', uiIcon('lock')), ok ? destGives(d, st) : null);
+  }
+  /** An empty berth: choose a ship (any you own but the one you fly) and where it goes. */
+  function sendPanel(i) {
+    const st = G.state, ships = SHIPS.filter((s) => st.unlocked.ships[s.id]), can = ships.filter((s) => !cannotSend(st, s.id)), kicker = `Fleet Ops · Berth ${i + 1}`; playSfx('tab');
+    if (!can.length) { hooks.panel?.({ kicker, title: 'No ship to send', body: [h('p.sub-note', ships.length < 2 ? 'Any ship you own but the one you fly can go out. Buy another in the Ships menu and it can scout while you fly.' : 'Every ship you own is out already, or flying with you. Send the next one when a ship comes home.'), h('button.btn.ghost.small.d3-more', { onclick: () => { hooks.closeOverlays?.(); show('ships'); } }, 'Ships', uiIcon('chevron'))] }); return; }
+    let pick = can[0].id; const chips = new Map();
+    const row = h('div.fl-ships', ships.map((s) => { const why = cannotSend(st, s.id);
+      const b = h('button.fl-ship' + (s.id === pick ? '.on' : ''), { disabled: !!why, style: `--c:${hex(s.trim)}`, onclick: () => { pick = s.id; for (const [id, el] of chips) setClass(el, 'on', id === pick); playSfx('tab', 0.5); } },
+        art('ship:' + s.id, 'fl-art'), h('b', s.name), h('small', why === 'flying' ? 'You fly her' : why === 'away' ? 'Away' : `Mastery ${st.mastery?.[s.id]?.level || 1}`));
+      chips.set(s.id, b); return b; }));
+    const go = (d) => { const o = sendShip(st, i, pick, d.id); if (!o) { playSfx('deny'); return; } playSfx('unlock'); hooks.saveNow?.('fleet'); hooks.closeOverlays?.(); render(); hooks.toast?.(`The ${SHIP_BY_ID[pick].name} is away to ${d.name}: back in ${hrs(d.hours)}.`, 'good'); };
+    hooks.panel?.({ kicker, title: 'Send a ship out', body: [h('h4.oh-sub', 'Which ship'), row, h('h4.oh-sub', 'Where to'), h('div.fl-dests', DESTINATIONS.map((d) => destRow(d, st, go))),
+      h('p.sub-note', 'It brings home that stretch\'s material, salvage and mastery, and now and then a Greenhouse seed, an Alien Core or a Blueprint. It keeps flying while the game is closed.')] });
+  }
+  /** A ship out: how far along, when it is back, what it should bring; it can be called home early, empty-handed. */
+  function tripPanel(i) {
+    const st = G.state, o = fleet(st).out[i], d = DEST_BY_ID[o.dest], s = SHIP_BY_ID[o.ship], k = tripDone(st, i) || 0; playSfx('tab');
+    const recall = () => hooks.confirm?.({ kicker: 'Fleet Ops', title: `Call the ${s.name} home?`, text: 'She turns round now and is back in the hangar straight away, but brings nothing home with her.', yes: 'Call her home', no: 'Let her fly',
+      onYes: () => { recallShip(st, i); hooks.saveNow?.('fleet'); render(); hooks.toast?.(`The ${s.name} is back in the hangar.`, 'info'); } });
+    hooks.panel?.({ kicker: `Fleet Ops · Berth ${i + 1}`, title: `${s.name} · ${d.name}`, body: [
+      h('div.fl-trip', { style: `--c:${hex(matOf(d).color)}` }, h('div.fl-when', h('small', k < 0.5 ? 'On her way out' : 'On her way home'), h('b', `Back in ${hrs(tripLeft(st, i))}`)), h('div.fl-bar', h('i', { style: `width:${(k * 100).toFixed(1)}%` }))),
+      h('h4.oh-sub', 'What she should bring'), destGives(d, st), finds(d, st),
+      h('button.btn.ghost.small.fl-recall', { onclick: () => { hooks.closeOverlays?.(); recall(); } }, 'Call her home early')] });
+  }
+  /** A ship home: unload it (the salvage, material and finds banked, its mastery), and say what it brought. */
+  function unload(i) {
+    const st = G.state, r = collectShip(st, i); if (!r) return; const d = DEST_BY_ID[r.dest], s = SHIP_BY_ID[r.ship], f = fleet(st);
+    playSfx('unlock'); hooks.flash?.(hex(matOf(d).color)); hooks.saveNow?.('fleet'); render();
+    const rows = [['Salvage', `+${fmt(r.got.salvage)}`], ...Object.entries(r.got.mats).map(([id, n]) => [MAT_BY_ID[id].name, `+${n}`]),
+      r.mastery ? [`${s.name} mastery`, r.mastery.to > r.mastery.from ? `Level ${r.mastery.to}` : `+${r.mastery.gained}`] : null,
+      ...r.got.seeds.map((id) => ['Greenhouse seed', SEED_BY_ID[id]?.name || id]), r.got.cores ? ['Alien Cores', `+${r.got.cores}`] : null, r.got.bp ? ['Blueprints', `+${r.got.bp}`] : null, r.got.fragments ? ['Signal fragment', 'Unreadable, for now'] : null].filter(Boolean);
+    hooks.panel?.({ kicker: `Home from ${d.name}`, title: `The ${s.name} is back`, body: [h('p.sub-note', `She ${r.line}.`), h('div.deck-board', rows.map(([k, v]) => h('div.db-row', h('small', k), h('b', v)))),
+      r.paint ? h('p.fl-paint', `${f.home} expeditions home: the Pathfinder paint is yours. Find it in the Ships menu.`) : st.paints[FLEET_PAINT] ? null : h('p.sub-note', `${PATHFINDER_AT - f.home} more home for the Pathfinder paint.`)] });
+    if (r.got.fragments && f.fragments === 1) setTimeout(() => hooks.say?.('That fragment is a signal, {n}, from further out than anything we know. I cannot read it. Not yet. Keep bringing them home.'), 600);
+  }
+  /** Every destination: what it brings and how long it takes, or what opens it. */
+  function routesPanel() {
+    const st = G.state; playSfx('tab');
+    hooks.panel?.({ kicker: 'Fleet Ops', title: 'Routes', body: [h('p.sub-note', 'Everywhere the fleet can scout: a sector once you have cleared it, the Deep Void once you have been past wave 60. Tap an empty berth to send a ship.'), h('div.fl-dests', DESTINATIONS.map((d) => destRow(d, st)))] });
+  }
+  /** The ships home so far, what each brought, and the count to the Pathfinder. */
+  function logPanel() {
+    const st = G.state, f = fleet(st); playSfx('tab');
+    const rows = f.log.map((e) => { const d = DEST_BY_ID[e.dest];
+      return h('div.fl-log', h('div.fl-dt', h('b', `${SHIP_BY_ID[e.ship]?.name} · ${d?.name}`), h('small', `${dateLabel(e.at)} · she ${e.line}`)),
+        h('div.fl-gives', Object.entries(e.got.mats || {}).map(([id, n]) => matChip(id, n)), h('span.fl-g', art('cur:salvage', 'mat-ico'), fmt(e.got.salvage)), e.got.seeds?.length ? h('span.fl-g.rare', 'Seed') : null,
+          e.got.cores ? h('span.fl-g.rare', `${e.got.cores} Core${e.got.cores > 1 ? 's' : ''}`) : null, e.got.bp ? h('span.fl-g.rare', 'Blueprint') : null, e.got.fragments ? h('span.fl-g.rare', 'Signal') : null)); });
+    hooks.panel?.({ kicker: 'Fleet Ops', title: 'Expedition log', body: [rows.length ? h('div.fl-logs', rows) : h('p.sub-note', 'No ships home yet. Send one out from a berth and its return is logged here.'),
+      h('p.sub-note', st.paints[FLEET_PAINT] ? `${f.home} expeditions home. The Pathfinder paint is yours.` : `${f.home} of ${PATHFINDER_AT} expeditions home for the Pathfinder paint.`),
+      f.fragments ? h('p.sub-note', `${f.fragments} signal fragment${f.fragments > 1 ? 's' : ''} from the Deep Void, waiting to be read.`) : null] });
+  }
+  /** Tapping something in Fleet Ops: a berth (send, see the trip, or unload), the ring map or the routes board, the log,
+   *  the field, or a door. */
+  let opsTalk = 0;
+  function opsExhibit(kind) {
+    const st = G.state;
+    if (kind === 'exit') { show(outside); return; }
+    if (kind === 'yard') { show('yard'); return; }
+    if (kind === 'map' || kind === 'routes') { routesPanel(); return; }
+    if (kind === 'log') { logPanel(); return; }
+    if (kind.startsWith('berth')) { const i = +kind.slice(5) - 1, t = tripDone(st, i); if (t == null) sendPanel(i); else if (t >= 1) unload(i); else tripPanel(i); return; }
+    playSfx('tab');
+    if (kind === 'window') hooks.say?.(OPS_LINES[opsTalk++ % OPS_LINES.length]);
   }
   // ------------------------------------------------------------ the Greenhouse
   const hrs = (v) => (v >= 1 ? `${Math.floor(v)}h ${String(Math.floor((v % 1) * 60)).padStart(2, '0')}m` : `${Math.max(1, Math.ceil(v * 60))}m`);
@@ -866,8 +955,8 @@ export function createHangar(hooks) {
   function roomView(id) {
     // The room itself is 3D (rendering/deck.js and control.js, drawn while G.room is set); this is the touch layer over it.
     const p = G.state.pilot, hint = h('div.d3-hint', 'Drag to look around · Tap the floor to walk · Tap anything to inspect');
-    const el = h('div.deck3d' + (id === 'control' ? '.control' : id === 'hall' ? '.hall' : id === 'comms' ? '.comms' : id === 'quarters' ? '.quarters' : id === 'observatory' ? '.observatory' : id === 'yard' ? '.yard' : id === 'beacons' ? '.beacons' : id === 'garden' ? '.garden' : ''), { 'aria-label': `${ROOMS[id]}. Drag to look around, tap the floor to walk, tap an exhibit to inspect it.` },
-      h('div.d3-top', h('div.d3-title', h('small', ROOMS[id]), h('b', id === 'deck' || id === 'quarters' ? p.name || rankTitle(p.rank) : id === 'hall' ? `${caughtStages(G.state).length}/6 captured` : id === 'comms' ? `${(G.state.bounties?.list || []).filter((b) => b.done).length}/3 bounties done` : id === 'observatory' ? `${VOID_MARKS.filter((m) => isCharted(G.state, m)).length}/${VOID_MARKS.length} charted` : id === 'yard' ? (yardDone(G.state) ? `In dock: ${SHIP_BY_ID[G.state.ship]?.name}` : `Chimera · ${yardStage(G.state)}/${YARD_STAGES.length} built`) : id === 'beacons' ? `${VOID_BOSSES.filter((b) => voidBeaten(G.state)[b]).length}/${VOID_BOSSES.length} beaten` : id === 'garden' ? gardenTitle() : G.state.stationName || 'Station defence')), h('button.btn.ghost.small.d3-exit', { onclick: () => show(outside) }, uiIcon('back'), 'Exit')), hint);
+    const el = h('div.deck3d' + (id === 'control' ? '.control' : id === 'hall' ? '.hall' : id === 'comms' ? '.comms' : id === 'quarters' ? '.quarters' : id === 'observatory' ? '.observatory' : id === 'yard' ? '.yard' : id === 'beacons' ? '.beacons' : id === 'garden' ? '.garden' : id === 'ops' ? '.ops' : ''), { 'aria-label': `${ROOMS[id]}. Drag to look around, tap the floor to walk, tap an exhibit to inspect it.` },
+      h('div.d3-top', h('div.d3-title', h('small', ROOMS[id]), h('b', id === 'deck' || id === 'quarters' ? p.name || rankTitle(p.rank) : id === 'hall' ? `${caughtStages(G.state).length}/6 captured` : id === 'comms' ? `${(G.state.bounties?.list || []).filter((b) => b.done).length}/3 bounties done` : id === 'observatory' ? `${VOID_MARKS.filter((m) => isCharted(G.state, m)).length}/${VOID_MARKS.length} charted` : id === 'yard' ? (yardDone(G.state) ? `In dock: ${SHIP_BY_ID[G.state.ship]?.name}` : `Chimera · ${yardStage(G.state)}/${YARD_STAGES.length} built`) : id === 'beacons' ? `${VOID_BOSSES.filter((b) => voidBeaten(G.state)[b]).length}/${VOID_BOSSES.length} beaten` : id === 'garden' ? gardenTitle() : id === 'ops' ? opsTitle() : G.state.stationName || 'Station defence')), h('button.btn.ghost.small.d3-exit', { onclick: () => show(outside) }, uiIcon('back'), 'Exit')), hint);
     let down = null;
     if (watch && id === 'deck') { el.append(watch.el); el.classList.add('watching'); }
     el.addEventListener('pointerdown', (e) => { if (e.target.closest('button, input') || watch) return; down = { id: e.pointerId, x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, t: performance.now(), moved: false }; try { el.setPointerCapture(e.pointerId); } catch { /* not every pointer can be captured */ } });
@@ -880,7 +969,7 @@ export function createHangar(hooks) {
     const up = (e) => {
       if (!down || e.pointerId !== down.id) return; const tap = !down.moved && performance.now() - down.t < 450; down = null; hint.classList.add('off');
       if (!tap) return; const r = G.renderer.canvas.getBoundingClientRect(), res = G.renderer.room?.pick(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-      if (res?.exhibit) ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit, quarters: quartersExhibit, observatory: observatoryExhibit, yard: yardExhibit, beacons: beaconExhibit, garden: gardenExhibit }[id] || exhibit)(res.exhibit); else if (res?.walk) playSfx('tab', 0.4);
+      if (res?.exhibit) ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit, quarters: quartersExhibit, observatory: observatoryExhibit, yard: yardExhibit, beacons: beaconExhibit, garden: gardenExhibit, ops: opsExhibit }[id] || exhibit)(res.exhibit); else if (res?.walk) playSfx('tab', 0.4);
     };
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', () => { down = null; });
     return el;
@@ -1116,7 +1205,9 @@ export function createHangar(hooks) {
   const lay = { dirty: true, top: 0, w: 0, h: 0, ch: 0, cl: 0, cw: 0 }, relayout = () => { lay.dirty = true; };
   if (typeof ResizeObserver !== 'undefined') { const ro = new ResizeObserver(relayout); ro.observe(el); ro.observe(top); ro.observe($.callout); } addEventListener('resize', relayout);
   function measureLayout() { lay.dirty = !(typeof ResizeObserver !== 'undefined'); lay.top = top.getBoundingClientRect().bottom; const b = el.getBoundingClientRect(), c = $.callout; lay.w = b.width; lay.h = b.height; lay.ch = c.offsetHeight; lay.cl = c.offsetLeft; lay.cw = c.offsetWidth; }
-  function update() { watchTick(); gunnerTick(); const sv = G.state.salvage; if ($.salvage._v !== sv) { $.salvage._v = sv; setText($.salvage, fmtInt(sv)); } badges(); pilotId(); stationDone(); if (lay.dirty) measureLayout(); G.hangarTop = lay.top; stationTag(); }
+  /** Fleet Ops' title keeps up with its ships (one comes home while you stand there). */
+  let opsAt = 0; function opsTick() { if (tab !== 'ops' || performance.now() < opsAt) return; opsAt = performance.now() + 1000; const b = $.body.querySelector('.deck3d.ops .d3-title b'); if (b) setText(b, opsTitle()); }
+  function update() { watchTick(); gunnerTick(); opsTick(); const sv = G.state.salvage; if ($.salvage._v !== sv) { $.salvage._v = sv; setText($.salvage, fmtInt(sv)); } badges(); pilotId(); stationDone(); if (lay.dirty) measureLayout(); G.hangarTop = lay.top; stationTag(); }
   /** Keep the label's text current, and its tap target over wherever the renderer drew it. */
   /** A buy that changed the station says so: a module rebuilt for the first time, lit once maxed, alien hardware fitted. */
   function stationNote(id, was) {
@@ -1204,6 +1295,10 @@ export function createHangar(hooks) {
     if (r.id === 'observatory') { const n = chartable(st).length, done = VOID_MARKS.filter((m) => isCharted(st, m)).length; return n ? { text: `${n} new ${n > 1 ? 'depths' : 'depth'} to chart`, ready: true } : { text: done ? `${done} of ${VOID_MARKS.length} depths charted` : r.for }; }
     if (r.id === 'yard') { if (yardDone(st)) return { text: 'The Chimera is built: try her paints in the dock' }; const n = nextStage(st), step = `stage ${n.n} of ${YARD_STAGES.length}, ${n.name.toLowerCase()}`; return stageBlock(st) ? { text: `The Chimera, ${step}` } : { text: `Ready to build ${step}`, ready: true }; }
     if (r.id === 'beacons') { const n = VOID_BOSSES.filter((id) => voidBeaten(st)[id]).length; return { text: n ? `${n} of ${VOID_BOSSES.length} Void bosses beaten` : r.for }; }
+    if (r.id === 'ops') { const c = fleetCounts(st);
+      if (c.ready) return { text: `${c.ready} ship${c.ready > 1 ? 's' : ''} home: unload ${c.ready > 1 ? 'them' : 'her'}`, ready: true };
+      if (c.free && sendable(st)) return { text: `${c.free} berth${c.free > 1 ? 's' : ''} free: send a ship out`, ready: true };
+      return { text: c.out ? `${c.out} out · next home in ${hrs(nextHome(st))}` : r.for }; }
     if (r.id === 'garden') { const c = gardenCounts(st), seeds = seedCount(st);
       if (c.bloom) return { text: `${c.bloom} in bloom: harvest ${c.bloom > 1 ? 'them' : 'it'}`, ready: true };
       if (c.empty && seeds) return { text: `${c.empty} empty bed${c.empty > 1 ? 's' : ''}: plant a seed`, ready: true };
@@ -1232,5 +1327,5 @@ export function createHangar(hooks) {
   bus.on('contract', () => { if (G.mode === 'hangar') render(); });
   bus.on('medal', () => { if (G.mode === 'hangar' && tab === 'awards') { G.state.seen.medals = medalTotal().earned; render(); } });
   layoutNav();
-  return { el, top, nav: $.nav, show, board, render, update, siege: (n) => launchSiege(n), tap: (kind) => ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit, quarters: quartersExhibit, observatory: observatoryExhibit, yard: yardExhibit, beacons: beaconExhibit, garden: gardenExhibit }[G.room] || exhibit)(kind), get tab() { return tab; } };
+  return { el, top, nav: $.nav, show, board, render, update, siege: (n) => launchSiege(n), tap: (kind) => ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit, quarters: quartersExhibit, observatory: observatoryExhibit, yard: yardExhibit, beacons: beaconExhibit, garden: gardenExhibit, ops: opsExhibit }[G.room] || exhibit)(kind), get tab() { return tab; } };
 }

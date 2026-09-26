@@ -724,4 +724,34 @@ assert.throws(() => parseSave('{"run":{},"cur":{}}'), /Not a Last Orbit v2 save/
   launch(); const p = G.world.player; p.invuln = 0; p.dashInv = 0; p.hull = 0.301; hurtPlayer(G.world, 1); assert.equal(G.state.run.hullBy.wind, 0.4 * RF.PASSIVE_REFIT, 'Second Wind repairs 50% after its refit');
   G.state.refits.vanguard = RF.REFIT_MAX; assert.equal(R.refitNext(G.state, 'vanguard'), null, 'Five refits a ship'); endSortie('abandoned'); }
 
+// ---- v2.19: Fleet expeditions (Fleet Ops, Overhaul rank 9) ----
+{ const F = await import('@last-orbit/progression/fleet.js'), FD = await import('@last-orbit/data/fleet.js'), HR = 3600000, t0 = Date.UTC(2026, 8, 1);
+  fresh(); const st = G.state; st.unlocked.ships.striker = 1; st.unlocked.ships.bulwark = 1; st.stats.sectorsCleared = 2;
+  assert.deepEqual(st.fleet.out, [null, null, null], 'Three empty berths');
+  assert.equal(F.sendShip(st, 0, 'striker', 's1', t0), null, 'Fleet Ops opens with the halo, at Overhaul rank 9');
+  st.prestige.level = FD.FLEET_RANK;
+  assert.equal(F.sendShip(st, 0, st.ship, 's1', t0), null, 'The ship you fly stays with you');
+  assert.equal(F.sendShip(st, 0, 'tempest', 's1', t0), null, 'Only ships you own go out');
+  assert.equal(F.sendShip(st, 0, 'striker', 's3', t0), null, 'Only to sectors you have cleared');
+  assert.equal(F.sendShip(st, 0, 'striker', 'void', t0), null, 'The Deep Void once you have been past wave 60');
+  const o = F.sendShip(st, 0, 'striker', 's2', t0); assert.ok(o, 'Sent');
+  assert.equal(F.sendShip(st, 1, 'striker', 's1', t0), null, 'A ship is only out once'); assert.equal(F.sendShip(st, 0, 'bulwark', 's1', t0), null, 'One ship to a berth');
+  assert.equal(selectShip('striker'), false, 'A ship out cannot be flown'); assert.equal(F.shipAway(st, 'striker'), 0);
+  assert.equal(F.tripDone(st, 0, t0 + 0.75 * HR), 0.5, 'Halfway through a trip of an hour and a half'); assert.equal(F.collectShip(st, 0, t0 + HR), null, 'Not back yet');
+  const finds = F.tripFinds(st, o), d = FD.DEST_BY_ID.s2; assert.deepEqual(F.tripFinds(st, o), finds, 'What it finds is settled when it leaves');
+  assert.ok(finds.mats.alloy >= Math.round(d.matN * 0.8) && finds.mats.alloy <= Math.round(d.matN * 1.2), 'It brings its stretch\'s material');
+  const s0 = st.salvage, a0 = st.materials.alloy || 0, m0 = masteryOf('striker'), r = F.collectShip(st, 0, t0 + 1.5 * HR);
+  assert.equal(st.salvage - s0, finds.salvage, 'Salvage banked'); assert.ok(finds.salvage > 0); assert.equal(st.materials.alloy - a0, finds.mats.alloy, 'Material banked');
+  assert.equal(r.mastery.gained, d.mastery, 'Mastery for the ship that went'); assert.ok(masteryOf('striker').xp > m0.xp || masteryOf('striker').level > m0.level);
+  assert.equal(st.fleet.out[0], null, 'The berth is free again'); assert.equal(st.fleet.log[0].ship, 'striker', 'It is logged'); assert.equal(st.fleet.home, 1);
+  assert.equal(selectShip('striker'), true, 'Home again, she can fly'); selectShip('vanguard');
+  F.sendShip(st, 1, 'bulwark', 's1', t0); const s1 = st.salvage; assert.ok(F.recallShip(st, 1)); assert.equal(st.salvage, s1, 'Called home early, she brings nothing'); assert.equal(st.fleet.out[1], null);
+  assert.deepEqual(F.fleetCounts(st, t0), { out: 0, ready: 0, free: 3, home: 1, fragments: 0 });
+  for (let k = 0; k < FD.PATHFINDER_AT; k++) { const at = t0 + k * 10 * HR; F.sendShip(st, 2, 'bulwark', 's1', at); assert.ok(F.collectShip(st, 2, at + 2 * HR)); }
+  assert.ok(st.paints[FD.FLEET_PAINT], 'Twelve home: the Pathfinder paint'); assert.equal(st.fleet.log.length, 12, 'The log keeps the last twelve');
+  st.stats.bestWave = 70; const v = F.sendShip(st, 0, 'bulwark', 'void', t0); assert.ok(v, 'Past wave 60, the Deep Void'); const vf = F.tripFinds(st, v);
+  assert.ok(F.collectShip(st, 0, t0 + FD.DEST_BY_ID.void.hours * HR).got.mats.shard > 0, 'The Deep Void brings Void shards'); assert.equal(st.fleet.fragments, vf.fragments, 'Only the Deep Void gives up signal fragments');
+  const old = newState(); delete old.fleet; assert.deepEqual(F.fleet(old).out, [null, null, null], 'A save from before the fleet gets its berths');
+  const short = newState(); short.fleet.out = [null]; assert.equal(F.fleet(short).out.length, 3); }
+
 console.log('Sortie, cards, relics, contracts, workshop, ships, pickups, revive and save checks pass.');
