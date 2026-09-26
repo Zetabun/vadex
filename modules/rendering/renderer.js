@@ -1,5 +1,6 @@
 // Three.js view of the simulation. Reads world arrays, drains world.fx, never writes game state.
 // Draw-call budget: one InstancedMesh per enemy shape in use, one for barriers, one for drones, a handful of sprite batches, the player group and the backdrop.
+import { MATERIALS } from '@last-orbit/data/materials.js';
 import { G } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { fmt } from '@last-orbit/core/format.js';
@@ -36,6 +37,7 @@ const CAP = { swarm: 110, scout: 70, weaver: 70, plate: 60, armourPlate: 12, tur
 const TEXT_FONTS = { 11: '700 11px "Chakra Petch",sans-serif', 14: '700 14px "Chakra Petch",sans-serif', 17: '700 17px "Chakra Petch",sans-serif' };
 const RED = rgb(0xff4d7a), AMBER = rgb(0xffb547), CYAN = rgb(0x5ee6ff), GOLD = rgb(0xffd700), VIOLET = rgb(0xc77dff);
 const SCRAP = rgb(0xc9d5df), REPAIR = rgb(0x80ffd2), XPC = rgb(0x6dffc8);
+const MATC = Object.fromEntries(MATERIALS.map((m) => [m.id, rgb(m.color)])); /* material pickups, each in its own colour */
 // Camera framings: the whole battlefield, or a close-up of the ship for the Hangar.
 const VIEWS = { field: { x0: -53, x1: 53, y0: 1, y1: 152, cy: 76 }, hangar: { x0: -19, x1: 19, y0: -1, y1: 29, cy: 12 } }; // hangar: room above the ship for the station
 const BULLET_COL = { bolt: rgb(0xff5d8f), heavy: rgb(0xff9f43), orb: rgb(0xd17bff), snipe: rgb(0xffffff) };
@@ -390,8 +392,9 @@ export class Renderer {
     for (let i = 0; i < w.pickups.length; i++) { const p = w.pickups[i], s = p.big ? 1.45 : 1, bob = 1 + 0.12 * Math.sin(t * 9 + i);
       if (p.kind === 'xp') { B.soft.add(p.x, p.y, 4.2 * s * bob, 4.2 * s * bob, 0, XPC, 0.8); B.ore.add(p.x, p.y, 2.2 * s, 2.2 * s, t * 3 + i, XPC, 1); }
       else if (p.kind === 'salvage') { B.soft.add(p.x, p.y, 5.5 * s * bob, 5.5 * s * bob, 0, AMBER, 0.75); B.ore.add(p.x, p.y, 3.2 * s, 3.2 * s, t * 2 + i, GOLD, 1); }
+      else if (p.kind === 'mat') { const c = MATC[p.m] || VIOLET; B.soft.add(p.x, p.y, 5.6 * s * bob, 5.6 * s * bob, 0, c, 0.85); B.ore.add(p.x, p.y, 2.9 * s, 2.9 * s, t * 2.6 + i, c, 1); B.ring.add(p.x, p.y, 4.6 * s, 4.6 * s, -t * 1.8 + i, c, 0.55); }
       else { B.soft.add(p.x, p.y, 6 * bob, 6 * bob, 0, RED, 0.9); B.soft.add(p.x, p.y, 2.4, 2.4, 0, WHITE, 1); B.ring.add(p.x, p.y, 5.5, 5.5, t * 2, RED, 0.8); }
-      if (p.pull && Math.random() < 0.25) this.parts.emit(p.x, p.y, -p.vx * 0.05, -p.vy * 0.05, 0.25, 1.1, p.kind === 'xp' ? XPC : AMBER, 0);
+      if (p.pull && Math.random() < 0.25) this.parts.emit(p.x, p.y, -p.vx * 0.05, -p.vy * 0.05, 0.25, 1.1, p.kind === 'xp' ? XPC : p.kind === 'mat' ? MATC[p.m] || VIOLET : AMBER, 0);
     }
   }
   drawBarriers(w) {

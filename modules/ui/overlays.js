@@ -14,6 +14,7 @@ import { ANOMALY_BY_ID, anomalyCounts, anomalyPay, anomalyName } from '@last-orb
 import { STATION_CORE, TROPHY_BY_ID, caughtStages } from '@last-orbit/data/station.js';
 import { roomAt, wingAt, roomWhere } from '@last-orbit/data/rooms.js';
 import { SEED_BY_ID } from '@last-orbit/data/garden.js';
+import { MAT_BY_ID } from '@last-orbit/data/materials.js';
 import { MENU_BY_ID } from '@last-orbit/data/menus.js';
 import { TIER_BY_N, SIEGE_STARS, SIEGE_BLUEPRINTS, SYSTEM_BY_ID, listNames } from '@last-orbit/data/siege.js';
 import { TURRET_MOD } from '@last-orbit/data/turret.js';
@@ -449,6 +450,7 @@ export function createOverlays(layer, hooks) {
       ...(s.voidBeaten || []).map((b) => h('div.pilot-row.void-row', h('span', `Void boss beaten: ${b.name}`), h('b', `+${b.bp} Blueprints` + (b.paint ? ' · Lightkeeper paint' : '')))),
       ...(s.voidMarks || []).map((m) => h('div.pilot-row.void-row', h('span', `Deep Void: ${m.name}, wave ${m.wave}`), h('b', observatoryOpen(G.state) ? 'Chart it in the Observatory' : `Charted at Overhaul rank ${OBSERVATORY_RANK}`))),
       s.rested ? h('div.pilot-row.rested-row', h('span', 'Well rested'), h('b', `+${Math.round(REST_BONUS * 100)}% salvage`)) : null,
+      s.mats && Object.keys(s.mats).length ? h('div.pilot-row.mat-row-db', h('span', 'Materials recovered'), h('b', Object.entries(s.mats).map(([id, n]) => h('span.mat-got', { style: `--c:#${MAT_BY_ID[id].color.toString(16).padStart(6, '0')}` }, art('mat:' + id, 'mat-ico'), `+${n} ${MAT_BY_ID[id].name}`)))) : null,
       s.garden?.length ? h('div.pilot-row.garden-row', h('span', 'From the Greenhouse'), h('b', s.garden.map((id) => SEED_BY_ID[id]?.boost).join(' · '))) : null,
       s.seeds?.length ? h('div.pilot-row.garden-row', h('span', s.seeds.length > 1 ? 'Seeds brought home' : 'Seed brought home'), h('b', s.seeds.map((id) => SEED_BY_ID[id]?.name).join(', '))) : null,
       ...(s.bounties || []).map((b) => h('div.pilot-row.bounty-row', h('span', `Bounty done: ${bountyText(b)}`), h('b', `+${fmtInt(b.reward)} · collect in Missions`))),

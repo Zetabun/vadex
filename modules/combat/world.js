@@ -2,6 +2,7 @@
 import { Big } from '@last-orbit/core/big.js';
 import { COUNTER_TOP, HEIGHT_BONUS } from '@last-orbit/data/counter.js';
 import { G, count, maxStat, flag, noteHull } from '@last-orbit/core/game.js';
+import { materialOf, MAT_DROP } from '@last-orbit/data/materials.js';
 import { bus } from '@last-orbit/core/events.js';
 import { rand } from '@last-orbit/core/rng.js';
 import { BAL, FIELD, enemyHp, enemyDmg, salvageDrop, killXp } from '@last-orbit/data/balance.js';
@@ -99,7 +100,7 @@ export function hitEnemy(w, e, src, mult, hx, hy, noCrit) {
   if (e.armour > 0) m *= 1 - e.armour * (1 - (src.armorPen || 0));
   if (e.shielded && !src.shieldPierce) m *= 0.15;
   if (e.weakOpen && e.weak && Math.abs(hx - (e.x + e.weak.x)) < e.weak.r + 1.5) { weak = true; m *= sh.n('weakMult'); count('weakHits'); }
-  if (w.passive === 'execute' && e.hp < 0.3) m *= 1.6;
+  if (w.passive === 'execute' && e.hp < 0.3) m *= 1 + 0.6 * G.sheet.n('passivePower');
   { const bossId = e.boss?.id || e.parent?.boss?.id, intel = bossId ? G.state.intel?.[bossId] || 0 : 0; if (intel) m *= 1 + BAL.intelStep * intel; }
   if (e === w.painted) m *= BAL.paintMult;
   else if (e.droneMarkT > 0) m *= 1 + (e.droneMarkPower || 0.08);
@@ -155,6 +156,12 @@ function dropLoot(w, e) {
   else if (rand() < BAL.salvageChance * (e.def.scrap || 1)) cans = 1;
   for (let i = 0; i < cans; i++) spawnPickup(w, 'salvage', e.x, e.y, per, big);
   if (rand() < (e.boss ? 1 : e.elite ? BAL.kitEliteChance : BAL.kitChance)) spawnPickup(w, 'repair', e.x, e.y, e.boss ? BAL.kitBossHeal : BAL.kitHeal, big);
+  // materials: the sector band's own (data/materials.js), in main sorties; half as many again in the Deep Void
+  if (!w.counter && G.state.run && G.state.run.mode !== 'counter') {
+    const m = materialOf(sec), base = e.boss ? (e.boss.def.mini ? MAT_DROP.mini : MAT_DROP.boss) : rand() < (e.elite ? MAT_DROP.elite : MAT_DROP.kill) ? 1 : 0;
+    const n = base ? Math.floor(base * (sec >= 6 ? MAT_DROP.deep : 1) + rand()) : 0, parts = Math.min(n, e.boss ? 3 : 1);
+    for (let i = 0; i < parts; i++) spawnPickup(w, 'mat', e.x, e.y, Math.floor(n / parts) + (i < n % parts ? 1 : 0), big, m);
+  }
 }
 
 export function killEnemy(w, e, src, crit, over) {
@@ -201,11 +208,11 @@ export function hurtPlayer(w, dmgMul, source) {
     if (need <= p.shield) { p.shield -= need; fx(w, 'shieldhit', p.x, p.y); sfx(w, 'shield'); return; }
     dmg *= 1 - p.shield / need; p.shield = 0; fx(w, 'shieldhit', p.x, p.y);
   }
-  if (w.passive === 'stalwart' && p.hull < 0.5) dmg *= 0.7;
+  if (w.passive === 'stalwart' && p.hull < 0.5) dmg *= 1 - 0.3 * G.sheet.n('passivePower');
   if (G.state.run) { const run = G.state.run, by = source?.type || source?.kind || 'other'; run.hits = (run.hits || 0) + 1; (run.hitBy ||= {})[by] = (run.hitBy[by] || 0) + 1; }
   const was = p.hull; p.hull -= dmg * w.base.dmgPerHull; noteHull('lost', was - Math.max(0, p.hull)); w.wave.damaged = true; w.wave.bossDamaged = true;
   const run = G.state.run;
-  if (w.passive === 'secondwind' && run && !run.windUsed && p.hull < 0.3) { run.windUsed = true; p.hull = Math.max(p.hull, 0) + BAL.windHeal; noteHull('wind', BAL.windHeal); p.invuln = 2; fx(w, 'text', p.x, p.y + 10, 'SECOND WIND', '#6dffc8', 2); fx(w, 'boom', p.x, p.y, 20, 0x6dffc8); sfx(w, 'milestone'); }
+  if (w.passive === 'secondwind' && run && !run.windUsed && p.hull < 0.3) { run.windUsed = true; const heal = BAL.windHeal * G.sheet.n('passivePower'); p.hull = Math.max(p.hull, 0) + heal; noteHull('wind', heal); p.invuln = 2; fx(w, 'text', p.x, p.y + 10, 'SECOND WIND', '#6dffc8', 2); fx(w, 'boom', p.x, p.y, 20, 0x6dffc8); sfx(w, 'milestone'); }
   fx(w, 'hurt', p.x, p.y); fx(w, 'shake', 0.4); sfx(w, 'hurt');
   if (p.hull <= 0) {
     if (p.lastStand && flag('f.lastStand')) { p.lastStand = false; p.hull = 0.01; p.invuln = 2; fx(w, 'text', p.x, p.y + 8, 'LAST STAND', '#ff5fa2', 1); return; }

@@ -1,5 +1,6 @@
 // UI root: switches between the Hangar and the sortie HUD, owns overlays, banners, toasts and screen effects,
 // and tells the renderer how much of the screen the battlefield may use.
+import { MAT_BY_ID, materialOf } from '@last-orbit/data/materials.js';
 import { G } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { playSfx, setThrust } from '@last-orbit/audio/audio.js';
@@ -121,7 +122,7 @@ export function initUI(app, hooks) {
     if (G.mode !== 'sortie') return;
     if (e.k === 'wave') { const kind = e.c; if (kind === 'elite') banner('Wave ' + e.a, 'Elite wave', 'Glowing enemies are tougher and drop more loot', 'var(--violet)', 1800); else if (kind === 'challenge') banner('Wave ' + e.a, e.b, G.world.wave.info.mod?.desc, 'var(--amber)', 2000); else if (kind === 'resource') banner('Wave ' + e.a, 'Salvage convoy', 'Shoot the haulers before they escape', 'var(--gold)', 1900); else if (kind === 'swarm') banner('Wave ' + e.a, 'Swarm', null, '#ff9bd2', 1400); }
     else if (e.k === 'newBest') { banner('New best', `Wave ${e.a}`, 'Further than you have ever flown', 'var(--gold)', 2600); flash('#ffc857'); }
-    else if (e.k === 'sector') banner('Sector ' + (e.a + 1), e.b, e.c, 'var(--cyan)', 3200);
+    else if (e.k === 'sector') banner('Sector ' + (e.a + 1) + (G.state.run?.mode !== 'counter' ? ' · ' + MAT_BY_ID[materialOf(e.a)].name : ''), e.b, e.c, 'var(--cyan)', 3200); /* and the material it drops */
     else if (e.k === 'stationDown') flash('#ff4d7a');
     else if (e.k === 'bossIntro') banner(e.b, e.a, e.d || null, typeof e.c === 'number' ? '#' + e.c.toString(16).padStart(6, '0') : e.c, e.d ? 3600 : 2600); /* e.d: how to beat it, until you have */
     else if (e.k === 'sectorClear') { const vb = G.state.run?.voidBeaten?.at(-1), first = vb && !vb.told; if (first) vb.told = true; /* a Void boss beaten for the first time says so here, where it is seen */

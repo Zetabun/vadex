@@ -106,6 +106,9 @@ const P = {
   trophy: `<path class="t" d="M17 12H7c0 11 5 18 12 19M47 12h10c0 11-5 18-12 19"/><path class="a" d="M15 6h34v14c0 12-8 21-17 21S15 32 15 20z"/><rect class="b" x="27" y="40" width="10" height="9"/><rect class="b" x="17" y="49" width="30" height="10" rx="2"/><path class="k" d="M23 12v9" opacity=".75"/><path class="c" d="M26 53h12v2H26z"/>`,
   unknown: `<path class="c" d="M32 3l25 14.5v29L32 61 7 46.5v-29z" style="stroke:var(--ic-a);stroke-width:2.5"/><path class="t" d="M32 9l20 11.5v23L32 55 12 43.5v-23z" opacity=".35"/><path class="s" d="M24 25a8 8 0 1 1 11.5 7.2c-2.3 1.1-3.5 2.6-3.5 5.3v1.5" style="stroke-width:5.5"/><circle class="a" cx="32" cy="47" r="3.4"/>`,
   salvage: `<path class="a" d="M32 4l24 14v28L32 60 8 46V18z"/><path class="b" d="M32 14l15 9v18l-15 9-15-9V23z"/><circle class="c" cx="32" cy="32" r="8"/><path class="w" d="M14 19l18-10" style="fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round;opacity:.75"/>`,
+  alloy: `<path class="b" d="M8 40h48v10H8z"/><path class="a" d="M8 40l11-18h26l11 18z"/><path class="w" d="M22 27h18" style="fill:none;stroke:#fff;stroke-width:3;stroke-linecap:round;opacity:.7"/>`,
+  crystal: `<path class="b" d="M17 24l8 11-8 21-8-21zM47 24l8 11-8 21-8-21z"/><path class="a" d="M32 4l11 19-11 38-11-38z"/><path class="w" d="M32 4l4 17h-8z" opacity=".8"/>`,
+  shard: `<path class="a" d="M37 3l14 25-12 33-21-21 6-22z"/><path class="b" d="M37 3l2 58-21-21z"/><path class="w" d="M37 3l-7 16 4 2z" opacity=".75"/>`,
   xp: `<path class="a" d="M32 3l20 17-20 41L12 20z"/><path class="b" d="M12 20h40L32 61z"/><path class="w" d="M32 3l6 17H26z" opacity=".8"/>`,
 };
 
@@ -154,6 +157,7 @@ export const ART = {
   'ui:unknown': C('unknown', '#7f8bb0', '#5d6c95'),
   // currencies and supplies
   'cur:salvage': C('salvage', '#ffc857', '#e89a2c'), 'cur:xp': C('xp', UTL, '#2fae8a'),
+  'mat:alloy': C('alloy', '#9fc2ff', '#4f6fae'), 'mat:crystal': C('crystal', '#ff7ad8', '#a83884'), 'mat:shard': C('shard', '#c9a2ff', '#6b3fc4'),
   'supply:heal': C('nanites', '#6dff8e', '#c3ffd2'), 'supply:cash': C('crate', '#ffc857', '#b0782a'),
 };
 

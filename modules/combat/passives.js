@@ -14,7 +14,7 @@ bus.on('kill', (w, e) => {
   const run = G.state.run, p = w.player; if (!run || !p.alive) return;
   const id = w.passive;
   if (id === 'momentum') { p.momentum = Math.min(MOMENTUM_MAX, (p.momentum || 0) + 1); p.momentumT = MOMENTUM_TIME; }
-  else if (id === 'static' && ++w.staticN >= STATIC_EVERY) {
+  else if (id === 'static' && ++w.staticN >= Math.max(3, Math.round(STATIC_EVERY / G.sheet.n('passivePower')))) {
     w.staticN = 0;
     // Arc into the three nearest living enemies around the kill.
     const near = w.enemies.filter((t) => t.alive && !t.invuln && t !== e).sort((a, b) => Math.hypot(a.x - e.x, a.y - e.y) - Math.hypot(b.x - e.x, b.y - e.y)).slice(0, 3);
@@ -27,7 +27,7 @@ bus.on('kill', (w, e) => {
 });
 
 /** Fire-rate multiplier from the Striker's Momentum stacks. */
-export const momentumMul = (p) => 1 + MOMENTUM_STEP * (p.momentum || 0);
+export const momentumMul = (p) => 1 + MOMENTUM_STEP * G.sheet.n('passivePower') * (p.momentum || 0);
 /** Per-tick upkeep: Momentum stacks fall away together once the kill streak pauses. */
 export function updatePassives(w, dt) {
   const p = w.player;
@@ -38,7 +38,7 @@ export function updatePassives(w, dt) {
 /** Meltdown: each enemy that died burning bursts, hitting everything close for part of your best weapon's damage and
  *  setting what it hits alight, so the fire runs on through a formation. */
 function meltdown(w) {
-  const q = w.melts, n = Math.min(q.length, MELT_PER_TICK * 2), src = { id: 'meltdown', dmg: bestDps().mul(MELT_DMG), critChance: 0, critMult: 1, color: 0x6dff8e, armorPen: 0.3 };
+  const q = w.melts, n = Math.min(q.length, MELT_PER_TICK * 2), src = { id: 'meltdown', dmg: bestDps().mul(MELT_DMG * G.sheet.n('passivePower')), critChance: 0, critMult: 1, color: 0x6dff8e, armorPen: 0.3 };
   for (let k = 0; k < n; k += 2) {
     const x = q[k], y = q[k + 1]; fx(w, 'boom', x, y, MELT_R, 0x6dff8e);
     for (let i = w.enemies.length - 1; i >= 0; i--) {

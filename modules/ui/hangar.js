@@ -5,6 +5,9 @@ import { bus } from '@last-orbit/core/events.js';
 import { fmt, fmtInt, fmtTime } from '@last-orbit/core/format.js';
 import { WORKSHOP } from '@last-orbit/data/workshop.js';
 import { SHIPS, SHIP_BY_ID } from '@last-orbit/data/ships.js';
+import { MATERIALS, MAT_BY_ID } from '@last-orbit/data/materials.js';
+import { REFIT_MAX, refitStep } from '@last-orbit/data/refits.js';
+import { mats, refitLevel, refitNext, canAfford, refitReady, buyRefit } from '@last-orbit/progression/refits.js';
 import { CONTRACTS } from '@last-orbit/data/contracts.js';
 import { WEAPONS, WEAPON_ORDER } from '@last-orbit/data/weapons.js';
 import { ABILITIES, ABILITY_ORDER } from '@last-orbit/data/abilities.js';
@@ -79,7 +82,7 @@ export function createHangar(hooks) {
   const top = h('header.hg-top',
     // Top left: the pilot, by callsign (or rank title) with their rank beneath; the insignia updates as they rank up.
     $.brand = h('button.brand.pilot-id', { onclick: () => show('contracts'), 'aria-label': 'Pilot career' }, $.brandIns = h('span.brand-ins'), h('span.brand-txt', $.brandName = h('b'), $.brandRank = h('small'))),
-    h('div.chip.salvage.big', { title: 'Salvage: spend it in the Workshop and on new ships' }, art('cur:salvage', 'cur-ico'), $.salvage),
+    h('button.chip.salvage.big.res-open', { title: 'Your resources', 'aria-label': 'Salvage. Tap to see all your resources', onclick: () => resourcesPanel() }, art('cur:salvage', 'cur-ico'), $.salvage, h('i.chip-more')),
     h('button.icon-btn', { 'aria-label': 'Settings', onclick: () => hooks.settings() }, uiIcon('gear')));
   $.body = scrollHints(h('main.hg-body'));
   $.nav = h('nav.hg-nav', { role: 'tablist' });
@@ -123,6 +126,7 @@ export function createHangar(hooks) {
     // Today's bounties are posted when you arrive in the Comms room (or look in Missions).
     if (id === 'comms' || id === 'missions') postBounties();
     if (id === 'garden') startGarden(G.state); // the first visit finds a few seeds in the drawer
+    if (id === 'ships' && G.state.seen.materials && !G.state.seen.refits) { G.state.seen.refits = true; setTimeout(() => hooks.menuIntro?.({ icon: 'ships', kicker: 'New', title: 'Ship refits', text: 'Each ship now has five refits of its own, paid in materials: Alloy from sectors 1-2, Crystal from 3-4, Void shards from 5-6 and the Deep Void. Warping past a stretch means going without its material. Find them on each hull\'s card, further down. A refit counts while you fly that ship, and an Overhaul leaves it alone. Tap your salvage at the top of the screen any time to see everything you hold.' }), 350); }
     // A menu the pilot has not earned yet stays shut (with a note on when it opens); a newly opened one explains itself once.
     if (menuState(id) === 'locked') { if (!quiet) { playSfx('deny'); hooks.toast?.(menuLockText(id), 'info'); } if (tab !== id) return; id = 'launch'; }
     if (menuState(id) === 'new') { menuSeen(id); setTimeout(() => hooks.menuIntro?.(MENU_BY_ID[id]), 150); }
@@ -313,6 +317,38 @@ export function createHangar(hooks) {
   }
 
   // ------------------------------------------------------------ ships
+  // ------------------------------------------------------------ resources: everything the pilot holds (the salvage chip opens it)
+  /** Every currency and material in one list: how much you hold, where it comes from, what it buys. Ones not found yet
+   *  are dimmed, with where to find them. */
+  function resourcesPanel() {
+    const st = G.state, m = mats(st), seeds = Object.values(st.garden?.seeds || {}).reduce((a, b) => a + b, 0), reach = st.stats.bestSector || 0;
+    const row = (ico, name, n, from, use, found, c) => h('div.res-row' + (found ? '' : '.dim'), { style: `--c:${c}` }, h('span.res-ico', ico), h('div.res-txt', h('b', name), h('small', found ? `${from} · ${use}` : `Not found yet: ${from.charAt(0).toLowerCase() + from.slice(1)}`)), h('em', found ? fmt(n) : '—'));
+    const band = [1, 3, 5], go = (id) => h('button.btn.ghost.small.res-go', { onclick: () => { hooks.closeOverlays?.(); show(id); } }, id === 'ships' ? 'Ship refits' : 'Workshop', uiIcon('chevron'));
+    playSfx('tab');
+    hooks.panel?.({ kicker: st.stationName || 'Your stores', title: 'Resources', body: [h('div.res-list',
+      row(art('cur:salvage', 'mat-ico'), 'Salvage', st.salvage, 'Every sortie', 'the Workshop, ships, the Shipyard', true, '#ffc857'),
+      ...MATERIALS.map((d, i) => row(art('mat:' + d.id, 'mat-ico'), d.name, m[d.id] || 0, 'From ' + d.from, 'ship refits', (m[d.id] || 0) > 0 || (st.seen.materials && reach >= band[i]), hex(d.color))),
+      row(h('i.bp-ico'), 'Blueprints', st.prestige?.bp || 0, 'Overhauls, bounties, Void bosses, charting', 'escort drones and perks', (st.prestige?.level || 0) > 0 || (st.prestige?.bp || 0) > 0, '#ffb070'),
+      row(art('relic:r_quantum', 'mat-ico'), 'Alien Cores', st.counter?.cores || 0, 'Counterattack stars and sieges', 'Alien Tech', !!st.counter?.unlocked, '#d9a8ff'),
+      row(uiIcon('garden'), 'Seeds', seeds, 'Bosses, once the Greenhouse is open', 'plant them for boosts', !!st.garden?.started, '#7ddc6f')),
+      h('div.res-links', go('workshop'), st.seen.materials ? go('ships') : null)] });
+  }
+  // ------------------------------------------------------------ materials and refits (data/materials.js, data/refits.js)
+  const matChip = (id, n, have) => { const short = have != null && have < n; return h('span.mat-chip' + (short ? '.short' : ''), { style: `--c:${hex(MAT_BY_ID[id].color)}` }, art('mat:' + id, 'mat-ico'), h('b', short ? `${fmt(have)}/${fmt(n)}` : fmt(n)), h('em', MAT_BY_ID[id].name)); }; /* short: what you have of what it needs */
+  /** The materials in the bank, and where each is found. */
+  function matBank() {
+    const m = mats(G.state);
+    return h('div.mat-bank', h('div.mat-row', MATERIALS.map((d) => matChip(d.id, m[d.id] || 0))), h('p.sub-note', 'Materials for refits: Alloy from sectors 1-2, Crystal from 3-4, Void shards from 5-6 and the Deep Void. Bosses always drop some, elites often.'));
+  }
+  /** A ship's refits: how far along, what each one did, and the next with its cost. */
+  function refitBlock(s) {
+    const st = G.state, lvl = refitLevel(st, s.id), next = refitNext(st, s.id), m = mats(st), pips = h('div.lvl-pips'); for (let i = 0; i < REFIT_MAX; i++) pips.append(h('i' + (i < lvl ? '.on' : '')));
+    const done = Array.from({ length: lvl }, (_, i) => refitStep(s.id, i + 1).line);
+    const go = () => { const got = buyRefit(st, s.id); if (!got) { playSfx('deny'); return; } playSfx('unlock'); hooks.flash?.(hex(s.trim)); hooks.saveNow?.('refit'); hooks.toast?.(`${s.name}: ${got.name}. ${got.line}.`, 'good'); render(); };
+    return h('div.refits', h('div.rf-head', h('small', 'Refits'), pips, h('span', `${lvl}/${REFIT_MAX}`)), done.length ? h('div.rf-done', done.map((d) => h('span', d))) : null,
+      next ? h('div.rf-next', h('div.rf-txt', h('b', next.name), h('small', next.line)), h('div.rf-cost', Object.entries(next.cost).map(([id, n]) => matChip(id, n, m[id] || 0))), h('button.btn.gold.small.rf-go', { disabled: !canAfford(st, next.cost), onclick: go }, 'Refit'))
+        : h('div.rf-max', 'Fully refitted'));
+  }
   function shipsView() {
     const st = G.state, list = h('div.ships');
     for (const s of SHIPS) {
@@ -327,6 +363,7 @@ export function createHangar(hooks) {
         h('p', s.desc),
         status === 'owned' ? masteryLine(s.id) : null,
         h('ul.perks', s.perks.map((p, i) => h('li' + (p.startsWith('−') ? '.neg' : ''), p)), h('li', 'Ability: ' + ABILITIES[s.ability].name)),
+        status === 'owned' ? refitBlock(s) : null,
         h('div.traits', h('div.trait', h('small', 'Trait'), h('b', s.passive.name), h('span', s.passive.desc)),
           h('div.trait' + ((masteryOf(s.id).level || 1) >= 5 ? '.on' : ''), h('small', 'Signature · mastery 5'), h('b', s.signature.name), h('span', `${WEAPONS[s.weapon].name} at rank 7: ${s.signature.desc}.`))),
         action));
@@ -355,7 +392,7 @@ export function createHangar(hooks) {
     const legends = h('div.legend-box', h('div.legend-head', h('b', 'Legendary'), h('span', 'Stat trackers: each shows a lifetime record, live.')), h('div.legend-list', BANNERS.filter((b) => b.rarity === 'legendary').map(legendRow)));
     return h('div.screen', h('div.screen-head', h('h2', 'Ships'), h('p', 'Each hull starts with its own gun and signature ability. Workshop upgrades apply to all of them.')),
       h('h3', 'Paint job'), paints, h('h3', 'Banner'), h('p.sub-note', 'Cloth banners that stream from your ship. Earn them with medals and high scores.'), banners, legends,
-      h('h3', 'Engine trail'), h('p.sub-note', 'Earned by Overhaul rank (Workshop, once it is maxed).'), trails, h('h3', 'Hulls'), list);
+      h('h3', 'Engine trail'), h('p.sub-note', 'Earned by Overhaul rank (Workshop, once it is maxed).'), trails, h('h3', 'Hulls'), matBank(), list);
   }
 
   function bannerThumb(b, cls = 'banner-thumb') {
@@ -1065,7 +1102,7 @@ export function createHangar(hooks) {
   // ------------------------------------------------------------ live updates
   function badges() {
     const st = G.state, canBuy = WORKSHOP.some((u) => { const c = workshopNext(u.id); return c != null && st.salvage >= c; });
-    const ship = SHIPS.some((s) => shipStatus(s.id) === 'buyable' && st.salvage >= s.cost);
+    const ship = SHIPS.some((s) => (shipStatus(s.id) === 'buyable' && st.salvage >= s.cost) || refitReady(st, s.id));
     const daily = (st.stats.sorties > 0 && !dailyToday().done) || (st.counter.unlocked && !Object.keys(st.counter.stars).length) || bountyClaimable(st);
     setClass(navBtns.records, 'badged', !st.seen.records); setClass(navBtns.awards, 'badged', medalTotal().earned > (st.seen.medals || 0));
     setClass(navBtns.workshop, 'badged', canBuy); setClass(navBtns.ships, 'badged', ship); setClass(navBtns.missions, 'badged', daily);

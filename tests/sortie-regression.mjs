@@ -705,4 +705,23 @@ assert.throws(() => parseSave('{"run":{},"cur":{}}'), /Not a Last Orbit v2 save/
   if (typeof CompressionStream !== 'undefined') { const packed = R.packReplay(rep), z = new Uint8Array(await new Response(new Blob([packed]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer());
     assert.ok(z.length < packed.length, 'It stores compressed'); assert.equal((await R.unpackReplay(z.buffer)).frames.length, rep.frames.length, 'and a compressed replay unpacks'); } }
 
+// ---- v2.19: materials from each stretch of the invasion, and ship refits ----
+{ const M = await import('@last-orbit/data/materials.js'), R = await import('@last-orbit/progression/refits.js'), RF = await import('@last-orbit/data/refits.js');
+  assert.equal(M.materialOf(0), 'alloy'); assert.equal(M.materialOf(3), 'crystal'); assert.equal(M.materialOf(7), 'shard', 'The Deep Void drops Void shards');
+  // a sector boss always drops its stretch's material; picked up, it comes home at the end
+  fresh(); launch(); G.state.run.wave = 10; startWave(G.world); killEnemy(G.world, G.world.wave.boss, null, false, 0); collectAll(G.world);
+  assert.equal(G.state.run.mats.alloy, M.MAT_DROP.boss, 'A sector 1 boss drops Alloy');
+  G.state.run.wave = 30; startWave(G.world); killEnemy(G.world, G.world.wave.boss, null, false, 0); collectAll(G.world); assert.equal(G.state.run.mats.crystal, M.MAT_DROP.boss, 'a sector 3 boss Crystal');
+  const home = endSortie('abandoned'); assert.deepEqual(home.mats, { alloy: M.MAT_DROP.boss, crystal: M.MAT_DROP.boss }, 'The debrief says what came home'); assert.equal(G.state.materials.alloy, M.MAT_DROP.boss, 'and it is banked');
+  fresh(); launch(); G.state.run.mats = { shard: 3 }; recoverInterruptedRun(G.state); assert.equal(G.state.materials.shard, 3, 'A sortie cut off keeps its materials');
+  // refits: paid in materials, for a ship you own, counting only while you fly her
+  fresh(); assert.equal(R.buyRefit(G.state, 'vanguard'), null, 'No materials, no refit');
+  G.state.materials.alloy = 100; recalc(); const d0 = G.sheet.n('damage'), got = R.buyRefit(G.state, 'vanguard');
+  assert.equal(got.n, 1); assert.equal(G.state.materials.alloy, 75, 'It costs its materials'); assert.ok(Math.abs(G.sheet.n('damage') / d0 - 1.1) < 1e-9, 'Gun tuning: +10% damage');
+  assert.equal(R.buyRefit(G.state, 'striker'), null, 'Only a ship you own');
+  G.state.unlocked.ships.striker = 1; selectShip('striker'); assert.ok(!G.sheet.breakdown('damage').some((x) => x.group === 'Refits'), 'The Vanguard\'s refit stays with her');
+  selectShip('vanguard'); G.state.refits.vanguard = 3; G.state.materials.crystal = 60; recalc(); assert.equal(R.buyRefit(G.state, 'vanguard').n, 4); assert.equal(G.sheet.n('passivePower'), RF.PASSIVE_REFIT, 'The trait refit');
+  launch(); const p = G.world.player; p.invuln = 0; p.dashInv = 0; p.hull = 0.301; hurtPlayer(G.world, 1); assert.equal(G.state.run.hullBy.wind, 0.4 * RF.PASSIVE_REFIT, 'Second Wind repairs 50% after its refit');
+  G.state.refits.vanguard = RF.REFIT_MAX; assert.equal(R.refitNext(G.state, 'vanguard'), null, 'Five refits a ship'); endSortie('abandoned'); }
+
 console.log('Sortie, cards, relics, contracts, workshop, ships, pickups, revive and save checks pass.');

@@ -1,5 +1,6 @@
 // The sortie: start, experience and level-ups, card offers, relics, salvage and the end-of-run debrief.
 import { G, recalc, count, maxStat, toast, noteHull } from '@last-orbit/core/game.js';
+import { bankMaterials } from '@last-orbit/progression/refits.js';
 import { bus } from '@last-orbit/core/events.js';
 import { rand } from '@last-orbit/core/rng.js';
 import { newRun } from '@last-orbit/core/state.js';
@@ -67,7 +68,7 @@ export function startSortie(opts = {}) {
 export function endSortie(reason = 'destroyed') {
   const st = G.state, run = st.run; if (!run) return null;
   const reached = Math.max(1, G.world?.wave?.num || run.wave), sec = sectorOf(reached), banked = Math.floor(run.salvage);
-  st.salvage += banked; st.stats.totalSalvage = (st.stats.totalSalvage || 0) + banked; maxStat('bestSalvage', banked);
+  st.salvage += banked; st.stats.totalSalvage = (st.stats.totalSalvage || 0) + banked; maxStat('bestSalvage', banked); const matsGot = bankMaterials(st, run.mats);
   if (reason === 'destroyed') count('deaths');
   const summary = {
     reason, ship: run.ship, wave: reached, sector: sec.idx + 1, sectorName: sec.def.name, level: run.level, kills: run.stats.kills || 0,
@@ -76,7 +77,7 @@ export function endSortie(reason = 'destroyed') {
   };
   st.run = null; G.mode = 'hangar';
   const bannersBefore = { ...st.banners };
-  summary.threat = run.threat || 0; summary.mutator = run.mutator || null;
+  summary.threat = run.threat || 0; summary.mutator = run.mutator || null; summary.mats = matsGot;
   // a station damaged in a lost siege is patched by its crews while the pilot is out (if the sortie lasted long enough)
   summary.repaired = patchStation(summary.time);
   if (run.mode === 'counter') Object.assign(summary, recordCounter(st, run, summary, reason)); else Object.assign(summary, recordSortie(st, run, summary));
@@ -151,6 +152,7 @@ export function recoverInterruptedRun(state) {
   const run = state.run; if (!run) return 0;
   const got = Math.floor(run.salvage || 0), s = state.stats;
   state.salvage += got; s.totalSalvage = (s.totalSalvage || 0) + got; if (!(s.bestSalvage >= got)) s.bestSalvage = got;
+  bankMaterials(state, run.mats); /* its materials are kept too */
   state.run = null; return got;
 }
 

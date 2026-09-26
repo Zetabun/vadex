@@ -11,6 +11,7 @@ import { TICK } from '@last-orbit/data/balance.js';
 import { recTick, recStop, lastReplay, replayBytes } from '@last-orbit/progression/recorder.js';
 import { debugSetWave } from '@last-orbit/combat/sim.js';
 import { killEnemy } from '@last-orbit/combat/world.js';
+import { spawnPickup } from '@last-orbit/combat/pickups.js';
 import { enterSandbox, exportSave } from '@last-orbit/save/save.js';
 import { h } from '@last-orbit/ui/dom.js';
 import { BANNERS, BANNER_BY_ID } from '@last-orbit/data/banners.js';
@@ -255,6 +256,14 @@ function runScene(scene, hooks, ui) {
   if (name === 'crew') { const visor = arg === 'visor' || arg2 === 'visor', view = arg && arg !== 'visor' ? arg : 'line';
     runScene(view === 'wide' ? 'garden' : 'garden:wing', hooks, ui); let tries = 0;
     const go = () => { const r = G.renderer?.room; if (!r?.sprig) { if (tries++ < 80) setTimeout(go, 100); return; } crewLook(r, view, visor); }; setTimeout(go, 200); return; }
+  // refits[:intro]: materials in the bank and a few refits done, on the Ships screen at the hulls (intro: its first-visit
+  // explainer). resources: the Launch screen with the resources panel open (the salvage chip, tapped).
+  if (name === 'refits' || name === 'resources') {
+    Object.assign(st.materials, { alloy: 64, crystal: 38, shard: 5 }); st.refits = { vanguard: 2, striker: 1 }; st.seen.materials = true; st.seen.refits = arg !== 'intro'; st.unlocked.ships.bulwark = 1; st.counter.unlocked = true; st.counter.cores = 7; st.prestige.bp = 6; st.prestige.level = Math.max(1, st.prestige.level || 0); st.stats.bestSector = 4; st.garden.started = true; st.garden.seeds = { sunpetal: 2, mistvine: 1 }; recalc();
+    if (name === 'resources') { hooks.toHangar('launch'); setTimeout(() => document.querySelector('.res-open')?.click(), 700); return; }
+    hooks.toHangar('ships'); setTimeout(() => document.querySelector('.mat-bank')?.scrollIntoView({ block: 'start' }), 700); return; }
+  // mats[:<wave>]: a sortie from that wave (default 25) with material pickups of every kind scattered round the ship
+  if (name === 'mats') { hooks.launch({}); debugSetWave(+arg || 25); st.run.offer = null; st.run.pendingLevels = 0; ui.closeOverlays(); let k = 0; const drop = () => { const w = G.world; if (!w?.player || k++ > 60) return; ['alloy', 'crystal', 'shard'].forEach((m, i) => spawnPickup(w, 'mat', -30 + i * 30 + Math.sin(k) * 6, w.player.y + 70 + (k % 4) * 6, 1 + (k % 2), k % 3 === 0 ? 1 : 0, m)); setTimeout(drop, 150); }; setTimeout(drop, 600); return; }
   if (name === 'beacons') { const num = (v) => v != null && v !== '' && !isNaN(+v), won = num(arg) ? +arg : arg === 'tap' ? (num(arg3) ? +arg3 : 2) : num(arg2) ? +arg2 : 2, more = num(arg) && num(arg2) ? +arg2 : 1;
     st.pilot.name = 'Adam'; st.seen.callsign = true; st.seen.beacons = arg !== 'intro'; st.prestige.level = 8; st.stationName = 'Halcyon'; st.stats.bestWave = 96; st.stats.bestSector = 9;
     for (const l of LINES) st.seen.comms[l.id] = 1; st.seen.commsInit = true; st.beacons = { beaten: {} };
@@ -372,7 +381,7 @@ function runScene(scene, hooks, ui) {
     bus.on('stats', () => { G.sheet.totalN['f.autopilot'] = 1; G.sheet.totalN.autoDodge = 2; }); recalc(); debugSetWave(run.wave);
     setInterval(() => { if (st.run?.offer) st.run.offer = null, st.run.pendingLevels = 0; if (st.run) st.run.pendingRelics = 0; if (st.run?.relicOffer) st.run.relicOffer = null; ui.closeOverlays?.(); const p = G.world?.player; if (p) { p.hull = 1; p.invuln = 1; } }, 200);
   }
-  else if (name === 'debrief') { st.run.salvage = 812; st.run.weapons.laser = 5; st.run.order.push('laser'); st.run.relics.push('r_glass'); st.run.contractsDone = ['c_wave5', 'c_kills']; st.run.score = 52340; st.run.medalsDone = [{ id: 'a_score', tier: 1, xp: 250 }, { id: 'f_solo', tier: 0, xp: 400 }]; if (arg === 'garden') { st.run.garden = ['sunpetal', 'mistvine']; st.run.seeds = ['emberroot', 'mistvine', 'hivebloom']; } if (big) { st.run.salvage = 23456789; st.run.score = 987654321; st.run.level = 64; st.run.stats.kills = 4321; st.run.stats.bossKills = 9; st.run.time = 1478; } G.world.wave.num = big ? 96 : 23; hooks.abandon(); }
+  else if (name === 'debrief') { st.run.salvage = 812; st.run.weapons.laser = 5; st.run.order.push('laser'); st.run.relics.push('r_glass'); st.run.contractsDone = ['c_wave5', 'c_kills']; st.run.score = 52340; st.run.medalsDone = [{ id: 'a_score', tier: 1, xp: 250 }, { id: 'f_solo', tier: 0, xp: 400 }]; if (arg === 'garden') { st.run.garden = ['sunpetal', 'mistvine']; st.run.seeds = ['emberroot', 'mistvine', 'hivebloom']; } st.run.mats = { alloy: 14, crystal: 3 }; if (big) { st.run.salvage = 23456789; st.run.score = 987654321; st.run.level = 64; st.run.stats.kills = 4321; st.run.stats.bossKills = 9; st.run.time = 1478; } G.world.wave.num = big ? 96 : 23; hooks.abandon(); }
 }
 
 /** The crew look test: the four survivors placed and posed in the Greenhouse, moving with the room; the camera set. */
