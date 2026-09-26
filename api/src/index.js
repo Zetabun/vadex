@@ -5,6 +5,8 @@
 //   Boards: 'all' holds every pilot's best sortie score; 'daily:YYYY-MM-DD' holds that day's Daily Sortie, where each
 //   pilot has one attempt, so the first score posted stands.
 //   Pilots are a random id made on the device (never shown to anyone) with the callsign and station name they chose,
+//   their pilot rank (shown as their badge; written with every post and refreshed whenever they look at a board),
+//   a role shown beside their name (DEV: set only with api/admin.mjs, never by the game),
 //   and a four-character tag the server gives them. No two pilots share a name and a tag, and where two on a board
 //   share a name the board shows their tags (Ace #4F2A, Ace #91CX), so a copied callsign cannot pass as the original.
 //   The server hands tags out (checking each name change) because a tag worked out on the device could be matched by
@@ -53,6 +55,8 @@ async function freeTag(env, nkey, pid, own) {
 }
 
 const fail = (msg, status = 400) => Object.assign(new Error(msg), { status });
+/** A pilot rank as posted (1 to 999), or 0 when there is none to trust. */
+const pilotRank = (r) => { const n = Number(r); return Number.isInteger(n) && n >= 1 && n <= 999 ? n : 0; };
 const today = (now) => new Date(now).toISOString().slice(0, 10);
 const dayOffset = (key, now) => Math.round((Date.parse(key + 'T00:00:00Z') - Date.parse(today(now) + 'T00:00:00Z')) / 864e5);
 
@@ -83,7 +87,8 @@ export function plausible(e) {
 }
 
 // ------------------------------------------------------------------ reading boards
-const row = (r, rank) => ({ n: rank, name: r.name, tag: r.tag, ...(r.station ? { station: r.station } : {}), score: r.score, wave: r.wave, ship: r.ship, threat: r.threat, warp: r.warp, level: r.level, ...(r.me ? { me: 1 } : {}) });
+const ROLES = ['dev', 'mod']; // the roles a row can show (api/admin.mjs sets them)
+const row = (r, rank) => ({ n: rank, name: r.name, tag: r.tag, ...(r.prank > 0 ? { rank: r.prank } : {}), ...(ROLES.includes(r.role) ? { role: r.role } : {}), ...(r.station ? { station: r.station } : {}), score: r.score, wave: r.wave, ship: r.ship, threat: r.threat, warp: r.warp, level: r.level, ...(r.me ? { me: 1 } : {}) });
 /** Tags only where they are needed: on pilots who share a name with another on the board as shown. */
 function tagClashes(rows) {
   const n = {}; for (const r of rows) { const k = r.name.toLowerCase(); n[k] = (n[k] || 0) + 1; }
@@ -93,13 +98,13 @@ function tagClashes(rows) {
 /** A board: its top pilots, how many are on it, and where this pilot stands (when not in the top). */
 async function view(env, board, pid) {
   const top = await env.DB.prepare(
-    'SELECT s.score, s.wave, s.ship, s.threat, s.warp, s.level, s.at, p.name, p.station, p.tag, s.pid = ?2 AS me FROM scores s JOIN players p ON p.pid = s.pid WHERE s.board = ?1 ORDER BY s.score DESC, s.at ASC LIMIT ?3',
+    'SELECT s.score, s.wave, s.ship, s.threat, s.warp, s.level, s.at, p.name, p.station, p.tag, p.rank AS prank, p.role, s.pid = ?2 AS me FROM scores s JOIN players p ON p.pid = s.pid WHERE s.board = ?1 ORDER BY s.score DESC, s.at ASC LIMIT ?3',
   ).bind(board, pid || '', TOP).all();
   const rows = top.results.map((r, i) => row(r, i + 1));
   const total = (await env.DB.prepare('SELECT n FROM boards WHERE board = ?1').bind(board).first())?.n || 0;
   let me = rows.find((r) => r.me) || null;
   if (!me && pid) {
-    const mine = await env.DB.prepare('SELECT s.score, s.wave, s.ship, s.threat, s.warp, s.level, s.at, p.name, p.station, p.tag, 1 AS me FROM scores s JOIN players p ON p.pid = s.pid WHERE s.board = ?1 AND s.pid = ?2').bind(board, pid).first();
+    const mine = await env.DB.prepare('SELECT s.score, s.wave, s.ship, s.threat, s.warp, s.level, s.at, p.name, p.station, p.tag, p.rank AS prank, p.role, 1 AS me FROM scores s JOIN players p ON p.pid = s.pid WHERE s.board = ?1 AND s.pid = ?2').bind(board, pid).first();
     if (mine) {
       const above = await env.DB.prepare('SELECT COUNT(*) AS n FROM scores WHERE board = ?1 AND (score > ?2 OR (score = ?2 AND at < ?3))').bind(board, mine.score, mine.at).first();
       me = row(mine, (above?.n || 0) + 1);
@@ -119,13 +124,13 @@ async function post(env, body, now) {
   if (boards.some((b) => b.startsWith('daily:')) && (e.warp !== 1 || e.threat !== 0)) throw fail('implausible: daily', 422);
   let name = tidy(body.name, NAME_MAX), station = tidy(body.station, STATION_MAX);
   if (!name || rude(name)) name = FALLBACK; if (station && rude(station)) station = '';
-  const v = VER.test(body.v || '') ? body.v : '';
+  const v = VER.test(body.v || '') ? body.v : '', prank = pilotRank(body.rank);
   const player = await env.DB.prepare('SELECT banned, locked, last, name, station, tag, nkey FROM players WHERE pid = ?1').bind(pid).first();
   if (player && now - player.last < RATE_MS) throw fail('too fast', 429);
   if (player?.locked) { name = player.name; station = player.station; } /* a name reset by a moderator stays reset */
   const nkey = name.toLowerCase(), tag = player?.tag && player.nkey === nkey ? player.tag : await freeTag(env, nkey, pid, player?.tag); /* a new name: is the tag still free under it? */
   const writes = [
-    env.DB.prepare('INSERT INTO players (pid, name, station, first, last, posts, v, tag, nkey) VALUES (?1, ?2, ?3, ?4, ?4, 1, ?5, ?6, ?7) ON CONFLICT(pid) DO UPDATE SET name = ?2, station = ?3, last = ?4, posts = posts + 1, v = ?5, tag = ?6, nkey = ?7').bind(pid, name, station, now, v, tag, nkey),
+    env.DB.prepare('INSERT INTO players (pid, name, station, first, last, posts, v, tag, nkey, rank) VALUES (?1, ?2, ?3, ?4, ?4, 1, ?5, ?6, ?7, ?8) ON CONFLICT(pid) DO UPDATE SET name = ?2, station = ?3, last = ?4, posts = posts + 1, v = ?5, tag = ?6, nkey = ?7, rank = CASE WHEN ?8 > 0 THEN ?8 ELSE rank END').bind(pid, name, station, now, v, tag, nkey, prank),
     env.DB.prepare('INSERT OR IGNORE INTO days (day, pid) VALUES (?1, ?2)').bind(today(now), pid),
   ];
   const kept = {};
@@ -181,6 +186,7 @@ export default {
         const b = boardId(url.searchParams.get('b'), now, false), p = url.searchParams.get('p') || '';
         const pid = PID.test(p) ? p : '';
         if (pid) await env.DB.prepare('INSERT OR IGNORE INTO days (day, pid) VALUES (?1, ?2)').bind(today(now), pid).run();
+        const r = pilotRank(url.searchParams.get('r')); if (pid && r) await env.DB.prepare('UPDATE players SET rank = ?2 WHERE pid = ?1 AND rank <> ?2').bind(pid, r).run(); /* a rank up shows before the next post */
         return send(await view(env, b, pid));
       }
       if (path === '/score' && req.method === 'POST') return send(await post(env, await readBody(req), now));

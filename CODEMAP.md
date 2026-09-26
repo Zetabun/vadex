@@ -11,7 +11,7 @@
 | `modules/save/` | Storage, backup and schema migration |
 | `modules/ui/` | HUD, Hangar screens, overlays (level-up, relics, pause, debrief), icons and the debug panel |
 | `modules/rendering/`, `modules/audio/` | Three.js presentation and synthesized sound |
-| `tests/`, `tools/` | Regression tests, balance bot, import-map builder and release gate |
+| `tests/`, `tools/` | Regression tests, balance bot, import-map builder (which also builds `modules/data/updates.js` from `CHANGELOG.md` through `tools/build_updates.py`) and release gate |
 | `api/` | The global boards' server: a Cloudflare Worker (`src/index.js`) over a D1 database (`schema.sql`), deployed on its own with wrangler (`wrangler.toml`), moderated with `admin.mjs`. Not part of the static site's import map; the game reaches it through `modules/progression/global.js` |
 
 A sortie: `startSortie()` creates `G.state.run` from the selected ship. Kills spawn XP, salvage and repair pickups (`combat/pickups.js`); `grantXp()` queues level-ups; the frame loop opens `rollOffer()` and `pickCard()` applies the choice, then `recalc()` rebuilds `G.sheet` and the weapon configs. Clearing a sector's tenth wave queues a relic choice. Death (after any revives) emits `sortieOver`; `endSortie()` banks salvage, updates lifetime stats, completes contracts and returns a debrief summary.

@@ -12,6 +12,10 @@ Last Orbit is a browser orbital-defence roguelite. The live page is [zetabun.git
 - **Career.** Every sortie earns pilot XP; 40 pilot ranks pay salvage and unlock paint jobs for your ship. Each ship also earns mastery as you fly it.
 - **Missions.** A Daily Sortie with a daily twist and a streak bonus, and Threat levels I–X for experienced pilots.
 - **Records and achievements.** Every sortie scores; beat your high score and climb your own top 10. Earn bronze, silver and gold medals and one-off feats.
+- **Your station.** Every upgrade rebuilds a piece of the orbital station you defend, and Overhauls open rooms aboard to walk round: the Command Deck (with its replay TV and ORBIT News), Defence Control and the Station Siege, the Trophy Hall, the Comms room and its daily bounties, your quarters (and Bolt, the drone that follows you room to room), the Observatory, the Shipyard, the Beacon array and its Void bosses, the Greenhouse and Fleet Ops, which sends your spare ships on expeditions.
+- **Global boards.** Your Daily Sortie and your best sortie go up against every pilot's, with your rank badge beside your name (Records > Global, or the Boards channel on the Command Deck's TV). They run on their own small server (`api/`).
+- **Field kit.** A supply meter fills as you fight; each canister holds a timed boost to use when it suits you.
+- **What's new.** A red "!" on the settings gear means an update has landed: Settings > Updates lists every update so far.
 - **Install it.** Add the page to your home screen for a full-screen app with its own icon.
 
 ## Source layout
@@ -34,6 +38,6 @@ Three.js and fonts load from CDNs. Add `?debug=1` for a sandboxed test panel (it
 python tools/run_release_gates.py
 ```
 
-The gate checks the import map, every module's syntax and the regression suite. `npm run balance` flies bot sorties headlessly and reports where they end (arguments: runs, Workshop level, ship, `fresh|some|all` unlocks, dodge skill 0-3). After adding or removing a module, run `python tools/build_importmap.py <version>`. `node tools/shoot.mjs <outDir> [scene…]` captures phone-sized screenshots and `node tools/render-icons.mjs` regenerates the app icons from `icons/icon.svg` (both need the local server).
+The gate checks the import map, every module's syntax and the regression suite. `npm run balance` flies bot sorties headlessly and reports where they end (arguments: runs, Workshop level, ship, `fresh|some|all` unlocks, dodge skill 0-3). After adding or removing a module, run `python tools/build_importmap.py <version>` (it also rebuilds the Updates history from `CHANGELOG.md`). Before any push, follow `AGENTS.md`, "Before every push": the gate refuses a release without its dated changelog entry and version stamps. `node tools/shoot.mjs <outDir> [scene…]` captures phone-sized screenshots and `node tools/render-icons.mjs` regenerates the app icons from `icons/icon.svg` (both need the local server).
 
-Current build: **v2.5.0**; save schema **23** (v2 saves use their own storage keys and never overwrite a v1 save).
+Current build: **v2.24.0**; save schema **23** (v2 saves use their own storage keys and never overwrite a v1 save).

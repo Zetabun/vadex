@@ -16,7 +16,7 @@ export function newState() {
   const now = Date.now();
   return {
     v: SCHEMA,
-    meta: { created: now, lastSave: now, playTime: 0, sandbox: false, legacyChecked: false, introSeen: false, lastBackup: 0 },
+    meta: { created: now, lastSave: now, playTime: 0, sandbox: false, legacyChecked: false, introSeen: false, lastBackup: 0, seenUpdate: '' }, // seenUpdate: the last update read about (progression/updates.js)
     settings: { master: 0.7, music: 0.5, sfx: 0.8, shake: true, dmgNumbers: true, scanlines: false, quality: 'auto', notation: 'suffix', speed: 1, holdSides: true, haptics: true, globalBoards: true },
     salvage: 0,
     ship: 'vanguard',

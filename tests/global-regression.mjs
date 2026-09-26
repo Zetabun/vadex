@@ -31,7 +31,7 @@ st.meta.sandbox = true; ok(!tell(st) && !gl(st).told, 'a sandbox save never join
 ok(tell(st) && gl(st).told && gl(st).pending.length === 1 && gl(st).pending[0].boards.join() === 'all' && gl(st).best === 42000, 'being told queues the best sortie so far for the all-time board');
 ok(!tell(st), 'told once');
 await flush(st);
-ok(gl(st).pending.length === 0 && sent.length === 1 && /^[0-9a-f]{32}$/.test(sent[0].body.p) && sent[0].body.name === 'Ace' && sent[0].body.station === 'Haven', 'it goes up with the id, callsign and station: ' + JSON.stringify(sent[0]?.body));
+ok(gl(st).pending.length === 0 && sent.length === 1 && /^[0-9a-f]{32}$/.test(sent[0].body.p) && sent[0].body.name === 'Ace' && sent[0].body.station === 'Haven' && sent[0].body.rank === st.pilot.rank, 'it goes up with the id, callsign and station: ' + JSON.stringify(sent[0]?.body));
 ok(posted.at(-1).res?.boards?.all?.me?.n === 1 && cachedBoard('all')?.data?.total === 1, 'the post says where it landed and refreshes the board');
 ok(/^[2-9A-HJKMNP-Z]{4}$/.test(gl(st).tag || ''), 'the pilot keeps the tag the boards gave them: ' + gl(st).tag);
 

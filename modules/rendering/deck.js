@@ -22,6 +22,14 @@ import { newsStories, newsTicker, LORE } from '@last-orbit/data/news.js';
 import { BOARD_TABS } from '@last-orbit/data/global.js';
 import { dailyFor } from '@last-orbit/data/daily.js';
 import { boardOf, cachedBoard, boardFresh, fetchBoard } from '@last-orbit/progression/global.js';
+import { insigniaSvg } from '@last-orbit/ui/insignia.js';
+/** A pilot rank badge as an image for the TV (made once per rank); null until it has loaded (then onload). */
+const INS = {};
+function insigniaImage(rank, onload) {
+  let im = INS[rank];
+  if (!im) { im = INS[rank] = new Image(); im.onload = onload; im.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(insigniaSvg(rank).replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" ')); }
+  return im.complete && im.naturalWidth ? im : null;
+}
 /** The TV's channels: the replays, and the News. */
 export const TV_CHANNELS = [...CHANNELS, { id: 'news', name: 'News', how: '', live: true }, { id: 'boards', name: 'Boards', how: '', live: true }]; /* live: always something on */
 const BOARD_TURN = 10; // seconds each board is on the Boards channel before the next
@@ -233,8 +241,11 @@ export class DeckRoom extends Room {
       if (r.me) { x.fillStyle = 'rgba(94,230,255,.16)'; x.fillRect(24, y - 24, 976, 48); x.fillStyle = '#5ee6ff'; x.fillRect(24, y - 24, 6, 48); }
       x.fillStyle = r.n === 1 ? '#ffc857' : r.n <= 3 ? '#8a94b8' : '#1c2640'; x.beginPath(); x.arc(70, y, 19, 0, Math.PI * 2); x.fill();
       text(x, String(r.n), 70, y + 1, `800 ${r.n > 99 ? 15 : 20}px sans-serif`, r.n <= 3 ? '#1a1204' : '#dff6ff');
-      const nm = fit((you ? 'YOU · ' : '') + r.name + (r.tag ? ' #' + r.tag : ''), '800 27px sans-serif', 420); text(x, nm, 108, y + 1, '800 27px sans-serif', r.me ? '#e8fbff' : '#ffffff', 'left');
-      x.font = '800 27px sans-serif'; const nw = x.measureText(nm).width; if (r.station && nw < 380) text(x, fit(r.station, '600 18px sans-serif', 420 - nw - 16), 108 + nw + 14, y + 2, '600 18px sans-serif', '#7f8bb0', 'left');
+      const ins = r.rank ? insigniaImage(r.rank, () => { this.boardsSig = null; }) : null; if (ins) x.drawImage(ins, 100, y - 20, 40, 40); /* their rank badge */
+      const nm = fit((you ? 'YOU · ' : '') + r.name + (r.tag ? ' #' + r.tag : ''), '800 27px sans-serif', 380); text(x, nm, 148, y + 1, '800 27px sans-serif', r.me ? '#e8fbff' : '#ffffff', 'left');
+      x.font = '800 27px sans-serif'; let nw = x.measureText(nm).width;
+      if (r.role) { const lbl = r.role.toUpperCase(); x.font = '900 15px sans-serif'; const pw = x.measureText(lbl).width + 14; x.fillStyle = r.role === 'dev' ? '#b69cff' : '#6dffc8'; x.beginPath(); x.roundRect?.(148 + nw + 10, y - 11, pw, 22, 6); x.fill(); text(x, lbl, 148 + nw + 10 + pw / 2, y + 1, '900 15px sans-serif', '#12082a'); nw += pw + 10; } /* DEV / MOD */
+      if (r.station && nw < 340) text(x, fit(r.station, '600 18px sans-serif', 380 - nw - 16), 148 + nw + 14, y + 2, '600 18px sans-serif', '#7f8bb0', 'left');
       text(x, `WAVE ${r.wave}` + (r.threat ? ` · T${r.threat}` : '') + (r.warp > 1 ? ` · S${r.warp}` : ''), 700, y + 1, '700 19px sans-serif', '#9fb0d0', 'right');
       text(x, r.score.toLocaleString(), 990, y + 1, '800 28px sans-serif', r.n === 1 ? '#ffc857' : '#e8fbff', 'right');
     };

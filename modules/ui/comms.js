@@ -22,6 +22,7 @@ export const LINES = [
   { id: 'welcome', when: () => true, text: 'Welcome aboard, {n}. What is left of the station is ours to rebuild.' },
   { id: 'firstSortie', when: (s) => (s.stats.sorties || 0) >= 1, text: 'Salvage secured. Every Workshop upgrade rebuilds a piece of the station.' },
   { id: 'sector1', when: (s) => (s.stats.sectorsCleared || 0) >= 1, text: 'They are pulling back. When we are strong enough, we follow them.' },
+  { id: 'fieldKit', when: (s) => (s.stats.sorties || 0) >= 3, text: 'Supply drops are reaching us, {n}. Fight hard and the meter by your loadout fills: every canister holds a boost for when you need it. Your field kit is in the Armory.' },
   { id: 'garden', when: gardenOpen, text: 'Power is back in the old greenhouse, {n}. Something in there survived.' },
   { id: 'counter', when: (s) => !!s.counter?.unlocked, text: 'Counterattack protocols are ready, {n}. Time to take the fight to them.' },
   { id: 'deepVoid', when: (s) => (s.stats.bestWave || 0) > 60, text: 'Anomalous readings past wave sixty. The Deep Void goes on and on.' },

@@ -71,6 +71,7 @@ import { MUTATOR_BY_ID, dayKey, dailyFor } from '@last-orbit/data/daily.js';
 import { BOARD_TABS, RETRY_MS } from '@last-orbit/data/global.js';
 import { BOOSTS, BOOST_BY_ID } from '@last-orbit/data/boosts.js';
 import { kit, kitCount } from '@last-orbit/progression/boosts.js';
+import { updatesUnseen } from '@last-orbit/progression/updates.js';
 import { gl, posting, boardsOn, tell, flush, boardName, boardOf, cachedBoard, boardFresh, fetchBoard } from '@last-orbit/progression/global.js';
 
 const TABS = [['launch', 'Launch'], ['missions', 'Missions'], ['workshop', 'Workshop'], ['armory', 'Armory'], ['ships', 'Ships'], ['contracts', 'Career'], ['records', 'Records'], ['awards', 'Awards'], ['deck', 'Deck']];
@@ -96,7 +97,7 @@ export function createHangar(hooks) {
     // Top left: the pilot, by callsign (or rank title) with their rank beneath; the insignia updates as they rank up.
     $.brand = h('button.brand.pilot-id', { onclick: () => show('contracts'), 'aria-label': 'Pilot career' }, $.brandIns = h('span.brand-ins'), h('span.brand-txt', $.brandName = h('b'), $.brandRank = h('small'))),
     h('button.chip.salvage.big.res-open', { title: 'Your resources', 'aria-label': 'Salvage. Tap to see all your resources', onclick: () => resourcesPanel() }, art('cur:salvage', 'cur-ico'), $.salvage, h('i.chip-more')),
-    h('button.icon-btn', { 'aria-label': 'Settings', onclick: () => hooks.settings() }, uiIcon('gear')));
+    ($.gear = h('button.icon-btn.gear-btn', { 'aria-label': 'Settings', onclick: () => hooks.settings() }, uiIcon('gear'), h('i.upd-dot', { 'aria-label': 'New update' }, '!'))));
   $.body = scrollHints(h('main.hg-body'));
   $.nav = h('nav.hg-nav', { role: 'tablist' });
   const navBtns = {}; let page = 0;
@@ -160,6 +161,7 @@ export function createHangar(hooks) {
    *  on a list (Workshop upgrades) stay on the row under the finger; switching tabs starts at the top. */
   function render(top = false) {
     const y = $.body.scrollTop; clear($.body);
+    lay.dirty = true; /* the ship card may have moved */
     const view = { launch: launchView, missions: missionsView, workshop: workshopView, armory: armoryView, ships: shipsView, contracts: contractsView, records: recordsView, awards: awardsView, deck: () => roomView('deck'), control: () => roomView('control'), hall: () => roomView('hall'), comms: () => roomView('comms'), quarters: () => roomView('quarters'), observatory: () => roomView('observatory'), yard: () => roomView('yard'), beacons: () => roomView('beacons'), garden: () => roomView('garden'), ops: () => roomView('ops'), gunner: () => gunnerView() }[tab]();
     $.body.append(view); $.body.scrollTop = top ? 0 : y;
   }
@@ -1062,8 +1064,8 @@ export function createHangar(hooks) {
     const chips = h('div.gl-boards', BOARD_TABS.map((b) => h('button.gl-chip' + (b.id === boardTab ? '.on' : ''), { onclick: () => { if (boardTab === b.id) return; boardTab = b.id; playSfx('tab'); render(); } }, b.name)));
     const daily = boardTab !== 'all' ? dailyFor(id.slice(6)) : null;
     const row = (r, you) => h('li.lead.gl-row' + (r.n === 1 ? '.first' : '') + (r.me ? '.me' : ''),
-      h('span.lead-n', String(r.n)),
-      h('div.lead-main', h('b', (you ? 'You · ' : '') + r.name, r.tag ? h('span.gl-tag', '#' + r.tag) : null), h('small', [`Wave ${r.wave}`, SHIP_BY_ID[r.ship]?.name, r.station].filter(Boolean).join(' · '))),
+      h('span.lead-n', String(r.n)), r.rank ? insignia(r.rank, 'gl-ins') : h('span.gl-ins.none'), /* their pilot rank badge, when the boards know it */
+      h('div.lead-main', h('b', (you ? 'You · ' : '') + r.name, r.tag ? h('span.gl-tag', '#' + r.tag) : null, r.role ? h('span.gl-role.' + r.role, r.role.toUpperCase()) : null), h('small', [`Wave ${r.wave}`, SHIP_BY_ID[r.ship]?.name, r.station].filter(Boolean).join(' · '))),
       h('div.lead-tags', h('b.gl-score', fmtInt(r.score)), r.threat ? h('span.tag.tag-threat', 'Threat ' + roman(r.threat)) : null, r.warp > 1 ? h('span.tag.tag-warp', 'Warp S' + r.warp) : null));
     let list;
     if (!c) list = h('div.lock-note', uiIcon('records'), h('span', boardFail[id] ? 'The boards are out of reach right now. Your scores are safe on this device and go up when they can.' : 'Reaching the boards…'));
@@ -1079,6 +1081,7 @@ export function createHangar(hooks) {
   function globalTick() { const now = performance.now(); if (now < glAt) return; glAt = now + RETRY_MS; const g = gl(G.state); if (g.pending.length || g.forget) flush(G.state); }
   addEventListener('online', () => { glAt = 0; });
   bus.on('globalPosted', () => { if (tab === 'records' && recTab === 'global') render(); });
+  bus.on('updatesSeen', () => badges());
   function recordsView() {
     if (recTab === 'global') return globalView();
     const st = G.state, s = st.stats, rec = st.records, d = st.daily;
@@ -1351,6 +1354,7 @@ export function createHangar(hooks) {
 
   // ------------------------------------------------------------ live updates
   function badges() {
+    setClass($.gear, 'news', updatesUnseen(G.state)); /* a new update to read about: Settings > Updates */
     const st = G.state, canBuy = WORKSHOP.some((u) => { const c = workshopNext(u.id); return c != null && st.salvage >= c; });
     const ship = SHIPS.some((s) => (shipStatus(s.id) === 'buyable' && st.salvage >= s.cost) || refitReady(st, s.id));
     const daily = (st.stats.sorties > 0 && !dailyToday().done) || (st.counter.unlocked && !Object.keys(st.counter.stars).length) || bountyClaimable(st);
@@ -1363,9 +1367,9 @@ export function createHangar(hooks) {
   }
   // The sizes the hangar needs every frame (the header's foot, the screen, the station callout) are measured only when
   // they can have changed (a resize, new text, another tab), so a frame never forces the page to be laid out again.
-  const lay = { dirty: true, top: 0, w: 0, h: 0, ch: 0, cl: 0, cw: 0 }, relayout = () => { lay.dirty = true; };
+  const lay = { dirty: true, top: 0, w: 0, h: 0, ch: 0, cl: 0, cw: 0, card: Infinity }, relayout = () => { lay.dirty = true; };
   if (typeof ResizeObserver !== 'undefined') { const ro = new ResizeObserver(relayout); ro.observe(el); ro.observe(top); ro.observe($.callout); } addEventListener('resize', relayout);
-  function measureLayout() { lay.dirty = !(typeof ResizeObserver !== 'undefined'); lay.top = top.getBoundingClientRect().bottom; const b = el.getBoundingClientRect(), c = $.callout; lay.w = b.width; lay.h = b.height; lay.ch = c.offsetHeight; lay.cl = c.offsetLeft; lay.cw = c.offsetWidth; }
+  function measureLayout() { lay.dirty = !(typeof ResizeObserver !== 'undefined'); lay.top = top.getBoundingClientRect().bottom; const b = el.getBoundingClientRect(), c = $.callout; lay.w = b.width; lay.h = b.height; lay.ch = c.offsetHeight; lay.cl = c.offsetLeft; lay.cw = c.offsetWidth; const lc = $.body.querySelector('.launch-card'); lay.card = lc ? lc.getBoundingClientRect().top - b.top : Infinity; } /* card: where the ship card starts (the callout keeps above it) */
   /** Fleet Ops' title keeps up with its ships (one comes home while you stand there). */
   let opsAt = 0; function opsTick() { if (tab !== 'ops' || performance.now() < opsAt) return; opsAt = performance.now() + 1000; const b = $.body.querySelector('.deck3d.ops .d3-title b'); if (b) setText(b, opsTitle()); }
   function update() { watchTick(); gunnerTick(); opsTick(); boltTick(); refitTick(); globalTick(); const sv = G.state.salvage; if ($.salvage._v !== sv) { $.salvage._v = sv; setText($.salvage, fmtInt(sv)); } badges(); pilotId(); stationDone(); if (lay.dirty) measureLayout(); G.hangarTop = lay.top; stationTag(); }
@@ -1400,8 +1404,10 @@ export function createHangar(hooks) {
     const hx = (p.x + 1) / 2 * lay.w, hy = (1 - p.y) / 2 * lay.h, ch = lay.ch, cTop = Math.max((G.hangarTop || 0) + 6, hy - ch / 2);
     const px = (o, k, v) => { if (o[k] !== v) o[k] = v; }; /* a style is only written when it changes */
     px(c.style, 'top', Math.round(cTop) + 'px');
+    // on a short screen the station sits low, behind the ship card: the callout and its line would run across the card, so they wait for room
+    const squeezed = cTop + ch > lay.card - 8 || hy > lay.card - 4; setClass(c, 'squeezed', squeezed); setClass($.coSvg, 'squeezed', squeezed);
     // the tap target over the station follows it (it stands 27 units tall, 16 above the hub, 46 wide)
-    const u = (G.renderer.station.screenPx || 200) / 46, hs = $.stationHot.style; px(hs, 'left', Math.round(hx - 23 * u) + 'px'); px(hs, 'top', Math.round(hy - 16 * u) + 'px'); px(hs, 'width', Math.round(46 * u) + 'px'); px(hs, 'height', Math.round(27 * u) + 'px');
+    const u = (G.renderer.station.screenPx || 200) / 46, hs = $.stationHot.style; px(hs, 'left', Math.round(hx - 23 * u) + 'px'); px(hs, 'top', Math.round(hy - 16 * u) + 'px'); px(hs, 'width', Math.round(46 * u) + 'px'); px(hs, 'height', Math.round(Math.max(0, Math.min(27 * u, lay.card - (hy - 16 * u)))) + 'px'); /* never over the card: its taps are the card's */
     const ax = lay.cl + lay.cw + 6, ay = Math.round(Math.min(Math.max(hy, cTop + 10), cTop + ch - 10));
     const ls = `${ax},${ay},${Math.round(hx)},${Math.round(hy)}`; if ($.coLine._s !== ls) { $.coLine._s = ls;
       $.coLine.setAttribute('x1', ax); $.coLine.setAttribute('y1', ay); $.coLine.setAttribute('x2', Math.round(hx - 7)); $.coLine.setAttribute('y2', Math.round(hy)); $.coDot.setAttribute('cx', Math.round(hx)); $.coDot.setAttribute('cy', Math.round(hy)); }

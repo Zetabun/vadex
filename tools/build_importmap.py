@@ -9,6 +9,10 @@ html = html_path.read_text(encoding='utf-8')
 if not version:
     m = re.search(r'\?v=([0-9.]+)', html)
     version = m.group(1) if m else '2.0.0'
+# The Updates tab's history is rebuilt from CHANGELOG.md first, so every release carries its own notes.
+sys.path.insert(0, str(root / 'tools'))
+import build_updates
+notes = build_updates.build()
 imports = {}
 for f in sorted((root / 'modules').rglob('*.js')):
     rel = f.relative_to(root / 'modules').as_posix()
@@ -17,4 +21,4 @@ block = '<script type="importmap">' + json.dumps({'imports': imports}, separator
 html, n = re.subn(r'<script type="importmap">.*?</script>', lambda _: block, html, flags=re.S)
 assert n == 1, 'index.html must contain exactly one import map'
 html_path.write_text(html, encoding='utf-8')
-print(f'Import map: {len(imports)} modules at v{version}')
+print(f'Import map: {len(imports)} modules at v{version}; Updates: {len(notes)} releases, newest v{notes[0]["v"]}')

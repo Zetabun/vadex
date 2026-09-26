@@ -45,7 +45,7 @@ const hooks = {
   // a save restored from a backup code replaces this device's progress, and is saved at once
   restoreSave: async (s) => { adopt(s); ui.setMode('hangar'); await save('restore'); toast('Progress restored from your backup.', 'good'); },
   saveNow: (why = 'manual') => save(why),
-  hardReset: async () => { await hardReset(); const s = newState(); s.meta.sandbox = G.state.meta.sandbox; s.meta.legacyChecked = G.state.meta.legacyChecked; adopt(s); ui.setMode('hangar'); await save('reset'); toast('Save erased. Good luck, pilot.', 'warn'); setTimeout(() => ui.callsign({ first: true }), 600); },
+  hardReset: async () => { await hardReset(); const s = newState(); s.meta.sandbox = G.state.meta.sandbox; s.meta.legacyChecked = G.state.meta.legacyChecked; s.global.id = G.state.global?.id || ''; s.global.told = !!G.state.global?.told; /* the pilot keeps their place on the global boards (their name tag, badge, any DEV tag) */ adopt(s); ui.setMode('hangar'); await save('reset'); toast('Save erased. Good luck, pilot.', 'warn'); setTimeout(() => ui.callsign({ first: true }), 600); },
 };
 
 function finish(reason) {

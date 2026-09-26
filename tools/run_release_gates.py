@@ -18,8 +18,18 @@ assert all(value.startswith('./modules/') for value in imports.values()), 'Impor
 version = re.search(r'\?v=([^"]+)"', match.group(1)).group(1)
 if re.fullmatch(r'\d+\.\d+\.\d+', version):
     assert (root / 'tests' / 'saves' / f'v{version}.json').is_file(), f'No kept save for v{version}: run node --experimental-loader ./tests/loader.mjs tools/save_fixture.mjs'
+    # Patch notes and docs are written before a release goes out (AGENTS.md, "Before every push").
+    notes = (root / 'CHANGELOG.md').read_text(encoding='utf-8')
+    assert re.search(rf'^## v{re.escape(version)} — \d{{4}}-\d{{2}}-\d{{2}}', notes, re.M), f'CHANGELOG.md has no dated "## v{version} — YYYY-MM-DD" entry: write the patch notes before pushing'
+    assert f'{{"v":"{version}"' in (root / 'modules' / 'data' / 'updates.js').read_text(encoding='utf-8'), f'The Updates tab lacks v{version}: run tools/build_importmap.py {version}'
+    assert f'Current build: **v{version}**' in (root / 'AGENTS.md').read_text(encoding='utf-8'), f'AGENTS.md: set "Current build" to v{version}'
+    assert f'Current build: **v{version}**' in (root / 'README.md').read_text(encoding='utf-8'), f'README.md: set "Current build" to v{version}'
+    assert f'v{version}' in (root / 'BUILD_NOTES.md').read_text(encoding='utf-8').splitlines()[0], f'BUILD_NOTES.md: set its heading to v{version}'
 for module in modules:
     subprocess.run(['node', '--check', str(module)], check=True, cwd=root)
+# The Updates tab (modules/data/updates.js) must carry the changelog's newest release (tools/build_importmap.py rebuilds it).
+newest = re.search(r'^## v(\d+\.\d+\.\d+)', (root / 'CHANGELOG.md').read_text(encoding='utf-8'), re.M).group(1)
+assert f"{{\"v\":\"{newest}\"" in (root / 'modules' / 'data' / 'updates.js').read_text(encoding='utf-8'), f'The Updates tab lacks v{newest}: run tools/build_importmap.py'
 # A trailing // comment whose text reads like code has almost always swallowed code by accident (a comment inserted
 # mid-line): the page loads but part of that line silently never runs.
 CODE = re.compile(r"\);|\) \{|\bconst \w+ =|\bif \(|\bfor \(|=> |\bthis\.\w+\(|\} else")

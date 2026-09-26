@@ -40,6 +40,7 @@ import { MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
 import { applyVolumes, playSfx } from '@last-orbit/audio/audio.js';
 import { h, clear, toggle, slider, select, scrollHints, setClass, setText } from '@last-orbit/ui/dom.js';
 import { setBoards } from '@last-orbit/progression/global.js';
+import { updatesUnseen, markUpdatesSeen, cmpVersion } from '@last-orbit/progression/updates.js';
 import { BOOSTS, BOOST_BY_ID } from '@last-orbit/data/boosts.js';
 import { kit, cannotUse, useBoost, supplyPct } from '@last-orbit/progression/boosts.js';
 import { uiIcon } from '@last-orbit/ui/icons.js';
@@ -170,7 +171,7 @@ export function createOverlays(layer, hooks) {
       h('div.modal-head', h('div.kicker', `${run.mode === 'counter' ? 'Stage ' + run.stage : 'Wave ' + run.wave} · Level ${run.level}`), h('h2', 'Paused')),
       h('button.build.build-open', { onclick: () => showLoadout(null, true), 'aria-label': 'Show loadout details' }, [...buildSummary(run).childNodes], h('span.build-more', 'Details', uiIcon('chevron'))),
       h('div.modal-actions', h('button.btn.primary', { onclick: close, 'data-autofocus': '' }, uiIcon('play'), 'Resume'),
-        h('button.btn.ghost', { onclick: () => showSettings(true) }, uiIcon('gear'), 'Settings'),
+        h('button.btn.ghost', { onclick: () => showSettings(true) }, uiIcon('gear'), 'Settings', updatesUnseen(G.state) ? h('i.upd-dot', '!') : null),
         h('button.btn.danger', { onclick: () => confirmAbandon() }, 'Abandon sortie')));
     mount('pause', el, (e) => { if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') { close(); return true; } return false; });
   }
@@ -445,13 +446,37 @@ export function createOverlays(layer, hooks) {
       h('div.modal-actions', h('button.btn.ghost', { onclick: showPause, 'data-autofocus': '' }, 'Keep flying'), h('button.btn.danger', { onclick: () => { close(); hooks.abandon(); } }, 'Abandon')));
     mount('confirm', el, (e) => { if (e.key === 'Escape') { showPause(); return true; } return false; });
   }
-  function showSettings(fromPause) {
-    const el = h('div.modal.settings-modal', { role: 'dialog', 'aria-label': 'Settings' },
-      h('div.modal-head', h('h2', 'Settings')), settingsBody(fromPause),
+  function showSettings(fromPause, tab = 'settings') {
+    // Two tabs: the settings, and Updates (what's new in every update so far). Opening Updates clears the gear's "!".
+    const st = G.state, news = updatesUnseen(st), was = tab === 'updates' ? markUpdatesSeen(st) : null;
+    if (tab === 'updates' && news) { hooks.saveNow?.('updates'); bus.emit('updatesSeen'); }
+    const seg = h('div.gl-seg.set-seg', { role: 'tablist' }, [['settings', 'Settings'], ['updates', 'Updates']].map(([id, name]) =>
+      h('button' + (tab === id ? '.on' : ''), { role: 'tab', 'aria-selected': String(tab === id), onclick: () => { if (tab === id) return; playSfx('tab'); showSettings(fromPause, id); } }, name, id === 'updates' && news && tab !== 'updates' ? h('i.upd-dot', '!') : null)));
+    const el = h('div.modal.settings-modal' + (tab === 'updates' ? '.updates-modal' : ''), { role: 'dialog', 'aria-label': tab === 'updates' ? 'Updates' : 'Settings' },
+      h('div.modal-head', h('h2', tab === 'updates' ? 'What\'s new' : 'Settings')), seg, tab === 'updates' ? updatesBody(was) : settingsBody(fromPause),
       h('div.modal-actions', h('button.btn.primary', { onclick: () => (fromPause ? showPause() : close()), 'data-autofocus': '' }, 'Done'),
-        fromPause ? null : h('button.btn.danger.small', { onclick: () => confirmReset() }, 'Erase save')),
-      h('div.display-info', displayInfo()));
+        fromPause || tab === 'updates' ? null : h('button.btn.danger.small', { onclick: () => confirmReset() }, 'Erase save')),
+      tab === 'settings' ? h('div.display-info', displayInfo()) : null);
     mount('settings', el, (e) => { if (e.key === 'Escape') { if (fromPause) showPause(); else close(); return true; } return false; });
+  }
+  /** Settings > Updates: every update so far (data/updates.js, built from the changelog and loaded when first opened),
+   *  newest first and open, the rest folded; those newer than the pilot had seen are marked New. */
+  function updatesBody(was) {
+    const box = h('div.updates', h('p.sub-note', 'Loading the update history…'));
+    const rich = (s) => s.split('**').map((part, i) => (i % 2 ? h('b', part) : part));
+    const day = (d) => { const [y, m, dd] = d.split('-').map(Number); return new Date(y, m - 1, dd).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }); };
+    import('@last-orbit/data/updates.js').then(({ UPDATES }) => {
+      clear(box); let v1 = false;
+      UPDATES.forEach((u, i) => {
+        if (!v1 && u.v.startsWith('1.')) { v1 = true; box.append(h('h3.upd-era', 'Last Orbit v1'), h('p.sub-note', 'The original game, before the v2 redesign.')); }
+        const fresh = was ? cmpVersion(u.v, was) > 0 : i === 0;
+        box.append(h('details.upd' + (fresh ? '.fresh' : ''), { open: i === 0 },
+          h('summary', h('div.upd-top', h('b', 'v' + u.v), h('small', u.date ? day(u.date) : `with v${u.with}`), fresh ? h('span.upd-new', 'New') : null, h('span.upd-chev', uiIcon('chevron'))), h('span.upd-head', u.head)),
+          u.intro ? h('p.upd-intro', rich(u.intro)) : null,
+          h('ul.upd-list', u.items.map((it) => h('li', rich(it.t), it.sub ? h('ul', it.sub.map((s) => h('li', rich(s)))) : null)))));
+      });
+    }).catch(() => { clear(box); box.append(h('p.sub-note', 'The update history could not load. Check your connection, then open Updates again.')); });
+    return box;
   }
   function confirmReset() {
     const el = h('div.modal.confirm', { role: 'alertdialog', 'aria-label': 'Erase save?' },

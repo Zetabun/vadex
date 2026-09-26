@@ -5,13 +5,15 @@
 //   node api/admin.mjs ban <id>              take a pilot off every board; their later posts are dropped
 //   node api/admin.mjs unban <id>
 //   node api/admin.mjs rename <id>           reset a pilot's shown name (to Pilot, with their tag) and station, for good
+//   node api/admin.mjs role <id|name> <dev|mod|none>   the tag beside a pilot's name (a name must match one pilot only)
 // Add --local to work on `wrangler dev`'s local database instead of the live one.
 import { execFileSync } from 'node:child_process';
 
 const args = process.argv.slice(2), local = args.includes('--local'), [cmd, a, b] = args.filter((x) => x !== '--local');
 const PID = /^[0-9a-f]{32}$/, BOARD = /^(all|daily:\d{4}-\d{2}-\d{2})$/;
 function sql(command) {
-  const out = execFileSync('npx', ['--yes', 'wrangler', 'd1', 'execute', 'last-orbit', local ? '--local' : '--remote', '--json', '--command', command], { cwd: new URL('.', import.meta.url), encoding: 'utf8', shell: process.platform === 'win32' });
+  const win = process.platform === 'win32'; /* Windows runs npx through its shell, which splits an unquoted command at every space */
+  const out = execFileSync('npx', ['--yes', 'wrangler', 'd1', 'execute', 'last-orbit', local ? '--local' : '--remote', '--json', '--command', win ? `"${command.replace(/"/g, '""')}"` : command], { cwd: new URL('.', import.meta.url), encoding: 'utf8', shell: win, stdio: ['ignore', 'pipe', 'pipe'] });
   return JSON.parse(out.slice(out.indexOf('['))).flatMap((r) => r.results || []);
 }
 const id = (x) => { if (!PID.test(x || '')) throw new Error('an id is 32 hex characters (see: top)'); return x; };
@@ -34,6 +36,11 @@ if (cmd === 'stats') {
   sql(`UPDATE players SET banned = 0 WHERE pid = '${id(a)}'`); console.log('Unbanned (their next post counts again): ' + a);
 } else if (cmd === 'rename') {
   const pid = id(a); sql(`UPDATE players SET name = 'Pilot', nkey = 'pilot', station = '', locked = 1 WHERE pid = '${pid}'`); console.log('Name reset: ' + pid);
+} else if (cmd === 'role') {
+  const role = b === 'none' ? '' : b; if (!['dev', 'mod', ''].includes(role ?? 'x')) throw new Error('role: dev, mod or none');
+  let pid = PID.test(a || '') ? a : null;
+  if (!pid) { const key = String(a || '').toLowerCase().replace(/'/g, "''"); const found = sql(`SELECT pid, name, tag, station, posts FROM players WHERE nkey = '${key}'`); if (found.length !== 1) { console.table(found); throw new Error(found.length ? 'more than one pilot has that name: use their id' : 'no pilot has that name'); } pid = found[0].pid; }
+  sql(`UPDATE players SET role = '${role}' WHERE pid = '${pid}'`); console.log(`Role ${role || 'none'} set for ${pid}`);
 } else {
-  console.log('node api/admin.mjs stats | top [board] [n] | ban <id> | unban <id> | rename <id>   (--local for wrangler dev)');
+  console.log('node api/admin.mjs stats | top [board] [n] | ban <id> | unban <id> | rename <id> | role <id|name> <dev|mod|none>   (--local for wrangler dev)');
 }

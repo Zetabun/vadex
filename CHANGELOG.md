@@ -1,5 +1,15 @@
 # Changelog
 
+## v2.24.0 — 2026-09-26
+
+- **What's new.** When an update lands, the settings gear shows a red "!". Settings now has two tabs, Settings and Updates. Updates lists every update so far, newest first, back to the original game, with the ones you haven't seen marked New. Opening it clears the "!".
+- **Rank badges on the global boards.** Every pilot's rank badge now sits beside their name, in Records > Global and on the Deck TV's Boards channel. It is written with every score you post and refreshed whenever you look at the boards, so a rank-up shows straight away. Pilots who haven't played since this update show their badge after their next sortie or look at the boards.
+- **DEV tag.** The game's developer shows a DEV tag beside their name on the boards. Only the boards' server can give one out.
+- **Erasing your save keeps your place on the global boards.** Your entries, name tag, badge and any DEV tag stay with you; type your callsign again after starting over. Moving to another device is still done with your backup code.
+- **Fixed:** on a short screen, the station's name and its line no longer run across the ship card on the Launch screen; they wait until there is room.
+- **ORBIT on the field kit.** Pilots who flew before the field kit get a word from ORBIT about the supply meter and where to find the kit.
+- The release checks now refuse a release without its dated changelog entry (which the Updates tab is built from) and up-to-date version notes in the docs.
+
 ## v2.23.0 — 2026-09-26
 
 - **Field boosts.** Short, strong boosts you time yourself, packed in supply canisters.

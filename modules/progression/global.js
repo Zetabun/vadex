@@ -96,7 +96,7 @@ export function flush(st = G.state) {
     while (g.pending.length && posting(st)) {
       const item = g.pending[0]; if (sent++) await wait(POST_GAP);
       try {
-        const res = await send('/score', { p: pilotId(st), name: st.pilot?.name || '', station: st.stationName || '', v: VERSION, entry: item.entry, boards: item.boards });
+        const res = await send('/score', { p: pilotId(st), name: st.pilot?.name || '', station: st.stationName || '', rank: st.pilot?.rank || 0, v: VERSION, entry: item.entry, boards: item.boards });
         g.pending.shift(); g.shownAs = res.name; if (res.tag) g.tag = res.tag; for (const [b, v] of Object.entries(res.boards || {})) cache.set(b, { at: Date.now(), data: v });
         bus.emit('globalPosted', item, res);
       } catch (e) {
@@ -117,7 +117,7 @@ export const boardFresh = (id) => { const c = cache.get(id); return !!c && Date.
 /** Fetch a board (the top 50, how many are on it, and where this pilot stands). Resolves to its data, or rejects. */
 export function fetchBoard(id, st = G.state) {
   if (loading.has(id)) return loading.get(id);
-  const p = send(`/board?b=${encodeURIComponent(id)}` + (posting(st) && gl(st).id ? '&p=' + gl(st).id : ''))
+  const p = send(`/board?b=${encodeURIComponent(id)}` + (posting(st) && gl(st).id ? `&p=${gl(st).id}&r=${st.pilot?.rank || 0}` : '')) /* the rank keeps this pilot's badge current */
     .then((data) => { cache.set(id, { at: Date.now(), data }); return data; })
     .finally(() => loading.delete(id));
   loading.set(id, p); return p;

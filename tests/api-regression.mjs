@@ -98,6 +98,27 @@ ok(r.data.tag === kept, 'a pilot keeps their tag while their name stays the same
 const clash = db.prepare("SELECT nkey, tag, COUNT(*) AS n FROM players GROUP BY nkey, tag HAVING n > 1").all();
 ok(!clash.length, 'no two pilots share a name and a tag: ' + JSON.stringify(clash));
 
+// ------------------------------------------------------------------ rank badges: written with every post, refreshed on every look
+later(); r = await post(pid(80), 'Badge', entry(64800), ['all'], { rank: 12 });
+ok(r.data.boards.all.me?.rank === 12, 'a post writes the pilot rank, shown on their row: ' + JSON.stringify(r.data.boards.all.me));
+later(); r = await call('GET', `/board?b=all&p=${pid(80)}&r=14`);
+ok(r.data.me?.rank === 14, 'looking at a board with a new rank updates the badge before the next post');
+later(); r = await post(pid(80), 'Badge', entry(1, 1), ['all'], { rank: 'lots' });
+ok(db.prepare('SELECT rank FROM players WHERE pid = ?').get(pid(80)).rank === 14, 'a rank that is not a number leaves the badge as it was');
+r = await call('GET', `/board?b=all&p=${pid(1)}`);
+ok(!('rank' in r.data.me), 'a pilot the boards have no rank for shows no badge');
+
+// ------------------------------------------------------------------ roles: set on the server only
+db.prepare("UPDATE players SET role = 'dev' WHERE pid = ?").run(pid(80));
+r = await call('GET', `/board?b=all&p=${pid(80)}`);
+ok(r.data.me?.role === 'dev', 'a pilot given the dev role shows it on their row');
+later(); r = await post(pid(80), 'Badge', entry(1, 1), ['all'], { role: 'mod' });
+ok(db.prepare('SELECT role FROM players WHERE pid = ?').get(pid(80)).role === 'dev', 'the game cannot set a role: a posted one is ignored');
+db.prepare("UPDATE players SET role = 'king' WHERE pid = ?").run(pid(80));
+r = await call('GET', `/board?b=all&p=${pid(80)}`);
+ok(!('role' in r.data.me), 'only known roles are shown');
+db.prepare("UPDATE players SET role = '' WHERE pid = ?").run(pid(80));
+
 // ------------------------------------------------------------------ bans and forgetting
 db.prepare('UPDATE players SET banned = 1 WHERE pid = ?').run(pid(9));
 later(); const before = (await call('GET', '/board?b=all')).data.total; r = await post(pid(9), 'Banned', entry(64000));
