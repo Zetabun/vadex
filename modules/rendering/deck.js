@@ -229,7 +229,11 @@ export class DeckRoom extends Room {
     // left: the sortie as it plays
     if (Math.floor(this.t * 1.6) % 2 === 0) { x.fillStyle = '#ff4d6a'; x.beginPath(); x.arc(40, 44, 9, 0, Math.PI * 2); x.fill(); }
     const name = replayTitle(rep); text(x, 'REPLAY', 58, 45, '800 22px sans-serif', '#ff8a9a', 'left'); text(x, 'TAP TO WATCH', 320, 45, '700 15px sans-serif', '#5ee6ff', 'right');
-    text(x, name.title, 34, 86, `800 ${name.title.length > 12 ? 24 : 30}px sans-serif`, '#e8fbff', 'left'); text(x, name.sub, 34, 118, '700 16px sans-serif', '#7f8bb0', 'left');
+    // the title fits the panel: smaller if it is long, over two lines if it is very long (it must not run under the picture)
+    let size = 30; x.font = `800 ${size}px sans-serif`; while (size > 19 && x.measureText(name.title).width > 290) { size -= 1; x.font = `800 ${size}px sans-serif`; }
+    if (x.measureText(name.title).width <= 290) text(x, name.title, 34, 86, `800 ${size}px sans-serif`, '#e8fbff', 'left');
+    else { const words = name.title.split(' '), half = Math.ceil(words.length / 2); [words.slice(0, half).join(' '), words.slice(half).join(' ')].forEach((l, i) => text(x, l, 34, 72 + i * 24, '800 21px sans-serif', '#e8fbff', 'left')); }
+    text(x, name.sub, 34, 118, '700 16px sans-serif', '#7f8bb0', 'left');
     text(x, 'WAVE', 34, 172, '700 16px sans-serif', '#7f8bb0', 'left'); text(x, String(st.wave), 34, 214, '800 54px sans-serif', '#9ff0ff', 'left');
     text(x, 'SCORE', 34, 268, '700 16px sans-serif', '#7f8bb0', 'left'); text(x, st.score.toLocaleString(), 34, 300, '800 32px sans-serif', '#e8fbff', 'left');
     text(x, 'HULL', 34, 350, '700 16px sans-serif', '#7f8bb0', 'left'); x.fillStyle = '#1a2440'; x.fillRect(34, 366, 270, 14); x.fillStyle = st.hull > 0.35 ? '#6dffc8' : '#ff5d6a'; x.fillRect(34, 366, 270 * Math.max(0, st.hull), 14);
