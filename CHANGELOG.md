@@ -1,6 +1,6 @@
 # Changelog
 
-## v2.21.0 — unreleased
+## v2.21.0 — 2026-09-26
 
 - **Bolt comes with you.** The maintenance drone from your quarters now follows you through every room aboard, once you have met it there. It flies in through the door behind you and keeps to the lower right of your view (on a phone as well), clear of walls and furniture. When you stand still for a while it drifts off to look at something, then comes back.
   - **New look:** an expressive eye (happy, love, sleepy, surprised, dizzy, curious), fins, a hover glow and a pulsing antenna. It turns to look at you and banks as it flies.
