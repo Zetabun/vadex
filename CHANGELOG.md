@@ -21,6 +21,9 @@
   - **The Overhaul roadmap says what each piece brings** (daily bounties, a bunk that pays salvage, charts of the Deep Void, the Chimera, Void bosses) and names the room it opens. The Overhaul confirmation lists the room too.
 - **Every boss says how to beat it** as it arrives, until you have beaten it once: "Silence its four singers to break the shield", "Armoured while its turrets stand: knock them out first", and so on (bosses with only a weak point say to hit the amber target). A Void boss's pedestal in the Beacon array says the same once it has answered.
 - **With the beacons lit, each Deep Void sector opens by naming the Void boss at its end,** and what the first kill pays ("The Pale Watcher waits at wave 70: +3 Blueprints the first time").
+- **The Command Deck is bigger:** it runs 3.5 m further back, so the doors added since it was built have walls of their own. The Trophy Hall (left) and Defence Control (right) now face each other behind the medals and the ships, clear of the lounge, the ship pedestals and the way out. The lounge, the records screen and the Hangar door moved back with the back wall.
+- **A station directory** on the Deck's new stretch of right wall, by the way in: every room aboard and the door that leads there from here (NEW until you have been), or what opens it. Tap it for the station card.
+- **Comms room:** the dish outside the window no longer floats on a short post. It stands on a lattice tower of its own rising from the spire below, like the mast beside it, turning on a turntable with its mount holding the back of the bowl and its feed horn out on struts.
 
 ## v2.16.0 — 2026-09-25
 

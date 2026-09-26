@@ -2,7 +2,9 @@
 // window looks down on Earth (the same planet and day/night clock as the hangar); the pilot's medals line the left wall,
 // their ships stand on pedestals to the right, banners hang from the ceiling, the records screen and the way out are
 // behind, Overhaul trophies sit on a shelf under the window, and a hologram of the station turns on the table in the
-// middle. A door on the right leads to Defence Control once the invaders have struck back.
+// middle. Behind the ships and the medals the room runs back to the lounge, the records screen and the way out, with a
+// door either side: the Trophy Hall on the left, Defence Control on the right, and a directory of every room aboard by
+// the way in.
 import { Room, canvas, tex, drawArt, text, drawSign, EYE } from '@last-orbit/rendering/room.js';
 import { Station } from '@last-orbit/rendering/station.js';
 import { earthMaterial, nightAmount } from '@last-orbit/rendering/background.js';
@@ -17,22 +19,23 @@ import { siegeUnlocked } from '@last-orbit/data/siege.js';
 import { ReplayScreen, replayTitle, replayEnding } from '@last-orbit/rendering/replay.js';
 import { lastReplay, loadReplay } from '@last-orbit/progression/recorder.js';
 import { SHIP_BY_ID } from '@last-orbit/data/ships.js';
+import { ROOMS_ABOARD, roomOpen, roomFresh } from '@last-orbit/data/rooms.js';
 const T = () => window.THREE;
 
-// Room: x -5..5, z -8 (window) .. 4 (back wall), height 3.4. The pilot's eyes are at 1.6.
-const W = 5, FRONT = -8, BACK = 4, H = 3.4;
+// Room: x -5..5, z -8 (window) .. 7.5 (back wall), height 3.4. The pilot's eyes are at 1.6.
+const W = 5, FRONT = -8, BACK = 7.5, H = 3.4;
 const TABLE = { x: 0, z: -3, r: 1.3 }, PEDESTAL_X = 4.1, PEDESTAL_Z = [-6.5, -5.1, -3.7, -2.3, -0.9, 0.5];
 const TIER_COL = ['#d08a4e', '#cfd8e8', '#ffc857'], FEAT_COL = '#b69cff';
-/** Where Defence Control's door stands, on the right wall behind the ships; the Trophy Hall's on the left, between the
- *  medal wall and the lounge. */
-const CONTROL_DOOR_Z = 2.3, HALL_DOOR_Z = 0;
+/** The side doors face each other across the room behind the ships and the medals, where it was lengthened for them:
+ *  Defence Control's on the right wall, the Trophy Hall's on the left. The lounge is in the back-left corner. */
+const CONTROL_DOOR_Z = 2.6, HALL_DOOR_Z = 2.6, LOUNGE_Z = BACK - 2;
 
 export class DeckRoom extends Room {
   constructor() {
     super({ w: W, front: FRONT, back: BACK, h: H, start: [0, 3.2, 0] });
-    this.shell({ floor: '#1b2233', wall: '#2a3348', window: { hw: 4.3, y0: 0.45, y1: 3.05, struts: [-1.45, 1.45] }, lamps: [-5.8, -2.4, 1], ribs: [-6.9, -1.45, 1.05] /* clear of the medal wall, the hall's door and the lounge screen */ });
+    this.shell({ floor: '#1b2233', wall: '#2a3348', window: { hw: 4.3, y0: 0.45, y1: 3.05, struts: [-1.45, 1.45] }, lamps: [-5.8, -2.4, 2.2, 5.85], ribs: [-6.9, -1.45, 0.2, 4.2] /* clear of the medal wall, the side doors and the lounge screen */ });
     this.furnish(); this.outside();
-    this.solids.push({ ...TABLE }, ...PEDESTAL_Z.map((z) => ({ x: PEDESTAL_X, z, r: 0.85 }))); this.blocks.push({ x0: -W, x1: -3.85, z0: 0.95, z1: 3.45 }); /* the couch */
+    this.solids.push({ ...TABLE }, ...PEDESTAL_Z.map((z) => ({ x: PEDESTAL_X, z, r: 0.85 }))); this.blocks.push({ x0: -W, x1: -3.85, z0: LOUNGE_Z - 1.25, z1: LOUNGE_Z + 1.25 }); /* the couch */
     this.station = new Station(this.scene); this.station.group.visible = true; this.station.group.position.set(TABLE.x, 1.55, TABLE.z); this.station.group.scale.setScalar(0.042);
   }
   pickExtra() { return [{ obj: this.station.group, kind: 'station' }]; }
@@ -53,7 +56,7 @@ export class DeckRoom extends Room {
     // the way out, on the back wall
     this.exitDoor = this.door(S, 3.4, BACK, 0, 'HANGAR  ›', 'exit');
     // a lounge in the back-left corner: a couch, a plant, and a wall screen with the station roadmap
-    const lounge = new THREE.Group(); lounge.position.set(-W, 0, 2.2); S.add(lounge);
+    const lounge = new THREE.Group(); lounge.position.set(-W, 0, LOUNGE_Z); S.add(lounge);
     const cushion = Ph({ color: 0x2c4a7a, specular: 0x222222, shininess: 8 }), leg = Ph({ color: 0x1a2030 });
     const lp = (w, h, d, x, y, z, m) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); lounge.add(b); return b; };
     lp(0.8, 0.28, 2.2, 0.55, 0.3, 0, cushion); lp(0.22, 0.62, 2.2, 0.22, 0.6, 0, cushion); for (const s of [-1, 1]) lp(0.8, 0.5, 0.18, 0.55, 0.4, s * 1.09, cushion); lp(0.7, 0.14, 2.1, 0.55, 0.09, 0, leg);
@@ -85,12 +88,12 @@ export class DeckRoom extends Room {
   sync(state) {
     const earned = [...ACHIEVEMENTS, ...FEATS].filter((a) => state.medals[a.id]).length, banners = BANNERS.filter((b) => b.shape && state.banners[b.id]).map((b) => b.id);
     const ships = SHIPS.map((s) => (state.unlocked.ships[s.id] ? 1 : 0)).join(''), rank = state.prestige?.level || 0;
-    const sig = [earned, banners.join(), ships, state.ship, state.paint, rank, state.pilot.name, state.pilot.rank, state.stats.bestWave, state.stats.bestScore, state.stationName, siegeUnlocked(state), hallOpen(state), lastReplay()?.stamp || 0].join('|');
+    const sig = [earned, banners.join(), ships, state.ship, state.paint, rank, state.pilot.name, state.pilot.rank, state.stats.bestWave, state.stats.bestScore, state.stationName, siegeUnlocked(state), hallOpen(state), lastReplay()?.stamp || 0, ROOMS_ABOARD.map((r) => (roomOpen(r, state) ? 1 : 0) + (roomFresh(r.id, state) ? 2 : 0)).join('')].join('|');
     if (!this.askedReplay) { this.askedReplay = true; loadReplay(); } /* the stored replay, if any: the TV appears when it has loaded */
     this.station.sync(state);
     if (sig === this.sig) return; this.sig = sig;
     if (this.show) { this.scene.remove(this.show); this.untag(this.show); } const THREE = T(); this.show = new THREE.Group(); this.scene.add(this.show);
-    this.medalWall(state); this.shipBay(state); this.bannerHall(state, banners); this.recordsScreen(state); this.trophyShelf(rank); this.nameSign(state, rank); this.roadmap(rank); this.controlDoor(siegeUnlocked(state)); this.hallDoor(hallOpen(state));
+    this.medalWall(state); this.shipBay(state); this.bannerHall(state, banners); this.recordsScreen(state); this.trophyShelf(rank); this.nameSign(state, rank); this.roadmap(rank); this.directory(state); this.controlDoor(siegeUnlocked(state)); this.hallDoor(hallOpen(state));
   }
   medalWall(state) {
     const THREE = T(), g = new THREE.Group(); g.position.set(-W + 0.06, 0, 0); g.rotation.y = Math.PI / 2; this.show.add(g); // on the left wall, facing into the room
@@ -221,12 +224,28 @@ export class DeckRoom extends Room {
       text(x, done ? '✓' : String(cr.at), px + 10, py, '800 18px sans-serif', done ? '#6dffc8' : next ? '#ffc857' : '#4a5670'); text(x, cr.name, px + 34, py, `${next ? 800 : 600} 18px sans-serif`, done ? '#e8fbff' : next ? '#ffd99a' : '#6a7690', 'left'); });
     const m = this.roadmapScreen.material; m.map?.dispose?.(); m.map = tex(c); m.needsUpdate = true;
   }
+  /** The station directory on the right wall by the way in: every room aboard and the door that leads there from here
+   *  (NEW until you have been), or what opens it. Tapping it opens the station card. */
+  directory(state) {
+    const c = canvas(1024, 600), x = c.getContext('2d'), rooms = ROOMS_ABOARD.filter((r) => r.id !== 'deck');
+    x.fillStyle = '#050a18'; x.fillRect(0, 0, 1024, 600); x.strokeStyle = '#5ee6ff'; x.lineWidth = 4; x.strokeRect(6, 6, 1012, 588);
+    text(x, 'STATION DIRECTORY', 40, 54, '800 38px sans-serif', '#9ff0ff', 'left'); text(x, 'YOU ARE HERE: COMMAND DECK', 984, 54, '700 21px sans-serif', '#5ee6ff', 'right');
+    rooms.forEach((r, i) => {
+      const y = 124 + i * 66, open = roomOpen(r, state), col = '#' + r.color.toString(16).padStart(6, '0');
+      x.fillStyle = open ? col : '#2a3450'; x.fillRect(40, y - 24, 8, 48);
+      text(x, r.name.toUpperCase(), 68, y - 8, '800 26px sans-serif', open ? '#e8fbff' : '#56607a', 'left');
+      text(x, open ? 'Through ' + r.door.replace('the Command Deck\'s', 'this deck\'s') : r.when || `Opens at Overhaul rank ${r.rank}`, 68, y + 20, '600 19px sans-serif', open ? '#9fb0d0' : '#4a5670', 'left');
+      if (open && roomFresh(r.id, state)) { x.fillStyle = '#ffc857'; x.beginPath(); if (x.roundRect) x.roundRect(890, y - 20, 94, 40, 9); else x.rect(890, y - 20, 94, 40); x.fill(); text(x, 'NEW', 937, y + 1, '900 23px sans-serif', '#1a1300'); }
+    });
+    const scr = this.screen(this.show, c, 1.9, 1.11, W - 0.03, 1.75, BACK - 2.15, -Math.PI / 2); this.tag(scr, 'directory');
+  }
   nameSign(state, rank) {
     const THREE = T(), c = canvas(768, 96), x = c.getContext('2d'), p = state.pilot;
     drawSign(x, state.stationName ? `${state.stationName.toUpperCase()} · COMMAND DECK` : `${(p.name || rankTitle(p.rank)).toUpperCase()}'S COMMAND DECK`, `${(p.name || rankTitle(p.rank)).toUpperCase()} · ${rankTitle(p.rank).toUpperCase()} · OVERHAUL RANK ${rank}`, '#e8fbff', '#5ee6ff');
     const m = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 0.3), new THREE.MeshBasicMaterial({ map: tex(c), transparent: true })); m.position.set(0, 3.225, FRONT + 0.17); this.show.add(m); /* fits the band between the window's top strip and the ceiling */
   }
-  /** The way through to Defence Control: sealed until the invaders strike back (the first Counterattack clear). */
+  /** The ways through to the Trophy Hall (sealed until the Habitat ring, Overhaul rank 2) and to Defence Control (sealed
+   *  until the invaders strike back, the first Counterattack clear). */
   hallDoor(open) { this.door(this.show, -W, HALL_DOOR_Z, -Math.PI / 2, 'TROPHY HALL  ›', 'hall', { sealed: !open, sign: '#ffe2b0', edge: 0xffc857 }); }
   controlDoor(open) { this.door(this.show, W, CONTROL_DOOR_Z, Math.PI / 2, 'DEFENCE CONTROL  ›', 'control', { sealed: !open, sign: '#ffd9a0', edge: 0xffb547 }); }
   update(dt) {

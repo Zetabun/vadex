@@ -82,16 +82,31 @@ export class CommsRoom extends Room {
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); S.add(new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffffff, size: 2, sizeAttenuation: false })));
     // the mast: a lattice tower rising past the window on the left, its beacon at the top
     const truss = new THREE.MeshPhongMaterial({ color: 0x9aa4b6, specular: 0x444c5c, shininess: 30 }), M = new THREE.Group(); M.position.set(-3.4, -14.5, FRONT - 10); S.add(M);
-    for (const [x, z] of [[-0.5, -0.5], [0.5, -0.5], [-0.5, 0.5], [0.5, 0.5]]) { const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 22, 6), truss); leg.position.set(x, 11, z); M.add(leg); }
-    for (let i = 0; i < 20; i++) { const y = i * 1.1; for (const r of [0, Math.PI / 2]) { const b = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.05, 0.05), truss); b.position.set(0, y + 0.55, 0); b.rotation.set(0, r, i % 2 ? 0.66 : -0.66); M.add(b); } }
+    // a lattice tower: four legs w out from its middle, h tall from y0, braced all the way up (they rise from the spire
+    // below, out of sight under the window)
+    const lattice = (g, y0, h, w) => { const lg = new THREE.CylinderGeometry(0.07, 0.07, h, 6), bg = new THREE.BoxGeometry(2 * w + 0.4, 0.05, 0.05);
+      for (const [x, z] of [[-w, -w], [w, -w], [-w, w], [w, w]]) { const leg = new THREE.Mesh(lg, truss); leg.position.set(x, y0 + h / 2, z); g.add(leg); }
+      for (let i = 0; i < Math.floor(h / 1.1); i++) for (const r of [0, Math.PI / 2]) { const b = new THREE.Mesh(bg, truss); b.position.set(0, y0 + i * 1.1 + 0.55, 0); b.rotation.set(0, r, i % 2 ? 0.66 : -0.66); g.add(b); } };
+    lattice(M, 0, 22, 0.5);
     const bc = canvas(64, 64), bx = bc.getContext('2d'), bg = bx.createRadialGradient(32, 32, 0, 32, 32, 32); bg.addColorStop(0, 'rgba(255,255,255,1)'); bg.addColorStop(0.3, 'rgba(255,90,100,.9)'); bg.addColorStop(1, 'rgba(255,40,60,0)'); bx.fillStyle = bg; bx.fillRect(0, 0, 64, 64);
     this.beacon = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex(bc), ...add })); this.beacon.position.set(0, 22.4, 0); this.beacon.scale.setScalar(3); M.add(this.beacon);
-    // the dish on the right: a bowl on a yoke, sweeping slowly, sending rings out as it transmits
-    const D = (this.dish = new THREE.Group()); D.position.set(4.6, 1, FRONT - 15); S.add(D);
-    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.5, 4, 12), truss); post.position.y = -2; D.add(post);
-    this.dishHead = new THREE.Group(); D.add(this.dishHead);
-    const bowl = new THREE.Mesh(new THREE.SphereGeometry(3.2, 32, 12, 0, Math.PI * 2, 0, 0.9), new THREE.MeshPhongMaterial({ color: 0xdfe4ee, specular: 0x8899aa, shininess: 40, side: THREE.DoubleSide })); bowl.rotation.x = -Math.PI / 2 + 0.5; /* its hollow faces up and away, into the sky */ this.dishHead.add(bowl);
-    this.axis = new THREE.Vector3(0, Math.sin(0.5), -Math.cos(0.5)); /* where the dish points */ const feed = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 2.8, 6), truss); feed.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), this.axis); feed.position.copy(this.axis).multiplyScalar(1.4); this.dishHead.add(feed);
+    // the dish on the right, on a tower of its own: a turntable on its platform, a mount rising to the back of the bowl, and
+    // the bowl sweeping slowly, sending rings out as it transmits
+    const D = (this.dish = new THREE.Group()); D.position.set(4.6, -1.5, FRONT - 15); S.add(D); lattice(D, -34, 34, 0.8);
+    const deck = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.14, 2.2), truss); deck.position.y = -0.07; D.add(deck);
+    const turn = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.9, 0.3, 20), truss); turn.position.y = 0.15; D.add(turn);
+    this.dishHead = new THREE.Group(); this.dishHead.position.y = 0.3; D.add(this.dishHead); /* turns on the turntable */
+    const mount = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.26, 2.3, 10), truss); mount.position.y = 1.15; this.dishHead.add(mount);
+    this.dishTilt = new THREE.Group(); this.dishTilt.position.y = 2.3; this.dishHead.add(this.dishTilt); /* rocks in elevation */
+    this.dishTilt.add(new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.5, 0.6), truss));
+    // the bowl: a cap of a sphere of radius R, its back on the mount's head, its hollow facing along the axis (up, and away)
+    this.axis = new THREE.Vector3(0, Math.sin(0.5), -Math.cos(0.5)); const R = 3.2, CAP = 0.9, back = 0.3;
+    const bowl = new THREE.Mesh(new THREE.SphereGeometry(R, 32, 12, 0, Math.PI * 2, 0, CAP), new THREE.MeshPhongMaterial({ color: 0xdfe4ee, specular: 0x8899aa, shininess: 40, side: THREE.DoubleSide })); bowl.rotation.x = Math.PI / 2 + 0.5; bowl.position.copy(this.axis).multiplyScalar(R + back); this.dishTilt.add(bowl);
+    // the feed horn at its focus, held out on three struts from the rim
+    this.focus = back + R / 2; const focus = this.axis.clone().multiplyScalar(this.focus), horn = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.16, 0.36, 10), truss); horn.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), this.axis); horn.position.copy(focus); this.dishTilt.add(horn);
+    const rim = this.axis.clone().multiplyScalar(back + R * (1 - Math.cos(CAP))), u = new THREE.Vector3(1, 0, 0), v = new THREE.Vector3().crossVectors(this.axis, u), up = new THREE.Vector3(0, 1, 0);
+    for (let k = 0; k < 3; k++) { const a = Math.PI / 2 + k * Math.PI * 2 / 3, p = rim.clone().addScaledVector(u, Math.cos(a) * R * Math.sin(CAP)).addScaledVector(v, Math.sin(a) * R * Math.sin(CAP)), d = focus.clone().sub(p);
+      const strut = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, d.length(), 6), truss); strut.quaternion.setFromUnitVectors(up, d.clone().normalize()); strut.position.copy(p).addScaledVector(d, 0.5); this.dishTilt.add(strut); }
     const rc = canvas(128, 128), rx = rc.getContext('2d'), rg = rx.createRadialGradient(64, 64, 0, 64, 64, 64); rg.addColorStop(0.72, 'rgba(109,255,200,0)'); rg.addColorStop(0.86, 'rgba(160,255,220,.8)'); rg.addColorStop(1, 'rgba(109,255,200,0)'); rx.fillStyle = rg; rx.fillRect(0, 0, 128, 128);
     this.ringTex = tex(rc); this.rings = []; this.ringT = 0;
     this.tag(this.hitBox(S, 7, 2.8, 0.1, 0, 2, FRONT + 0.12), 'window');
@@ -159,11 +174,11 @@ export class CommsRoom extends Room {
     for (const l of this.leds) l.l.visible = Math.sin(t * l.v + l.ph) > -0.3;
     this.micLight.visible = Math.sin(t * 2) > 0;
     this.beacon.material.opacity = Math.sin(t * 2.4) > 0.2 ? 1 : 0.15;
-    this.dishHead.rotation.y = 0.85 + Math.sin(t * 0.12) * 0.35; this.dishHead.rotation.x = Math.sin(t * 0.09) * 0.1;
+    this.dishHead.rotation.y = 0.85 + Math.sin(t * 0.12) * 0.35; this.dishTilt.rotation.x = Math.sin(t * 0.09) * 0.1;
     // the dish transmits: a ring every few seconds, out along where it points
     this.ringT -= dt; if (this.ringT <= 0) { this.ringT = 2.6; const THREE = T(), r = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: this.ringTex, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
-      this.dishHead.add(r); r.rotation.x = 0.5; /* square to where it points */ this.rings.push({ r, t: 0 }); }
-    for (let i = this.rings.length - 1; i >= 0; i--) { const q = this.rings[i]; q.t += dt; const k = q.t / 2.4; if (k >= 1) { this.dishHead.remove(q.r); q.r.material.dispose(); this.rings.splice(i, 1); continue; } q.r.scale.setScalar(2.5 + k * 14); q.r.position.copy(this.axis).multiplyScalar(1.5 + k * 16); q.r.material.opacity = (1 - k) * 0.8; }
+      this.dishTilt.add(r); r.rotation.x = 0.5; /* square to where it points */ this.rings.push({ r, t: 0 }); }
+    for (let i = this.rings.length - 1; i >= 0; i--) { const q = this.rings[i]; q.t += dt; const k = q.t / 2.4; if (k >= 1) { this.dishTilt.remove(q.r); q.r.material.dispose(); this.rings.splice(i, 1); continue; } q.r.scale.setScalar(2.5 + k * 14); q.r.position.copy(this.axis).multiplyScalar(this.focus + k * 16); /* out from the feed */ q.r.material.opacity = (1 - k) * 0.8; }
     const u = this.earth.material.uniforms; if (u) { u.time.value = this.t + 700; u.night.value = nightAmount(); u.sun.value.copy(this.sunDir).transformDirection(this.cam.matrixWorldInverse); }
   }
 }

@@ -928,6 +928,7 @@ export function createHangar(hooks) {
     if (kind === 'replay') { watchReplay(); return; }
     if (kind === 'control') { show('control'); return; }
     if (kind === 'hall') { show('hall'); return; }
+    if (kind === 'directory') { stationCard(); return; }
     const st = G.state, s = st.stats, rank = st.prestige?.level || 0; playSfx('tab');
     const panel = (kicker, title, ...body) => hooks.panel?.({ kicker, title, body });
     if (kind === 'records') {

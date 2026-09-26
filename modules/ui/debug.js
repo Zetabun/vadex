@@ -92,8 +92,10 @@ function runScene(scene, hooks, ui) {
   // comms:<line id>: the station AI saying one of its lines
   if (name === 'comms') { st.pilot.name = 'Adam'; st.seen.callsign = true; hooks.toHangar('launch'); setTimeout(() => { const l = LINES.find((x) => x.id === (arg || 'welcome')); if (l) ui.comms.say(l.text); }, 600); return; }
   if (name === 'deck') { st.prestige.level = +arg || 3; st.pilot.name = 'Adam'; st.seen.callsign = true; for (const id of ['signal', 'checker', 'ember', 'royal']) st.banners[id] = 1; st.unlocked.ships.bulwark = 1; st.stats.bestWave = 74; st.stats.maxAnomalies = 2; st.counter.stars = { 1: 3, 2: 2, 3: 1 }; refreshMenus(); st.seen.menus.deck = true; recalc(); hooks.toHangar('deck');
-    // deck:<rank>:<view>: stand somewhere and look at something (window, medals, ships, back, table)
-    const V = { window: [0, 1.5, 0, -0.08], medals: [-1.2, -2.2, 1.35, 0], ships: [1.4, -2.2, -1.35, -0.1], back: [0, -1.5, Math.PI, -0.05], table: [0, 0.2, 0, -0.35], door: [1.4, 2.0, -1.62, 0], doornear: [3.3, 2.3, -1.5708, 0.12], halldoor: [-1.3, 0.2, 1.5708, 0.06] }[arg2];
+    // deck:<rank>:<view>: stand somewhere and look at something (window, medals, ships, back, table, door, doornear,
+    // halldoor, rear: the back of the room from the window's left corner, lounge, directory: the station directory by the
+    // way in)
+    const V = { window: [0, 1.5, 0, -0.08], medals: [-1.2, -2.2, 1.35, 0], ships: [1.4, -2.2, -1.35, -0.1], back: [0, 2.6, Math.PI, -0.05], table: [0, 0.2, 0, -0.35], door: [1.2, 2.6, -1.5708, 0.04], doornear: [3.3, 2.6, -1.5708, 0.12], halldoor: [-1.2, 2.6, 1.5708, 0.04], rear: [-3.2, -6.6, Math.PI + 0.42, -0.04], lounge: [2.4, 4.6, 1.8208, -0.02], directory: [2.0, 5.35, -1.5708, 0.02] }[arg2];
     if (V) { let n = 0; const iv = setInterval(() => { const d = G.renderer?.room; if (d) { d.pos.x = V[0]; d.pos.z = V[1]; d.yaw = V[2]; d.pitch = V[3]; } if (++n > 20) clearInterval(iv); }, 100); }
     return; }
   // replay:<start wave>[:<seconds>[:<view>]]: a bot flies a sortie from that wave for that long (headless, in an instant)
@@ -164,7 +166,7 @@ function runScene(scene, hooks, ui) {
     refreshBounties(st); const L = st.bounties.list, push = (b, k) => { const d = BOUNTY_BY_ID[b.id]; if (d.best) b.best = Math.round(b.goal * k); else st.stats[d.stat] = (st.stats[d.stat] || 0) + (k >= 1 ? b.goal : Math.floor(b.goal * k)); };
     const all = arg2 === 'all'; L.forEach((b, i) => push(b, all ? 1 : [1, 0.5, 0.12][i])); checkBounties(st); if (arg2 === 'paid' || all) L.forEach((b, i) => { if (all || i === 0) claimBounty(st, i); });
     recalc(); hooks.toHangar(arg === 'missions' ? 'missions' : 'comms');
-    const view = { board: [1.6, -1.9, 1.5708, 0.02], map: [-1.6, -1.9, -1.5708, 0.02], radio: [0, -1.0, 0, -0.1], window: [0, -1.2, 0, 0.16], back: [0, -3, Math.PI, 0.04] }[arg];
+    const view = { board: [1.6, -1.9, 1.5708, 0.02], map: [-1.6, -1.9, -1.5708, 0.02], radio: [0, -1.0, 0, -0.1], window: [0, -1.2, 0, 0.16], dish: [1.3, -5.9, -0.2, -0.1], back: [0, -3, Math.PI, 0.04] }[arg];
     if (view) { let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 60) setTimeout(place, 100); return; } r.pos.set(view[0], 0, view[1]); r.yaw = view[2]; r.pitch = view[3]; }; place(); }
     if (arg === 'tap') setTimeout(() => ui.tap?.(arg2 || 'bounties'), 1500);
     return; }
