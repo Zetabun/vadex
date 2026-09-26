@@ -52,6 +52,8 @@ import { YARD_RANK, YARD_STAGES, YARD_SHIP, YARD_LINES, yardOpen, stageSalvage }
 import { yardStage, yardDone, nextStage, stageBlock, buildStage } from '@last-orbit/progression/shipyard.js';
 import { VOID_BOSSES, VOID_BOSS_BP, VOID_LORE, BEACON_LINES, firstWaveOf } from '@last-orbit/data/beacons.js';
 import { beaten as voidBeaten, allBeaten as voidAllBeaten } from '@last-orbit/progression/beacons.js';
+import { CIPHER_RANK, GLYPHS, FRAGMENTS, CIPHER_LINES, KEEPER_TITLE, CIPHER_BP, cipherOpen } from '@last-orbit/data/cipher.js';
+import { cipherOf, fragmentsHeld, messageRead, glyphsRead, cannotDecode, keeper } from '@last-orbit/progression/cipher.js';
 import { DESTINATIONS, DEST_BY_ID, PATHFINDER_AT, FLEET_PAINT, OPS_LINES, DAMAGE, fleetOpen, destOpen, mayFind, riskWord } from '@last-orbit/data/fleet.js';
 import { fleet, shipAway, tripDone, tripLeft, cannotSend, sendShip, recallShip, collectShip, fleetCounts, nextHome, damageOf, repairCost, canRepair, repairShip } from '@last-orbit/progression/fleet.js';
 import { sortieWorth } from '@last-orbit/progression/bounties.js';
@@ -441,8 +443,8 @@ export function createHangar(hooks) {
     }
     const paints = h('div.paints', PAINTS.map((pt) => {
       const owned = !!st.paints[pt.id], on = st.paint === pt.id;
-      const how = pt.source === 'garden' ? 'Grow every kind of plant in the Greenhouse' : pt.source === 'fleet' ? `Bring ${PATHFINDER_AT} expeditions home in Fleet Ops` : pt.source === 'beacon' ? 'Beat all six Void bosses in the Deep Void' : pt.source === 'void' ? `Reach wave ${pt.mark} and chart ${MARK_BY_WAVE[pt.mark]?.name} in the Observatory` : pt.source === 'counter' ? 'Clear Counterattack stage 6' : pt.source === 'mastery' ? `${SHIP_BY_ID[pt.ship].name} mastery 10` : pt.source === 'contract' ? `Contract: ${CONTRACTS.find((c) => c.unlock?.paint === pt.id)?.name}` : `Pilot rank ${paintRank(pt.id)}`;
-      const short = pt.source === 'garden' ? 'Greenhouse' : pt.source === 'fleet' ? 'Fleet Ops' : pt.source === 'beacon' ? 'Void bosses' : pt.source === 'void' ? `Void ${voidSector(pt.mark)}` : pt.source === 'counter' ? 'Stage 6' : pt.source === 'mastery' ? 'Mastery 10' : pt.source === 'contract' ? 'Contract' : 'Rank ' + paintRank(pt.id);
+      const how = pt.source === 'cipher' ? 'Beat the Cipher, in the Origin past the Deep Void' : pt.source === 'garden' ? 'Grow every kind of plant in the Greenhouse' : pt.source === 'fleet' ? `Bring ${PATHFINDER_AT} expeditions home in Fleet Ops` : pt.source === 'beacon' ? 'Beat all six Void bosses in the Deep Void' : pt.source === 'void' ? `Reach wave ${pt.mark} and chart ${MARK_BY_WAVE[pt.mark]?.name} in the Observatory` : pt.source === 'counter' ? 'Clear Counterattack stage 6' : pt.source === 'mastery' ? `${SHIP_BY_ID[pt.ship].name} mastery 10` : pt.source === 'contract' ? `Contract: ${CONTRACTS.find((c) => c.unlock?.paint === pt.id)?.name}` : `Pilot rank ${paintRank(pt.id)}`;
+      const short = pt.source === 'cipher' ? 'The Cipher' : pt.source === 'garden' ? 'Greenhouse' : pt.source === 'fleet' ? 'Fleet Ops' : pt.source === 'beacon' ? 'Void bosses' : pt.source === 'void' ? `Void ${voidSector(pt.mark)}` : pt.source === 'counter' ? 'Stage 6' : pt.source === 'mastery' ? 'Mastery 10' : pt.source === 'contract' ? 'Contract' : 'Rank ' + paintRank(pt.id);
       return h('button.paint' + (on ? '.on' : '') + (owned ? '' : '.locked'), { disabled: !owned, title: owned ? pt.name : `${pt.name}: ${how}`, onclick: () => { if (selectPaint(pt.id)) { playSfx('tab'); render(); } } }, swatch(pt.id), h('span', owned ? pt.name : short));
     }));
     const pick = (b) => {
@@ -1497,7 +1499,8 @@ export function createHangar(hooks) {
   function stationDone() { const st = G.state, lv = st.prestige?.level || 0; if (st.seen.stationDone === lv || !workshopMaxed() || hooks.blocking?.()) return; st.seen.stationDone = lv; hooks.stationComplete?.(); }
   function pilotId() {
     const p = G.state.pilot, sig = p.rank + '|' + (p.name || ''); if ($.brand._sig === sig) return; $.brand._sig = sig;
-    setText($.brandName, p.name || rankTitle(p.rank)); setText($.brandRank, p.name ? `${rankTitle(p.rank)} · Rank ${p.rank}` : `Rank ${p.rank}`);
+    const title = keeper(G.state) ? KEEPER_TITLE : rankTitle(p.rank); /* beating the Cipher makes the pilot Keeper of the last orbit */
+    setText($.brandName, p.name || title); setText($.brandRank, p.name ? `${title} · Rank ${p.rank}` : `Rank ${p.rank}`);
     clear($.brandIns).append(insignia(p.rank, 'rank-ins'));
   }
   /** Straight aboard a room whose intro has just been read (the Overhaul that opened it offered the way there). */

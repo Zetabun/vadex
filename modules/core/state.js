@@ -42,6 +42,7 @@ export function newState() {
     fleet: { out: [null, null, null], log: [], sent: 0, home: 0, fragments: 0, damage: {} }, // ships out on expeditions from Fleet Ops, by berth; the last few home; ships home damaged (data/fleet.js)
     garden: { beds: [], seeds: {}, basket: {}, grown: {}, wateredDay: '', started: false }, // the Greenhouse: what each bed grows ({ id, at, need, extra }), seeds in the drawer, blooms in the basket, kinds ever grown, the day last watered
     beacons: { beaten: {} }, // the Beacon array: Void bosses beaten (id → when first)
+    cipher: { decoded: 0, echoes: 0, beaten: 0, kills: 0, best: 0 }, // the Cipher (data/cipher.js): fragments decoded, echoes after the message, when the Cipher was first beaten, how often, the quickest kill (seconds)
     quarters: { restDay: '', rested: false, mood: 'warm' }, // the Pilot's quarters: the day last rested, whether that rest is still to be flown on, the lights' mood
     bounties: { day: '', list: [], rerolled: false, bonus: false, done: 0, days: 0 }, // daily bounties (progression/bounties.js): today's three, and how many ever done
     siege: { stars: {}, best: {}, won: {}, wins: 0, kills: 0, damage: null }, // Station Siege: stars and best score per tier, tiers won, invaders downed, and the damage a lost one left ({ ids, tier, cost } until repaired)
@@ -56,7 +57,7 @@ export function newState() {
     stats: { kills: 0, bossKills: 0, bossBy: {}, sectorBosses: 0, bestWave: 0, bestSector: 1, sectorsCleared: 0, sorties: 0, maxLevel: 1, flawless: 0, maxRank: 1, maxDrones: 0, maxWeapons: 1, bestSalvage: 0, totalSalvage: 0, deaths: 0, cards: 0, threatClear: 0, dailies: 0, bestStreak: 0, maxMastery: 1, shipsOwned: 1,
       bestScore: 0, bestKills: 0, longestRun: 0, perfectSectors: 0, flawlessBosses: 0, soloWave: 0, maxedWeapons: 0, maxRelics: 0, fusions: 0, signatures: 0, counterStars: 0, counterBest: 0, counterHard: 0, overhauls: 0 },
     // menus: hangar menu id → 'new' (opened, explainer not yet shown) or true (seen); see data/menus.js
-    seen: { enemies: {}, bosses: {}, elites: {}, medals: 0, records: true, menus: {}, menusInit: false, callsign: false, stationDone: null, intro: false, comms: {}, commsInit: false, gunnerIntro: false, hall: false, commsRoom: false, quarters: false, observatory: false, shipyard: false, beacons: false, garden: false, offered: {}, materials: false, refits: false, ops: false, breach: false, kit: false }, // stationDone: Overhaul rank the finished station was last celebrated at
+    seen: { enemies: {}, bosses: {}, elites: {}, medals: 0, records: true, menus: {}, menusInit: false, callsign: false, stationDone: null, intro: false, comms: {}, commsInit: false, gunnerIntro: false, hall: false, commsRoom: false, quarters: false, observatory: false, shipyard: false, beacons: false, cipher: false, garden: false, offered: {}, materials: false, refits: false, ops: false, breach: false, kit: false }, // stationDone: Overhaul rank the finished station was last celebrated at
     // Records: the local top 10 sorties by score and each ship's best. Medals: achievement id → tiers earned.
     records: { top: [], ships: {} },
     medals: {},

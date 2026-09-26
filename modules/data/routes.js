@@ -11,4 +11,7 @@ export const ROUTES = [
   { id: 'supply', name: 'Supply Line', desc: 'Repair 15% hull after every wave, but −30% salvage.', fx: [['salvageGain', 'pow', 0.7]], repair: 0.15, art: 'mod:m_regen' },
   { id: 'blitz', name: 'Blitz', desc: 'Formations march 30% faster. Wave clears pay double salvage and score.', world: { formSpeed: 1.3 }, clearMul: 2, art: 'mod:m_speed' },
 ];
-export const ROUTE_BY_ID = Object.fromEntries(ROUTES.map((r) => [r.id, r]));
+/** Following the signal into the Origin (data/cipher.js): offered beside the others in the Deep Void once the Cipher's
+ *  message has been read, never rolled at random. */
+export const SIGNAL = { id: 'signal', name: 'Follow the signal', desc: 'Into the Origin: ten waves past the edge of the charts, and whatever has been sending the signal.', art: 'relic:r_quantum', special: true };
+export const ROUTE_BY_ID = Object.fromEntries([...ROUTES, SIGNAL].map((r) => [r.id, r]));

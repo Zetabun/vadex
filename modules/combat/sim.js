@@ -124,7 +124,7 @@ function parade(w, dt) {
 export function startWave(w) {
   const st = G.state, run = st.run, ws = w.wave;
   const info = genWave(run.seed, run.wave), sec = info.sector;
-  if (info.kind === 'boss' && sec.endless && !run.mode && beaconsLit(st)) { info.boss = voidBossAt(run.wave); info.label = BOSSES[info.boss].name; } // the beacons are lit: something in the Deep Void answers
+  if (info.kind === 'boss' && sec.endless && !sec.origin && !run.mode && beaconsLit(st)) { info.boss = voidBossAt(run.wave); info.label = BOSSES[info.boss].name; } // the beacons are lit: something in the Deep Void answers
   const prevSector = ws.num ? sectorOf(ws.num).idx : -1;
   ws.num = run.wave; ws.info = info; ws.state = 'fighting'; ws.t = 0; ws.damaged = false; ws.bossDamaged = false; ws.kills = 0; ws.boss = null; ws.pending = []; ws.shotsFired = 0;
   setWaveBase(w, run.wave, sec.idx);
@@ -160,6 +160,7 @@ export function startWave(w) {
 
 /** With the beacons lit, a Deep Void sector opens by naming the Void boss at its end (and what the first kill pays). */
 function voidAhead(st, run, sec) {
+  if (sec.origin) return `Past the charts. The Cipher waits at wave ${sec.start + sec.len - 1}`;
   if (!sec.endless || run.mode || !beaconsLit(st)) return null; const end = sec.start + sec.len - 1, id = voidBossAt(end);
   return `${BOSSES[id].name} waits at wave ${end}` + (st.beacons?.beaten?.[id] ? '' : `: +${VOID_BOSS_BP} Blueprints the first time`);
 }

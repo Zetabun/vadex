@@ -30,6 +30,8 @@ export const PAINTS = [
   // for beating all six Void bosses (data/beacons.js)
   { id: 'lightkeeper', name: 'Lightkeeper', trim: 0xfff0c8, hull: 0x0d1a3a, source: 'beacon' },
   { id: 'verdant', name: 'Verdant', trim: 0x7ddc6f, hull: 0x1e3a26, source: 'garden' },
+  // for beating the Cipher in the Origin (data/cipher.js)
+  { id: 'keeper', name: 'Keeper', trim: 0xffe9a8, hull: 0x08262a, source: 'cipher' },
   // for bringing twelve expeditions home (data/fleet.js)
   { id: 'pathfinder', name: 'Pathfinder', trim: 0x6dffc8, hull: 0x163440, source: 'fleet' },
   // ship mastery paints (mastery 10 with that ship)

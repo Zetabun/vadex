@@ -1,4 +1,5 @@
 // Sectors: ten waves each. Wave 5 is an elite (sector 1) or mini-boss wave; wave 10 is the sector boss.
+import { ORIGIN } from '@last-orbit/data/cipher.js';
 // pool: [enemy type, first wave-in-sector it appears, weight].
 export const SECTORS = [
   { id: 'orbit', name: 'Outer Orbit', waves: 10, boss: 'broodcarrier', mini: 'warden',
@@ -27,6 +28,9 @@ export const SECTORS = [
     pool: [['plate', 1, 5], ['phantom', 1, 4], ['artillery', 1, 3], ['lasher', 1, 3], ['herald', 1, 3], ['aegis', 1, 3], ['mender', 1, 3], ['carrier', 1, 3], ['splitter', 1, 4], ['rocketeer', 1, 4], ['sniper', 1, 4], ['lancer', 1, 4], ['swarmling', 1, 5], ['warper', 2, 3], ['coiler', 1, 2], ['burster', 1, 2]] },
 ];
 export const ENDLESS = { name: 'Deep Void', waves: 10 };
+/** The sortie under way has followed the signal: the sector with this index is the Origin (data/cipher.js) instead of
+ *  a Deep Void sector. Set when the route is picked (progression/cipher.js), cleared when a sortie starts. */
+export const hidden = { origin: -1 };
 const STARTS = []; { let s = 1; for (const sec of SECTORS) { STARTS.push(s); s += sec.waves; } STARTS.push(s); }
 export const LAST_WAVE = STARTS[STARTS.length - 1] - 1;
 
@@ -34,6 +38,7 @@ export const LAST_WAVE = STARTS[STARTS.length - 1] - 1;
 export function sectorOf(w) {
   for (let i = 0; i < SECTORS.length; i++) if (w < STARTS[i + 1]) return { idx: i, def: SECTORS[i], n: w - STARTS[i] + 1, len: SECTORS[i].waves, start: STARTS[i], endless: false };
   const k = Math.floor((w - LAST_WAVE - 1) / ENDLESS.waves);
+  if (SECTORS.length + k === hidden.origin) return { idx: SECTORS.length + k, def: ORIGIN, n: ((w - LAST_WAVE - 1) % ENDLESS.waves) + 1, len: ENDLESS.waves, start: LAST_WAVE + 1 + k * ENDLESS.waves, endless: true, origin: true };
   const base = SECTORS[(k + 3) % SECTORS.length];
   return { idx: SECTORS.length + k, def: { ...SECTORS[5], name: `${ENDLESS.name} ${k + 1}`, boss: base.boss, mini: base.mini, pool: SECTORS[5].pool }, n: ((w - LAST_WAVE - 1) % ENDLESS.waves) + 1, len: ENDLESS.waves, start: LAST_WAVE + 1 + k * ENDLESS.waves, endless: true };
 }

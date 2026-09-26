@@ -4,6 +4,8 @@
 //  shell{n,radius,telegraph}  summon{type,n}  well{dur,pull}  teleport{}
 //  hbeam{rows,telegraph,dur}  sweep{arc,telegraph,dur}  mines{n}  wave{n,speed}  split{n,spread,speed}  gapwall{speed,gap}
 //  veil{dur}  ambush{type,n} (enemies that come at you from behind or from the walls)
+// A phase can also move differently (move), and wear another boss's voice (mask: its colour, and a line saying so) or
+// its own (voice: what it says instead).
 // weak: periodically exposes a weak point (offset x from centre). Hits landing on it deal BAL.weakMult damage.
 // tip: how to beat it, in a line: the banner says it as the boss arrives, until you have beaten it once (a boss
 // without one, a mini boss, says to hit its weak point).
@@ -129,6 +131,20 @@ export const BOSSES = {
       { at: 0.65, attacks: [{ kind: 'well', dur: 5, pull: 34, every: 9 }, { kind: 'spiral', arms: 5, dur: 4, rate: 0.1, speed: 38, every: 6 }, { kind: 'mines', n: 4, every: 7 }] },
       { at: 0.35, attacks: [{ kind: 'gapwall', speed: 32, gap: 17, every: 6 }, { kind: 'well', dur: 5, pull: 36, every: 9 }, { kind: 'ring', n: 22, speed: 40, every: 3.4 }] },
       { at: 0.12, attacks: [{ kind: 'well', dur: 6, pull: 42, every: 8 }, { kind: 'spiral', arms: 6, dur: 5, rate: 0.08, speed: 42, every: 6 }, { kind: 'split', n: 4, spread: 0.6, speed: 44, every: 4 }, { kind: 'summon', type: 'lancer', n: 4, every: 9 }] }] },
+
+  // ---- the Origin (data/cipher.js): the Cipher, which fights in the voices of the bosses it watched you beat ----
+  cipher: { name: 'The Cipher', title: 'Final boss · the Origin', tip: 'It fights with the voice of each boss it watched you beat. Read each new voice, and hit the amber target', hp: 170, r: 14, shape: 'bossCipher', color: 0xffe9a8, move: 'hover', y: 114,
+    weak: { every: 8, dur: 3.5, x: 0, r: 5 }, cores: 6,
+    phases: [
+      { at: 1, attacks: [{ kind: 'ring', n: 16, speed: 34, every: 3.4 }, { kind: 'aimed', n: 5, spread: 0.45, speed: 54, every: 2.6 }] },
+      { at: 0.84, mask: 'bastion', attacks: [{ kind: 'beam', cols: 3, telegraph: 1.1, dur: 1, every: 5 }, { kind: 'aimed', n: 3, spread: 0.3, speed: 62, every: 2.2 }] },
+      { at: 0.7, mask: 'wyrm', move: 'worm', speed: 1.3, attacks: [{ kind: 'rain', n: 11, speed: 48, every: 2.6 }, { kind: 'ring', n: 14, speed: 36, every: 4 }] },
+      { at: 0.56, mask: 'dreadnought', move: 'slow', attacks: [{ kind: 'shell', n: 4, radius: 12, telegraph: 1.2, every: 4.2 }, { kind: 'beam', cols: 2, telegraph: 1.1, dur: 1.1, every: 6 }] },
+      { at: 0.42, mask: 'oracle', move: 'teleport', attacks: [{ kind: 'teleport', every: 3.6 }, { kind: 'spiral', arms: 5, dur: 3.5, rate: 0.1, speed: 38, every: 6 }, { kind: 'summon', type: 'swarmling', n: 6, every: 9 }] },
+      { at: 0.28, mask: 'singularity', attacks: [{ kind: 'well', dur: 5, pull: 34, every: 9 }, { kind: 'spiral', arms: 6, dur: 4, rate: 0.09, speed: 40, every: 6.5 }, { kind: 'ring', n: 20, speed: 38, every: 3.6 }] },
+      { at: 0.12, voice: 'ALL VOICES AT ONCE', attacks: [{ kind: 'gapwall', speed: 34, gap: 17, every: 5.5 }, { kind: 'aimed', n: 7, spread: 0.7, speed: 58, every: 2.4 }, { kind: 'spiral', arms: 4, dur: 3, rate: 0.1, speed: 40, every: 7 }, { kind: 'shell', n: 3, radius: 11, telegraph: 1.1, every: 5 }] }] },
+  scribe: { name: 'The Scribe', title: 'Mini boss', mini: true, hp: 36, r: 9, shape: 'miniC', color: 0xffe9a8, move: 'teleport', y: 114, armour: 0.3, weak: { every: 7, dur: 3, x: 0, r: 4 }, cores: 0,
+    phases: [{ at: 1, attacks: [{ kind: 'teleport', every: 5 }, { kind: 'split', n: 3, spread: 0.4, speed: 44, every: 3.6 }, { kind: 'summon', type: 'phantom', n: 2, every: 9 }] }, { at: 0.4, attacks: [{ kind: 'teleport', every: 3.6 }, { kind: 'hbeam', rows: 1, telegraph: 1.2, dur: 1, every: 6 }, { kind: 'ring', n: 14, speed: 36, every: 4 }] }] },
 
   // ---- mini bosses (every 10th wave) ----
   warden: { name: 'Picket Warden', title: 'Mini boss', mini: true, hp: 22, r: 8, shape: 'miniA', color: 0x6fd3ff, move: 'hover', y: 118, weak: { every: 8, dur: 3.5, x: 0, r: 4 }, cores: 0,

@@ -97,6 +97,10 @@ Object.assign(SHAPES, {
   bossMirror: () => [gem(0.5, 1.2, 0.3, 0, 0, 0, 0, 'octa'), ...mirror((s) => gem(0.45, 1, 0.25, s * 0.75, 0.1, 0, s * 0.3, 'octa')), ...mirror((s) => gem(0.35, 0.7, 0.2, s * 1.3, 0.25, 0, s * 0.6, 'octa')), ring(0.7, 0, -0.1, 0.2, 0.35)],
   bossMaw: () => [ring(1), ring(0.72, 0, 0, 0.12), gem(0.45, 0.45, 0.45, 0, 0, -0.1, 0, 'sph'), ...[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => spike(0.12, 0.55, Math.cos(i * PI / 5) * 0.8, Math.sin(i * PI / 5) * 0.8, i * PI / 5 + PI / 2)), ...[0, 1, 2, 3, 4, 5].map((i) => spike(0.18, 0.7, Math.cos(i * PI / 3) * 1.35, Math.sin(i * PI / 3) * 1.35, i * PI / 3 - PI / 2, 0, 'cone3'))],
 });
+// ---- the Cipher (data/cipher.js): an eye in two rings, seven glyphs round it
+SHAPES.bossCipher = () => [gem(0.55, 1.15, 0.4, 0, 0, 0, 0, 'octa'), gem(0.3, 0.3, 0.3, 0, 0, 0.35, 0, 'ico'), ring(1.0, 0, 0, 0, 0.9), ring(1.4, 0, 0, -0.1, 0.28),
+  ...[0, 1, 2, 3, 4, 5, 6].map((i) => { const a = i * PI * 2 / 7 + PI / 2; return box(0.14, 0.5, 0.12, Math.cos(a) * 1.25, Math.sin(a) * 1.25, 0.05, a); }),
+  ...[0, 1, 2, 3, 4, 5, 6].map((i) => { const a = i * PI * 2 / 7 + PI / 2 + PI / 7; return gem(0.09, 0.09, 0.09, Math.cos(a), Math.sin(a), 0.08, 0, 'ico'); })];
 SHAPES.aegis2 = SHAPES.aegis;
 export const SHAPE_IDS = Object.keys(SHAPES);
 const cache = {};

@@ -51,15 +51,19 @@ export function updateBoss(w, dt) {
   if (ph !== b.phase) {
     b.phase = ph; b.timers = def.phases[ph].attacks.map((a) => a.every * (0.4 + rand() * 0.3));
     if (ph > 0) { fx(w, 'text', boss.x, boss.y - boss.r - 4, 'PHASE ' + (ph + 1), '#ff4d7a', 1); fx(w, 'shake', 0.5); sfx(w, 'phase'); for (const pd of def.parts || []) if (pd.respawnPhase) spawnParts(w, boss); }
+    // the Cipher speaks in another boss's voice: its colour, and a line saying whose
+    const P = def.phases[ph], mask = BOSSES[P.mask]; boss.color = mask ? mask.color : def.color; b.mask = P.mask || null;
+    if (mask || P.voice) fx(w, 'text', 0, boss.y - boss.r - 12, mask ? 'IT SPEAKS AS ' + mask.name.toUpperCase() : P.voice, mask ? '#' + mask.color.toString(16).padStart(6, '0') : '#ffe9a8', 2);
   }
   const phase = def.phases[ph], spd = (phase.speed || 1) * (b.enraged ? 1.5 : 1);
   if (!b.enraged && b.t > BAL.enrage) { b.enraged = true; fx(w, 'text', boss.x, boss.y - boss.r - 4, 'ENRAGED', '#ff4d7a', 1); sfx(w, 'phase'); }
   // movement
+  const move = phase.move || def.move;
   if (!stunned) {
-    if (def.move === 'hover') { boss.x = Math.sin(b.t * 0.5 * spd) * 30; boss.y = b.homeY + Math.sin(b.t * 0.9) * 4; }
-    else if (def.move === 'slow') { boss.x = Math.sin(b.t * 0.22 * spd) * 18; boss.y = b.homeY; }
-    else if (def.move === 'worm') { const q = wormPos(b.t * spd, b.homeY); boss.x = q.x; boss.y = q.y; }
-    else if (def.move === 'teleport') { boss.y = b.homeY + Math.sin(b.t * 1.3) * 5; boss.x += Math.sin(b.t * 0.8) * 6 * edt; }
+    if (move === 'hover') { boss.x = Math.sin(b.t * 0.5 * spd) * 30; boss.y = b.homeY + Math.sin(b.t * 0.9) * 4; }
+    else if (move === 'slow') { boss.x = Math.sin(b.t * 0.22 * spd) * 18; boss.y = b.homeY; }
+    else if (move === 'worm') { const q = wormPos(b.t * spd, b.homeY); boss.x = q.x; boss.y = q.y; }
+    else if (move === 'teleport') { boss.y = b.homeY + Math.sin(b.t * 1.3) * 5; boss.x += Math.sin(b.t * 0.8) * 6 * edt; }
   }
   positionParts(w, boss, edt, spd);
   const gens = b.parts.filter((x) => x.alive);

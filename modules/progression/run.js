@@ -34,6 +34,7 @@ import { takeRest } from '@last-orbit/progression/quarters.js';
 import { takeBasket, bankSeeds } from '@last-orbit/progression/garden.js'; /* also listens for bosses leaving seeds */
 import { newMarks } from '@last-orbit/progression/observatory.js';
 import '@last-orbit/progression/beacons.js'; /* the Void bosses' record: listens for them falling */
+import { resetOrigin, signalOffered, followSignal, bankFragments } from '@last-orbit/progression/cipher.js'; /* also listens for the Cipher and Void bosses falling */
 import { REST_BONUS } from '@last-orbit/data/quarters.js';
 
 // ---------------------------------------------------------------- sortie lifecycle
@@ -44,7 +45,7 @@ export function startSortie(opts = {}) {
   const daily = opts.daily && !counter ? dailyToday() : null;
   if (daily && daily.done) return null;
   st.run = newRun(ship, { ...opts, seed: daily ? daily.seed : opts.seed }); st.run.prevBest = st.stats.bestWave || 0; st.run.prevScore = st.stats.bestScore || 0; G.mode = 'sortie';
-  const run = st.run;
+  const run = st.run; resetOrigin(run); /* every sortie starts on the charts */
   if (takeRest(st)) run.rested = true; // a night in the bunk: this sortie banks more salvage
   run.garden = takeBasket(st); // one of every bloom in the Greenhouse basket: boosts for this sortie
   run.threat = daily ? 0 : Math.max(0, Math.min(threatMax(), st.threat || 0));
@@ -118,6 +119,7 @@ export function endSortie(reason = 'destroyed') {
   summary.garden = run.garden || []; summary.seeds = run.mode === 'counter' ? [] : bankSeeds(st, run); // the blooms it took, the seeds it brought home
   summary.voidMarks = !run.mode ? newMarks(run.prevBest || 0, reached) : []; // Deep Void depths reached for the first time
   summary.voidBeaten = run.voidBeaten || []; // Void bosses beaten for the first time
+  summary.fragments = run.mode ? 0 : bankFragments(st, run); summary.cipher = run.cipher || null; summary.origin = run.origin >= 0; // signal fragments found, the Cipher beaten, the Origin reached
   if (!run.mode) st.history.unshift({ score: summary.score, wave: summary.wave, level: summary.level, ship: summary.ship, salvage: banked, time: summary.time, date: summary.date }); st.history.length = Math.min(st.history.length, 12);
   if (st.refitting?.ship === run.ship) redock(st); // back into the dock, and the refit carries on
   recalc(); bus.emit('sortieEnded', summary);
@@ -328,6 +330,7 @@ export function pickRelic(idx) {
 export function rollRoutes(run = G.state.run) {
   const pool = ROUTES.filter((r) => r.id !== 'steady'), out = ['steady'], r = luck(run, 3, run.wave);
   while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(r() * pool.length), 1)[0].id);
+  if (signalOffered(G.state, run)) out.push('signal'); /* the Cipher's message is read: the way to the Origin */
   run.routeOffer = out; bus.emit('routeOffer', out); return out;
 }
 export function nextRoute() {
@@ -338,7 +341,7 @@ export function nextRoute() {
 }
 export function pickRoute(idx) {
   const run = G.state.run, id = run?.routeOffer?.[idx]; if (!id) return null;
-  run.route = id === 'steady' ? null : id; run.routeOffer = null; recalc();
+  run.route = id === 'steady' ? null : id; run.routeOffer = null; if (id === 'signal') followSignal(run); recalc();
   bus.emit('routePicked', id); // the sim re-applies enemy-side modifiers
   return ROUTE_BY_ID[id];
 }
