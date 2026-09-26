@@ -212,7 +212,6 @@ export class DeckRoom extends Room {
     const head = wrap(story.head, '800 44px sans-serif', 640).slice(0, 2); head.forEach((l, i) => text(x, l, 330, 184 + i * 52, '800 44px sans-serif', '#ffffff', 'left'));
     wrap(story.body, '500 25px sans-serif', 640).slice(0, 5).forEach((l, i) => text(x, l, 330, 196 + head.length * 52 + i * 34, '500 25px sans-serif', '#b8c6e0', 'left'));
     x.fillStyle = '#0e1630'; x.fillRect(40, 104, 256, 256); x.strokeStyle = col; x.lineWidth = 3; x.strokeRect(40, 104, 256, 256);
-    text(x, 'TAP FOR ALL THE NEWS', 168, 400, '700 16px sans-serif', '#7f8bb0');
     tv.face.material.map.needsUpdate = true; const shown = this.newsI; drawArt(story.art || 'cur:salvage', x, 64, 128, 208, () => { if (this.newsI === shown) tv.face.material.map.needsUpdate = true; });
   }
   /** The ticker's text, drawn once on a long strip that scrolls. */

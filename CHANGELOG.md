@@ -14,7 +14,7 @@
   - **Best:** your furthest run, kept until you beat it.
   - **Boss:** the minute before the last boss you beat, and a few seconds of it blowing up.
   - **Daily:** your latest Daily Sortie.
-  - **News:** ORBIT News, the station's own channel. Stories from your game (a new record, the line breaking, how your last sortie went, the rebuild, ships out on expeditions, sieges, Void bosses, the Greenhouse, bounties, even Bolt) take turns with the station's lore, weather, sport and adverts, with a ticker of your numbers along the bottom. Tap the TV for all the news to read.
+  - **News:** ORBIT News, the station's own channel. Stories from your game (a new record, the line breaking, how your last sortie went, the rebuild, ships out on expeditions, sieges, Void bosses, the Greenhouse, bounties, even Bolt) take turns with the station's lore, weather, sport and adverts, with a ticker of your numbers along the bottom. Stay and watch: there's no reading it all at once.
   - Pressing a channel button pushes it in and lights it up, and the TV cuts over through a burst of static (with a click and a hiss). A channel with nothing on it yet shakes its button instead.
   - Channels with nothing on them yet are dimmed, and the TV remembers which one you left it on. With nothing recorded yet, it shows the News instead of going blank.
 - **Door fixes:** a door's control panel no longer sinks into a wall, a corner or a wall beam; it moves to the free side. In low rooms, door signs stand in front of the light strip along the top of the walls instead of behind it.
