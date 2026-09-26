@@ -9,5 +9,8 @@ export function stat(id) { return G.sheet.n(id); }
 export function flag(id) { return G.sheet.f(id) > 0; }
 /** Bump a lifetime + per-sortie counter. */
 export function count(key, n = 1) { const s = G.state.stats, r = G.state.run?.stats; s[key] = (s[key] || 0) + n; if (r) r[key] = (r[key] || 0) + n; }
+/** Hull repaired this sortie by where it came from (regen, kit, leech, wind, card, wave, sector, route, revive, drone),
+ *  and hull lost to hits (lost): kept in the run for the debrief and for balance probes. */
+export function noteHull(kind, v) { const r = G.state?.run; if (r && v > 0) (r.hullBy ||= {})[kind] = (r.hullBy[kind] || 0) + v; }
 export function maxStat(key, v) { const s = G.state.stats; if (!(s[key] >= v)) s[key] = v; }
 export function toast(text, kind = 'info') { bus.emit('toast', text, kind); }

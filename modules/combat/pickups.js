@@ -1,7 +1,7 @@
 // Loot pickups: XP orbs, salvage canisters and repair kits burst out of kills, drift down, and are pulled in
 // once they come within the ship's tractor range. Everything left is vacuumed up when a wave is cleared,
 // so flying well only makes rewards arrive sooner; nothing is ever lost.
-import { G } from '@last-orbit/core/game.js';
+import { G, noteHull } from '@last-orbit/core/game.js';
 import { rand } from '@last-orbit/core/rng.js';
 import { BAL, FIELD } from '@last-orbit/data/balance.js';
 import { grantXp, grantSalvage } from '@last-orbit/progression/run.js';
@@ -24,7 +24,7 @@ function collect(w, p) {
   const pl = w.player;
   if (p.kind === 'xp') { grantXp(p.v); w.fx.push({ k: 'pickup', a: pl.x, b: pl.y, c: 0x6dffc8 }); }
   else if (p.kind === 'salvage') { const got = grantSalvage(p.v); w.fx.push({ k: 'text', a: pl.x, b: pl.y + 6, c: '+' + Math.max(1, Math.round(got)), d: COLOR.salvage, e: 1 }); w.fx.push({ k: 'sfx', a: 'loot', b: 0.35 }); }
-  else if (p.kind === 'repair') { pl.hull = Math.min(1, pl.hull + p.v); w.fx.push({ k: 'text', a: pl.x, b: pl.y + 6, c: 'REPAIR', d: COLOR.repair, e: 1 }); w.fx.push({ k: 'naniteRepair', a: pl.x, b: pl.y }); }
+  else if (p.kind === 'repair') { const was = pl.hull; pl.hull = Math.min(1, pl.hull + p.v); noteHull('kit', pl.hull - was); w.fx.push({ k: 'text', a: pl.x, b: pl.y + 6, c: 'REPAIR', d: COLOR.repair, e: 1 }); w.fx.push({ k: 'naniteRepair', a: pl.x, b: pl.y }); }
 }
 
 export function updatePickups(w, dt) {

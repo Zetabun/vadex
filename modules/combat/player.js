@@ -1,5 +1,5 @@
 // The ship: steering (manual or autopilot), regeneration, Focus / streak / Energy upkeep, retaliation beam, target painting.
-import { G, count, flag } from '@last-orbit/core/game.js';
+import { G, count, flag, noteHull } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { BAL, FIELD } from '@last-orbit/data/balance.js';
 import { fx, sfx, pickTarget, hitEnemy } from '@last-orbit/combat/world.js';
@@ -48,14 +48,14 @@ export function updatePlayer(w, dt) {
 
   // ---- repairs ----
   const hr = sh.n('hullRegen');
-  if (hr > 0 && p.hull < 1) {
-    const before = p.hull; p.hull = Math.min(1, p.hull + hr * dt);
+  if (hr > 0 && p.hull < 1 && p.sinceHit >= BAL.regenPause) {
+    const before = p.hull; p.hull = Math.min(1, p.hull + hr * dt); noteHull('regen', p.hull - before);
     if (p.hull > before) {
       p.repairFxT = Math.max(0, (p.repairFxT || 0) - dt);
       if (!p.repairFxT) { p.repairFxT = 0.24; fx(w, 'naniteRepair', p.x, p.y); }
     }
   } else p.repairFxT = 0;
-  p.leechBudget = Math.min(0.08, (p.leechBudget ?? 0.08) + 0.08 * dt);
+  p.leechBudget = Math.min(BAL.leechBudget, (p.leechBudget ?? BAL.leechBudget) + BAL.leechBudget * dt);
   if (w.base.hasShield && p.shield < 1 && (p.sinceHit > Math.max(0.5, sh.n('shieldDelay')) || flag('f.fireRegen'))) p.shield = Math.min(1, p.shield + sh.n('shieldRegen') * dt);
 
   // ---- retaliation beam: absorbed shield damage is thrown back ----

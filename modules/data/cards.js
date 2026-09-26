@@ -21,7 +21,7 @@ export const MODS = [
   // ---- defence ----
   { id: 'm_hull', name: 'Bulkheads', tag: 'defence', rarity: 'common', max: 6, fx: [['hull', 'mult', 0.25]], desc: '+25% hull, repairs 25%', heal: 0.25 },
   { id: 'm_shield', name: 'Deflector Mesh', tag: 'defence', rarity: 'common', max: 5, fx: [['shieldRatio', 'add', 0.3]], desc: 'Shield +30% of hull' },
-  { id: 'm_regen', name: 'Nanite Swarm', tag: 'defence', rarity: 'common', max: 4, fx: [['hullRegen', 'add', 0.008]], desc: 'Repair 0.8% hull a second' },
+  { id: 'm_regen', name: 'Nanite Swarm', tag: 'defence', rarity: 'common', max: 4, fx: [['hullRegen', 'add', 0.005]], desc: 'Repair 0.5% hull a second, pausing 3 s after each hit' },
   { id: 'm_leech', name: 'Siphon Rounds', tag: 'defence', rarity: 'rare', max: 3, fx: [['lifeSteal', 'add', 0.03]], desc: 'Heal 3% of damage dealt' },
   { id: 'm_armour', name: 'Ablative Plating', tag: 'defence', rarity: 'common', max: 4, fx: [['dmgReduce', 'add', 0.08]], desc: 'Take 8% less damage' },
   { id: 'm_srech', name: 'Fast Capacitors', tag: 'defence', rarity: 'rare', max: 1, fx: [['f.fireRegen', 'add', 1], ['shieldRegen', 'mult', 0.5]], desc: 'Shields recharge even under fire', needShield: true },

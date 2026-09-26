@@ -2,7 +2,7 @@
 //   idle → fighting → cleared → (next wave)      fighting → dead → (revive | sortie over)
 // Between sorties (no G.state.run) the world is an empty parade ground for the Hangar backdrop.
 import { Big } from '@last-orbit/core/big.js';
-import { G, count, maxStat, toast, recalc } from '@last-orbit/core/game.js';
+import { G, count, maxStat, toast, recalc, noteHull } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { rand } from '@last-orbit/core/rng.js';
 import { BAL, FIELD, TICK, clearSalvage, earlyPressure } from '@last-orbit/data/balance.js';
@@ -178,14 +178,14 @@ function clearWave(w) {
   grantXp(1 + run.wave * 0.25);
   if (!ws.damaged) { count('flawless'); if (!bossWave) fx(w, 'text', 0, 45, 'FLAWLESS', '#6dffc8', 1); } else run.sectorHit = true;
   score(w, waveScore(run.wave, !ws.damaged) * clearMul);
-  if (route?.repair) p.hull = Math.min(1, p.hull + route.repair);
-  p.hull = Math.min(1, p.hull + 0.06);
+  let was = p.hull; if (route?.repair) { p.hull = Math.min(1, p.hull + route.repair); noteHull('route', p.hull - was); was = p.hull; }
+  p.hull = Math.min(1, p.hull + BAL.waveRepair); noteHull('wave', p.hull - was);
   if (sec.n === sec.len) {
     maxStat('sectorsCleared', sec.idx + 1);
     if (!ws.damaged) count('flawlessBosses');
     if (!run.sectorHit) count('perfectSectors');
     if (run.wave === THREAT_GATE_WAVE && run.threat) maxStat('threatClear', run.threat);
-    run.pendingRelics += 1 + (route?.relic || 0); p.hull = 1; p.shield = 1; ws.timer = 2.6;
+    run.pendingRelics += 1 + (route?.relic || 0); noteHull('sector', 1 - p.hull); p.hull = 1; p.shield = 1; ws.timer = 2.6;
     // The route ends with its sector; the pilot picks the next one after the relic.
     run.route = null; run.pendingRoute = true; recalc(); applyRunMods(w);
     // Every Deep Void sector brings another anomaly (chosen after the route).
@@ -205,7 +205,7 @@ bus.on('playerDied', (w) => {
 function afterDeath(w) {
   const run = G.state.run, p = w.player;
   if (run.revivesUsed < Math.floor(G.sheet.n('revives'))) {
-    run.revivesUsed++; p.alive = true; p.hull = 1; p.shield = 1; p.invuln = 3; w.ebullets.length = 0;
+    run.revivesUsed++; p.alive = true; noteHull('revive', 1); p.hull = 1; p.shield = 1; p.invuln = 3; w.ebullets.length = 0;
     for (const h of w.hazards) h.t = Math.max(h.t, 99);
     w.hazards.length = 0; w.wave.state = w.wave.before === 'cleared' || w.wave.before === 'idle' ? w.wave.before : 'fighting'; if (w.wave.state !== 'fighting') w.wave.timer = Math.max(w.wave.timer, 1);
     fx(w, 'text', p.x, p.y + 10, 'REVIVED', '#6dffc8', 2); fx(w, 'boom', p.x, p.y, 40, 0x6dffc8); sfx(w, 'milestone');

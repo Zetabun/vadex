@@ -1,5 +1,5 @@
 // The sortie: start, experience and level-ups, card offers, relics, salvage and the end-of-run debrief.
-import { G, recalc, count, maxStat, toast } from '@last-orbit/core/game.js';
+import { G, recalc, count, maxStat, toast, noteHull } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { rand } from '@last-orbit/core/rng.js';
 import { newRun } from '@last-orbit/core/state.js';
@@ -239,14 +239,14 @@ export function pickCard(idx) {
     case 'ability': if (!run.abilities.includes(c.id)) run.abilities.push(c.id); break;
     case 'mod': {
       const m = MOD_BY_ID[c.id], s = synergyOf(c.id), before = s ? synergyCount(s, run) : 0;
-      run.cards[c.id] = (run.cards[c.id] || 0) + 1; if (m.heal && p) p.hull = Math.min(1, p.hull + m.heal);
+      run.cards[c.id] = (run.cards[c.id] || 0) + 1; if (m.heal && p) { const was = p.hull; p.hull = Math.min(1, p.hull + m.heal); noteHull('card', p.hull - was); }
       const tier = s && s.tiers.find((t) => before < t.n && synergyCount(s, run) >= t.n);
       if (tier) { count('synergies'); bus.emit('synergy', s, tier); }
       break;
     }
     case 'signature': run.signature = true; count('signatures'); break;
     case 'fusion': (run.fusions ||= []).push(c.id); maxStat('fusions', run.fusions.length); break;
-    case 'heal': if (p) p.hull = Math.min(1, p.hull + 0.4); break;
+    case 'heal': if (p) { const was = p.hull; p.hull = Math.min(1, p.hull + 0.4); noteHull('card', p.hull - was); } break;
     case 'cash': grantSalvage(10 + run.wave * 2); break;
   }
   run.offer = null; run.pendingLevels = Math.max(0, run.pendingLevels - 1); count('cards');

@@ -1,7 +1,7 @@
 // The live battle. Pure simulation state: no DOM, no Three.js. The renderer reads these arrays and drains world.fx.
 import { Big } from '@last-orbit/core/big.js';
 import { COUNTER_TOP, HEIGHT_BONUS } from '@last-orbit/data/counter.js';
-import { G, count, maxStat, flag } from '@last-orbit/core/game.js';
+import { G, count, maxStat, flag, noteHull } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { rand } from '@last-orbit/core/rng.js';
 import { BAL, FIELD, enemyHp, enemyDmg, salvageDrop, killXp } from '@last-orbit/data/balance.js';
@@ -113,7 +113,7 @@ export function hitEnemy(w, e, src, mult, hx, hy, noCrit) {
   const leech = sh.n('lifeSteal');
   if (leech > 0 && p.alive && p.hull < 1 && p.leechBudget > 0) {
     const heal = Math.min(1 - p.hull, p.leechBudget, dealt * leech);
-    p.hull += heal; p.leechBudget -= heal;
+    p.hull += heal; p.leechBudget -= heal; noteHull('leech', heal);
   }
   w.acc[src.id] = (w.acc[src.id] || 0) + m; w.accSrc = w.accSrc || {}; w.accSrc[src.id] = src.dmg;
   if (crit) count('crits');
@@ -154,7 +154,7 @@ function dropLoot(w, e) {
   else if (e.elite) cans = 3;
   else if (rand() < BAL.salvageChance * (e.def.scrap || 1)) cans = 1;
   for (let i = 0; i < cans; i++) spawnPickup(w, 'salvage', e.x, e.y, per, big);
-  if (rand() < (e.boss ? 1 : e.elite ? 0.35 : 0.012)) spawnPickup(w, 'repair', e.x, e.y, e.boss ? 0.35 : 0.12, big);
+  if (rand() < (e.boss ? 1 : e.elite ? BAL.kitEliteChance : BAL.kitChance)) spawnPickup(w, 'repair', e.x, e.y, e.boss ? BAL.kitBossHeal : BAL.kitHeal, big);
 }
 
 export function killEnemy(w, e, src, crit, over) {
@@ -203,9 +203,9 @@ export function hurtPlayer(w, dmgMul, source) {
   }
   if (w.passive === 'stalwart' && p.hull < 0.5) dmg *= 0.7;
   if (G.state.run) { const run = G.state.run, by = source?.type || source?.kind || 'other'; run.hits = (run.hits || 0) + 1; (run.hitBy ||= {})[by] = (run.hitBy[by] || 0) + 1; }
-  p.hull -= dmg * w.base.dmgPerHull; w.wave.damaged = true; w.wave.bossDamaged = true;
+  const was = p.hull; p.hull -= dmg * w.base.dmgPerHull; noteHull('lost', was - Math.max(0, p.hull)); w.wave.damaged = true; w.wave.bossDamaged = true;
   const run = G.state.run;
-  if (w.passive === 'secondwind' && run && !run.windUsed && p.hull < 0.3) { run.windUsed = true; p.hull = Math.max(p.hull, 0) + 0.4; p.invuln = 2; fx(w, 'text', p.x, p.y + 10, 'SECOND WIND', '#6dffc8', 2); fx(w, 'boom', p.x, p.y, 20, 0x6dffc8); sfx(w, 'milestone'); }
+  if (w.passive === 'secondwind' && run && !run.windUsed && p.hull < 0.3) { run.windUsed = true; p.hull = Math.max(p.hull, 0) + BAL.windHeal; noteHull('wind', BAL.windHeal); p.invuln = 2; fx(w, 'text', p.x, p.y + 10, 'SECOND WIND', '#6dffc8', 2); fx(w, 'boom', p.x, p.y, 20, 0x6dffc8); sfx(w, 'milestone'); }
   fx(w, 'hurt', p.x, p.y); fx(w, 'shake', 0.4); sfx(w, 'hurt');
   if (p.hull <= 0) {
     if (p.lastStand && flag('f.lastStand')) { p.lastStand = false; p.hull = 0.01; p.invuln = 2; fx(w, 'text', p.x, p.y + 8, 'LAST STAND', '#ff5fa2', 1); return; }

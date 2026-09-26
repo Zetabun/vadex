@@ -1,6 +1,7 @@
 // Drones: autonomous helpers that hover around the ship. The 'drones' stat (cards, relics, ships) sets how many
 // attack drones fly with you; the Drone swarm ability adds temporary ones on top.
-import { G, flag } from '@last-orbit/core/game.js';
+import { G, flag, noteHull } from '@last-orbit/core/game.js';
+import { BAL } from '@last-orbit/data/balance.js';
 import { rand } from '@last-orbit/core/rng.js';
 import { DRONES, DRONE_BASE, droneLevelMult } from '@last-orbit/data/drones.js';
 import { fx, sfx, pickTarget, hitEnemy, killEnemy } from '@last-orbit/combat/world.js';
@@ -80,7 +81,7 @@ export function updateDrones(w, dt) {
           if (flag('f.droneArc') && sh.weapons.tesla && rand() < cc.critChance) fireArc(w, sh.weapons.tesla, 0.5, d.x, d.y);
         }
         break; }
-      case 'repair': { const lvl = 1; if (p.alive && p.hull < 1) { p.hull = Math.min(1, p.hull + def.heal * (1 + 0.08 * (lvl - 1)) * dt); if (rand() < dt * 2) fx(w, 'trail', p.x + (rand() - 0.5) * 5, p.y + 2, 0x66ffc2); } break; }
+      case 'repair': { const lvl = 1; if (p.alive && p.hull < 1 && p.sinceHit >= BAL.regenPause) { const was = p.hull; p.hull = Math.min(1, p.hull + def.heal * (1 + 0.08 * (lvl - 1)) * dt); noteHull('drone', p.hull - was); if (rand() < dt * 2) fx(w, 'trail', p.x + (rand() - 0.5) * 5, p.y + 2, 0x66ffc2); } break; }
       case 'shield': {
         if (d.cd > 0) break;
         for (let j = 0; j < w.ebullets.length; j++) { const b = w.ebullets[j]; if (b.alive && b.vy < 0 && b.y < p.y + 16 && Math.abs(b.x - p.x) < 9) { b.alive = false; fx(w, 'shieldhit', b.x, b.y); fx(w, 'beam', d.x, d.y, b.x, b.y, 0x7aa2ff, 0.5, 0.12); sfx(w, 'shield', 0.4); d.flash = 0.2; d.cd = def.block / (1 + 0.1 * (1 - 1)); break; } }

@@ -27,6 +27,11 @@ export const BAL = {
   magnet: 16, pickupCap: 140,
   // player baseline
   hull: 100, shieldDelay: 3, landDamage: 0.2,
+  // repairs (shares of full hull): after every wave cleared; repair kits (the chance a kill drops one, and what it
+  // repairs); how much lifesteal can repair a second; the Vanguard's Second Wind; and how long repairs over time (hull
+  // regen, a repair drone) wait after a hit. v2.19: regen waits 3 s (it used to repair straight through a fight) and
+  // lifesteal repairs at most 6% a second (was 8%), measured with tests/heal-probe.mjs
+  waveRepair: 0.06, kitChance: 0.012, kitEliteChance: 0.35, kitHeal: 0.12, kitBossHeal: 0.35, leechBudget: 0.06, windHeal: 0.4, regenPause: 3,
   // active play
   focusMax: 0.25, focusGain: 0.12, focusDecay: 0.2, manualWindow: 2.5,
   weakMult: 3, paintMult: 1.5, paintDur: 4, grazeEnergy: 4, grazeRadius: 7,

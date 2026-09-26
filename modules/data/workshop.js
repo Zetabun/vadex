@@ -6,7 +6,7 @@ export const WORKSHOP = [
   { id: 'w_hull', name: 'Hull Plating', max: 10, base: 25, growth: 2.0, fx: [['hull', 'mult', 0.15]], per: '+15% hull' },
   { id: 'w_shield', name: 'Shield Emitter', max: 5, base: 120, growth: 2.3, fx: [['shieldRatio', 'add', 0.12]], per: 'Shield +12% of hull' },
   { id: 'w_crit', name: 'Targeting Suite', max: 5, base: 60, growth: 2.4, fx: [['critChance', 'add', 0.02], ['critDmg', 'add', 0.1]], per: '+2% crit, +10% crit damage' },
-  { id: 'w_regen', name: 'Repair Bay', max: 5, base: 80, growth: 2.4, fx: [['hullRegen', 'add', 0.003]], per: 'Repair 0.3% hull a second' },
+  { id: 'w_regen', name: 'Repair Bay', max: 5, base: 80, growth: 2.4, fx: [['hullRegen', 'add', 0.003]], per: 'Repair 0.3% hull a second, pausing 3 s after each hit' },
   { id: 'w_speed', name: 'Thruster Tuning', max: 5, base: 40, growth: 2.2, fx: [['moveSpeed', 'mult', 0.06]], per: '+6% move speed' },
   { id: 'w_magnet', name: 'Tractor Field', max: 5, base: 30, growth: 2.2, fx: [['magnet', 'mult', 0.18]], per: '+18% pickup range' },
   { id: 'w_xp', name: 'Flight School', max: 5, base: 70, growth: 2.4, fx: [['xpGain', 'mult', 0.08]], per: '+8% experience' },

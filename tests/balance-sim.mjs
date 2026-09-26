@@ -11,11 +11,14 @@ import { WORKSHOP } from '@last-orbit/data/workshop.js';
 import { WEAPON_ORDER } from '@last-orbit/data/weapons.js';
 import { ABILITY_ORDER } from '@last-orbit/data/abilities.js';
 import { useAbility } from '@last-orbit/combat/abilities.js';
-import { TICK } from '@last-orbit/data/balance.js';
+import { TICK, BAL } from '@last-orbit/data/balance.js';
+import { MOD_BY_ID } from '@last-orbit/data/cards.js';
+// BALSET / MODSET (JSON) try other balance and card numbers (a card's first effect); HEALPICK=1 takes every healing card offered.
+Object.assign(BAL, JSON.parse(process.env.BALSET || '{}')); for (const [id, v] of Object.entries(JSON.parse(process.env.MODSET || '{}'))) MOD_BY_ID[id].fx[0][2] = v;
 
 const runs = Number(process.argv[2] || 6), wl = Number(process.argv[3] || 0), ship = process.argv[4] || 'vanguard', unlock = process.argv[5] || 'all', dodge = Number(process.argv[6] ?? 1), threat = Number(process.argv[7] || 0);
 bus.on('stats', () => { G.sheet.totalN['f.autopilot'] = 1; G.sheet.totalN.autoDodge = dodge; });
-const score = (c) => c.kind === 'upgrade' ? 10 + (c.rank >= 4 ? 2 : 0) : c.kind === 'weapon' ? 9 : c.kind === 'mod' ? ({ m_dmg: 8, m_rate: 8, m_multi: 9, m_hull: 6, m_shield: 5, m_crit: 5, m_critd: 4 }[c.id] || 3) : 2;
+const score = (c) => (process.env.HEALPICK && ['m_regen', 'm_leech', 'm_hull'].includes(c.id) ? 50 : 0) + (c.kind === 'upgrade' ? 10 + (c.rank >= 4 ? 2 : 0) : c.kind === 'weapon' ? 9 : c.kind === 'mod' ? ({ m_dmg: 8, m_rate: 8, m_multi: 9, m_hull: 6, m_shield: 5, m_crit: 5, m_critd: 4 }[c.id] || 3) : 2);
 
 const results = [];
 for (let r = 0; r < runs; r++) {
