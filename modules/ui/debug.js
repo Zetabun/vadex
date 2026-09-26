@@ -400,6 +400,8 @@ function runScene(scene, hooks, ui) {
   }
   if (arg === 'locked') { st.unlocked.weapons = { cannon: 1, laser: 1 }; st.unlocked.abilities = { overdrive: 1 }; }
   // A tab scene can scroll to a section by its heading: ships:engine shows the engine trails.
+  // pilotkey: Settings > Pilot key (the key, and signing in with another)
+  if (name === 'pilotkey') { for (const r of ROOMS_ABOARD) (st.seen.offered ||= {})[r.id] = true; st.global.told = true; hooks.toHangar('launch'); setTimeout(() => { document.querySelector('.gear-btn')?.click(); setTimeout(() => [...document.querySelectorAll('.settings .field button')].find((x) => x.textContent.startsWith('Show'))?.click(), 300); }, 600); return; }
   // updates[:settings]: Settings open on its Updates tab (or on Settings, to see the tab's "!"), with a new update to hear about
   if (name === 'updates') { for (const r of ROOMS_ABOARD) (st.seen.offered ||= {})[r.id] = true; st.meta.seenUpdate = '2.20.0'; hooks.toHangar('launch'); if (arg !== 'gear') setTimeout(() => { document.querySelector('.gear-btn')?.click(); if (arg !== 'settings') setTimeout(() => [...document.querySelectorAll('.set-seg button')].find((x) => x.textContent.startsWith('Updates'))?.click(), 300); }, 600); return; }
   // records:global[:yday|all]: the global boards (point the game at a local server with &api=http://127.0.0.1:8787)

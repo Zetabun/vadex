@@ -11,3 +11,5 @@ The global boards: `tests/api-regression.mjs` runs the worker (`api/src/index.js
 The field kit: `tests/kit-regression.mjs` (in the gate) covers the supply meter, the kit, boosts and the Daily's shared luck. `tests/kit-probe.mjs [runs] [workshop] [use]` reports canisters per sortie and what using boosts does to salvage and materials; `KIT=1` makes `tests/progression-sim.mjs` use boosts as they come. Debug scene `kit[:open|first|pack]` shows the kit in a sortie.
 
 What's new: debug scene `updates[:settings|gear]` opens Settings on its Updates tab (or on Settings, or just shows the gear's "!"). For a release version the gate also checks the patch notes and docs: a dated `## vX.Y.Z — YYYY-MM-DD` entry in `CHANGELOG.md`, that entry in `modules/data/updates.js`, and "Current build" in `AGENTS.md` and `README.md` plus the `BUILD_NOTES.md` heading.
+
+Pilot keys: debug scene `pilotkey` opens Settings > Pilot key (add `&api=http://127.0.0.1:8787` for a debug save to have a key of its own). `tests/api-regression.mjs` covers the pilot lookup, reserved and staff-sounding names; `tests/global-regression.mjs` covers the key's format and signing in.

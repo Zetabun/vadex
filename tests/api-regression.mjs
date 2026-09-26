@@ -105,6 +105,10 @@ later(); r = await call('GET', `/board?b=all&p=${pid(80)}&r=14`);
 ok(r.data.me?.rank === 14, 'looking at a board with a new rank updates the badge before the next post');
 later(); r = await post(pid(80), 'Badge', entry(1, 1), ['all'], { rank: 'lots' });
 ok(db.prepare('SELECT rank FROM players WHERE pid = ?').get(pid(80)).rank === 14, 'a rank that is not a number leaves the badge as it was');
+later(); r = await call('GET', `/board?b=all&p=${pid(80)}&r=3`);
+ok(r.data.me?.rank === 14, 'a lower rank (a fresh save signed in) never lowers the badge');
+later(); r = await post(pid(80), 'Badge', entry(1, 1), ['all'], { rank: 2 });
+ok(db.prepare('SELECT rank FROM players WHERE pid = ?').get(pid(80)).rank === 14, 'nor does a post from it');
 r = await call('GET', `/board?b=all&p=${pid(1)}`);
 ok(!('rank' in r.data.me), 'a pilot the boards have no rank for shows no badge');
 
@@ -118,6 +122,25 @@ db.prepare("UPDATE players SET role = 'king' WHERE pid = ?").run(pid(80));
 r = await call('GET', `/board?b=all&p=${pid(80)}`);
 ok(!('role' in r.data.me), 'only known roles are shown');
 db.prepare("UPDATE players SET role = '' WHERE pid = ?").run(pid(80));
+
+// ------------------------------------------------------------------ reserved and staff-sounding names
+db.prepare("INSERT INTO reserved (nkey, pid) VALUES ('zetabun', ?), ('dev', '')").run(pid(90));
+later(); r = await post(pid(90), 'Zetabun', entry(1000, 3));
+ok(r.data.name === 'Zetabun', 'a reserved name belongs to its holder');
+later(); r = await post(pid(91), 'zetabun', entry(1000, 3));
+ok(r.data.name === 'Pilot', 'anyone else taking a reserved name shows as Pilot: ' + r.data.name);
+later(); r = await post(pid(92), 'Dev', entry(1000, 3));
+ok(r.data.name === 'Pilot', 'a name reserved for nobody stays unused');
+later(); r = await post(pid(93), 'Admin Joe', entry(1000, 3), ['all'], { station: 'Official HQ' });
+ok(r.data.name === 'Pilot' && !r.data.boards.all.me.station, 'names and stations that sound like staff are not shown');
+later(); r = await post(pid(94), 'Devon', entry(1000, 3));
+ok(r.data.name === 'Devon', 'an ordinary name that starts like a staff word is fine');
+
+// ------------------------------------------------------------------ signing in with a pilot key: whose is it
+r = await call('GET', `/pilot?p=${pid(90)}`);
+ok(r.status === 200 && r.data.name === 'Zetabun' && /^[2-9A-HJKMNP-Z]{4}$/.test(r.data.tag) && r.data.best === 1000, 'a pilot key names its pilot, tag and best: ' + JSON.stringify(r.data));
+r = await call('GET', `/pilot?p=${pid(999)}`); ok(r.status === 404, 'a key nobody has is unknown');
+r = await call('GET', '/pilot?p=nope'); ok(r.status === 400, 'a key must look like one');
 
 // ------------------------------------------------------------------ bans and forgetting
 db.prepare('UPDATE players SET banned = 1 WHERE pid = ?').run(pid(9));

@@ -23,5 +23,8 @@ CREATE TABLE IF NOT EXISTS scores (
 CREATE INDEX IF NOT EXISTS scores_rank ON scores (board, score DESC, at);
 -- boards: how many pilots are on each (kept as a count, so it is not counted row by row on every view)
 CREATE TABLE IF NOT EXISTS boards (board TEXT PRIMARY KEY, n INTEGER NOT NULL DEFAULT 0);
+-- reserved: names only one pilot may use (pid), or nobody (pid ''); anyone else posting one shows as Pilot.
+-- Set with api/admin.mjs reserve. Added in v2.24: api/migrations/004_reserved.sql.
+CREATE TABLE IF NOT EXISTS reserved (nkey TEXT PRIMARY KEY, pid TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '');
 -- days: who used the boards on each UTC day (how many people play; api/admin.mjs stats)
 CREATE TABLE IF NOT EXISTS days (day TEXT NOT NULL, pid TEXT NOT NULL, PRIMARY KEY (day, pid));

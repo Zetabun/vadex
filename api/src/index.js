@@ -5,15 +5,18 @@
 //   Boards: 'all' holds every pilot's best sortie score; 'daily:YYYY-MM-DD' holds that day's Daily Sortie, where each
 //   pilot has one attempt, so the first score posted stands.
 //   Pilots are a random id made on the device (never shown to anyone) with the callsign and station name they chose,
-//   their pilot rank (shown as their badge; written with every post and refreshed whenever they look at a board),
+//   their pilot rank (shown as their badge: the highest they have reached, written with every post and whenever they
+//   look at a board, so signing in on a fresh save never lowers it),
 //   a role shown beside their name (DEV: set only with api/admin.mjs, never by the game),
+//   names that are reserved (the reserved table: a name held for one pilot's id, or for nobody) or sound like staff
+//   (STAFF) show as Pilot for anyone else, so nobody can pass as the developer or a moderator,
 //   and a four-character tag the server gives them. No two pilots share a name and a tag, and where two on a board
 //   share a name the board shows their tags (Ace #4F2A, Ace #91CX), so a copied callsign cannot pass as the original.
 //   The server hands tags out (checking each name change) because a tag worked out on the device could be matched by
 //   making new ids until one fitted.
 //   Scores are checked against the wave reached (plausible()); the boards are moderated from the command line
 //   (api/admin.mjs).
-// Routes: GET /board?b=<board>&p=<id> · POST /score · POST /forget. POSTs take JSON sent as text/plain, which keeps
+// Routes: GET /board?b=<board>&p=<id> · GET /pilot?p=<id> (whose key it is, for signing in) · POST /score · POST /forget. POSTs take JSON sent as text/plain, which keeps
 // them "simple" requests with no CORS preflight: one request each against the daily allowance, not two.
 
 const TOP = 50;
@@ -42,6 +45,9 @@ function rude(name) {
 
 /** The same tidying as the game's callsign (progression/meta.js cleanCallsign): letters, digits, spaces and . _ ' -. */
 const tidy = (s, max) => [...String(s || '').replace(/[^\p{L}\p{N} ._'-]/gu, '').replace(/\s+/g, ' ').trim()].slice(0, max).join('').trim();
+/** Words that make a name sound official (anywhere in it, letters only): such names show as Pilot. */
+const STAFF = ['admin', 'moderator', 'developer', 'official', 'lastorbit', 'gamemaster'];
+const staffy = (name) => { const j = name.toLowerCase().replace(/[^a-z]/g, ''); return STAFF.some((w) => j.includes(w)); };
 const FALLBACK = 'Pilot'; // a pilot with no callsign (or a rude one); the tags tell them apart
 const TAG_CHARS = '23456789ABCDEFGHJKMNPQRSTUVWXYZ'; // no 0/O, 1/I/L: easy to read out
 function randomTag() { const b = new Uint8Array(4); crypto.getRandomValues(b); return [...b].map((x) => TAG_CHARS[x % TAG_CHARS.length]).join(''); }
@@ -123,14 +129,15 @@ async function post(env, body, now) {
   if (!boards.length) throw fail('no board');
   if (boards.some((b) => b.startsWith('daily:')) && (e.warp !== 1 || e.threat !== 0)) throw fail('implausible: daily', 422);
   let name = tidy(body.name, NAME_MAX), station = tidy(body.station, STATION_MAX);
-  if (!name || rude(name)) name = FALLBACK; if (station && rude(station)) station = '';
+  if (!name || rude(name) || staffy(name)) name = FALLBACK; if (station && (rude(station) || staffy(station))) station = '';
+  const held = await env.DB.prepare('SELECT pid FROM reserved WHERE nkey = ?1').bind(name.toLowerCase()).first(); if (held && held.pid !== pid) name = FALLBACK; /* a reserved name is its holder's alone */
   const v = VER.test(body.v || '') ? body.v : '', prank = pilotRank(body.rank);
   const player = await env.DB.prepare('SELECT banned, locked, last, name, station, tag, nkey FROM players WHERE pid = ?1').bind(pid).first();
   if (player && now - player.last < RATE_MS) throw fail('too fast', 429);
   if (player?.locked) { name = player.name; station = player.station; } /* a name reset by a moderator stays reset */
   const nkey = name.toLowerCase(), tag = player?.tag && player.nkey === nkey ? player.tag : await freeTag(env, nkey, pid, player?.tag); /* a new name: is the tag still free under it? */
   const writes = [
-    env.DB.prepare('INSERT INTO players (pid, name, station, first, last, posts, v, tag, nkey, rank) VALUES (?1, ?2, ?3, ?4, ?4, 1, ?5, ?6, ?7, ?8) ON CONFLICT(pid) DO UPDATE SET name = ?2, station = ?3, last = ?4, posts = posts + 1, v = ?5, tag = ?6, nkey = ?7, rank = CASE WHEN ?8 > 0 THEN ?8 ELSE rank END').bind(pid, name, station, now, v, tag, nkey, prank),
+    env.DB.prepare('INSERT INTO players (pid, name, station, first, last, posts, v, tag, nkey, rank) VALUES (?1, ?2, ?3, ?4, ?4, 1, ?5, ?6, ?7, ?8) ON CONFLICT(pid) DO UPDATE SET name = ?2, station = ?3, last = ?4, posts = posts + 1, v = ?5, tag = ?6, nkey = ?7, rank = CASE WHEN ?8 > rank THEN ?8 ELSE rank END').bind(pid, name, station, now, v, tag, nkey, prank),
     env.DB.prepare('INSERT OR IGNORE INTO days (day, pid) VALUES (?1, ?2)').bind(today(now), pid),
   ];
   const kept = {};
@@ -186,8 +193,14 @@ export default {
         const b = boardId(url.searchParams.get('b'), now, false), p = url.searchParams.get('p') || '';
         const pid = PID.test(p) ? p : '';
         if (pid) await env.DB.prepare('INSERT OR IGNORE INTO days (day, pid) VALUES (?1, ?2)').bind(today(now), pid).run();
-        const r = pilotRank(url.searchParams.get('r')); if (pid && r) await env.DB.prepare('UPDATE players SET rank = ?2 WHERE pid = ?1 AND rank <> ?2').bind(pid, r).run(); /* a rank up shows before the next post */
+        const r = pilotRank(url.searchParams.get('r')); if (pid && r) await env.DB.prepare('UPDATE players SET rank = ?2 WHERE pid = ?1 AND rank < ?2').bind(pid, r).run(); /* a rank up shows before the next post; never down */
         return send(await view(env, b, pid));
+      }
+      if (path === '/pilot' && req.method === 'GET') { // signing in with a pilot key: whose is it?
+        const p = url.searchParams.get('p') || ''; if (!PID.test(p)) throw fail('bad id');
+        const who = await env.DB.prepare("SELECT p.name, p.tag, p.station, p.rank, p.role, p.banned, (SELECT score FROM scores WHERE board = 'all' AND pid = p.pid) AS best FROM players p WHERE p.pid = ?1").bind(p).first();
+        if (!who || who.banned) return send({ error: 'unknown' }, 404);
+        return send({ name: who.name, tag: who.tag, ...(who.station ? { station: who.station } : {}), ...(who.rank > 0 ? { rank: who.rank } : {}), ...(ROLES.includes(who.role) ? { role: who.role } : {}), best: who.best || 0 });
       }
       if (path === '/score' && req.method === 'POST') return send(await post(env, await readBody(req), now));
       if (path === '/forget' && req.method === 'POST') return send(await forget(env, await readBody(req)));

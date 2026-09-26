@@ -1,5 +1,12 @@
 # Changelog
 
+## v2.25.0 — 2026-09-26
+
+- **Pilot key: sign in to your place on the global boards.** Settings > Pilot key shows a key for your pilot on the boards: your name, tag, rank badge and scores. Copy or share it and keep it safe, like your backup code. On another device, or after starting a fresh save, paste it under "Sign in with a pilot key": the game shows whose it is, and once you confirm, that device posts as you and takes your callsign. Its own progress stays as it is, unlike a backup code, which brings a whole save across.
+- **Your rank badge on the boards is the highest rank you have reached,** so signing in on a fresh save never lowers it.
+- **Reserved names.** Some names belong to one pilot only (and a few, like Dev, Admin, Moderator and ORBIT, to nobody). Anyone else using one shows as Pilot on the boards, as does any name that sounds official (admin, moderator, developer, official, Last Orbit). Nobody can pass as the developer or a moderator.
+- The boards server gained a pilot lookup for signing in, reserved names, and admin commands to reserve and free names (api/admin.mjs reserve, unreserve, reserved).
+
 ## v2.24.0 — 2026-09-26
 
 - **What's new.** When an update lands, the settings gear shows a red "!". Settings now has two tabs, Settings and Updates. Updates lists every update so far, newest first, back to the original game, with the ones you haven't seen marked New. Opening it clears the "!".

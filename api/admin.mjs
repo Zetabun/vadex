@@ -6,6 +6,8 @@
 //   node api/admin.mjs unban <id>
 //   node api/admin.mjs rename <id>           reset a pilot's shown name (to Pilot, with their tag) and station, for good
 //   node api/admin.mjs role <id|name> <dev|mod|none>   the tag beside a pilot's name (a name must match one pilot only)
+//   node api/admin.mjs reserve <name> [id|pilot name]  keep a name for one pilot (or, with no pilot, for nobody)
+//   node api/admin.mjs unreserve <name> · reserved      free a name · list the reserved names
 // Add --local to work on `wrangler dev`'s local database instead of the live one.
 import { execFileSync } from 'node:child_process';
 
@@ -17,6 +19,13 @@ function sql(command) {
   return JSON.parse(out.slice(out.indexOf('['))).flatMap((r) => r.results || []);
 }
 const id = (x) => { if (!PID.test(x || '')) throw new Error('an id is 32 hex characters (see: top)'); return x; };
+/** A pilot by id, or by name when exactly one pilot has it. */
+function findPilot(x) {
+  if (PID.test(x || '')) return x;
+  const key = String(x || '').toLowerCase().replace(/'/g, "''"), found = sql(`SELECT pid, name, tag, station, posts FROM players WHERE nkey = '${key}'`);
+  if (found.length !== 1) { console.table(found); throw new Error(found.length ? 'more than one pilot has that name: use their id' : 'no pilot has that name'); }
+  return found[0].pid;
+}
 const day = (off = 0) => new Date(Date.now() + off * 864e5).toISOString().slice(0, 10);
 
 if (cmd === 'stats') {
@@ -36,11 +45,16 @@ if (cmd === 'stats') {
   sql(`UPDATE players SET banned = 0 WHERE pid = '${id(a)}'`); console.log('Unbanned (their next post counts again): ' + a);
 } else if (cmd === 'rename') {
   const pid = id(a); sql(`UPDATE players SET name = 'Pilot', nkey = 'pilot', station = '', locked = 1 WHERE pid = '${pid}'`); console.log('Name reset: ' + pid);
+} else if (cmd === 'reserve' || cmd === 'unreserve') {
+  const key = String(a || '').trim().toLowerCase(); if (!key || key.length > 16 || /'/.test(key)) throw new Error('reserve <name> [id|pilot name]');
+  if (cmd === 'unreserve') { sql(`DELETE FROM reserved WHERE nkey = '${key}'`); console.log('Freed: ' + key); }
+  else { const pid = b ? findPilot(b) : ''; sql(`INSERT INTO reserved (nkey, pid) VALUES ('${key}', '${pid}') ON CONFLICT(nkey) DO UPDATE SET pid = '${pid}'`); console.log(`Reserved ${key} for ${pid || 'nobody'}`); }
+} else if (cmd === 'reserved') {
+  console.table(sql('SELECT r.nkey, r.note, p.name, p.tag, r.pid FROM reserved r LEFT JOIN players p ON p.pid = r.pid ORDER BY r.nkey'));
 } else if (cmd === 'role') {
   const role = b === 'none' ? '' : b; if (!['dev', 'mod', ''].includes(role ?? 'x')) throw new Error('role: dev, mod or none');
-  let pid = PID.test(a || '') ? a : null;
-  if (!pid) { const key = String(a || '').toLowerCase().replace(/'/g, "''"); const found = sql(`SELECT pid, name, tag, station, posts FROM players WHERE nkey = '${key}'`); if (found.length !== 1) { console.table(found); throw new Error(found.length ? 'more than one pilot has that name: use their id' : 'no pilot has that name'); } pid = found[0].pid; }
+  const pid = findPilot(a);
   sql(`UPDATE players SET role = '${role}' WHERE pid = '${pid}'`); console.log(`Role ${role || 'none'} set for ${pid}`);
 } else {
-  console.log('node api/admin.mjs stats | top [board] [n] | ban <id> | unban <id> | rename <id> | role <id|name> <dev|mod|none>   (--local for wrangler dev)');
+  console.log('node api/admin.mjs stats | top [board] [n] | ban <id> | unban <id> | rename <id> | role <id|name> <dev|mod|none> | reserve <name> [id|name] | unreserve <name> | reserved   (--local for wrangler dev)');
 }

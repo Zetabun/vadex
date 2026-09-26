@@ -69,5 +69,16 @@ bus.emit('sortieEnded', summary(80000)); ok(!gl(st).pending.length, 'with the bo
 setBoards(st, true); await flush(st);
 ok(gl(st).id && gl(st).id !== id && cachedBoard('all')?.data?.me?.score === 42000, 'on again, the pilot comes back (a new id) with their best record');
 
+// ------------------------------------------------------------------ the pilot key: signing in on another device
+const { formatKey, parseKey, lookupPilot, signIn } = await import('@last-orbit/progression/global.js');
+const mine = gl(st).id, key = formatKey(mine);
+ok(/^([0-9A-F]{4}-){7}[0-9A-F]{4}$/.test(key) && parseKey(key) === mine && parseKey(' ' + key.toLowerCase().replace(/-/g, ' ') + ' ') === mine && parseKey('1234') === '', 'the key reads in groups of four, and comes back however it is typed');
+const other = newState(); other.pilot.name = 'Somebody'; other.stats.sorties = 4;
+const who = await lookupPilot(parseKey(key));
+ok(who.name === 'Ace' && who.best > 0, 'the key names its pilot: ' + JSON.stringify(who));
+signIn(other, parseKey(key), who);
+ok(gl(other).id === mine && gl(other).told && other.pilot.name === 'Ace' && gl(other).best === who.best && !gl(other).pending.length, 'signing in makes this device that pilot, with their callsign and best');
+await lookupPilot('0'.repeat(32)).then(() => ok(false, 'an unknown key should not sign in'), (e) => ok(e.status === 404, 'an unknown key is refused'));
+
 if (failures) { console.error(`global-regression: ${failures} failed`); process.exit(1); }
 console.log('global-regression: all passed');

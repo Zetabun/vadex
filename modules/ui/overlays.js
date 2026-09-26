@@ -39,7 +39,7 @@ import { FIELD } from '@last-orbit/data/balance.js';
 import { MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
 import { applyVolumes, playSfx } from '@last-orbit/audio/audio.js';
 import { h, clear, toggle, slider, select, scrollHints, setClass, setText } from '@last-orbit/ui/dom.js';
-import { setBoards } from '@last-orbit/progression/global.js';
+import { setBoards, gl, pilotId, formatKey, parseKey, lookupPilot, signIn, boardsOn } from '@last-orbit/progression/global.js';
 import { updatesUnseen, markUpdatesSeen, cmpVersion } from '@last-orbit/progression/updates.js';
 import { BOOSTS, BOOST_BY_ID } from '@last-orbit/data/boosts.js';
 import { kit, cannotUse, useBoost, supplyPct } from '@last-orbit/progression/boosts.js';
@@ -153,6 +153,7 @@ export function createOverlays(layer, hooks) {
       field('Station name', h('button.btn.ghost.small.callsign-edit', { onclick: () => showStationName({ fromSettings: true }) }, G.state.stationName || 'Name it', uiIcon('chevron'))),
       field('Callsign', h('button.btn.ghost.small.callsign-edit', { onclick: () => showCallsign({ fromSettings: true }) }, G.state.pilot.name || 'Add callsign', uiIcon('chevron'))),
       fromPause ? null : field('Global boards', toggle(() => G.state.settings.globalBoards !== false, (v) => { setBoards(G.state, v); hooks.saveNow?.('settings'); hooks.toast?.(v ? 'Your scores go up to the global boards again.' : 'Global boards off: your scores are coming off them and stay on this device.', 'info'); }, 'Post scores to the global boards')),
+      fromPause ? null : field('Pilot key', h('button.btn.ghost.small.callsign-edit', { onclick: () => showPilotKey() }, 'Show · Sign in', uiIcon('chevron'))),
       fromPause ? null : field('Save backup', h('button.btn.ghost.small.callsign-edit' + (backedUp() ? '' : '.nudge'), { onclick: () => showBackup() }, backupAge(), uiIcon('chevron'))),
       field('Master volume', slider(() => s.master, set('master'), 0, 1, 0.05, 'Master volume')),
       field('Music', slider(() => s.music, set('music'), 0, 1, 0.05, 'Music volume')),
@@ -369,6 +370,40 @@ export function createOverlays(layer, hooks) {
       h('h3.bk-h', 'Restore'), h('p.sub-note', 'Paste a backup code to bring that progress onto this device (another phone, a PC), with your place on the global boards.'), input, err, go,
       h('div.modal-actions', h('button.btn.primary', { onclick: () => showSettings(false), 'data-autofocus': '' }, 'Done')));
     mount('backup', el, (e) => { if (e.key === 'Escape') { showSettings(false); return true; } return false; });
+  }
+  /** The pilot key (progression/global.js): this device's place on the global boards, to copy somewhere safe, and
+   *  signing in with a key from another device (or from before a fresh save). */
+  function showPilotKey(msg = '') {
+    const st = G.state, key = formatKey(boardsOn(st) ? pilotId(st) : gl(st).id), note = h('p.bk-note', msg), err = h('p.bk-err');
+    const box = h('input.pk-key', { readOnly: true, value: key, 'aria-label': 'Your pilot key', onfocus: (e) => e.target.select() });
+    async function copy() { try { await navigator.clipboard.writeText(key); note.textContent = 'Pilot key copied. Keep it with your backup code.'; playSfx('unlock', 0.6); } catch { box.focus(); box.select(); note.textContent = 'Copy the key from the box.'; } }
+    async function share() { try { await navigator.share({ title: 'Last Orbit pilot key', text: key }); note.textContent = 'Pilot key shared. Keep it somewhere safe.'; } catch (e) { if (e?.name !== 'AbortError') copy(); } }
+    const input = h('input.bk-input.pk-input', { placeholder: 'XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX', spellcheck: false, autocapitalize: 'characters', autocomplete: 'off', 'aria-label': 'Pilot key to sign in with' });
+    const go = h('button.btn.ghost.wide', { disabled: true, onclick: async () => {
+      const id = parseKey(input.value); err.textContent = '';
+      if (!id) { err.textContent = 'That is not a pilot key: it is 32 letters and numbers, in groups of four.'; playSfx('deny'); return; }
+      if (id === gl(st).id) { err.textContent = 'That is already you on this device.'; return; }
+      go.disabled = true; go.textContent = 'Checking…';
+      try { const who = await lookupPilot(id); confirmSignIn(id, who); }
+      catch (e) { err.textContent = e?.status === 404 ? 'No pilot on the boards has that key.' : 'The boards cannot be reached right now. Try again in a moment.'; playSfx('deny'); go.disabled = false; go.textContent = 'Sign in'; }
+    } }, 'Sign in');
+    input.addEventListener('input', () => { go.disabled = !input.value.trim(); err.textContent = ''; });
+    const el = h('div.modal.backup.pilot-key', { role: 'dialog', 'aria-label': 'Pilot key' },
+      h('div.modal-head', h('div.kicker', 'Global boards'), h('h2', 'Pilot key'), h('p', 'Your place on the global boards: your name, tag, badge and scores. Use it to sign in on another device, or after starting a fresh save.')),
+      key ? [box, h('div.bk-actions', navigator.share ? h('button.btn.gold', { onclick: share }, uiIcon('share'), 'Share key') : null, h('button.btn' + (navigator.share ? '.ghost' : '.gold'), { onclick: copy }, 'Copy key')), note,
+        h('p.bk-warn', 'Keep it safe, like your backup code: anyone with this key can post as you.')] : h('p.sub-note', 'You are not on the global boards yet. Turn Global boards on in Settings, or sign in below.'),
+      h('h3.bk-h', 'Sign in with a pilot key'), h('p.sub-note', 'Paste the key from your other device. This device then posts as that pilot and takes their callsign; its own progress stays as it is.'), input, err, go,
+      h('div.modal-actions', h('button.btn.primary', { onclick: () => showSettings(false), 'data-autofocus': '' }, 'Done')));
+    mount('backup', el, (e) => { if (e.key === 'Escape') { showSettings(false); return true; } return false; });
+  }
+  function confirmSignIn(id, who) {
+    const name = who.name + (who.tag ? ' #' + who.tag : '') + (who.role ? ' · ' + who.role.toUpperCase() : '');
+    const el = h('div.modal.confirm', { role: 'alertdialog', 'aria-label': 'Sign in as this pilot?' },
+      h('div.modal-head', h('div.kicker', 'Pilot key'), h('h2', `Sign in as ${name}?`),
+        h('p', [who.station ? `Station ${who.station}. ` : '', who.best ? `Best on the all-time board: ${fmtInt(who.best)}. ` : '', 'This device will post as this pilot from now on and take their callsign. Scores already posted from this device stay with its old pilot.'].join(''))),
+      h('div.modal-actions', h('button.btn.ghost', { onclick: () => showPilotKey(), 'data-autofocus': '' }, 'Cancel'),
+        h('button.btn.gold', { onclick: () => { signIn(G.state, id, who); playSfx('unlock'); hooks.saveNow?.('signin'); hooks.toast?.(`Signed in as ${who.name}. Your scores go up under this pilot now.`, 'good'); showPilotKey(`Signed in as ${name}.`); } }, 'Sign in')));
+    mount('confirm', el, (e) => { if (e.key === 'Escape') { showPilotKey(); return true; } return false; });
   }
   function confirmRestore(s) {
     const el = h('div.modal.confirm', { role: 'alertdialog', 'aria-label': 'Restore this save?' },

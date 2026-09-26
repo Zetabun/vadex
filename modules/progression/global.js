@@ -31,6 +31,21 @@ function newId() {
 export const pilotId = (st = G.state) => (gl(st).id ||= newId());
 /** The name the boards show for this pilot: their callsign, or Pilot without one. */
 export const boardName = (st = G.state) => st.pilot?.name || 'Pilot';
+// ------------------------------------------------------------------ the pilot key: signing in elsewhere
+// The key is this device's id, shown in groups of four. Entered on another device (or after a fresh save), that
+// device becomes the same pilot on the boards: name, tag, badge, role and scores. Its own save is untouched.
+export const formatKey = (id) => (id || '').toUpperCase().match(/.{1,4}/g)?.join('-') || '';
+/** A typed or pasted key as an id (32 hex characters, any spacing or dashes), or '' if it is not one. */
+export function parseKey(text) { const hex = String(text || '').toLowerCase().replace(/[^0-9a-f]/g, ''); return /^[0-9a-f]{32}$/.test(hex) ? hex : ''; }
+/** Whose key it is: { name, tag, station, rank, role, best }, or rejects ('unknown' when no pilot has it). */
+export const lookupPilot = (id) => send('/pilot?p=' + id);
+/** Become that pilot on this device. Scores already posted from here stay with the old id. */
+export function signIn(st, id, who = {}) {
+  const g = gl(st); Object.assign(g, { id, told: true, best: who.best || 0, pending: [], forget: false, tag: who.tag || '', shownAs: who.name || '' });
+  st.settings.globalBoards = true; if (who.name && who.name !== 'Pilot') { st.pilot.name = who.name; st.seen.callsign = true; }
+  cache.clear(); bus.emit('globalSignedIn', who); return g;
+}
+
 /** A board to look at: 'today' and 'yday' are the Daily Sortie's (by this device's calendar, like the Daily itself). */
 export const boardOf = (tab, now = new Date()) => (tab === 'all' ? 'all' : dailyBoard(tab === 'yday' ? prevDayKey(dayKey(now)) : dayKey(now)));
 
