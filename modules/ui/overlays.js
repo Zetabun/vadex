@@ -162,6 +162,7 @@ export function createOverlays(layer, hooks) {
       field('Screen shake', toggle(() => s.shake, set('shake'), 'Screen shake')),
       field('Vibration', toggle(() => s.haptics !== false, set('haptics'), 'Vibration')),
       field('Damage numbers', toggle(() => s.dmgNumbers, set('dmgNumbers'), 'Damage numbers')),
+      field('Enemy shots', select([['red', 'Red'], ['flash', 'Red, flashing'], ['type', 'By type']], () => s.shotStyle || 'red', set('shotStyle'), 'Enemy shots')), /* how visible enemy fire is (rendering/renderer.js) */
       field('Scanlines', toggle(() => s.scanlines, set('scanlines'), 'Scanlines')),
       field('Graphics', select([['auto', 'Auto'], ['high', 'High'], ['low', 'Low']], () => s.quality, set('quality'), 'Graphics quality')),
       field('Number format', select([['suffix', '1.2K'], ['sci', '1.2e3']], () => s.notation, (v) => { s.notation = v; hooks.applySettings?.(); }, 'Number format')));
@@ -428,13 +429,15 @@ export function createOverlays(layer, hooks) {
   }
 
   // ------------------------------------------------------------ a menu opening for the first time
+  /** A menu or feature explained, once. Returns false if something else is on screen (the caller tries again later). */
   function showMenuIntro(m) {
-    if (!m || open) return;
+    if (!m || open) return false;
     const el = h('div.modal.confirm.menu-intro', { role: 'dialog', 'aria-label': m.title },
       h('div.mi-icon', uiIcon(m.icon)), h('div.modal-head', h('div.kicker', m.kicker || 'New menu'), h('h2', m.title), h('p', m.text)),
+      m.steps ? h('ol.mi-steps', m.steps.map((s, i) => h('li.mi-step', art(s.art, 'mi-step-ico'), h('div', h('b', `${i + 1} · ${s.b}`), h('small', s.t))))) : null, /* a how-to in steps */
       h('div.modal-actions', h('button.btn.primary', { onclick: close, 'data-autofocus': '' }, 'Got it')));
     mount('menu-intro', el, (e) => { if (e.key === 'Escape' || e.key === 'Enter') { close(); return true; } return false; });
-    playSfx('unlock', 0.7);
+    playSfx('unlock', 0.7); return true;
   }
 
   // ------------------------------------------------------------ a room aboard, opened by the Overhaul just made

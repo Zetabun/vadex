@@ -55,6 +55,7 @@ export function updateEnemies(w, dt) {
         const dx = e.aimX - e.x; e.x += Math.sign(dx) * Math.min(Math.abs(dx), d.speed * 0.6 * edt) + Math.sin(e.t * 5) * 8 * edt * (def.dive ? 1 : 0);
         e.y -= d.speed * edt; e.rot += edt * 6;
         if (def.kamikaze && Math.hypot(e.x - p.x, e.y - p.y) < e.r + p.r + 1) { hurtPlayer(w, d.dmg, e); e.rewardMul = 0; killEnemy(w, e, null, false, 0); continue; }
+        if (def.dive && p.alive && Math.hypot(e.x - p.x, e.y - p.y) < e.r + p.r) { hurtPlayer(w, BAL.diverRam, e); e.rewardMul = 0; killEnemy(w, e, null, false, 0); continue; } /* a Stooper diving into the ship crashes into it */
         if (e.y < -8) { if (def.kamikaze) { e.rewardMul = 0; e.alive = false; continue; } e.y = FIELD.H + 10; e.state = 'form'; }
       } else if (e.state === 'path') { // Counterattack squads fly scripted lines and simply leave at the end
         if (!movePath(e, edt, p)) { e.rewardMul = 0; e.alive = false; continue; } alive++;

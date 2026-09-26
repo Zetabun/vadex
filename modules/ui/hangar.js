@@ -144,7 +144,8 @@ export function createHangar(hooks) {
     // With Records open, the pilot joins the global boards (progression/global.js): told once, and their best goes up.
     if (menuState('records') === 'open' && tell(G.state)) { G.state.seen.records = false; flush(G.state); const who = boardName(G.state);
       setTimeout(() => bus.emit('notice', { kind: 'unlock', kicker: 'New', title: 'Global boards', sub: `Your Daily and best scores now go up as ${who}. See where you stand in Records, or on the Deck TV.`, art: 'ach:trophy' }), 900); }
-    if (id === 'ships' && G.state.seen.materials && !G.state.seen.refits) { G.state.seen.refits = true; setTimeout(() => hooks.menuIntro?.({ icon: 'ships', kicker: 'New', title: 'Ship refits', text: 'Each ship now has five refits of its own, paid in materials: Alloy from sectors 1-2, Crystal from 3-4, Void shards from 5-6 and the Deep Void. Warping past a stretch means going without its material. Find them on each hull\'s card, further down. Each takes a while in the dock (20 minutes for the first, up to 3 hours for the last), one at a time, and that ship cannot fly till it is done: take her out early if you need her, and the refit waits. A refit counts while you fly that ship, and an Overhaul leaves it alone. Tap your salvage at the top of the screen any time to see everything you hold.' }), 350); }
+    if (id === 'ships' && G.state.seen.materials && !G.state.seen.refits) { /* how refits work, once it has actually been shown (not while something else is on screen) */
+      const tryIntro = (n) => setTimeout(() => { if (G.state.seen.refits || tab !== 'ships') return; if (hooks.menuIntro?.({ ...REFITS_HOW, kicker: 'New' })) G.state.seen.refits = true; else if (n < 6) tryIntro(n + 1); }, n ? 1500 : 350); tryIntro(0); }
     // A menu the pilot has not earned yet stays shut (with a note on when it opens); a newly opened one explains itself once.
     if (menuState(id) === 'locked') { if (!quiet) { playSfx('deny'); hooks.toast?.(menuLockText(id), 'info'); } if (tab !== id) return; id = 'launch'; }
     if (menuState(id) === 'new') { menuSeen(id); setTimeout(() => hooks.menuIntro?.(MENU_BY_ID[id]), 150); }
@@ -368,6 +369,13 @@ export function createHangar(hooks) {
    *  the refit under way, if she is in the dock (take her out to fly her: it waits). */
   const mins = (m) => (m >= 60 ? `${Math.floor(m / 60)}h ${String(Math.round(m % 60)).padStart(2, '0')}m` : `${Math.max(1, Math.ceil(m))}m`);
   const dockName = () => (yardOpen(G.state) ? 'the dry dock' : 'the hangar');
+  /** How refits work, in three steps: the first time the Ships menu has them, and again from any ship's Refits panel. */
+  const REFITS_HOW = { icon: 'ships', kicker: 'Ship refits', title: 'Make your ships stronger', text: 'Every ship has five refits of its own, paid for with the materials you bring home.',
+    steps: [
+      { art: 'mat:alloy', b: 'Bring home materials', t: 'Invaders drop them as you fight: Alloy in sectors 1 and 2, Crystal in 3 and 4, Void shards in 5, 6 and the Deep Void. Tap your salvage at the top to see what you hold.' },
+      { art: 'ship:vanguard', b: 'Refit a ship', t: 'Open Ships and scroll down a ship\u2019s card to Refits. Each refit makes that ship stronger for good, even through an Overhaul.' },
+      { art: 'ach:wrench', b: 'Give it time in the dock', t: 'The first takes 20 minutes, the last 3 hours, one ship at a time. Fly another meanwhile, or take her out early: the refit waits for her.' },
+    ] };
   function refitBlock(s) {
     const st = G.state, lvl = refitLevel(st, s.id), next = refitNext(st, s.id), m = mats(st), pips = h('div.lvl-pips'); for (let i = 0; i < REFIT_MAX; i++) pips.append(h('i' + (i < lvl ? '.on' : '')));
     const done = Array.from({ length: lvl }, (_, i) => refitStep(s.id, i + 1).line), p = refitProgress(st), mine = p?.ship === s.id;
@@ -376,7 +384,7 @@ export function createHangar(hooks) {
       let also = ''; if (st.ship === s.id) { const other = SHIPS.find((o) => o.id !== s.id && st.unlocked.ships[o.id] && selectShip(o.id)); also = other ? ` You're flying the ${other.name} meanwhile.` : ' She is your only ship: take her out when you want to fly, and the refit waits.'; }
       hooks.toast?.(`The ${s.name} is in ${dockName()}: ${got.name}, ready in ${mins(got.mins)}.${also}`, 'good'); render();
     };
-    const head = h('div.rf-head', h('small', 'Refits'), pips, h('span', `${lvl}/${REFIT_MAX}`));
+    const head = h('div.rf-head', h('small', 'Refits'), pips, h('span', `${lvl}/${REFIT_MAX}`), h('button.link.rf-how', { onclick: () => { playSfx('tab'); hooks.menuIntro?.(REFITS_HOW); } }, 'How refits work'));
     if (mine) {
       const act = p.out ? h('button.btn.ghost.small.rf-go', { onclick: () => { redock(st); playSfx('tab'); hooks.saveNow?.('refit'); render(); } }, 'Back in the dock')
         : h('button.btn.ghost.small.rf-go', { onclick: () => takeOutConfirm(s, () => render()) }, 'Take her out');

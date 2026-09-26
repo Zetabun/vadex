@@ -37,6 +37,8 @@ import { playSfx } from '@last-orbit/audio/audio.js';
 
 const CAP = { swarm: 110, scout: 70, weaver: 70, plate: 60, armourPlate: 12, turret: 12, wyrmSeg: 16, rocket: 30 };
 const TEXT_FONTS = { 11: '700 11px "Chakra Petch",sans-serif', 14: '700 14px "Chakra Petch",sans-serif', 17: '700 17px "Chakra Petch",sans-serif' };
+const LOOT_GREEN = rgb(0x6dff8e); // the repair kit (red is the enemy's colour)
+const SHOT_RED = rgb(0xff3344); // enemy fire: a true red, well clear of the pink Crystal and the violet Shard
 const RED = rgb(0xff4d7a), AMBER = rgb(0xffb547), CYAN = rgb(0x5ee6ff), GOLD = rgb(0xffd700), VIOLET = rgb(0xc77dff);
 const SCRAP = rgb(0xc9d5df), REPAIR = rgb(0x80ffd2), XPC = rgb(0x6dffc8);
 const MATC = Object.fromEntries(MATERIALS.map((m) => [m.id, rgb(m.color)])); /* material pickups, each in its own colour */
@@ -362,12 +364,23 @@ export class Renderer {
       else if (s.kind === 'mine') { const k = 1 + 0.25 * Math.sin(w.t * 8 + i); B.soft.add(s.x, s.y, r * 3.2 * k, r * 3.2 * k, 0, c, 1); B.ring.add(s.x, s.y, r * 2.6, r * 2.6, w.t, c, 0.8); }
       else { B.soft.add(s.x, s.y, r * 4.5, r * 4.5, 0, c, 1.1); B.soft.add(s.x, s.y, r * 2, r * 2, 0, WHITE, 1); }
     }
-    for (let i = 0; i < w.ebullets.length; i++) { const b = w.ebullets[i]; if (!b.alive) continue; const c = BULLET_COL[b.kind] || RED, r = b.r;
+    // Settings > Enemy shots: red (the default: red means danger, and only enemy fire is red), red and flashing (pulsing
+    // to white, for the most visibility, as in The Binding of Isaac), or by type (pink, orange, violet).
+    const style = G.state?.settings?.shotStyle || 'red', flash = style === 'flash', pulse = flash ? 0.5 + 0.5 * Math.sin(w.t * 22) : 0;
+    const shotCol = style === 'type' ? null : flash ? this.flashCol(pulse) : SHOT_RED;
+    for (let i = 0; i < w.ebullets.length; i++) { const b = w.ebullets[i]; if (!b.alive) continue; const c = shotCol || BULLET_COL[b.kind] || RED, r = b.r * (flash ? 1 + 0.15 * pulse : 1);
       if (this.overGround) B.dark.add(b.x, b.y, r * 4.4, r * 4.4, 0, WHITE, 1);
       if (b.kind === 'snipe') { B.streak.add(b.x, b.y, r * 9, r * 2, Math.atan2(b.vy, b.vx), RED, 1.5); B.streak.add(b.x, b.y, r * 5, r, Math.atan2(b.vy, b.vx), WHITE, 1); }
-      else { const g = this.overGround ? 1.25 : 1; B.soft.add(b.x, b.y, r * 5 * g, r * 5 * g, 0, c, 1.15 * g); B.soft.add(b.x, b.y, r * 2.1 * g, r * 2.1 * g, 0, WHITE, 1.2); }
+      else { // an enemy shot: a trail behind it (it is moving, and at you), a dark rim, a hot core; drops never look like this
+        const g = this.overGround ? 1.25 : 1, sp = Math.hypot(b.vx, b.vy) || 1, tl = r * 5.5 * g;
+        B.streak.add(b.x - (b.vx / sp) * tl * 0.5, b.y - (b.vy / sp) * tl * 0.5, tl, r * 1.5 * g, Math.atan2(b.vy, b.vx), c, 0.6);
+        if (!this.overGround) B.dark.add(b.x, b.y, r * 3.4, r * 3.4, 0, WHITE, 0.85);
+        B.soft.add(b.x, b.y, r * 4.4 * g, r * 4.4 * g, 0, c, 1.1 * g); B.soft.add(b.x, b.y, r * 2.1 * g, r * 2.1 * g, 0, WHITE, 1.2); }
     }
   }
+
+  /** Red washing to white as a flashing shot pulses (reused: the pulse is the same for every shot in a frame). */
+  flashCol(k) { const f = (this._flash ||= [0, 0, 0]); for (let j = 0; j < 3; j++) f[j] = SHOT_RED[j] + (1 - SHOT_RED[j]) * k; return f; }
 
   drawHazards(w) {
     const B = this.B, t = w.t;
@@ -392,12 +405,15 @@ export class Renderer {
 
   drawPickups(w) {
     const B = this.B, t = w.t;
-    for (let i = 0; i < w.pickups.length; i++) { const p = w.pickups[i], s = p.big ? 1.45 : 1, bob = 1 + 0.12 * Math.sin(t * 9 + i);
-      if (p.kind === 'xp') { B.soft.add(p.x, p.y, 4.2 * s * bob, 4.2 * s * bob, 0, XPC, 0.8); B.ore.add(p.x, p.y, 2.2 * s, 2.2 * s, t * 3 + i, XPC, 1); }
-      else if (p.kind === 'salvage') { B.soft.add(p.x, p.y, 5.5 * s * bob, 5.5 * s * bob, 0, AMBER, 0.75); B.ore.add(p.x, p.y, 3.2 * s, 3.2 * s, t * 2 + i, GOLD, 1); }
-      else if (p.kind === 'mat') { const c = MATC[p.m] || VIOLET; B.soft.add(p.x, p.y, 5.6 * s * bob, 5.6 * s * bob, 0, c, 0.85); B.ore.add(p.x, p.y, 2.9 * s, 2.9 * s, t * 2.6 + i, c, 1); B.ring.add(p.x, p.y, 4.6 * s, 4.6 * s, -t * 1.8 + i, c, 0.55); }
-      else { B.soft.add(p.x, p.y, 6 * bob, 6 * bob, 0, RED, 0.9); B.soft.add(p.x, p.y, 2.4, 2.4, 0, WHITE, 1); B.ring.add(p.x, p.y, 5.5, 5.5, t * 2, RED, 0.8); }
-      if (p.pull && Math.random() < 0.25) this.parts.emit(p.x, p.y, -p.vx * 0.05, -p.vy * 0.05, 0.25, 1.1, p.kind === 'xp' ? XPC : p.kind === 'mat' ? MATC[p.m] || VIOLET : AMBER, 0);
+    // Drops look like loot, never like shots: a solid faceted shape bobbing gently, a soft glow with no white-hot core, a
+    // thin white sparkle ring turning slowly, and now and then a glint. The repair kit is a green cross.
+    for (let i = 0; i < w.pickups.length; i++) { const p = w.pickups[i], s = p.big ? 1.45 : 1, y = p.y + Math.sin(t * 3.2 + i * 1.3) * 0.7 * s;
+      const glint = Math.pow(Math.max(0, Math.sin(t * 2.4 + i * 1.7)), 12), spark = (sz) => { B.ring.add(p.x, y, sz, sz, t * 1.2 + i, WHITE, 0.3); if (glint > 0.05) { B.streak.add(p.x, y, sz * 1.5, 0.45, 0, WHITE, glint); B.streak.add(p.x, y, sz * 1.5, 0.45, Math.PI / 2, WHITE, glint); } };
+      if (p.kind === 'xp') { B.soft.add(p.x, y, 3.4 * s, 3.4 * s, 0, XPC, 0.55); B.ore.add(p.x, y, 2.3 * s, 2.3 * s, t * 3 + i, XPC, 1); }
+      else if (p.kind === 'salvage') { B.soft.add(p.x, y, 4.4 * s, 4.4 * s, 0, AMBER, 0.45); B.ore.add(p.x, y, 3.4 * s, 3.4 * s, t * 2 + i, GOLD, 1); spark(5.2 * s); }
+      else if (p.kind === 'mat') { const c = MATC[p.m] || VIOLET; B.soft.add(p.x, y, 4.4 * s, 4.4 * s, 0, c, 0.5); B.ore.add(p.x, y, 3.1 * s, 3.1 * s, t * 2.6 + i, c, 1); B.ring.add(p.x, y, 4.6 * s, 4.6 * s, -t * 1.8 + i, c, 0.55); spark(6.2 * s); }
+      else { B.soft.add(p.x, y, 5.2, 5.2, 0, LOOT_GREEN, 0.55); B.streak.add(p.x, y, 4.6, 1.6, 0, LOOT_GREEN, 1.2); B.streak.add(p.x, y, 4.6, 1.6, Math.PI / 2, LOOT_GREEN, 1.2); B.streak.add(p.x, y, 3.2, 0.7, 0, WHITE, 1); B.streak.add(p.x, y, 3.2, 0.7, Math.PI / 2, WHITE, 1); spark(6); }
+      if (p.pull && Math.random() < 0.25) this.parts.emit(p.x, p.y, -p.vx * 0.05, -p.vy * 0.05, 0.25, 1.1, p.kind === 'xp' ? XPC : p.kind === 'mat' ? MATC[p.m] || VIOLET : p.kind === 'repair' ? LOOT_GREEN : AMBER, 0);
     }
   }
   drawBarriers(w) {

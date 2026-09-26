@@ -400,6 +400,8 @@ function runScene(scene, hooks, ui) {
   }
   if (arg === 'locked') { st.unlocked.weapons = { cannon: 1, laser: 1 }; st.unlocked.abilities = { overdrive: 1 }; }
   // A tab scene can scroll to a section by its heading: ships:engine shows the engine trails.
+  // refits: the Ships menu the first time it has refits (their how-to in steps)
+  if (name === 'refits') { for (const r of ROOMS_ABOARD) (st.seen.offered ||= {})[r.id] = true; st.seen.materials = true; st.seen.refits = false; hooks.toHangar('ships'); return; }
   // pilotkey: Settings > Pilot key (the key, and signing in with another)
   if (name === 'pilotkey') { for (const r of ROOMS_ABOARD) (st.seen.offered ||= {})[r.id] = true; st.global.told = true; hooks.toHangar('launch'); setTimeout(() => { document.querySelector('.gear-btn')?.click(); setTimeout(() => [...document.querySelectorAll('.settings .field button')].find((x) => x.textContent.startsWith('Show'))?.click(), 300); }, 600); return; }
   // updates[:settings]: Settings open on its Updates tab (or on Settings, to see the tab's "!"), with a new update to hear about
@@ -446,6 +448,12 @@ function runScene(scene, hooks, ui) {
   else if (name === 'loadout') { const run = st.run; run.order.push('laser'); run.weapons.laser = 4; run.weapons.cannon = 3; run.relics.push('r_glass'); run.cards = { m_dmg: 2, m_crit: 1, m_hull: 1 }; run.abilities.push('emp'); recalc();
     run.offer = null; run.pendingLevels = 0; ui.closeOverlays();
     setTimeout(() => { const g = document.querySelector('#dock .stack'); if (g) { const r = g.getBoundingClientRect(); ui.tapHud(r.left + 20, r.top + 20); } }, 800); }
+  // drops[:sector]: every pickup (top row: XP, salvage, big salvage, Alloy, Crystal, Shard, repair kit) above every enemy
+  // bullet (bottom row: bolt, heavy, orb, sniper), frozen mid-field, to check they can be told apart
+  else if (name === 'drops') { const w = G.world; if (arg2) st.settings.shotStyle = arg2; /* drops:<sector>:<red|flash|type> */ st.run.wave = [1, 11, 21, 31, 41, 51][+arg || 1] || 11; setTimeout(() => { w.enemies.length = 0; w.ebullets.length = 0; w.pickups.length = 0; w.wave.state = 'idle'; w.wave.timer = 999;
+      [['xp'], ['salvage'], ['salvage', 1], ['mat', 0, 'alloy'], ['mat', 0, 'crystal'], ['mat', 0, 'shard'], ['repair']].forEach(([k, big, m], i) => { spawnPickup(w, k, -36 + i * 12, 70, 1, big ? 2 : 0, m); });
+      for (const q of w.pickups) { q.vx = q.vy = 0; q.x = q.x0 ?? q.x; } ['bolt', 'heavy', 'orb', 'snipe'].forEach((kind, i) => w.ebullets.push({ x: -24 + i * 16, y: 45, vx: 0, vy: -1e-6, r: kind === 'heavy' ? 1.6 : 1.1, kind, alive: true, dmg: 0 }));
+      G.debugSpeed = 0; }, 1500); }
   else if (name === 'stress') {
     // Late-game load: wave 34, four rank-7 guns, relics and drones, autopilot on.
     const run = st.run; run.order = ['cannon', 'laser', 'missile', 'tesla']; for (const id of run.order) run.weapons[id] = 7;

@@ -398,6 +398,7 @@ fresh(); run = launch(); step(TICK); { const p = G.world.player, x0 = p.x; G.wor
 
 // ---- v2.4: boss intel ----
 { fresh(); G.state.stats.sectorsCleared = 3; G.state.warp = 4; run = launch(); const { debugSetWave } = await import('@last-orbit/combat/sim.js');
+  run.pendingLevels = 0; run.pendingRelics = 0; run.offer = null; /* the warp's catch-up picks: waves wait for choices (v2.25.1) */
   debugSetWave(40); for (let i = 0; i < 400 && !G.world.wave.boss; i++) step(TICK); const boss = G.world.wave.boss; assert.ok(boss, 'Wave 40 has a boss');
   const p = G.world.player; p.invuln = 0; p.shield = 0; p.lastStand = false; run.windUsed = true; hurtPlayer(G.world, 1e9); for (let i = 0; i < 400 && G.state.run; i++) step(TICK);
   const intel = G.state.intel[boss.boss.id]; assert.equal(intel, 1, 'Dying to a sector boss records intel');

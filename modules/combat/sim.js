@@ -75,6 +75,9 @@ export function advance(seconds) {
   return n;
 }
 
+/** Whether the pilot still has a choice to make (cards from a level-up, a relic, a route, an anomaly). The next wave
+ *  waits for them: XP orbs landing after a wave is cleared used to level the ship up just as the next one began. */
+const choosing = (run) => run.pendingLevels > 0 || !!run.offer || run.pendingRelics > 0 || !!run.relicOffer || !!run.pendingRoute || !!run.routeOffer || !!run.pendingAnomaly || !!run.anomalyOffer;
 export function step(dt) {
   const w = G.world, st = G.state, run = st.run, ws = w.wave;
   snapshot(w); w.t += dt; ws.t += dt;
@@ -85,7 +88,7 @@ export function step(dt) {
   updatePlayer(w, dt); updatePassives(w, dt); updateAbilities(w, dt);
   if (w.counter) counterStep(w, dt, afterDeath);
   else switch (ws.state) {
-    case 'idle': ws.timer -= dt; updatePickups(w, dt); if (ws.timer <= 0) startWave(w); break;
+    case 'idle': ws.timer -= dt; updatePickups(w, dt); if (ws.timer <= 0 && !choosing(run)) startWave(w); break;
     case 'fighting': {
       spawnPending(w, dt);
       rebuildBuckets(w);
@@ -95,7 +98,7 @@ export function step(dt) {
       let live = 0; for (let i = 0; i < w.enemies.length; i++) { const e = w.enemies[i]; if (e.alive && !e.def.projectile && !(e.def.cruiser && ws.info.kind !== 'resource')) live++; }
       if (live === 0 && !ws.pending.length && ws.t > 0.5) clearWave(w);
       break; }
-    case 'cleared': updateWeapons(w, dt); updateDrones(w, dt); updateBullets(w, dt); updateEnemies(w, dt); updatePickups(w, dt); ws.timer -= dt; if (ws.timer <= 0 && !w.pickups.length) startWave(w); break;
+    case 'cleared': updateWeapons(w, dt); updateDrones(w, dt); updateBullets(w, dt); updateEnemies(w, dt); updatePickups(w, dt); ws.timer -= dt; if (ws.timer <= 0 && !w.pickups.length && !choosing(run)) startWave(w); break;
     case 'dead': updateBullets(w, dt); updateEnemies(w, dt); ws.timer -= dt; if (ws.timer <= 0) afterDeath(w); break;
   }
   for (const b of w.barriers) { if (b.flash > 0) b.flash -= dt; const r = G.sheet.n('barrierRegen'); if (r && b.hp > 0 && b.hp < 1) b.hp = Math.min(1, b.hp + r * dt); }

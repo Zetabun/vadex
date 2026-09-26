@@ -13,3 +13,5 @@ The field kit: `tests/kit-regression.mjs` (in the gate) covers the supply meter,
 What's new: debug scene `updates[:settings|gear]` opens Settings on its Updates tab (or on Settings, or just shows the gear's "!"). For a release version the gate also checks the patch notes and docs: a dated `## vX.Y.Z — YYYY-MM-DD` entry in `CHANGELOG.md`, that entry in `modules/data/updates.js`, and "Current build" in `AGENTS.md` and `README.md` plus the `BUILD_NOTES.md` heading.
 
 Pilot keys: debug scene `pilotkey` opens Settings > Pilot key (add `&api=http://127.0.0.1:8787` for a debug save to have a key of its own). `tests/api-regression.mjs` covers the pilot lookup, reserved and staff-sounding names; `tests/global-regression.mjs` covers the key's format and signing in.
+
+Playtest fixes: `tests/playtest-regression.mjs` (in the gate) checks that the next wave waits for the pilot's choices, that a diving Stooper crashes into the ship, and that boss shots go through `bossShot`. Debug scene `drops[:sector[:red|flash|type]]` freezes every pickup above every enemy shot to compare them (in each Enemy shots style); `refits` opens the Ships menu with its refits explainer due.

@@ -1,5 +1,19 @@
 # Changelog
 
+## v2.25.1 — 2026-09-26
+
+Changes from playtesting.
+
+- **Drops no longer look like enemy fire.** Enemy shots now trail behind them and have a dark rim around a hot core, so you can see they're incoming. Drops are solid shapes that bob gently, with a white sparkle ring and a glint now and then. The repair kit is now a green cross; red is only ever the enemy's colour.
+- **Enemy shots are red, with a Settings option to make them flash.** All enemy fire is now red by default, the colour that means danger, and nothing else in a battle is red. Settings > Enemy shots can make them pulse between red and white for the most visibility, or bring back the old colours by type.
+- **The rocks in the background are clearly background.** In the Lunar Graveyard they sit further back, smaller, fainter and slower. They were never dangerous, but they looked like they might be.
+- **Fixed: the next wave no longer starts while you're choosing cards.** When XP orbs landed just as a wave was cleared, the next wave could march in before, or between, your level-up choices. Now it waits until every card, relic and route choice is made.
+- **Boss shots hit harder,** half as hard again as an invader's, and they're drawn a little bigger so you can tell them apart.
+- **Diving enemies crash into you.** A Stooper that dives into your ship now does real damage and is destroyed. A Lancer's suicide run hits harder (6 damage, up from 4). Kill them or dodge them.
+- **Refits explained properly.** The first time refits appear, they're explained in three short steps: bring home materials, refit a ship, give it time in the dock. Every ship's Refits panel has a "How refits work" link to see them again. The explanation now waits if something else is on screen, instead of being missed.
+- **Fixed: menus no longer show the station's debris through their bottom edge.** Where a menu list fades out at the bottom (more to scroll), it now fades into darkness instead of into the scene behind, which looked like sparks sitting on top of the menu.
+- Balance check (bots, median wave reached): new pilot 30 → 27, mid-game 40 → 40, maxed Workshop 53 → 50.
+
 ## v2.25.0 — 2026-09-26
 
 - **Pilot key: sign in to your place on the global boards.** Settings > Pilot key shows a key for your pilot on the boards: your name, tag, rank badge and scores. Copy or share it and keep it safe, like your backup code. On another device, or after starting a fresh save, paste it under "Sign in with a pilot key": the game shows whose it is, and once you confirm, that device posts as you and takes your callsign. Its own progress stays as it is, unlike a backup code, which brings a whole save across.

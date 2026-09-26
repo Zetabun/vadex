@@ -17,7 +17,7 @@ export function newState() {
   return {
     v: SCHEMA,
     meta: { created: now, lastSave: now, playTime: 0, sandbox: false, legacyChecked: false, introSeen: false, lastBackup: 0, seenUpdate: '' }, // seenUpdate: the last update read about (progression/updates.js)
-    settings: { master: 0.7, music: 0.5, sfx: 0.8, shake: true, dmgNumbers: true, scanlines: false, quality: 'auto', notation: 'suffix', speed: 1, holdSides: true, haptics: true, globalBoards: true },
+    settings: { master: 0.7, music: 0.5, sfx: 0.8, shake: true, dmgNumbers: true, scanlines: false, quality: 'auto', notation: 'suffix', speed: 1, holdSides: true, haptics: true, globalBoards: true, shotStyle: 'red' }, // shotStyle: enemy shots red, flashing or by type
     salvage: 0,
     ship: 'vanguard',
     pilot: { rank: 1, xp: 0, name: '' }, // name: the pilot's callsign, asked for on first launch
