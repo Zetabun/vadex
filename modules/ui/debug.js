@@ -19,6 +19,7 @@ import { STAGE_BY_N } from '@last-orbit/data/counter.js';
 import { ENEMIES } from '@last-orbit/data/enemies.js';
 import { LINES } from '@last-orbit/ui/comms.js';
 import { powerRating, refreshMenus } from '@last-orbit/progression/meta.js';
+import { CREW_LOOKS, buildSurvivor } from '@last-orbit/rendering/crew.js';
 import { kitFrom } from '@last-orbit/data/turret.js';
 import { SIEGE_TIERS } from '@last-orbit/data/siege.js';
 import { refreshBounties, checkBounties, claimBounty } from '@last-orbit/progression/bounties.js';
@@ -242,6 +243,13 @@ function runScene(scene, hooks, ui) {
     if (view) { let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 60) setTimeout(place, 100); return; } r.pos.set(view[0], 0, view[1]); r.yaw = view[2]; r.pitch = view[3]; }; place(); }
     if (a === 'tap') setTimeout(() => ui.tap?.(b || 'bed0'), 1500); else if (view && b === 'tap') setTimeout(() => ui.tap?.((wing ? arg4 : arg3) || 'water'), 1500); /* <view>:tap:<exhibit>: from that view */
     return; }
+  // crew[:line|wide|close|close2][:visor]: a look at survivors who might one day live aboard (not in the game yet), four of
+  // them in the Greenhouse. line (the default): side by side in the second wing, for a good look; wide: at work in the old
+  // bay (watering, at the bench, reading, sitting on the planter); close, close2: nearer, two at a time. visor: helmets
+  // instead of faces.
+  if (name === 'crew') { const visor = arg === 'visor' || arg2 === 'visor', view = arg && arg !== 'visor' ? arg : 'line';
+    runScene(view === 'wide' ? 'garden' : 'garden:wing', hooks, ui); let tries = 0;
+    const go = () => { const r = G.renderer?.room; if (!r?.sprig) { if (tries++ < 80) setTimeout(go, 100); return; } crewLook(r, view, visor); }; setTimeout(go, 200); return; }
   if (name === 'beacons') { const num = (v) => v != null && v !== '' && !isNaN(+v), won = num(arg) ? +arg : arg === 'tap' ? (num(arg3) ? +arg3 : 2) : num(arg2) ? +arg2 : 2, more = num(arg) && num(arg2) ? +arg2 : 1;
     st.pilot.name = 'Adam'; st.seen.callsign = true; st.seen.beacons = arg !== 'intro'; st.prestige.level = 8; st.stationName = 'Halcyon'; st.stats.bestWave = 96; st.stats.bestSector = 9;
     for (const l of LINES) st.seen.comms[l.id] = 1; st.seen.commsInit = true; st.beacons = { beaten: {} };
@@ -360,4 +368,14 @@ function runScene(scene, hooks, ui) {
     setInterval(() => { if (st.run?.offer) st.run.offer = null, st.run.pendingLevels = 0; if (st.run) st.run.pendingRelics = 0; if (st.run?.relicOffer) st.run.relicOffer = null; ui.closeOverlays?.(); const p = G.world?.player; if (p) { p.hull = 1; p.invuln = 1; } }, 200);
   }
   else if (name === 'debrief') { st.run.salvage = 812; st.run.weapons.laser = 5; st.run.order.push('laser'); st.run.relics.push('r_glass'); st.run.contractsDone = ['c_wave5', 'c_kills']; st.run.score = 52340; st.run.medalsDone = [{ id: 'a_score', tier: 1, xp: 250 }, { id: 'f_solo', tier: 0, xp: 400 }]; if (arg === 'garden') { st.run.garden = ['sunpetal', 'mistvine']; st.run.seeds = ['emberroot', 'mistvine', 'hivebloom']; } G.world.wave.num = 23; hooks.abandon(); }
+}
+
+/** The crew look test: the four survivors placed and posed in the Greenhouse, moving with the room; the camera set. */
+function crewLook(room, view, visor) {
+  const at = view === 'wide' ? { mara: [0.75, -2.5, -0.14, 'water'], tomas: [2.55, -1.5, Math.PI / 2, 'bench'], anya: [1.9, -2.35, -0.75, 'tablet'], iko: [-0.9, -0.44, -0.87, 'sit'] }
+    : { mara: [-0.72, -6.3, 0.14, 'carry'], tomas: [-0.12, -6.45, 0.03, 'pot'], anya: [0.5, -6.35, -0.1, 'tablet'], iko: [0.98, -6.0, -0.25, 'wave'] };
+  const crew = CREW_LOOKS.map((o) => { const [x, z, yaw, pose] = at[o.id], p = buildSurvivor(o, { visor, pose }); p.position.set(x, 0, z); p.rotation.y = yaw; room.scene.add(p); return p; });
+  const up = room.update.bind(room); room.update = (dt) => { up(dt); for (const p of crew) p.userData.tick(dt, room.cam); };
+  const cam = { line: [0.1, -2.5, 0, -0.1], wide: [-1.4, 1.6, -0.47, -0.15], close: [-0.42, -4.75, 0, -0.1], close2: [0.74, -4.75, 0, -0.1] }[view] || [0.1, -2.5, 0, -0.1];
+  room.pos.set(cam[0], 0, cam[1]); room.yaw = cam[2]; room.pitch = cam[3];
 }
