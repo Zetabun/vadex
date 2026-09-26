@@ -1,5 +1,14 @@
 # Changelog
 
+## v2.19.0 — unreleased
+
+- **Healing is less generous early on.** Hull repairs over time (Nanite Swarm, the Repair Bay, Vampire Coil, Ironclad and the Repair Escort) now pause for 3 seconds after each hit, instead of repairing straight through a fight. Nanite Swarm repairs 0.5% a second (was 0.8%), and lifesteal repairs at most 6% a second (was 8%). Repair kits, the repair after each wave, Second Wind and the full repair at the end of each sector are unchanged, so new pilots' first sorties are no harder.
+- **Nothing crowds the right edge on a phone.** The hangar pages, the debrief and pop-ups no longer show a scroll bar (on an iPhone it sat over the right edge of every panel). Instead, when there is more to see, the last panel fades into the bottom of the screen.
+- **The debrief fits long runs:** a long sortie's time no longer gets cut off (it reads 24:38), a haul in the millions stays beside its coin, and the stat labels read clearly over a bright planet.
+- **Smoother in the rooms aboard, with every effect kept.** Rooms now draw their still parts in far fewer steps: the Greenhouse's second wing needs 128 draw calls a frame instead of 404, the Shipyard 92 instead of 155, and every other room fewer too. The hangar no longer re-measures the page every frame, the effects layer is left alone when there is nothing on it, and the Command Deck's replay TV only plays while it is on screen.
+- The Greenhouse's seed drawer and potting bench no longer sink into the sill along the glass wall.
+- Saves from every release from now on are kept and checked against each new build, so an update can't stop an old save from loading.
+
 ## v2.18.0 — 2026-09-26
 
 - **The Greenhouse (new room aboard, and the first you can walk into):** the old glasshouse on the station's arm. It opens a few sorties in, once every hangar menu has opened and you have cleared sector 1. ORBIT tells you, and the Greenhouse offers the way aboard. Until there is a Command Deck you get there by tapping your station; after that, through a new door on the Deck's back wall, by the lounge.
