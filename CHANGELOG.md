@@ -1,6 +1,6 @@
 # Changelog
 
-## v2.26.1
+## v2.26.1 — 2026-09-26
 
 - **Fixed: your badge on the global boards shows straight away.** After signing in with a pilot key, and whenever you rank up, the game now sends your rank to the boards itself. Before, it only went up with a new best score or when you looked at the boards, so a fresh save with Records still locked could leave you with no badge.
 - tests/global-regression.mjs checks that signing in and ranking up send the rank.
