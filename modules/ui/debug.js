@@ -82,6 +82,10 @@ function runScene(scene, hooks, ui) {
   st.records.top = [48210, 40555, 31204, 22950, 9120].map((score, i) => ({ score, wave: [28, 26, 23, 19, 11][i], ship: i === 1 ? 'striker' : 'vanguard', level: 24 - i * 3, kills: 600 - i * 90, threat: i === 0 ? 2 : 0, daily: i === 2, date: Date.now() - i * 86400000 }));
   st.records.ships = { vanguard: { score: 48210, wave: 28 }, striker: { score: 40555, wave: 26 } }; recalc();
   const [name, arg, arg2, arg3, arg4] = scene.split(':');
+  // &big=1: a late-game pilot's numbers (millions of salvage, long scores, thousands of kills), to check nothing runs off
+  // a phone's screen when the numbers get long (tools/overflow.mjs).
+  const big = /[?&]big=1/.test(location.search);
+  if (big) { st.salvage = 187654321; Object.assign(st.stats, { bestScore: 987654321, kills: 1234567, bestWave: 96, bestKills: 4321, longestRun: 1478, maxLevel: 64, bestSalvage: 23456789, bossKills: 312, sorties: 1234 }); st.prestige.bp = 128; st.counter.cores = 345; recalc(); }
   // Scenes play as an established pilot (every menu open), except newpilot:<sorties>, which shows the menus opening up.
   st.seen.menus = {}; st.seen.menusInit = false; refreshMenus();
   st.seen.offered = { garden: true }; // scenes are not interrupted by the Greenhouse offering the way aboard (garden:offer shows it)
@@ -367,7 +371,7 @@ function runScene(scene, hooks, ui) {
     bus.on('stats', () => { G.sheet.totalN['f.autopilot'] = 1; G.sheet.totalN.autoDodge = 2; }); recalc(); debugSetWave(run.wave);
     setInterval(() => { if (st.run?.offer) st.run.offer = null, st.run.pendingLevels = 0; if (st.run) st.run.pendingRelics = 0; if (st.run?.relicOffer) st.run.relicOffer = null; ui.closeOverlays?.(); const p = G.world?.player; if (p) { p.hull = 1; p.invuln = 1; } }, 200);
   }
-  else if (name === 'debrief') { st.run.salvage = 812; st.run.weapons.laser = 5; st.run.order.push('laser'); st.run.relics.push('r_glass'); st.run.contractsDone = ['c_wave5', 'c_kills']; st.run.score = 52340; st.run.medalsDone = [{ id: 'a_score', tier: 1, xp: 250 }, { id: 'f_solo', tier: 0, xp: 400 }]; if (arg === 'garden') { st.run.garden = ['sunpetal', 'mistvine']; st.run.seeds = ['emberroot', 'mistvine', 'hivebloom']; } G.world.wave.num = 23; hooks.abandon(); }
+  else if (name === 'debrief') { st.run.salvage = 812; st.run.weapons.laser = 5; st.run.order.push('laser'); st.run.relics.push('r_glass'); st.run.contractsDone = ['c_wave5', 'c_kills']; st.run.score = 52340; st.run.medalsDone = [{ id: 'a_score', tier: 1, xp: 250 }, { id: 'f_solo', tier: 0, xp: 400 }]; if (arg === 'garden') { st.run.garden = ['sunpetal', 'mistvine']; st.run.seeds = ['emberroot', 'mistvine', 'hivebloom']; } if (big) { st.run.salvage = 23456789; st.run.score = 987654321; st.run.level = 64; st.run.stats.kills = 4321; st.run.stats.bossKills = 9; st.run.time = 1478; } G.world.wave.num = big ? 96 : 23; hooks.abandon(); }
 }
 
 /** The crew look test: the four survivors placed and posed in the Greenhouse, moving with the room; the camera set. */

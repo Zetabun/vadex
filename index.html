@@ -170,8 +170,12 @@ select{background:var(--solid);color:var(--ink);border:1px solid var(--line2);bo
 .brand{flex:1;display:flex;flex-direction:column;line-height:1}
 .brand b{white-space:nowrap;font:700 22px var(--disp);letter-spacing:.16em;color:var(--ink);text-shadow:0 0 22px rgba(94,230,255,.45)}
 .brand small{font:700 9.5px var(--cond);letter-spacing:.34em;color:var(--cyan);text-transform:uppercase;margin-top:4px}
-.hg-body,.modal{scrollbar-width:thin;scrollbar-color:rgba(140,170,255,.25) transparent}
-.hg-body::-webkit-scrollbar,.modal::-webkit-scrollbar{width:6px}.hg-body::-webkit-scrollbar-thumb,.modal::-webkit-scrollbar-thumb{background:rgba(140,170,255,.25);border-radius:3px}
+/* Scrolling panes show no scroll bar (on a phone it sat over the right edge of every panel): the edge with more beyond
+   it fades out instead, so the last panel in view trails off (.more-b, .more-t: ui/dom.js scrollHints). */
+.hg-body,.modal,.track,.warp-chips{scrollbar-width:none}.hg-body::-webkit-scrollbar,.modal::-webkit-scrollbar,.track::-webkit-scrollbar,.warp-chips::-webkit-scrollbar{display:none}
+.hg-body.more-b,.modal.more-b{-webkit-mask-image:linear-gradient(#000 calc(100% - 64px),transparent);mask-image:linear-gradient(#000 calc(100% - 64px),transparent)}
+.hg-body.more-t,.modal.more-t{-webkit-mask-image:linear-gradient(transparent,#000 28px);mask-image:linear-gradient(transparent,#000 28px)}
+.hg-body.more-t.more-b,.modal.more-t.more-b{-webkit-mask-image:linear-gradient(transparent,#000 28px,#000 calc(100% - 64px),transparent);mask-image:linear-gradient(transparent,#000 28px,#000 calc(100% - 64px),transparent)}
 .hg-body{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
 #hangar:not([data-tab="launch"]) .hg-body{background:linear-gradient(180deg,rgba(4,7,22,.55),rgba(4,7,22,.94) 90px);backdrop-filter:blur(3px)}
 .hg-nav{display:grid;grid-template-columns:repeat(5,1fr);gap:4px;padding:6px 8px calc(var(--sb) + 8px);background:rgba(4,7,22,.96);border-top:1px solid var(--line)}
@@ -307,9 +311,9 @@ select{background:var(--solid);color:var(--ink);border:1px solid var(--line2);bo
 .mastery-row{padding:10px 14px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
 
 /* ---------- overlays ---------- */
-#layer{position:absolute;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;padding:calc(var(--st) + 12px) 12px calc(var(--sb) + 12px);pointer-events:none;background:rgba(2,3,12,0);transition:background .2s,backdrop-filter .2s}
+#layer{position:absolute;inset:0;z-index:40;display:flex;align-items:center;justify-content:center;padding:calc(var(--st) + 12px) 0 calc(var(--sb) + 12px);pointer-events:none;background:rgba(2,3,12,0);transition:background .2s,backdrop-filter .2s}
 #layer.on{pointer-events:auto;background:rgba(2,3,12,.62);backdrop-filter:blur(5px)}
-.modal{width:100%;max-width:470px;max-height:100%;overflow-y:auto;display:flex;flex-direction:column;gap:12px;opacity:0;transform:translateY(14px) scale(.98);transition:opacity .2s,transform .25s cubic-bezier(.2,.8,.3,1.2)}
+.modal{width:100%;max-width:494px;max-height:100%;overflow-y:auto;padding-left:12px;padding-right:12px;display:flex;flex-direction:column;gap:12px;opacity:0;transform:translateY(14px) scale(.98);transition:opacity .2s,transform .25s cubic-bezier(.2,.8,.3,1.2)}
 .modal.in{opacity:1;transform:none}.modal.out{opacity:0;transform:translateY(-8px)}
 .modal-head{text-align:center}
 .modal-head h2{font:700 32px/1.05 var(--disp);letter-spacing:.08em;text-transform:uppercase;margin-top:4px}
@@ -354,7 +358,7 @@ select{background:var(--solid);color:var(--ink);border:1px solid var(--line2);bo
 .big-wave b{font:700 52px/1 var(--disp);color:var(--ink);text-shadow:0 0 30px rgba(94,230,255,.4)}
 .earned{background:linear-gradient(135deg,rgba(255,200,87,.2),rgba(255,200,87,.05));border:1px solid rgba(255,200,87,.4)}
 .earned div{font:700 38px/1.1 var(--disp);color:var(--gold)}.earned small{color:#ffe6a6}
-.debrief .stat-grid{grid-template-columns:repeat(4,1fr);margin:0}
+.debrief .stat-grid{grid-template-columns:repeat(4,minmax(0,1fr));margin:0}.earned div{white-space:nowrap}.earned div.long{font-size:28px}.earned div.xlong{font-size:22px}.debrief .stat,.debrief .big-wave{background:linear-gradient(rgba(6,9,24,.55),rgba(6,9,24,.55)),rgba(255,255,255,.04)}.debrief .score-row{background:linear-gradient(rgba(6,9,24,.5),rgba(6,9,24,.5)),rgba(255,200,87,.07)}
 .unlocks{display:flex;flex-direction:column;gap:5px}
 .unlocks .unlock{display:grid;grid-template-columns:18px auto 1fr;gap:8px;align-items:center;padding:7px 10px;border-radius:10px;background:rgba(109,255,200,.07);border:1px solid rgba(109,255,200,.22)}
 .unlocks .unlock .ui-icon{width:16px;height:16px;color:var(--green)}.unlocks .unlock b{font:700 13px var(--disp)}.unlocks .unlock small{font:600 11.5px var(--body);color:var(--dim);text-align:right}

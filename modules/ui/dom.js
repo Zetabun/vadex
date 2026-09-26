@@ -9,6 +9,18 @@ export function h(sel, props, ...kids) {
   if (props) for (const k in props) { const v = props[k]; if (v == null) continue; if (k.startsWith('on')) el.addEventListener(k.slice(2), v); else if (k === 'style') el.style.cssText = v; else if (k === 'html') el.innerHTML = v; else if (k in el && k !== 'list') el[k] = v; else el.setAttribute(k, v); }
   add(el, kids); return el;
 }
+/** A pane that scrolls fades out along whichever edge has more beyond it (.more-t above, .more-b below) instead of
+ *  showing a scroll bar, which on a phone sat over the right edge of every panel. Checks only when the pane scrolls,
+ *  changes size, or gets new content (its children replaced, or the view in it growing), never every frame. */
+export function scrollHints(el) {
+  let queued = false;
+  const check = () => { queued = false; const top = el.scrollTop > 4, below = el.scrollTop + el.clientHeight < el.scrollHeight - 4; if (el._mt !== top) { el._mt = top; el.classList.toggle('more-t', top); } if (el._mb !== below) { el._mb = below; el.classList.toggle('more-b', below); } };
+  const soon = () => { if (!queued) { queued = true; requestAnimationFrame(check); } };
+  el.addEventListener('scroll', soon, { passive: true });
+  if (typeof ResizeObserver !== 'undefined') { const ro = new ResizeObserver(soon); ro.observe(el); const watchKids = () => { for (const k of el.children) ro.observe(k); soon(); }; new MutationObserver(watchKids).observe(el, { childList: true }); watchKids(); }
+  else soon();
+  return el;
+}
 export function displayText(v) { return v == null || v === 'null' || v === 'undefined' ? '' : v; }
 function add(el, kids) { for (const k of kids) { if (k == null || k === false) continue; if (Array.isArray(k)) add(el, k); else if (k instanceof Node) el.append(k); else { const v = displayText(k); if (v !== '') el.append(document.createTextNode(String(v))); } } }
 export const clear = (el) => { while (el.firstChild) el.removeChild(el.firstChild); return el; };

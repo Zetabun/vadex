@@ -1,6 +1,6 @@
 // Full-screen moments that pause combat: level-up cards, relic choice, pause/settings and the sortie debrief.
 import { G } from '@last-orbit/core/game.js';
-import { fmt, fmtInt, fmtTime } from '@last-orbit/core/format.js';
+import { fmt, fmtInt } from '@last-orbit/core/format.js';
 import { RARITY, MOD_BY_ID } from '@last-orbit/data/cards.js';
 import { ABILITIES } from '@last-orbit/data/abilities.js';
 import { ACHIEVEMENTS, FEATS, TIERS } from '@last-orbit/data/achievements.js';
@@ -35,7 +35,7 @@ import { COUNTER_TOP, STAR_HITS, STAR_KILLS } from '@last-orbit/data/counter.js'
 import { FIELD } from '@last-orbit/data/balance.js';
 import { MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
 import { applyVolumes, playSfx } from '@last-orbit/audio/audio.js';
-import { h, clear, toggle, slider, select } from '@last-orbit/ui/dom.js';
+import { h, clear, toggle, slider, select, scrollHints } from '@last-orbit/ui/dom.js';
 import { uiIcon } from '@last-orbit/ui/icons.js';
 import { art } from '@last-orbit/ui/art.js';
 import { dailyShareText, shareText } from '@last-orbit/ui/share.js';
@@ -46,7 +46,7 @@ export function createOverlays(layer, hooks) {
   const close = () => { if (!open) return; const el = open.el; el.classList.add('out'); setTimeout(() => el.remove(), 180); open = null; layer.classList.remove('on'); hooks.measure?.(); };
   function mount(kind, el, keys) {
     if (open) { open.el.remove(); open = null; }
-    open = { kind, el, keys }; layer.append(el); layer.classList.add('on');
+    open = { kind, el, keys }; layer.append(scrollHints(el)); layer.classList.add('on');
     requestAnimationFrame(() => el.classList.add('in'));
     setTimeout(() => el.querySelector('[data-autofocus]')?.focus({ preventScroll: true }), 60);
   }
@@ -431,7 +431,8 @@ export function createOverlays(layer, hooks) {
   // ------------------------------------------------------------ debrief
   function showDebrief(s) {
     const ship = SHIP_BY_ID[s.ship], ca = s.counter, win = ca?.cleared ? 'Stage cleared' : s.reason === 'abandoned' ? 'Sortie abandoned' : 'Signal lost';
-    const salvageEl = h('b.count', '0');
+    const salvageEl = h('b.count', '0'), long = fmtInt(s.salvage || 0).length; /* a long haul gets a smaller figure, so it fits its box on a phone */
+    const clock = (t) => { t = Math.max(0, Math.floor(t)); const hh = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = String(t % 60).padStart(2, '0'); return hh ? `${hh}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`; };
     const done = s.contracts.map((id) => CONTRACT_BY_ID[id]);
     const el = h('div.modal.debrief', { role: 'dialog', 'aria-label': 'Sortie debrief' },
       h('div.modal-head' + (ca?.cleared ? '.won' : ''), h('div.kicker', ca ? `${ship.name} · Counterattack · Stage ${ca.stage}${ca.hard ? ' · Hard' : ''}` : `${ship.name} · Sector ${s.sector} · ${s.sectorName}` + (s.threat ? ` · Threat ${THREATS[s.threat].roman}` : '') + (s.mutator ? ` · Daily: ${MUTATOR_BY_ID[s.mutator].name}` : '') + (s.warp > 1 ? ` · Warp S${s.warp}` : '')), h('h2', win), h('div.pbs', s.highScore ? h('div.pb', 'New high score') : null, s.best && s.wave > 1 ? h('div.pb', 'New best wave') : null)),
@@ -441,9 +442,9 @@ export function createOverlays(layer, hooks) {
         ca.trophy ? h('div.pilot-row.trophy-row', h('span', `${TROPHY_BY_ID['trophy' + ca.trophy]?.name} captured`), h('b', 'Towed to your station')) : null,
         ca.siegeUnlocked ? h('div.pilot-row.siege-row', h('span', 'They will retaliate'), h('b', 'Station Siege unlocked')) : null,
         ca.checkpoint ? h('div.pilot-row', h('span', 'Checkpoint saved'), h('b', 'Past the mini-boss')) : null, ca.resumed ? h('small.cp-note', 'Checkpoint run: the clear star only. Fly the whole stage for the other two.') : null) : null,
-      h('div.hero-row', ca ? h('div.big-wave', h('small', 'Stage'), h('b', String(ca.stage))) : h('div.big-wave', h('small', 'Wave'), h('b', String(s.wave))), h('div.earned', h('small', 'Salvage banked'), h('div', art('cur:salvage', 'cur-ico'), salvageEl))),
+      h('div.hero-row', ca ? h('div.big-wave', h('small', 'Stage'), h('b', String(ca.stage))) : h('div.big-wave', h('small', 'Wave'), h('b', String(s.wave))), h('div.earned', h('small', 'Salvage banked'), h('div' + (long >= 10 ? '.xlong' : long >= 8 ? '.long' : ''), art('cur:salvage', 'cur-ico'), salvageEl))),
       h('div.score-row', h('small', 'Score'), h('b', fmtInt(s.score || 0)), s.place ? h('span', `#${s.place} of your top 10`) : s.prevScore ? h('span', `Best ${fmtInt(s.prevScore)}`) : null),
-      h('div.stat-grid', stat('Level', s.level), stat('Kills', fmtInt(s.kills)), stat('Bosses', s.bosses), stat('Time', fmtTime(s.time))),
+      h('div.stat-grid', stat('Level', s.level), stat('Kills', fmtInt(s.kills)), stat('Bosses', s.bosses), stat('Time', clock(s.time))),
       s.daily ? h('div.earned.daily-earned', h('small', `Daily bonus · ${s.daily.streak}-day streak`), h('div', art('cur:salvage', 'cur-ico'), '+' + fmtInt(s.daily.bonus))) : null,
       ...(s.voidBeaten || []).map((b) => h('div.pilot-row.void-row', h('span', `Void boss beaten: ${b.name}`), h('b', `+${b.bp} Blueprints` + (b.paint ? ' · Lightkeeper paint' : '')))),
       ...(s.voidMarks || []).map((m) => h('div.pilot-row.void-row', h('span', `Deep Void: ${m.name}, wave ${m.wave}`), h('b', observatoryOpen(G.state) ? 'Chart it in the Observatory' : `Charted at Overhaul rank ${OBSERVATORY_RANK}`))),

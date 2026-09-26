@@ -18,7 +18,7 @@ import { paintBanner } from '@last-orbit/rendering/bannerArt.js';
 import { workshopLevel, workshopNext, buyWorkshop, shipStatus, shipContract, buyShip, selectShip, contractProgress, nextContracts, unlockLabel, pilotProgress, selectPaint, threatMax, setThreat, dailyToday, masteryOf, masteryProgress, medalProgress, medalTotal, medalDesc, bannerProgress, nextBanner, selectBanner } from '@last-orbit/progression/meta.js';
 import { weaponDps, buildWeapon } from '@last-orbit/progression/stats.js';
 import { playSfx } from '@last-orbit/audio/audio.js';
-import { h, clear, setText, setClass } from '@last-orbit/ui/dom.js';
+import { h, clear, setText, setClass, scrollHints } from '@last-orbit/ui/dom.js';
 import { uiIcon } from '@last-orbit/ui/icons.js';
 import { art } from '@last-orbit/ui/art.js';
 import { insignia } from '@last-orbit/ui/insignia.js';
@@ -81,7 +81,7 @@ export function createHangar(hooks) {
     $.brand = h('button.brand.pilot-id', { onclick: () => show('contracts'), 'aria-label': 'Pilot career' }, $.brandIns = h('span.brand-ins'), h('span.brand-txt', $.brandName = h('b'), $.brandRank = h('small'))),
     h('div.chip.salvage.big', { title: 'Salvage: spend it in the Workshop and on new ships' }, art('cur:salvage', 'cur-ico'), $.salvage),
     h('button.icon-btn', { 'aria-label': 'Settings', onclick: () => hooks.settings() }, uiIcon('gear')));
-  $.body = h('main.hg-body');
+  $.body = scrollHints(h('main.hg-body'));
   $.nav = h('nav.hg-nav', { role: 'tablist' });
   const navBtns = {}; let page = 0;
   for (const [id, name] of TABS) navBtns[id] = h('button.nav-btn', { role: 'tab', onclick: () => show(id) }, uiIcon(id === 'launch' ? 'launch' : id), h('span', name), h('i.badge'), h('i.nav-lock', uiIcon('lock')), h('b.nav-new', 'NEW'));
