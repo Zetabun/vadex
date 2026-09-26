@@ -9,7 +9,8 @@ import { initWorld, advance } from '@last-orbit/combat/sim.js';
 import { useAbility } from '@last-orbit/combat/abilities.js';
 import { collectAll } from '@last-orbit/combat/pickups.js';
 import { recStart, recTick, recStop } from '@last-orbit/progression/recorder.js';
-import { startSortie, endSortie, nextOffer, nextRelic, nextRoute, nextAnomaly, recoverInterruptedRun } from '@last-orbit/progression/run.js';
+import { startSortie, endSortie, nextOffer, nextRelic, nextRoute, nextAnomaly, recoverInterruptedRun, resumeOffer, resumeInfo } from '@last-orbit/progression/run.js';
+import { resetOrigin } from '@last-orbit/progression/cipher.js';
 import { checkContracts, unlockCounter, refreshMenus, notePeaks } from '@last-orbit/progression/meta.js';
 import { save, load, hardReset, legacyBestWave } from '@last-orbit/save/save.js';
 import { initAudio, applyVolumes, tickMusic, setMusicMode, suspendAudio } from '@last-orbit/audio/audio.js';
@@ -19,9 +20,10 @@ import { initUI } from '@last-orbit/ui/ui.js';
 const app = document.getElementById('app'), glCanvas = document.getElementById('gl'), overlay = document.getElementById('overlay');
 let renderer, ui, last = 0, saveT = 0, running = false, levelBeat = 0, lastLaunch = {};
 
-function adopt(state) {
-  // A sortie interrupted by a closed or discarded tab cannot be resumed, but its salvage is kept.
-  const recovered = recoverInterruptedRun(state);
+function adopt(state, boot = false) {
+  // A main sortie cut short when the app closed is offered at launch, to resume or end (progression/run.js resumeOffer);
+  // any other sortie interrupted (Counterattack, or a save restored mid-run) cannot be resumed, but its salvage is kept.
+  const resumable = boot ? resumeOffer(state) : null, recovered = resumable ? 0 : recoverInterruptedRun(state);
   G.state = state;
   if (recovered > 0) setTimeout(() => toast(`Recovered ${recovered} salvage from your last sortie.`, 'good'), 600);
   setNotation(state.settings.notation); recalc(); checkContracts({ silent: true }); unlockCounter({ silent: true }); refreshMenus(); notePeaks(state); initWorld(); applyVolumes();
@@ -56,6 +58,28 @@ function finish(reason) {
   ui.showDebrief(summary);
 }
 bus.on('sortieOver', (reason) => setTimeout(() => finish(reason), 350));
+/** A sortie the app closed in the middle of: resume it, or end it (the debrief, as if it had been abandoned). */
+function offerResume() {
+  const r = G.state.resume; if (!r?.run) return;
+  ui.resume({ info: resumeInfo(r), onResume: resumeSortie, onEnd: endResumed });
+}
+/** Back into the fight at the start of the wave it was on (or between waves, where it was), everything as it was then. */
+function resumeSortie() {
+  const st = G.state, r = st.resume; if (!r?.run) return;
+  try {
+    initAudio(); st.run = r.run; delete r.live; resetOrigin(st.run); G.mode = 'sortie'; recalc(); initWorld();
+    const w = G.world, run = st.run; w.player.hull = Math.max(0.05, r.hull ?? 1); w.player.shield = r.shield ?? 0;
+    (r.barriers || []).forEach((hp, i) => { if (w.barriers[i]) w.barriers[i].hp = hp; });
+    w.wave.num = Math.max(0, run.wave - 1); /* the wave before it: so the sector it is in does not count as a new one */
+    recStart({ ship: run.ship, mode: 'main', daily: !!run.daily }); ui.setMode('sortie'); save('resume'); ui.nextChoice();
+    toast(`Back in the fight: wave ${run.wave}.`, 'good');
+  } catch (e) { console.warn('Could not resume the sortie:', e); endResumed(); }
+}
+/** End it instead: the sortie as it stood when the app closed is banked, with its debrief. */
+function endResumed() {
+  const st = G.state, r = st.resume; if (!r?.run) return;
+  st.run = r.live || r.run; st.resume = null; resetOrigin(st.run); G.mode = 'sortie'; recalc(); initWorld(); G.world.wave.num = st.run.wave; finish('abandoned');
+}
 // A level-up gets a brief beat of celebration in the battle before the card choice freezes it.
 bus.on('levelUp', (lvl) => { if (G.mode !== 'sortie' || !G.world) return; if (levelBeat <= 0) levelBeat = 0.45; const p = G.world.player; renderer.celebrate(p.x, p.y + 4, '#6dffc8', 50); G.world.fx.push({ k: 'text', a: p.x, b: p.y + 12, c: 'LEVEL ' + lvl, d: '#6dffc8', e: 2 }); });
 
@@ -160,7 +184,7 @@ addEventListener('resize', fitStandalone); addEventListener('orientationchange',
 async function boot() {
   const r = await load();
   renderer = G.renderer = new Renderer(glCanvas, overlay);
-  adopt(r.state);
+  adopt(r.state, true);
   ui = initUI(app, hooks);
   ui.setMode('hangar');
   if (r.recovered) toast('The main save was unreadable. Restored from the backup.', 'warn');
@@ -173,7 +197,7 @@ async function boot() {
   // Callsign: asked once (new pilots, and existing ones the first time this version runs); after that, a greeting.
   // The opening cinematic plays once, for a pilot who has not flown yet (core/state.js introDue), then the callsign;
   // Settings > Story plays it again.
-  const afterIntro = () => { if (!G.state.seen.callsign) setTimeout(() => ui.callsign({ first: true }), 300); else setTimeout(() => ui.greet(), 400); };
+  const afterIntro = () => { if (!G.state.seen.callsign) setTimeout(() => ui.callsign({ first: true }), 300); else setTimeout(() => (G.state.resume ? offerResume() : ui.greet()), 400); };
   if (!/[?&]scene=/.test(location.search)) { if (introDue(G.state)) ui.intro({ tap: true, done: () => { G.state.seen.intro = true; save('intro'); afterIntro(); } }); else afterIntro(); }
   wireInput();
   addEventListener('resize', () => { renderer.resize(); ui.measure(); }); new ResizeObserver(() => { renderer.resize(); ui.measure(); }).observe(app);

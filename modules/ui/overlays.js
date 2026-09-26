@@ -298,6 +298,17 @@ export function createOverlays(layer, hooks) {
     mount('panel', el, (e) => { if (e.key === 'Escape') { close(); return true; } return false; });
   }
 
+  // ------------------------------------------------------------ a sortie the app closed in the middle of
+  /** Resume it from the start of the wave it was on, or end it now (its debrief). One or the other must be chosen. */
+  function showResume({ info, onResume, onEnd }) {
+    const ship = SHIP_BY_ID[info.ship]?.name || 'ship';
+    const el = h('div.modal.confirm.resume', { role: 'alertdialog', 'aria-label': 'Resume your sortie?' },
+      h('div.modal-head', h('div.kicker', info.daily ? 'Daily Sortie in progress' : 'Sortie in progress'), h('h2', `Resume at wave ${info.wave}?`),
+        h('p', `The game closed in the middle of your sortie: ${info.sector}, the ${ship}, ${fmtInt(info.salvage)} salvage so far. Pick it up again at the start of wave ${info.wave}, or end it now and bank what you have.`)),
+      h('div.modal-actions', h('button.btn.ghost', { onclick: () => { close(); onEnd?.(); } }, 'End it'), h('button.btn.gold', { onclick: () => { close(); onResume?.(); }, 'data-autofocus': '' }, 'Resume')));
+    mount('confirm', el, () => false);
+  }
+
   // ------------------------------------------------------------ the Cipher: tuning a fragment's signal (data/cipher.js)
   /** Match the fragment's signal (gold, noisy) with your own (teal): frequency in whole steps, phase and strength. Each
    *  dial's light comes on when it is close enough; all three and the fragment is decoded. n: the fragment's number (it
@@ -555,7 +566,7 @@ export function createOverlays(layer, hooks) {
         if (!v1 && u.v.startsWith('1.')) { v1 = true; box.append(h('h3.upd-era', 'Last Orbit v1'), h('p.sub-note', 'The original game, before the v2 redesign.')); }
         const fresh = was ? cmpVersion(u.v, was) > 0 : i === 0;
         box.append(h('details.upd' + (fresh ? '.fresh' : ''), { open: i === 0 },
-          h('summary', h('div.upd-top', h('b', 'v' + u.v), h('small', u.date ? day(u.date) : `with v${u.with}`), fresh ? h('span.upd-new', 'New') : null, h('span.upd-chev', uiIcon('chevron'))), h('span.upd-head', u.head)),
+          h('summary', h('div.upd-top', h('b', 'v' + u.v), h('small', u.date ? day(u.date) : u.with ? `with v${u.with}` : 'Not released yet') /* a test build's newest notes have no date yet */, fresh ? h('span.upd-new', 'New') : null, h('span.upd-chev', uiIcon('chevron'))), h('span.upd-head', u.head)),
           u.intro ? h('p.upd-intro', rich(u.intro)) : null,
           h('ul.upd-list', u.items.map((it) => h('li', rich(it.t), it.sub ? h('ul', it.sub.map((s) => h('li', rich(s)))) : null)))));
       });
@@ -709,7 +720,7 @@ export function createOverlays(layer, hooks) {
   };
 
   return {
-    showKit, showOffer, showWarp, showRelics, showRoutes, showAnomalies, showPause, showSettings, showDebrief, showLoadout, showCounterIntro, showOverhaul, showMenuIntro, showRoomOffer, showCallsign, showStationComplete, showPanel, showTune, showStationName, showSiegeIntro, showConfirm, showSiegeDebrief, close,
+    showKit, showOffer, showWarp, showRelics, showRoutes, showAnomalies, showPause, showSettings, showDebrief, showLoadout, showCounterIntro, showOverhaul, showMenuIntro, showRoomOffer, showCallsign, showStationComplete, showPanel, showTune, showResume, showStationName, showSiegeIntro, showConfirm, showSiegeDebrief, close,
     get kind() { return open?.kind || null; },
     /** Combat freezes while any overlay is up. */
     blocking: () => !!open,

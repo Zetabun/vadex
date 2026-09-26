@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.27.0
+
+- **Pick up a sortie where you left off.** If the game closes in the middle of a sortie (your phone closing it in the background, or you swiping it away), the next time you open it you can resume from the start of the wave you were on, with everything you had then: your cards, relics, route, hull and salvage. Or end it there and get your full debrief, with pilot XP and medals (before, only the salvage was kept). Counterattack stages are still banked as before.
+- tests/resume-regression.mjs covers the checkpoint, the offer, resuming and ending it.
+
 ## v2.26.2 — 2026-09-26
 
 - **Lighter on your phone's memory aboard the station.** Every room you visited used to stay loaded until the app closed: all twelve together came to about 150 MB of graphics memory, enough to crash the game on an older phone after a long walk round the station. Now only the room you are in and the last two you came through stay loaded. A room further back is rebuilt in a moment when you return, Bolt and all.

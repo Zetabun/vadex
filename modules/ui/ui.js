@@ -171,6 +171,7 @@ export function initUI(app, hooks) {
     update, setMode, measure, banner, nextChoice, greet, siege: (n) => hangar.siege(n), tap: (kind) => hangar.tap(kind),
     intro: (o) => intro.play(o), comms, offerRoom: (rank) => offerRoom(rank, 0),
     callsign: (o) => overlays.showCallsign(o),
+    resume: (o) => overlays.showResume(o), /* a sortie the app closed in the middle of */
     blocking: () => overlays.blocking(),
     showDebrief: (s) => { clear($.toasts); $.banner.classList.remove('on'); overlays.showDebrief(s); },
     pause: () => uiHooks.pause(),

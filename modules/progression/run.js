@@ -44,7 +44,7 @@ export function startSortie(opts = {}) {
   const counter = opts.counter ? STAGE_BY_N[opts.counter] : null;
   const daily = opts.daily && !counter ? dailyToday() : null;
   if (daily && daily.done) return null;
-  st.run = newRun(ship, { ...opts, seed: daily ? daily.seed : opts.seed }); st.run.prevBest = st.stats.bestWave || 0; st.run.prevScore = st.stats.bestScore || 0; G.mode = 'sortie';
+  st.resume = null; st.run = newRun(ship, { ...opts, seed: daily ? daily.seed : opts.seed }); st.run.prevBest = st.stats.bestWave || 0; st.run.prevScore = st.stats.bestScore || 0; G.mode = 'sortie';
   const run = st.run; resetOrigin(run); /* every sortie starts on the charts */
   if (takeRest(st)) run.rested = true; // a night in the bunk: this sortie banks more salvage
   run.garden = takeBasket(st); // one of every bloom in the Greenhouse basket: boosts for this sortie
@@ -84,7 +84,7 @@ export function endSortie(reason = 'destroyed') {
     bosses: run.stats.bossKills || 0, time: Math.round(run.time), salvage: banked, cards: run.stats.cards || 0, relics: run.relics.slice(),
     weapons: run.order.map((id) => [id, run.weapons[id]]), best: !run.mode && reached > (run.prevBest || 0), date: Date.now(),
   };
-  st.run = null; G.mode = 'hangar';
+  st.run = null; st.resume = null; G.mode = 'hangar';
   const bannersBefore = { ...st.banners };
   summary.canisters = run.canisters || []; /* the field kit's canisters packed this sortie */
   summary.threat = run.threat || 0; summary.mutator = run.mutator || null; summary.mats = matsGot; summary.breached = !!run.breached;
@@ -160,7 +160,33 @@ function recordCounter(st, run, s, reason) {
 }
 
 /** A saved sortie found at boot (closed or discarded tab) cannot be resumed: bank its salvage and drop it. */
+// ---------------------------------------------------------------- picking a sortie up again
+// A main sortie keeps a checkpoint in the save (state.resume): the run as it was when the wave under way began, or as it
+// is now if it is between waves (choosing cards, the gap before the next wave), with the ship's hull and shield and the
+// barriers. If the app is closed mid-run, the next launch offers to resume from there: the wave starts again, everything
+// won during it (salvage, cards, score) as it was at its start. Counterattack stages are not resumed.
+const clone = (o) => JSON.parse(JSON.stringify(o));
+/** Take the checkpoint now (the world's wave has just begun, or is between waves). */
+export function checkpoint(st = G.state, w = G.world) {
+  const run = st.run; if (!run || run.mode || !w?.player) return null;
+  st.resume = { at: Date.now(), run: clone(run), hull: w.player.hull, shield: w.player.shield, barriers: (w.barriers || []).map((b) => b.hp) };
+  return st.resume;
+}
+bus.on('waveStart', (w) => { checkpoint(G.state, w); });
+bus.on('saving', () => { const w = G.world, s = w?.wave?.state; if (G.mode === 'sortie' && (s === 'idle' || s === 'cleared')) checkpoint(G.state, w); });
+/** At launch: a main sortie that was under way when the app closed is set aside to be offered (and the live run kept
+ *  with it, to bank if the pilot ends it instead). Returns the checkpoint to offer, or null. */
+export function resumeOffer(state) {
+  const r = state.resume, run = state.run;
+  if (!r?.run || r.run.mode || (run && run.mode)) return null;
+  if (run) { r.live = run; state.run = null; }
+  return r;
+}
+/** What the offer says: the wave, where, the ship and what it has banked so far. */
+export function resumeInfo(r) { const run = r.live || r.run; return { wave: r.run.wave, sector: sectorOf(r.run.wave).def.name, ship: run.ship, salvage: Math.floor(run.salvage || 0), daily: !!run.daily }; }
+
 export function recoverInterruptedRun(state) {
+  state.resume = null; /* a checkpoint that is not taken up goes with it */
   const run = state.run; if (!run) return 0;
   const got = Math.floor(run.salvage || 0), s = state.stats;
   state.salvage += got; s.totalSalvage = (s.totalSalvage || 0) + got; if (!(s.bestSalvage >= got)) s.bestSalvage = got;

@@ -54,7 +54,7 @@ export const serialize = () => JSON.stringify(G.state);
 
 let lastBackup = 0;
 export async function save(reason = 'auto') {
-  if (!G.state) return; const now = Date.now(); G.state.meta.lastSave = now;
+  if (!G.state) return; const now = Date.now(); G.state.meta.lastSave = now; bus.emit('saving', reason); /* a sortie between waves takes its checkpoint */
   const text = serialize(); await put(slot(), text);
   if (!G.state.meta.sandbox && now - lastBackup > 5 * 60000) { lastBackup = now; await put(BACKUP, text); }
   bus.emit('saved', reason);

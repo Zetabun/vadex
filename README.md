@@ -16,7 +16,7 @@ Last Orbit is a browser orbital-defence roguelite. The live page is [zetabun.git
 - **Global boards.** Your Daily Sortie and your best sortie go up against every pilot's, with your rank badge beside your name (Records > Global, or the Boards channel on the Command Deck's TV). They run on their own small server (`api/`).
 - **Field kit.** A supply meter fills as you fight; each canister holds a timed boost to use when it suits you.
 - **What's new.** A red "!" on the settings gear means an update has landed: Settings > Updates lists every update so far.
-- **Install it.** Add the page to your home screen for a full-screen app with its own icon.
+- **Install it.** Add the page to your home screen for a full-screen app with its own icon. If it closes mid-sortie, the next launch offers to pick the sortie up again from the wave you were on.
 
 ## Source layout
 

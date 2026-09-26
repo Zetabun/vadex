@@ -63,6 +63,7 @@ export function newState() {
     medals: {},
     history: [],
     run: null,
+    resume: null, // a main sortie to pick up again if the app closes mid-run (progression/run.js checkpoint): the run at the start of the wave under way, or between waves, with the ship's hull and shield and the barriers
   };
 }
 
