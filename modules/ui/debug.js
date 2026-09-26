@@ -417,7 +417,7 @@ function runScene(scene, hooks, ui) {
   else if (name === 'medal') bus.emit('notice', { kind: 'medal', kicker: 'Silver medal', title: 'Exterminator', sub: 'Destroy 5,000 invaders', art: 'weapon:cannon', tier: 'silver', xp: 250 });
   else if (name === 'loadout') { const run = st.run; run.order.push('laser'); run.weapons.laser = 4; run.weapons.cannon = 3; run.relics.push('r_glass'); run.cards = { m_dmg: 2, m_crit: 1, m_hull: 1 }; run.abilities.push('emp'); recalc();
     run.offer = null; run.pendingLevels = 0; ui.closeOverlays();
-    setTimeout(() => { const g = document.querySelectorAll('#dock .gun')[1]; if (g) { const r = g.getBoundingClientRect(); ui.tapHud(r.left + 5, r.top + 5); } }, 800); }
+    setTimeout(() => { const g = document.querySelector('#dock .stack'); if (g) { const r = g.getBoundingClientRect(); ui.tapHud(r.left + 20, r.top + 20); } }, 800); }
   else if (name === 'stress') {
     // Late-game load: wave 34, four rank-7 guns, relics and drones, autopilot on.
     const run = st.run; run.order = ['cannon', 'laser', 'missile', 'tesla']; for (const id of run.order) run.weapons[id] = 7;
