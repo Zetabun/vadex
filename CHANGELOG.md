@@ -1,6 +1,6 @@
 # Changelog
 
-## v2.26.0
+## v2.26.0 — 2026-09-26
 
 The Cipher: the finale.
 
