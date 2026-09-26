@@ -813,4 +813,13 @@ assert.throws(() => parseSave('{"run":{},"cur":{}}'), /Not a Last Orbit v2 save/
   assert.ok(!news.some((n) => n.key.startsWith('home:')), 'Unloaded: no longer news'); assert.ok(news.some((n) => n.key === 'hurt:bulwark' && n.pri === 2), 'A ship waiting on repairs');
   assert.ok(N.boltNews(st, 'quarters').some((n) => n.key.startsWith('rest:') && n.pri === 2), 'In the quarters, the bunk'); assert.ok(news.every((n) => n.line[0] && n.line[1] && !n.line[1].includes('{')), 'Every line filled in'); }
 
+// ---- v2.21: the replay TV's channels and the News ----
+{ const N = await import('@last-orbit/data/news.js');
+  fresh(); const st = G.state; st.stationName = 'Keepsake'; st.stats.bestWave = 41; st.stats.kills = 900; st.stats.sorties = 12;
+  st.history = [{ wave: 41, ship: 'vanguard', salvage: 5200 }]; st.bolt = { last: { best: true } };
+  const news = N.newsStories(st); assert.ok(news[0].tag === 'Breaking' && news[0].head.includes('41'), 'A new record leads the News');
+  st.bolt.last = { breached: true }; assert.ok(N.newsStories(st)[0].head.startsWith('Line broken'), 'and so does the line breaking');
+  assert.ok(N.newsTicker(st).includes('KEEPSAKE') && N.newsTicker(st).includes('BEST WAVE 41'), 'The ticker has your numbers');
+  assert.ok(N.LORE.length >= 10 && N.LORE.every((l) => l.tag && l.head && l.body), 'and the station\'s stories'); }
+
 console.log('Sortie, cards, relics, contracts, workshop, ships, pickups, revive and save checks pass.');

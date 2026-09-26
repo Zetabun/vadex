@@ -18,11 +18,13 @@ function glowTex(inner = 0.25) {
 /** What a replay is of: its title and the line under it (ship, sector, or the tier of a 2D siege recorded before v2.14). */
 export function replayTitle(rep) {
   const m = rep.meta || {}, ship = (SHIP_BY_ID[m.ship]?.name || '').toUpperCase();
-  return { title: m.mode === 'siege' ? 'LAST SIEGE' : m.daily ? 'LAST DAILY SORTIE' : 'LAST SORTIE', sub: [ship, (m.tier || m.sector || '').toUpperCase()].filter(Boolean).join(' · ') };
+  const k = rep.kind, title = k === 'best' ? `BEST RUN · WAVE ${rep.end?.wave || '?'}` : k === 'boss' ? (m.boss || 'BOSS').toUpperCase() + ' BEATEN' : k === 'daily' || m.daily ? 'LAST DAILY SORTIE' : m.mode === 'siege' ? 'LAST SIEGE' : 'LAST SORTIE';
+  return { title, sub: [ship, (m.tier || m.sector || '').toUpperCase()].filter(Boolean).join(' · ') };
 }
 /** How it ended, and whether that was a loss. */
 export function replayEnding(rep) {
   const r = rep.end?.reason, down = r === 'destroyed' || r === 'died', lost = down || r === 'stationLost'; // the sim reports a death as 'destroyed'
+  if (r === 'boss') return { text: `${rep.end?.boss || 'The boss'} beaten`, lost: false };
   return { text: down ? 'Signal lost' : r === 'stationLost' ? 'Station lost' : r === 'cleared' ? (rep.meta?.mode === 'siege' ? 'Station held' : 'Cleared') : 'Returned home', lost };
 }
 

@@ -62,6 +62,9 @@ import { SEEDS, SEED_BY_ID, gardenOpen, bedsOpen, wingOpen, WING_RANK, WING_SPEE
 import { garden, growth, hoursLeft, startGarden, plant, water, wateredToday, harvest, basketNext, gardenCounts, seedCount } from '@last-orbit/progression/garden.js';
 import { stationBlueprint, pieceThumb } from '@last-orbit/ui/stationArt.js';
 import { replayTitle, replayEnding } from '@last-orbit/rendering/replay.js';
+import { CHANNELS, replayOf } from '@last-orbit/progression/recorder.js';
+import { newsStories, LORE } from '@last-orbit/data/news.js';
+const TV_CHANNELS = [...CHANNELS, { id: 'news', name: 'News', how: '' }];
 import { TURRET_MOD, TURRET_RARITY, turretKit } from '@last-orbit/data/turret.js';
 import { nightAmount } from '@last-orbit/rendering/background.js';
 import { DRONES } from '@last-orbit/data/drones.js';
@@ -1172,6 +1175,7 @@ export function createHangar(hooks) {
     const restart = () => { rp.seek(0); rp.paused = false; playSfx('tab', 0.5); };
     const el = h('div.rp-watch',
       h('div.rp-head', h('div.rp-title', h('small', h('i.rp-dot'), 'Replay'), h('b', name.title), h('span', name.sub)), h('button.btn.ghost.small.rp-close', { onclick: () => stopWatching(), 'aria-label': 'Close the replay' }, uiIcon('close'))),
+      h('div.rp-ch', TV_CHANNELS.map((c) => h('button.rp-chb' + (d.channel?.() === c.id ? '.on' : '') + (c.id === 'news' || replayOf(c.id) ? '' : '.empty'), { onclick: () => { if (d.channel?.() === c.id) return; if (tvChannel(c.id)) { stopWatching(); if (c.id === 'news') newsPanel(); else { d.replay.load(replayOf(c.id)); watchReplay(); } } } }, c.name))),
       h('div.rp-stats', $w.wave = h('b'), $w.score = h('span'), h('i.rp-hull', $w.hull = h('i'))),
       $w.end = h('div.rp-end' + (end.lost ? '.lost' : ''), h('b', end.text), $w.endSub = h('small'), h('button.btn.primary', { onclick: restart }, uiIcon('reroll'), 'Watch again')),
       h('div.rp-bar', h('button.rp-btn', { onclick: restart, 'aria-label': 'From the start' }, uiIcon('reroll')),
@@ -1182,6 +1186,18 @@ export function createHangar(hooks) {
     $w.scrub.addEventListener('input', () => { rp.seek(+$w.scrub.value); });
     const room = $.body.querySelector('.deck3d'); room?.append(el); room?.classList.add('watching');
     watch = { el, $w, rp, d, sig: '' }; watchTick();
+  }
+  /** Switch the replay TV to a channel (Last, Best, Boss, Daily), if it has a recording yet. */
+  function tvChannel(id) {
+    const c = TV_CHANNELS.find((x) => x.id === id); if (!c) return false;
+    if (id !== 'news' && !replayOf(id)) { playSfx('deny'); hooks.toast?.(`Nothing on ${c.name} yet: ${c.how.toLowerCase()} and it records here.`, 'info'); return false; }
+    G.state.settings.tvChannel = id; playSfx('tab'); hooks.saveNow?.('tv'); return true;
+  }
+  /** All the news, to read: your stories first, then a few from around the station. */
+  function newsPanel() {
+    playSfx('tab'); const mine = newsStories(G.state), lore = [...LORE].sort(() => Math.random() - 0.5).slice(0, 4);
+    const story = (s) => h('div.nw-story', h('span.nw-tag', s.tag), h('div', h('b', s.head), h('p', s.body)));
+    hooks.panel?.({ kicker: 'Command Deck · ORBIT News', title: 'Station News', body: [mine.length ? h('div.nw-list', mine.map(story)) : h('p.sub-note', 'Fly a sortie and you will be on the news.'), h('h4.oh-sub', 'Around the station'), h('div.nw-list', lore.map(story))] });
   }
   function stopWatching() {
     if (!watch) return; const { d, rp, el } = watch; d.watching = false; rp.loop = true; rp.speed = 1; rp.paused = false;
@@ -1200,7 +1216,8 @@ export function createHangar(hooks) {
   /** Tapping an exhibit on the deck: its details, as a panel. */
   function exhibit(kind) {
     if (kind === 'exit') { show(outside); return; }
-    if (kind === 'replay') { watchReplay(); return; }
+    if (kind === 'replay') { if (G.renderer?.room?.channel?.() === 'news') newsPanel(); else watchReplay(); return; }
+    if (kind.startsWith('tv:')) { tvChannel(kind.slice(3)); return; }
     if (kind === 'control') { show('control'); return; }
     if (kind === 'hall') { show('hall'); return; }
     if (kind === 'garden') { show('garden'); return; }

@@ -49,6 +49,8 @@ export async function initDebug(app, { hooks, ui } = {}) {
   if (scene) { panel.style.display = 'none'; G.demo = true; runScene(scene, hooks, ui); } // demo scenes never auto-pause
   // &at=x,z,yaw,pitch: once a room scene is up, stand there looking that way (for framing a shot of anything in it)
   const at = new URLSearchParams(location.search).get('at')?.split(',').map(Number);
+  // &tv=<channel>: the Command Deck's TV on that channel (last, best, boss, daily, news)
+  const tvCh = new URLSearchParams(location.search).get('tv'); if (scene && tvCh) G.state.settings.tvChannel = tvCh;
   // &bolt=paint,hat,eye: Bolt wears these (and has everything in its locker)
   const dressed = new URLSearchParams(location.search).get('bolt')?.split(',');
   if (scene && dressed) setTimeout(() => { const b = (G.state.bolt ||= {}); b.owned ||= {}; for (const [slot, list] of Object.entries(COSMETICS)) for (const c of list) b.owned[slot + ':' + c.id] = 1; b.wear = { paint: dressed[0] || 'factory', hat: dressed[1] || 'none', eye: dressed[2] || 'cyan' }; bus.emit('boltDressed'); }, 900);
@@ -119,7 +121,7 @@ function runScene(scene, hooks, ui) {
   // replay:<start wave>[:<seconds>[:<view>]]: a bot flies a sortie from that wave for that long (headless, in an instant)
   // with the flight recorder on, then the Command Deck's replay TV; view: tv (close, the default) or room
   if (name === 'replay') {
-    const from = +arg || 27, secs = +arg2 || 90; st.pilot.name = 'Adam'; st.seen.callsign = true; st.prestige.level = Math.max(1, st.prestige.level || 0); refreshMenus(); st.seen.menus.deck = true;
+    const from = +arg || 27, secs = +arg2 || 90; st.pilot.name = 'Adam'; st.seen.callsign = true; st.prestige.level = Math.max(1, st.prestige.level || 0); refreshMenus(); st.seen.menus.deck = true; for (const r of ROOMS_ABOARD) if (r.seen) { st.seen[r.seen] = true; (st.seen.offered ||= {})[r.id] = true; } /* no room offers over the TV */
     WORKSHOP.forEach((u, i) => { st.workshop[u.id] = Math.round(u.max * Math.min(1, 0.55 - (i % 4) * 0.1)); }); Object.assign(st.stats, { bestWave: 41, bestScore: 182400, sorties: 57, kills: 21840 });
     const auto = () => { G.sheet.totalN['f.autopilot'] = 1; G.sheet.totalN.autoDodge = 1; }; bus.on('stats', auto); recalc(); auto();
     hooks.launch({}); const run = st.run; debugSetWave(from); grantXp(1400);

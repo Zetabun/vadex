@@ -17,7 +17,11 @@ import { PAINT_BY_ID, rankTitle } from '@last-orbit/data/career.js';
 import { STATION_CORE, hallOpen } from '@last-orbit/data/station.js';
 import { siegeUnlocked } from '@last-orbit/data/siege.js';
 import { ReplayScreen, replayTitle, replayEnding } from '@last-orbit/rendering/replay.js';
-import { lastReplay, loadReplay } from '@last-orbit/progression/recorder.js';
+import { lastReplay, loadReplay, replayOf, CHANNELS } from '@last-orbit/progression/recorder.js';
+import { newsStories, newsTicker, LORE } from '@last-orbit/data/news.js';
+/** The TV's channels: the replays, and the News. */
+export const TV_CHANNELS = [...CHANNELS, { id: 'news', name: 'News', how: '' }];
+import { G } from '@last-orbit/core/game.js';
 import { SHIP_BY_ID } from '@last-orbit/data/ships.js';
 import { ROOMS_ABOARD, roomOpen, roomFresh } from '@last-orbit/data/rooms.js';
 import { gardenOpen } from '@last-orbit/data/garden.js';
@@ -147,7 +151,7 @@ export class DeckRoom extends Room {
     this.tag(g, 'banners');
   }
   recordsScreen(state) {
-    if (lastReplay()) { this.replayTv(state); return; } this.tv = null;
+    this.replayTv(state); return; /* the TV is always on: the News, if nothing has been recorded yet */
     const THREE = T(), s = state.stats, c = canvas(512, 280), x = c.getContext('2d');
     x.fillStyle = '#050a18'; x.fillRect(0, 0, 512, 280); x.strokeStyle = '#5ee6ff'; x.lineWidth = 3; x.strokeRect(6, 6, 500, 268);
     text(x, 'RECORDS', 256, 34, '800 26px sans-serif', '#9ff0ff');
@@ -164,11 +168,53 @@ export class DeckRoom extends Room {
     const THREE = T(), g = new THREE.Group(); g.position.set(TV_X, 1.75, BACK - 0.085); g.rotation.y = Math.PI; this.show.add(g);
     const hud = canvas(1024, 560), face = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.75), new THREE.MeshBasicMaterial({ map: tex(hud) })); g.add(face);
     this.replay ||= new ReplayScreen();
-    const field = new THREE.Mesh(new THREE.PlaneGeometry(1.08, 1.62), new THREE.MeshBasicMaterial({ map: this.replay.texture })); field.position.z = 0.004; g.add(field);
+    const field = (this.tvField = new THREE.Mesh(new THREE.PlaneGeometry(1.08, 1.62), new THREE.MeshBasicMaterial({ map: this.replay.texture }))); field.position.z = 0.004; g.add(field);
     const scan = canvas(4, 256), sc = scan.getContext('2d'); for (let y = 0; y < 256; y += 4) { sc.fillStyle = 'rgba(0,0,0,.35)'; sc.fillRect(0, y, 4, 2); }
-    const lines = new THREE.Mesh(new THREE.PlaneGeometry(1.08, 1.62), new THREE.MeshBasicMaterial({ map: tex(scan, [1, 1]), transparent: true })); lines.position.z = 0.006; g.add(lines);
+    const lines = (this.tvLines = new THREE.Mesh(new THREE.PlaneGeometry(1.08, 1.62), new THREE.MeshBasicMaterial({ map: tex(scan, [1, 1]), transparent: true }))); lines.position.z = 0.006; g.add(lines);
+    // the News: its ticker along the bottom (a long strip that scrolls) and its blinking LIVE light
+    const tt = tex(canvas(2048, 64)); tt.wrapS = THREE.RepeatWrapping; this.ticker = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.11), new THREE.MeshBasicMaterial({ map: tt })); this.ticker.position.set(0, -0.82, 0.008); g.add(this.ticker);
+    this.liveDot = new THREE.Mesh(new THREE.CircleGeometry(0.035, 16), new THREE.MeshBasicMaterial({ color: 0xffffff })); this.liveDot.position.set(-1.5, 0.767, 0.008); g.add(this.liveDot); this.newsSig = null;
     const bezel = new THREE.Mesh(new THREE.BoxGeometry(3.36, 1.91, 0.06), new THREE.MeshPhongMaterial({ color: 0x1a2030, shininess: 40 })); bezel.position.set(TV_X, 1.75, BACK - 0.04); this.show.add(bezel);
     this.tag(g, 'replay'); this.tv = { hud, face, stats: state.stats, next: 0 };
+    // the channel buttons on a bar under the screen: Last, Best, Boss, Daily (the one on is lit; one with nothing on it yet
+    // is dark); tapping one switches the TV over
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(2.78, 0.26, 0.05), new THREE.MeshPhongMaterial({ color: 0x141a28, shininess: 40 })); bar.position.set(0, -1.06, -0.02); g.add(bar);
+    this.tvKeys = TV_CHANNELS.map((c, i) => { const k = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.2), new THREE.MeshBasicMaterial({ map: tex(canvas(200, 80)) })); k.position.set((i - 2) * 0.54, -1.06, 0.006); g.add(k); this.tag(k, 'tv:' + c.id); k.userData.ch = c.id; return k; });
+    this.keySig = '';
+  }
+  /** Which channel the TV is on (a setting; Last if the one chosen has nothing on it yet). */
+  channel() { const ch = G.state?.settings?.tvChannel || 'last'; return ch === 'news' ? 'news' : replayOf(ch) ? ch : lastReplay() ? 'last' : 'news'; }
+  /** The channel buttons: lit for the one on, plain for one with a recording, dark for one still empty. */
+  drawKeys(on) {
+    const sig = on + CHANNELS.map((c) => (replayOf(c.id) ? 1 : 0)).join(''); if (sig === this.keySig || !this.tvKeys) return; this.keySig = sig;
+    this.tvKeys.forEach((k, i) => { const c = TV_CHANNELS[i], has = c.id === 'news' || !!replayOf(c.id), lit = c.id === on, x = k.material.map.image.getContext('2d'), news = c.id === 'news';
+      x.fillStyle = lit ? (news ? '#ff4d6a' : '#5ee6ff') : has ? '#1c2640' : '#0e1220'; x.fillRect(0, 0, 200, 80); x.strokeStyle = lit ? '#e8fbff' : has ? (news ? '#ff4d6a' : '#5ee6ff') : '#2a3450'; x.lineWidth = 4; x.strokeRect(3, 3, 194, 74);
+      text(x, c.name.toUpperCase(), 100, 42, '800 32px sans-serif', lit ? '#062030' : has ? '#dff6ff' : '#3a4460'); k.material.map.needsUpdate = true; });
+  }
+  /** The News channel: a story at a time (yours, then the station's lore, in turn), redrawn only when the story changes
+   *  (a new one every eight seconds); the LIVE light blinks and the ticker scrolls without redrawing anything. */
+  drawNews(state) {
+    const tv = this.tv, x = tv.hud.getContext('2d'), mine = newsStories(state);
+    this.newsI = (this.newsI ?? -1) + 1; this.loreI ??= Math.floor(Math.random() * LORE.length);
+    const k = this.newsI % 2 && mine.length ? mine[Math.floor(this.newsI / 2) % mine.length] : LORE[this.loreI++ % LORE.length], story = k || LORE[0];
+    x.fillStyle = '#060b1a'; x.fillRect(0, 0, 1024, 560); x.fillStyle = '#b3122e'; x.fillRect(0, 0, 1024, 70); x.fillStyle = '#7a0c20'; x.fillRect(0, 66, 1024, 4);
+    text(x, 'ORBIT NEWS', 86, 36, '900 34px sans-serif', '#ffffff', 'left'); text(x, (state.stationName || 'THE LAST ORBIT').toUpperCase(), 346, 38, '700 20px sans-serif', '#ffc2cc', 'left');
+    const now = new Date(); text(x, `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`, 990, 37, '800 26px sans-serif', '#ffffff', 'right');
+    const TAG = { Breaking: '#ff4d6a', Station: '#5ee6ff', Records: '#ffc857', Fleet: '#6dffc8', 'Sortie report': '#9fc8ff', Defence: '#ffb547', 'Deep Void': '#b69cff', Hunting: '#ff8a3d', Greenhouse: '#7ddc6f', Radio: '#6dffc8', Local: '#ffb070' }, col = TAG[story.tag] || '#9fb0d0';
+    x.font = '800 20px sans-serif'; const tw = x.measureText(story.tag.toUpperCase()).width + 30; x.fillStyle = col; x.fillRect(330, 104, tw, 34); text(x, story.tag.toUpperCase(), 345, 122, '800 20px sans-serif', '#060b1a', 'left');
+    const wrap = (str, font, w) => { x.font = font; const out = []; let line = ''; for (const word of str.split(' ')) { const t = line ? line + ' ' + word : word; if (x.measureText(t).width > w && line) { out.push(line); line = word; } else line = t; } if (line) out.push(line); return out; };
+    const head = wrap(story.head, '800 44px sans-serif', 640).slice(0, 2); head.forEach((l, i) => text(x, l, 330, 184 + i * 52, '800 44px sans-serif', '#ffffff', 'left'));
+    wrap(story.body, '500 25px sans-serif', 640).slice(0, 5).forEach((l, i) => text(x, l, 330, 196 + head.length * 52 + i * 34, '500 25px sans-serif', '#b8c6e0', 'left'));
+    x.fillStyle = '#0e1630'; x.fillRect(40, 104, 256, 256); x.strokeStyle = col; x.lineWidth = 3; x.strokeRect(40, 104, 256, 256);
+    text(x, 'TAP FOR ALL THE NEWS', 168, 400, '700 16px sans-serif', '#7f8bb0');
+    tv.face.material.map.needsUpdate = true; const shown = this.newsI; drawArt(story.art || 'cur:salvage', x, 64, 128, 208, () => { if (this.newsI === shown) tv.face.material.map.needsUpdate = true; });
+  }
+  /** The ticker's text, drawn once on a long strip that scrolls. */
+  drawTicker(state) {
+    const str = newsTicker(state) + '   ◆   ', c = this.ticker.material.map.image, x0 = c.getContext('2d'); x0.font = '800 34px sans-serif';
+    const w = Math.min(8192, Math.ceil(x0.measureText(str).width) + 40); if (c.width !== w) c.width = w; const x = c.getContext('2d');
+    x.fillStyle = '#0a0f1e'; x.fillRect(0, 0, w, 64); x.fillStyle = '#ffc857'; x.fillRect(0, 0, w, 3); text(x, str, 20, 34, '800 34px sans-serif', '#ffe2a0', 'left');
+    const t = this.ticker.material.map; t.repeat.set((3.2 / 0.11) / (w / 64), 1); t.needsUpdate = true;
   }
   /** The TV's side panels, redrawn a few times a second as the replay plays. */
   drawTv() {
@@ -193,7 +239,7 @@ export class DeckRoom extends Room {
     tv.face.material.map.needsUpdate = true;
   }
   /** The replay plays on the TV only while the TV is on screen: looking away, it keeps time but is not drawn. */
-  offscreen(gl) { if (!this.tv) return; const THREE = window.THREE, f = (this.frustum ||= new THREE.Frustum()), m = (this.viewProj ||= new THREE.Matrix4()); this.cam.updateMatrixWorld(); m.multiplyMatrices(this.cam.projectionMatrix, this.cam.matrixWorldInverse); f.setFromProjectionMatrix(m); this.tvSeen = f.intersectsObject(this.tv.face); if (this.tvSeen) this.replay.render(gl); }
+  offscreen(gl) { if (!this.tv) return; const THREE = window.THREE, f = (this.frustum ||= new THREE.Frustum()), m = (this.viewProj ||= new THREE.Matrix4()); this.cam.updateMatrixWorld(); m.multiplyMatrices(this.cam.projectionMatrix, this.cam.matrixWorldInverse); f.setFromProjectionMatrix(m); this.tvSeen = f.intersectsObject(this.tv.face); if (this.tvSeen && this.replay?.rep && this.tvField?.visible !== false) this.replay.render(gl); } /* the News needs no replay drawn */
   resize(w, h) { super.resize(w, h); this.vw = w; this.vh = h; }
   /** Watching the replay: it takes the whole screen (the UI lays its controls over it). */
   render(gl, dt) { if (this.watching && this.replay?.rep) { this.replay.update(dt); this.replay.renderFull(gl, this.vw, this.vh, this.watchInsets); return; } super.render(gl, dt); }
@@ -264,7 +310,10 @@ export class DeckRoom extends Room {
     this.holoGrid.rotation.z = this.t * 0.15;
     // the hologram, the ships, the banners
     this.station.animate(dt, night); this.station.body.rotation.set(0.25, this.t * 0.3, 0);
-    if (this.tv) { const r = lastReplay(); if (this.replay.rep !== r) this.replay.load(r); this.replay.update(dt); if (this.tvSeen !== false && this.t >= this.tv.next) { this.tv.next = this.t + 0.2; this.drawTv(); } }
+    if (this.tv && this.channel() === 'news') { const ch = 'news'; this.drawKeys(ch); this.tvField.visible = this.tvLines.visible = false; this.ticker.visible = true; this.liveDot.visible = Math.floor(this.t * 1.6) % 2 === 0;
+      const sig = this.sig; if (this.newsSig !== sig) { this.newsSig = sig; this.drawTicker(this.state || G.state); this.newsNext = 0; } if (this.t >= (this.newsNext || 0)) { this.newsNext = this.t + 8; this.drawNews(G.state); }
+      this.ticker.material.map.offset.x = (this.t * 0.04) % 1; }
+    else if (this.tv) { if (this.tvField) { this.tvField.visible = this.tvLines.visible = true; this.ticker.visible = this.liveDot.visible = false; this.newsSig = null; } const ch = this.channel(), r = replayOf(ch) || lastReplay(); if (this.replay.rep !== r) this.replay.load(r); this.drawKeys(ch); this.replay.update(dt); if (this.tvSeen !== false && this.t >= this.tv.next) { this.tv.next = this.t + 0.2; this.drawTv(); } }
     for (const p of this.spins || []) { p.rotation.y = this.t * 0.5 + p.userData.spin; p.position.y = 1.35 + Math.sin(this.t * 1.4 + p.userData.spin) * 0.05; }
     for (const [i, f] of (this.flags || []).entries()) { f.rotation.z = Math.sin(this.t * 0.9 + i) * 0.04; f.rotation.y = (f.userData.ry || 0) + Math.sin(this.t * 0.6 + i * 1.7) * 0.12; }
   }

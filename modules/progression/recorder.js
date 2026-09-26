@@ -2,24 +2,31 @@
 // station (rendering/replay.js). The field is only 100 × 150, so a position packs into a byte or two. It keeps the last
 // KEEP seconds (the ending is the story: the boss, or how it went wrong), and when the sortie ends it is packed,
 // compressed and stored in a slot of its own, apart from the save. Read-only: it never changes the fight.
+// The replay TV has channels, each kept in a slot of its own: the last sortie; your best run (the furthest wave, kept
+// until you beat it); the last boss you beat (the minute before the kill and a few seconds of the wreck); and your
+// last Daily Sortie.
 // Counterattack is not recorded: its walls, city and scrolling set pieces are not part of what is noted.
 import { bus } from '@last-orbit/core/events.js';
 import { G } from '@last-orbit/core/game.js';
 import { putBlob, getBlob } from '@last-orbit/save/save.js';
 
 export const HZ = 10, KEEP = 90;
-const MAX_E = 90, MAX_S = 70, MAX_B = 110, SLOT = 'v2_replay', MAGIC = 0x4c4f5231; // 'LOR1'
+const MAX_E = 90, MAX_S = 70, MAX_B = 110, MAGIC = 0x4c4f5231; // 'LOR1'
+const SLOTS = { last: 'v2_replay', best: 'v2_replay_best', boss: 'v2_replay_boss', daily: 'v2_replay_daily' }, BOSS_BEFORE = 60, BOSS_AFTER = 4;
+/** The TV's channels: what each is, and how to fill it while it is empty. */
+export const CHANNELS = [{ id: 'last', name: 'Last', how: 'Fly a sortie' }, { id: 'best', name: 'Best', how: 'Fly a sortie' }, { id: 'boss', name: 'Boss', how: 'Beat a sector boss' }, { id: 'daily', name: 'Daily', how: 'Fly the Daily Sortie' }];
 // packing: x -60..60 and y -10..170 into a byte each, speeds in steps of 1.5 into a signed byte
 const qx = (x) => Math.max(0, Math.min(255, Math.round((x + 60) * 2.125))), qy = (y) => Math.max(0, Math.min(255, Math.round((y + 10) * 1.4167)));
 const qv = (v) => Math.max(-127, Math.min(127, Math.round(v / 1.5))) & 255;
 export const unpack = { x: (b) => b / 2.125 - 60, y: (b) => b / 1.4167 - 10, v: (b) => (b > 127 ? b - 256 : b) * 1.5 };
 const BULLET = { heavy: 1, orb: 2, snipe: 3 }; // anything else is a plain bolt (0)
 
-let rec = null, last = null, kills = [], loading = null, stamp = 0;
+let rec = null, kills = [], loading = null, stamp = 0, bossAt = null, bossName = '';
+const kept = {}; // channel → its replay
 const index = (list, key) => { let i = list.indexOf(key); if (i < 0) { i = list.length; list.push(key); } return i; };
 
 /** Start a new recording. meta: what the replay TV shows beside the fight (ship, mode). */
-export function recStart(meta = {}) { rec = meta.mode === 'counter' ? null : { meta, shapes: [], colors: [], frames: [], acc: 1 / HZ, t: 0 }; kills = []; }
+export function recStart(meta = {}) { rec = meta.mode === 'counter' ? null : { meta, shapes: [], colors: [], frames: [], acc: 1 / HZ, t: 0 }; kills = []; bossAt = null; }
 /** Call as the fight advances (dt: game seconds); takes a frame every 1/HZ seconds, keeping the last KEEP seconds. */
 export function recTick(w, dt) {
   if (!rec || !w || !G.state.run) return; rec.t += dt; rec.acc += dt; if (rec.acc < 1 / HZ) return; rec.acc %= 1 / HZ;
@@ -36,22 +43,36 @@ export function recTick(w, dt) {
   const S = pack(w.shots, MAX_S, (s) => index(rec.colors, s.c?.color ?? 0x5ee6ff)), B = pack(w.ebullets, MAX_B, (b) => BULLET[b.kind] || 0);
   rec.frames.push({ t: rec.t, wave: w.wave.num, score: Math.round(run.score || 0), hull: p.hull, shield: p.shield, alive: p.alive, px: p.x, py: p.y, tilt: p.tilt || 0, level: run.level || 1, E, S, B, K: kills.slice(0, 255) });
   if (rec.frames.length > HZ * KEEP) rec.frames.shift(); kills = [];
+  if (bossAt != null && rec.t >= bossAt + BOSS_AFTER) { keepBoss(); bossAt = null; }
+}
+/** A boss down: in a few seconds (once it has blown up) the minute before the kill becomes the Boss channel. */
+bus.on('bossDied', (w, e) => { if (!rec || e.boss?.def?.mini || rec.meta.mode === 'counter') return; bossAt = rec.t; bossName = e.boss?.def?.name || 'Boss'; });
+function keepBoss() {
+  const from = bossAt - BOSS_BEFORE, frames = rec.frames.filter((f) => f.t >= from); if (frames.length < HZ * 3) return;
+  const r = { kind: 'boss', meta: { ...rec.meta, boss: bossName }, shapes: rec.shapes.slice(), colors: rec.colors.slice(), frames, end: { reason: 'boss', boss: bossName, wave: frames[frames.length - 1].wave }, secs: rec.t, stamp: ++stamp };
+  kept.boss = r; storeReplay('boss', r);
 }
 /** Stop, keep it as the last replay, and store it. end: how the sortie ended ({ reason, wave }). */
 export function recStop(end) {
-  if (!rec) return last; const r = rec; rec = null; if (r.frames.length < HZ * 3) return last; // a few seconds is not worth a replay
-  last = { meta: r.meta, shapes: r.shapes, colors: r.colors, frames: r.frames, end, secs: r.t, stamp: ++stamp }; storeReplay(last); return last;
+  if (!rec) return kept.last || null; if (bossAt != null) { keepBoss(); bossAt = null; } const r = rec; rec = null; if (r.frames.length < HZ * 3) return kept.last || null; // a few seconds is not worth a replay
+  const rep = { kind: 'last', meta: r.meta, shapes: r.shapes, colors: r.colors, frames: r.frames, end, secs: r.t, stamp: ++stamp }; kept.last = rep; storeReplay('last', rep);
+  if (r.meta.daily) { kept.daily = { ...rep, kind: 'daily', stamp: ++stamp }; storeReplay('daily', kept.daily); }
+  // the best run: kept until a sortie gets further (the stored one is looked at first, if it is not loaded yet)
+  if (r.meta.mode === 'main' || !r.meta.mode) loadSlot('best').then((b) => { if (!b || (end.wave || 0) >= (b.end?.wave || 0)) { kept.best = { ...rep, kind: 'best', stamp: ++stamp }; storeReplay('best', kept.best); } });
+  return rep;
 }
-export const lastReplay = () => last;
-/** The stored replay, loaded the first time it is wanted (it is only needed aboard the station). */
-export function loadReplay() {
-  if (last || loading) return loading || Promise.resolve(last);
-  return (loading = getBlob(SLOT).then((buf) => buf ? unpackReplay(buf) : null).then((r) => { if (r && !last) { r.stamp = ++stamp; last = r; } return last; }).catch(() => null));
-}
+export const lastReplay = () => kept.last || null;
+/** A channel's replay (null if it has none yet, or it has not loaded). */
+export const replayOf = (id) => kept[id] || null;
+/** One channel's stored replay, loaded once. */
+const slotLoads = {};
+function loadSlot(id) { return (slotLoads[id] ||= getBlob(SLOTS[id]).then((buf) => buf ? unpackReplay(buf) : null).then((r) => { if (r && !kept[id]) { r.kind = id; r.stamp = ++stamp; kept[id] = r; } return kept[id] || null; }).catch(() => kept[id] || null)); }
+/** Every channel's stored replay, loaded the first time they are wanted (only aboard the station). Resolves to the last. */
+export function loadReplay() { return (loading ||= Promise.all(CHANNELS.map((c) => loadSlot(c.id))).then(() => kept.last || null)); }
 
 // ---------------------------------------------------------------- storage: packed bytes, deflated where the browser can
 const deflate = async (bytes, how) => new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new (how ? CompressionStream : DecompressionStream)('deflate-raw'))).arrayBuffer());
-async function storeReplay(r) { try { let b = packReplay(r); if (typeof CompressionStream !== 'undefined') b = await deflate(b, true); await putBlob(SLOT, b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)); } catch { /* a replay is a nicety: never let it break a sortie's end */ } }
+async function storeReplay(id, r) { try { let b = packReplay(r); if (typeof CompressionStream !== 'undefined') b = await deflate(b, true); await putBlob(SLOTS[id], b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength)); } catch { /* a replay is a nicety: never let it break a sortie's end */ } }
 export async function unpackReplay(buf) {
   let b = new Uint8Array(buf); if (new DataView(b.buffer, b.byteOffset).getUint32(0) !== MAGIC) b = await deflate(b, false);
   return readReplay(b);
