@@ -1,6 +1,6 @@
 # Changelog
 
-## v2.26.2
+## v2.26.2 — 2026-09-26
 
 - **Lighter on your phone's memory aboard the station.** Every room you visited used to stay loaded until the app closed: all twelve together came to about 150 MB of graphics memory, enough to crash the game on an older phone after a long walk round the station. Now only the room you are in and the last two you came through stay loaded. A room further back is rebuilt in a moment when you return, Bolt and all.
 - rendering/room.js Room.dispose and disposeScene; rendering/renderer.js keeps the last three rooms (ROOM_KEEP). How the memory was measured is in TESTING.md.

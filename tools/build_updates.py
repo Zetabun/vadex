@@ -3,17 +3,26 @@
 Run by tools/build_importmap.py at every release (so the tab can never fall behind the changelog); run it on its own
 to preview. Each '## vX.Y.Z — date' heading is one update: its intro paragraph, its bullets (and their sub-bullets),
 and a headline made of the first few **bold** lead-ins. Lines for developers (tests, tools, save schemas, the import
-map, bots) are left out: write the changelog for players, and keep such notes in their own bullets.
+map, bots, anything naming a file) are left out, and a file named in brackets in a player's line is dropped from it:
+write the changelog for players, and keep such notes in their own bullets.
 """
 from pathlib import Path
 import json, re
 
 root = Path(__file__).resolve().parents[1]
 DEV = re.compile(r'\btests?/|\.mjs\b|regression|release (check|gate)|kept save|import map|\bschema\b|tools/|headless|\bbots?\b|ES modules|debug scene', re.I)
+# a file or a source path: never something the Updates tab shows (the release gate checks)
+FILE = re.compile(r'\.(md|js|mjs|py|json|sql|html|toml)\b|\b(modules|rendering|progression|data|ui|combat|core|api|save|audio)/[\w./-]+', re.I)
+
+
+def is_dev(text):
+    return bool(DEV.search(text) or FILE.search(text))
 
 
 def clean(s):
-    return re.sub(r'`([^`]*)`', r'\1', s).strip()
+    s = re.sub(r'`([^`]*)`', r'\1', s)
+    s = re.sub(r'\s*\([^()]*(?:\.(?:md|js|mjs|py|json|sql|html)\b|\b(?:modules|rendering|progression|data|ui|combat|core|api)/)[^()]*\)', '', s)  # (modules/ui/art.js): not for players
+    return s.strip()
 
 
 def headline(items, intro):
@@ -52,16 +61,16 @@ def parse(md):
         top = re.match(r'^[-*] (.*)', line)
         if top:
             text = clean(top.group(1))
-            cur['items'].append({'t': text, 'sub': [], 'dev': bool(DEV.search(text))})
+            cur['items'].append({'t': text, 'sub': [], 'dev': is_dev(text)})
         elif sub and cur['items']:
             text = clean(sub.group(1))
-            if not DEV.search(text):
+            if not is_dev(text):
                 cur['items'][-1]['sub'].append(text)
         elif not cur['items']:
             cur['intro'] = (cur['intro'] + ' ' + clean(line)).strip()
         else:  # a paragraph after the bullets: its own item
             text = clean(line)
-            cur['items'].append({'t': text, 'sub': [], 'dev': bool(DEV.search(text))})
+            cur['items'].append({'t': text, 'sub': [], 'dev': is_dev(text)})
     out, newer = [], ''
     for u in updates:  # an update with no date went out with the next one that has one
         if u['date']:

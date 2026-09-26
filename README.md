@@ -40,4 +40,4 @@ python tools/run_release_gates.py
 
 The gate checks the import map, every module's syntax and the regression suite. `npm run balance` flies bot sorties headlessly and reports where they end (arguments: runs, Workshop level, ship, `fresh|some|all` unlocks, dodge skill 0-3). After adding or removing a module, run `python tools/build_importmap.py <version>` (it also rebuilds the Updates history from `CHANGELOG.md`). Before any push, follow `AGENTS.md`, "Before every push": the gate refuses a release without its dated changelog entry and version stamps. `node tools/shoot.mjs <outDir> [scene…]` captures phone-sized screenshots and `node tools/render-icons.mjs` regenerates the app icons from `icons/icon.svg` (both need the local server).
 
-Current build: **v2.26.1**; save schema **23** (v2 saves use their own storage keys and never overwrite a v1 save).
+Current build: **v2.26.2**; save schema **23** (v2 saves use their own storage keys and never overwrite a v1 save).

@@ -27,7 +27,11 @@ if re.fullmatch(r'\d+\.\d+\.\d+', version):
     assert f'v{version}' in (root / 'BUILD_NOTES.md').read_text(encoding='utf-8').splitlines()[0], f'BUILD_NOTES.md: set its heading to v{version}'
 for module in modules:
     subprocess.run(['node', '--check', str(module)], check=True, cwd=root)
-# The Updates tab (modules/data/updates.js) must carry the changelog's newest release (tools/build_importmap.py rebuilds it).
+# The Updates tab (modules/data/updates.js) must carry the changelog's newest release (tools/build_importmap.py rebuilds it),
+# and never name a file: it is for players.
+_upd = (root / 'modules' / 'data' / 'updates.js').read_text(encoding='utf-8')
+_files = re.findall(r'[\w/-]+\.(?:md|js|mjs|py|json|sql|toml)\b|\b(?:modules|rendering|progression|combat|core|api)/[\w./-]+', _upd[_upd.index('['):])
+assert not _files, 'The Updates tab names files (tools/build_updates.py should leave those lines out): ' + ', '.join(sorted(set(_files))[:8])
 newest = re.search(r'^## v(\d+\.\d+\.\d+)', (root / 'CHANGELOG.md').read_text(encoding='utf-8'), re.M).group(1)
 assert f"{{\"v\":\"{newest}\"" in (root / 'modules' / 'data' / 'updates.js').read_text(encoding='utf-8'), f'The Updates tab lacks v{newest}: run tools/build_importmap.py'
 # A trailing // comment whose text reads like code has almost always swallowed code by accident (a comment inserted
