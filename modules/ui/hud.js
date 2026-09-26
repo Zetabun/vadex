@@ -53,14 +53,17 @@ export function createHud(hooks) {
     const sec = sectorOf(wave), sig = sec.start + ':' + sec.len; if (sig === pipSig) return; pipSig = sig; clear($.pips);
     for (let i = 0; i < sec.len; i++) { const k = waveKind(sec.start + i); $.pips.append(h('span.pip.' + k)); }
   }
+  let loadN = null;
   function buildLoadout(run) {
-    const sig = run.order.map((id) => id + run.weapons[id]).join() + '|' + run.relics.join() + '|' + (run.fusions || []).join() + (run.signature ? '*' : ''); if (sig === loadSig) return; loadSig = sig; clear($.loadout);
+    const sig = run.order.map((id) => id + run.weapons[id]).join() + '|' + run.relics.join() + '|' + (run.fusions || []).join() + (run.signature ? '*' : '') + '|' + Object.values(run.cards || {}).filter((n) => n > 0).length; if (sig === loadSig) return; loadSig = sig; clear($.loadout);
     const special = (id) => (run.signature && SHIP_BY_ID[run.ship]?.weapon === id) || (run.fusions || []).some((f) => FUSION_BY_ID[f].a === id || FUSION_BY_ID[f].b === id);
-    for (const id of run.order) {
-      const r = run.weapons[id], pips = h('span.rank', { 'aria-hidden': 'true' }); for (let i = 1; i <= BAL.maxRank; i++) pips.append(h('i' + (i <= r ? '.on' : '')));
-      $.loadout.append(h('div.gun' + (special(id) ? '.special' : ''), { 'data-key': 'weapon:' + id, title: `${WEAPONS[id].name} rank ${r}`, style: `--c:#${WEAPONS[id].color.toString(16).padStart(6, '0')}` }, art('weapon:' + id, 'gun-icon'), pips));
-    }
-    for (const id of run.relics) $.loadout.append(h('div.relic-mini', { 'data-key': 'relic:' + id, title: RELIC_BY_ID[id].name }, art('relic:' + id, 'gun-icon')));
+    // one stack in the corner instead of a row of icons: the newest three fanned on top, how many pieces in all, and a
+    // tap opens the whole loadout (a new piece drops onto it)
+    const pieces = [...run.order.map((id) => ({ key: 'weapon:' + id, c: '#' + WEAPONS[id].color.toString(16).padStart(6, '0'), special: special(id) })), ...run.relics.map((id) => ({ key: 'relic:' + id, c: '#b69cff' }))];
+    const total = pieces.length + Object.values(run.cards || {}).filter((n) => n > 0).length, grew = total > (loadN || 0) && loadN != null; loadN = total;
+    const stack = h('div.stack' + (pieces.some((p) => p.special) ? '.special' : '') + (grew ? '.grew' : ''), { 'data-key': 'build', title: 'Your loadout', 'aria-label': `Loadout: ${total} pieces. Tap to see them all.` },
+      pieces.slice(-3).map((p, i, a) => h('span.st-card' + (i === a.length - 1 && grew ? '.new' : ''), { style: `--c:${p.c};--i:${i - (a.length - 1) / 2}` }, art(p.key, 'gun-icon'))), h('b.st-n', String(total)));
+    $.loadout.append(stack);
   }
   function buildAbilities(run) {
     const sig = run.abilities.join(); if (sig === abilSig) return; abilSig = sig; clear($.abil);
@@ -113,7 +116,7 @@ export function createHud(hooks) {
     const deg = Math.round(dk * 90) * 4; if (deg !== $.dashDeg) { $.dashDeg = deg; $.dashRing.style.setProperty('--p', deg + 'deg'); } setClass($.dash, 'ready', dk >= 1 && p.alive);
     const th = p.alive && w.wave.state !== 'dead' && !hooks.blocking?.() ? Math.round(Math.min(1, Math.abs(p.vx || 0) / 70) * 20) / 20 : 0; if (th !== $.thrust) { $.thrust = th; setThrust(th); }
   }
-  function reset() { pipSig = loadSig = abilSig = hintKind = ''; hintT = 0; $.dodgeCounted = false; $.steerThis = null; $.thrust = 0; $.dashDeg = -1; setThrust(0); for (const k in abilBtns) delete abilBtns[k]; }
+  function reset() { pipSig = loadSig = abilSig = hintKind = ''; loadN = null; hintT = 0; $.dodgeCounted = false; $.steerThis = null; $.thrust = 0; $.dashDeg = -1; setThrust(0); for (const k in abilBtns) delete abilBtns[k]; }
   /** The loadout icon under a screen point (a tap there explains the loadout), padded to be easy to hit. */
   function loadoutAt(x, y) {
     for (const c of $.loadout.children) { const r = c.getBoundingClientRect(); if (x >= r.left - 4 && x <= r.right + 4 && y >= r.top - 8 && y <= r.bottom + 8) return c.dataset.key || null; }

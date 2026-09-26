@@ -1,5 +1,6 @@
 // The sortie: start, experience and level-ups, card offers, relics, salvage and the end-of-run debrief.
 import { G, recalc, count, maxStat, toast, noteHull } from '@last-orbit/core/game.js';
+import { FOCUS_BY_ID, FOCUS_WEIGHT, WARP_PERKS, WARP_PERK_BY_ID, DRAFT_FROM } from '@last-orbit/data/warp.js';
 import { bankMaterials } from '@last-orbit/progression/refits.js';
 import { bus } from '@last-orbit/core/events.js';
 import { rand } from '@last-orbit/core/rng.js';
@@ -263,16 +264,33 @@ export function pickCard(idx) {
 export function warpMax() { return Math.max(1, Math.min(6, (G.state.stats.sectorsCleared || 0) + 1)); }
 
 /** A sensible card for a pilot who wants to skip choosing: finish synergies, evolve weapons, prefer rarer cards. */
-export function autoPickIndex(run = G.state.run) {
-  const score = (c) => {
-    let v = { signature: 30, fusion: 28, upgrade: 12, weapon: 10, ability: 6, mod: 5, heal: 1, cash: 1 }[c.kind] || 0;
-    v += { evo: 6, epic: 4, rare: 2 }[c.rarity] || 0;
-    const s = c.kind === 'mod' && synergyOf(c.id);
-    if (s && !(run.cards[c.id] > 0)) { const n = synergyCount(s, run) + 1; v += s.tiers.some((t) => t.n === n) ? 9 : 3; }
-    return v;
-  };
-  let best = 0; (run.offer || []).forEach((c, i) => { if (score(c) > score(run.offer[best])) best = i; });
+/** How much Auto-pick wants a card: signatures and fusions first, then gun ranks, new guns, and cards that complete a
+ *  synergy. A warp focus (data/warp.js) adds weight to the kinds and synergies it favours. */
+export function cardScore(c, run = G.state.run, focus = null) {
+  let v = { signature: 30, fusion: 28, upgrade: 12, weapon: 10, ability: 6, mod: 5, heal: 1, cash: 1 }[c.kind] || 0;
+  v += { evo: 6, epic: 4, rare: 2 }[c.rarity] || 0;
+  const s = c.kind === 'mod' && synergyOf(c.id);
+  if (s && !(run.cards[c.id] > 0)) { const n = synergyCount(s, run) + 1; v += s.tiers.some((t) => t.n === n) ? 9 : 3; }
+  if (focus) { v += focus.kinds[c.kind] || 0; if (s && focus.themes.includes(s.id)) v += FOCUS_WEIGHT; }
+  return v;
+}
+export function autoPickIndex(run = G.state.run, focus = null) {
+  let best = 0; (run.offer || []).forEach((c, i) => { if (cardScore(c, run, focus) > cardScore(run.offer[best], run, focus)) best = i; });
   return best;
+}
+// ---------------------------------------------------------------- the warp draft (data/warp.js)
+/** A big catch-up waiting before launch (a warp, or a late Counterattack stage), not yet drafted or refused. */
+export const draftDue = (run = G.state.run) => !!run && !run.drafted && !run.manual && !(run.time > 0) && (run.warp > 1 || run.catchUp > 1) && (run.pendingLevels || 0) + (run.pendingRelics || 0) >= DRAFT_FROM;
+/** The three warp perks on offer (kept on the run, so they stay the same if the game is reopened). */
+export function warpPerkOffer(run = G.state.run) { if (!run.perkOffer) { const pool = WARP_PERKS.map((p) => p.id); run.perkOffer = []; while (run.perkOffer.length < 3 && pool.length) run.perkOffer.push(pool.splice(Math.floor(rand() * pool.length), 1)[0]); } return run.perkOffer; }
+/** Drafts every catch-up card and relic towards a focus and takes the warp perk. Returns the cards and relics taken. */
+export function warpDraft(focusId, perkId, run = G.state.run) {
+  const f = FOCUS_BY_ID[focusId]; if (!run || !f) return null;
+  run.warpFocus = f.id; if (WARP_PERK_BY_ID[perkId]) run.warpPerk = perkId; run.drafted = true; recalc();
+  const got = { cards: [], relics: [] }; let guard = 400;
+  while (guard-- > 0 && nextOffer()) got.cards.push(pickCard(autoPickIndex(run, f)));
+  while (guard-- > 0 && nextRelic()) { const o = run.relicOffer || [], i = o.findIndex((id) => f.relics.includes(id)); got.relics.push(pickRelic(i >= 0 ? i : 0)); }
+  bus.emit('warpDrafted', run, got); return got;
 }
 
 // ---------------------------------------------------------------- relics

@@ -1,6 +1,7 @@
 // UI root: switches between the Hangar and the sortie HUD, owns overlays, banners, toasts and screen effects,
 // and tells the renderer how much of the screen the battlefield may use.
 import { MAT_BY_ID, materialOf } from '@last-orbit/data/materials.js';
+import { draftDue } from '@last-orbit/progression/run.js';
 import { G } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { playSfx, setThrust } from '@last-orbit/audio/audio.js';
@@ -88,6 +89,7 @@ export function initUI(app, hooks) {
   /** Show whichever choice is waiting (relic first, then level-ups). Returns false when nothing is pending. */
   function nextChoice() {
     const run = G.state.run; if (!run) return false;
+    if (draftDue(run)) { overlays.showWarp(); return true; } // a big catch-up: the warp draft first (data/warp.js)
     if (hooks.pendingRelic()) { overlays.showRelics(); return true; }
     if (hooks.pendingRoute()) { overlays.showRoutes(); return true; }
     if (hooks.pendingAnomaly?.()) { overlays.showAnomalies(); return true; }
@@ -155,7 +157,7 @@ export function initUI(app, hooks) {
     showDebrief: (s) => { clear($.toasts); $.banner.classList.remove('on'); overlays.showDebrief(s); },
     pause: () => uiHooks.pause(),
     /** A short tap on the battlefield: if it landed on a loadout icon, explain the loadout. */
-    tapHud: (x, y) => { if (overlays.blocking()) return false; const key = hud.loadoutAt(x, y); if (!key) return false; playSfx('tab'); overlays.showLoadout(key, false); return true; },
+    tapHud: (x, y) => { if (overlays.blocking()) return false; const key = hud.loadoutAt(x, y); if (!key) return false; playSfx('tab'); overlays.showLoadout(key === 'build' ? null : key, false); return true; },
     refreshHangar: () => { if (G.mode === 'hangar') hangar.render(); },
     closeOverlays: () => overlays.close(),
   };

@@ -763,4 +763,20 @@ assert.throws(() => parseSave('{"run":{},"cur":{}}'), /Not a Last Orbit v2 save/
   const old = newState(); delete old.fleet; assert.deepEqual(F.fleet(old).out, [null, null, null], 'A save from before the fleet gets its berths');
   const short = newState(); short.fleet.out = [null]; assert.equal(F.fleet(short).out.length, 3); }
 
+// ---- v2.20: the warp draft (data/warp.js) ----
+{ const W = await import('@last-orbit/data/warp.js'), R = await import('@last-orbit/progression/run.js'), S = await import('@last-orbit/combat/sim.js'), { synergyOf } = await import('@last-orbit/data/synergies.js');
+  fresh(); G.state.stats.sectorsCleared = 6; recalc(); launch({ warp: 6 }); let run = G.state.run;
+  const cards = run.pendingLevels, relics = run.pendingRelics; assert.ok(cards >= 25 && relics >= 5, 'Warping to sector 6: twenty-five catch-up cards and five relics');
+  assert.ok(R.draftDue(run), 'A big catch-up is drafted'); const offer = R.warpPerkOffer(run); assert.equal(new Set(offer).size, 3, 'Three different warp perks'); assert.deepEqual(R.warpPerkOffer(run), offer, 'and the same three if asked again');
+  const hull0 = G.sheet.n('hull'), got = R.warpDraft('hold', 'wp_plate', run);
+  assert.equal(got.cards.length, cards, 'Every catch-up card fitted'); assert.equal(got.relics.length, relics, 'and every relic'); assert.equal(run.pendingLevels, 0); assert.equal(run.pendingRelics, 0);
+  assert.ok(!R.draftDue(run), 'Drafted once'); assert.equal(run.warpFocus, 'hold'); assert.equal(run.warpPerk, 'wp_plate');
+  assert.ok(G.sheet.n('hull') > hull0 * 1.25, 'The perk and the Survival cards count');
+  const theme = (id) => W.FOCUS_BY_ID.hold.themes.includes(synergyOf(id)?.id); assert.ok(Object.keys(run.cards).filter(theme).length >= 3, 'Survival drafts Survival cards');
+  endSortie('abandoned');
+  fresh(); G.state.stats.sectorsCleared = 6; recalc(); launch({ warp: 4 }); run = G.state.run; run.manual = true; assert.ok(!R.draftDue(run), 'Picking them by hand turns the draft off');
+  endSortie('abandoned');
+  fresh(); launch(); assert.ok(!R.draftDue(G.state.run), 'No draft without a warp'); endSortie('abandoned');
+  fresh(); G.state.stats.sectorsCleared = 6; recalc(); launch({ warp: 3 }); R.warpDraft('fire', 'wp_slip'); S.applyRunMods(G.world); assert.ok(Math.abs(G.world.mods.hp - 1.15) < 1e-9, 'Slipstream: the invaders are tougher'); endSortie('abandoned'); }
+
 console.log('Sortie, cards, relics, contracts, workshop, ships, pickups, revive and save checks pass.');

@@ -1,5 +1,13 @@
 # Changelog
 
+## v2.20.0 — unreleased
+
+- **Warping no longer means picking 25 cards.** Warping past sectors (or starting a late Counterattack stage) still gives you the same catch-up, five upgrades for every sector skipped plus a relic each, but now you make two choices instead of one per card:
+  - **A focus:** Firepower (more guns, higher ranks, crits and explosions), Survival (hull, armour, shields and repairs) or Tech (drones and abilities). The crew fits the catch-up cards and relics towards it, with the same judgement as Auto-pick.
+  - **A warp perk**, one of three and only found on a warp: Slipstream (+35% salvage, but the invaders are tougher), Afterburners, Warp plating, Big-game hunter, Target lock, Navigator's log or Escort wing.
+  - Then you see the build you're launching with. "Pick all the cards myself" is still there if you want the old way.
+- **The loadout is one stack.** The row of gun and relic icons along the bottom of the screen is now a single stack in the corner: your three newest pieces fanned out, with a count of everything you've picked. Each new piece drops onto it. Tap it for the whole loadout, explained, with the game paused.
+
 ## v2.19.0 — 2026-09-26
 
 - **Fleet Ops (new room aboard, with the Halo ring at Overhaul rank 9):** the ships you are not flying can go out on expeditions. The room is a launch deck in the halo, through a new door on the Shipyard's right wall.

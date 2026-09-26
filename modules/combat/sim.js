@@ -2,6 +2,7 @@
 //   idle → fighting → cleared → (next wave)      fighting → dead → (revive | sortie over)
 // Between sorties (no G.state.run) the world is an empty parade ground for the Hangar backdrop.
 import { Big } from '@last-orbit/core/big.js';
+import { WARP_PERK_BY_ID } from '@last-orbit/data/warp.js';
 import { G, count, maxStat, toast, recalc, noteHull } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { rand } from '@last-orbit/core/rng.js';
@@ -47,12 +48,12 @@ export function initWorld() {
 
 /** Enemy-side rules from the threat level, any daily mutator, the current route and Deep Void anomalies. */
 export function applyRunMods(w) {
-  const run = G.state.run, m = threatMods(run?.threat || 0), mw = MUTATOR_BY_ID[run?.mutator]?.world || {}, rw = ROUTE_BY_ID[run?.route]?.world || {};
+  const run = G.state.run, m = threatMods(run?.threat || 0), mw = MUTATOR_BY_ID[run?.mutator]?.world || {}, rw = ROUTE_BY_ID[run?.route]?.world || {}, pw = WARP_PERK_BY_ID[run?.warpPerk]?.world || {};
   // Anomalies stack: each copy multiplies (or adds its elites) again.
   const av = { hp: 1, dmg: 1, fireRate: 1, formSpeed: 1, elites: 0 }, mech = {};
   for (const id of run?.anomalies || []) { const a = ANOMALY_BY_ID[id]; if (!a) continue; for (const k in a.world || {}) { if (k === 'elites') av.elites += a.world[k]; else av[k] *= a.world[k]; } if (a.mech) mech[a.mech] = 1; }
   w.anom = Object.keys(mech).length ? mech : null;
-  w.mods = { hp: m.hp * (mw.hp || 1) * (rw.hp || 1) * av.hp, dmg: m.dmg * (rw.dmg || 1) * av.dmg, bossHp: m.bossHp, elites: m.elites + (mw.elites || 0) + (rw.elites || 0) + av.elites };
+  w.mods = { hp: m.hp * (mw.hp || 1) * (rw.hp || 1) * (pw.hp || 1) * av.hp, dmg: m.dmg * (rw.dmg || 1) * av.dmg, bossHp: m.bossHp, elites: m.elites + (mw.elites || 0) + (rw.elites || 0) + av.elites };
   w.sim.fireRate = m.fireRate * (mw.fireRate || 1) * (rw.fireRate || 1) * av.fireRate; w.sim.formSpeed = m.formSpeed * (mw.formSpeed || 1) * (rw.formSpeed || 1) * av.formSpeed;
 }
 bus.on('routePicked', () => { if (G.world) applyRunMods(G.world); });

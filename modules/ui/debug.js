@@ -351,7 +351,7 @@ function runScene(scene, hooks, ui) {
     for (let g = 0; g < 20 && powerRating() < STAGE_BY_N[+arg].rec; g++) { for (const u of WORKSHOP) if (u.id !== 'w_revive' && u.id !== 'w_choice') st.workshop[u.id] = Math.min(u.max, (st.workshop[u.id] || 0) + 1); recalc(); }
     hooks.launch({ counter: +arg }); for (let g = 0; g < 60 && (nextRelic() || nextOffer()); g++) { if (st.run.relicOffer) pickRelic(0); else pickCard(autoPickIndex(st.run)); } ui.closeOverlays();
     let t = 0; setInterval(() => { const w = G.world; if (!w?.player) return; w.player.hull = 1; t += 0.2; w.input.keysY = Math.sin(t * 0.7) > 0.2 ? 1 : Math.sin(t * 0.7) < -0.6 ? -1 : 0; w.input.keys = Math.sin(t * 0.45) > 0.3 ? 1 : Math.sin(t * 0.45) < -0.3 ? -1 : 0; }, 200); return; }
-  if (name === 'warp') { st.stats.sectorsCleared = 4; st.warp = +(arg || 3); if (!arg2) { hooks.toHangar('launch'); return; } }
+  if (name === 'warp') { st.stats.sectorsCleared = 5; st.warp = +(arg || 3); if (!arg2) { hooks.toHangar('launch'); return; } }
   if (name === 'bannershow' && arg === 'legendary') {
     // Every legendary stat tracker in turn with plausible stats, the kill counter ticking.
     Object.assign(st.stats, { kills: 48213, bossKills: 91, bestWave: 64, bestScore: 612840, totalSalvage: 318400, flawless: 523, sorties: 164 });
@@ -388,6 +388,7 @@ function runScene(scene, hooks, ui) {
   // A tab scene can scroll to a section by its heading: ships:engine shows the engine trails.
   if (['workshop', 'armory', 'ships', 'contracts', 'launch', 'missions', 'records', 'awards'].includes(name)) { hooks.toHangar(name); if (arg && arg !== 'locked') setTimeout(() => [...document.querySelectorAll('h3')].find((x) => x.textContent.toLowerCase().includes(arg))?.scrollIntoView(), 500); return; }
   hooks.launch();
+  if (name === 'warp') { if (arg3 === 'build') setTimeout(() => { document.querySelector('.wd-focus')?.click(); document.querySelector('.wd-perk')?.click(); setTimeout(() => document.querySelector('.wd-go')?.click(), 300); }, 1200); return; } /* warp:<sector>:go[:build]: the catch-up draft (build: fitted, the build shown) */
   if (name !== 'levelup') { st.run.offer = null; st.run.pendingLevels = 0; ui.closeOverlays(); }
   if (name === 'levelup') { grantXp(40); ui.nextChoice(); }
   else if (name === 'relic') { st.run.pendingRelics = 1; ui.nextChoice(); }

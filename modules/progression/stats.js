@@ -3,6 +3,7 @@
 //   total = (base + Σ adds) × Π group multipliers
 // Sources: the ship hull, Workshop levels (permanent), and — during a sortie — cards and relics.
 import { Big } from '@last-orbit/core/big.js';
+import { WARP_PERK_BY_ID } from '@last-orbit/data/warp.js';
 import { BAL } from '@last-orbit/data/balance.js';
 import { WEAPONS } from '@last-orbit/data/weapons.js';
 import { MODS } from '@last-orbit/data/cards.js';
@@ -87,6 +88,7 @@ export function computeSheet(state, sheet = new Sheet()) {
     for (const id of run.relics) sheet.fx(DEF.relics[id]?.fx, 1, 'Relics');
     if (run.mutator) sheet.fx(MUTATOR_BY_ID[run.mutator]?.fx, 1, 'Daily');
     if (run.route) sheet.fx(ROUTE_BY_ID[run.route]?.fx, 1, 'Route');
+    if (run.warpPerk) sheet.fx(WARP_PERK_BY_ID[run.warpPerk]?.fx, 1, 'Warp perk');
     if (run.threat) { sheet.mul('hull', 'Threat', threatMods(run.threat).hull); sheet.mul('salvageGain', 'Threat', threatSalvage(run.threat)); }
     if (run.anomalies?.length) sheet.mul('salvageGain', 'Anomalies', anomalyPay(run));
     for (const id of run.garden || []) sheet.fx(SEED_BY_ID[id]?.fx, 1, 'Greenhouse'); // blooms from the basket, this sortie only

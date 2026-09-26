@@ -9,7 +9,8 @@ import { RELIC_BY_ID } from '@last-orbit/data/relics.js';
 import { WEAPONS } from '@last-orbit/data/weapons.js';
 import { SHIP_BY_ID } from '@last-orbit/data/ships.js';
 import { CONTRACT_BY_ID } from '@last-orbit/data/contracts.js';
-import { describeCard, pickCard, reroll, pickRelic, pickRoute, pickAnomaly, autoPickIndex } from '@last-orbit/progression/run.js';
+import { describeCard, pickCard, reroll, pickRelic, pickRoute, pickAnomaly, autoPickIndex, warpDraft, warpPerkOffer } from '@last-orbit/progression/run.js';
+import { FOCI, FOCUS_BY_ID, WARP_PERK_BY_ID } from '@last-orbit/data/warp.js';
 import { ANOMALY_BY_ID, anomalyCounts, anomalyPay, anomalyName } from '@last-orbit/data/anomalies.js';
 import { STATION_CORE, TROPHY_BY_ID, caughtStages } from '@last-orbit/data/station.js';
 import { roomAt, wingAt, roomWhere } from '@last-orbit/data/rooms.js';
@@ -36,7 +37,7 @@ import { COUNTER_TOP, STAR_HITS, STAR_KILLS } from '@last-orbit/data/counter.js'
 import { FIELD } from '@last-orbit/data/balance.js';
 import { MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
 import { applyVolumes, playSfx } from '@last-orbit/audio/audio.js';
-import { h, clear, toggle, slider, select, scrollHints } from '@last-orbit/ui/dom.js';
+import { h, clear, toggle, slider, select, scrollHints, setClass } from '@last-orbit/ui/dom.js';
 import { uiIcon } from '@last-orbit/ui/icons.js';
 import { art } from '@last-orbit/ui/art.js';
 import { dailyShareText, shareText } from '@last-orbit/ui/share.js';
@@ -163,9 +164,28 @@ export function createOverlays(layer, hooks) {
         h('button.btn.danger', { onclick: () => confirmAbandon() }, 'Abandon sortie')));
     mount('pause', el, (e) => { if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') { close(); return true; } return false; });
   }
+  // ------------------------------------------------------------ the warp draft (data/warp.js)
+  /** Before a warp (or a late Counterattack stage): what the catch-up builds towards, and one warp perk. The crew fits
+   *  the rest; picking every card by hand is still there. */
+  function showWarp() {
+    const run = G.state.run; if (!run) return;
+    const perks = warpPerkOffer(run), n = run.pendingLevels || 0, r = run.pendingRelics || 0; let focus = null, perk = null;
+    const where = run.mode === 'counter' ? `Counterattack · stage ${run.stage}` : `Warp to sector ${run.warp}`;
+    const go = h('button.btn.primary.wd-go', { disabled: true, onclick: () => { if (!focus || !perk || open?.busy) return; open.busy = true; playSfx('unlock'); const got = warpDraft(focus, perk, run); hooks.cardPicked?.(got?.cards?.[got.cards.length - 1]); showLoadout(null, false, { kicker: `${FOCUS_BY_ID[focus].name} focus`, title: 'Your build', text: `The crew fitted ${got.cards.length} upgrade${got.cards.length === 1 ? '' : 's'}${got.relics.length ? ` and ${got.relics.length} relic${got.relics.length > 1 ? 's' : ''}` : ''}${run.mode === 'counter' ? '' : ' for the sectors you skipped'}. Tap Launch when you are ready.`, action: 'Launch' }); } }, 'Fit and launch');
+    const sync = () => { go.disabled = !(focus && perk); for (const b of fb) setClass(b, 'on', b.dataset.id === focus); for (const b of pb) setClass(b, 'on', b.dataset.id === perk); };
+    const fb = FOCI.map((f) => h('button.wd-focus', { 'data-id': f.id, style: `--c:${f.color}`, onclick: () => { focus = f.id; playSfx('tab'); sync(); } }, art(f.icon, 'wd-ico'), h('b', f.name), h('small', f.desc)));
+    const pb = perks.map((id) => { const p = WARP_PERK_BY_ID[id]; return h('button.wd-perk', { 'data-id': id, onclick: () => { perk = id; playSfx('tab'); sync(); } }, art(p.icon, 'wd-ico'), h('div', h('b', p.name), h('small', p.desc))); });
+    const manual = h('button.link.wd-manual', { onclick: () => { run.manual = true; playSfx('tab'); close(); hooks.nextChoice(); } }, `Pick all ${n} cards myself`);
+    const el = h('div.modal.warp-draft', { role: 'dialog', 'aria-label': 'Catch-up' },
+      h('div.modal-head', h('div.kicker', where), h('h2', 'Catch-up'), h('p', `${run.mode === 'counter' ? `Starting at stage ${run.stage} comes` : 'The sectors you skip come'} with ${n} upgrades${r ? ` and ${r} relic${r > 1 ? 's' : ''}` : ''}. Choose what they build towards and take one perk only a warp gives; the crew fits the rest.`)),
+      h('h4.wd-sub', 'Focus'), h('div.wd-foci', fb), h('h4.wd-sub', 'Warp perk'), h('div.wd-perks', pb), h('div.wd-foot', go, manual));
+    mount('offer', el, (e) => { const k = Number(e.key); if (k >= 1 && k <= 3) { fb[k - 1].click(); return true; } return false; });
+  }
+
   // ------------------------------------------------------------ loadout: everything active this sortie, explained
-  /** focus: an art key such as 'weapon:laser' to scroll to and highlight. */
-  function showLoadout(focus, fromPause) {
+  /** focus: an art key such as 'weapon:laser' to scroll to and highlight. brief: { kicker, title, text, action } to show it
+   *  as the build a warp draft made, launching on its button. */
+  function showLoadout(focus, fromPause, brief) {
     const run = G.state.run; if (!run) return;
     const hex = (n) => '#' + n.toString(16).padStart(6, '0');
     const row = (key, color, title, tag, body) => h('div.lo-row' + (key === focus ? '.focus' : ''), { style: `--c:${color}`, 'data-key': key }, art(key, 'lo-icon'), h('div.lo-main', h('div.lo-title', h('b', title), tag ? h('span', tag) : null), h('p', body)));
@@ -185,6 +205,7 @@ export function createOverlays(layer, hooks) {
     const ship = SHIP_BY_ID[run.ship], specials = [];
     if (run.signature && ship.signature) specials.push(row('weapon:' + ship.weapon, '#' + ship.trim.toString(16).padStart(6, '0'), ship.signature.name, 'Signature', `${WEAPONS[ship.weapon].name}: ${ship.signature.desc}.`));
     for (const id of run.fusions || []) { const f = FUSION_BY_ID[id]; specials.push(row('weapon:' + f.a, '#ff8bff', f.name, 'Fusion', `${WEAPONS[f.a].name} + ${WEAPONS[f.b].name}. ${f.desc}`)); }
+    if (run.warpPerk) { const p = WARP_PERK_BY_ID[run.warpPerk]; specials.push(row(p.icon, '#6dffc8', p.name, 'Warp perk', p.desc)); }
     if (ship.passive) specials.push(row('ship:' + ship.id, '#' + ship.trim.toString(16).padStart(6, '0'), ship.passive.name, 'Ship trait', ship.passive.desc));
     const rules = [];
     if (run.route) rules.push(row(ROUTE_BY_ID[run.route].art, '#ffc857', 'Route: ' + ROUTE_BY_ID[run.route].name, 'This sector', ROUTE_BY_ID[run.route].desc));
@@ -192,9 +213,9 @@ export function createOverlays(layer, hooks) {
     for (const [id, n] of Object.entries(anomalyCounts(run))) rules.push(row('void:' + id, '#c77dff', anomalyName(id, n), 'Anomaly', ANOMALY_BY_ID[id].desc + (n > 1 ? ` (×${n})` : '') + ` +${Math.round(ANOMALY_BY_ID[id].pay * n * 100)}% salvage and score.`));
     for (let t = 1; t <= (run.threat || 0); t++) rules.push(row('relic:r_giant', '#ff5f7a', 'Threat ' + THREATS[t].roman, null, THREATS[t].rule + '.'));
     const el = h('div.modal.loadout-sheet', { role: 'dialog', 'aria-label': 'Loadout' },
-      h('div.modal-head', h('div.kicker', `${run.mode === 'counter' ? 'Stage ' + run.stage : 'Wave ' + run.wave} · Level ${run.level}`), h('h2', 'Loadout'), h('p', 'Everything working for (and against) you this sortie.')),
+      h('div.modal-head', h('div.kicker', brief?.kicker || `${run.mode === 'counter' ? 'Stage ' + run.stage : 'Wave ' + run.wave} · Level ${run.level}`), h('h2', brief?.title || 'Loadout'), h('p', brief?.text || 'Everything working for (and against) you this sortie.')),
       ...section('Weapons', weapons), ...section('Synergies', syns), ...section('Specials', specials), ...section('Abilities', abilities), ...section('Relics', relics), ...section(`Upgrades (${mods.length})`, mods), ...section('Conditions', rules),
-      h('div.modal-actions', fromPause ? h('button.btn.ghost', { onclick: showPause }, uiIcon('back'), 'Back') : null, h('button.btn.primary', { onclick: close, 'data-autofocus': '' }, uiIcon('play'), 'Resume')));
+      h('div.modal-actions', fromPause ? h('button.btn.ghost', { onclick: showPause }, uiIcon('back'), 'Back') : null, h('button.btn.primary', { onclick: brief ? () => { if (!hooks.nextChoice()) close(); } : close, 'data-autofocus': '' }, uiIcon('play'), brief?.action || 'Resume')));
     mount('loadout', el, (e) => { if (e.key === 'Escape') { if (fromPause) showPause(); else close(); return true; } return false; });
     if (focus) setTimeout(() => el.querySelector('.lo-row.focus')?.scrollIntoView({ block: 'center' }), 80);
   }
@@ -533,7 +554,7 @@ export function createOverlays(layer, hooks) {
   };
 
   return {
-    showOffer, showRelics, showRoutes, showAnomalies, showPause, showSettings, showDebrief, showLoadout, showCounterIntro, showOverhaul, showMenuIntro, showRoomOffer, showCallsign, showStationComplete, showPanel, showStationName, showSiegeIntro, showConfirm, showSiegeDebrief, close,
+    showOffer, showWarp, showRelics, showRoutes, showAnomalies, showPause, showSettings, showDebrief, showLoadout, showCounterIntro, showOverhaul, showMenuIntro, showRoomOffer, showCallsign, showStationComplete, showPanel, showStationName, showSiegeIntro, showConfirm, showSiegeDebrief, close,
     get kind() { return open?.kind || null; },
     /** Combat freezes while any overlay is up. */
     blocking: () => !!open,
