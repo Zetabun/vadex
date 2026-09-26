@@ -78,7 +78,7 @@ export function endSortie(reason = 'destroyed') {
   };
   st.run = null; G.mode = 'hangar';
   const bannersBefore = { ...st.banners };
-  summary.threat = run.threat || 0; summary.mutator = run.mutator || null; summary.mats = matsGot;
+  summary.threat = run.threat || 0; summary.mutator = run.mutator || null; summary.mats = matsGot; summary.breached = !!run.breached;
   // a station damaged in a lost siege is patched by its crews while the pilot is out (if the sortie lasted long enough)
   summary.repaired = patchStation(summary.time);
   if (run.mode === 'counter') Object.assign(summary, recordCounter(st, run, summary, reason)); else Object.assign(summary, recordSortie(st, run, summary));

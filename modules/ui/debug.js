@@ -394,6 +394,9 @@ function runScene(scene, hooks, ui) {
   else if (name === 'relic') { st.run.pendingRelics = 1; ui.nextChoice(); }
   else if (name === 'synergy') { const run = st.run; run.offer = null; run.pendingLevels = 0; run.cards = { m_crit: 1, m_critd: 2 }; recalc();
     run.offer = [{ kind: 'mod', id: 'm_aim', stack: 1, rarity: 'common' }, { kind: 'mod', id: 'm_hull', stack: 1, rarity: 'common' }, { kind: 'mod', id: 'm_drone', stack: 1, rarity: 'rare' }]; ui.closeOverlays(); ui.nextChoice(); }
+  // breach[:<strikes>]: a sortie with the line already breached that many times this sector (default 1; 2: the last
+  // chance, the markers pulsing red)
+  else if (name === 'breach') { const run = st.run; run.offer = null; run.pendingLevels = 0; ui.closeOverlays(); run.strikes = +(arg || 1); }
   else if (name === 'dash') { const run = st.run; run.offer = null; run.pendingLevels = 0; ui.closeOverlays(); let d = 1; setInterval(() => { const w = G.world; if (!w) return; w.input.dash = d; d = -d; w.player.hull = 1; }, 900); }
   else if (name === 'anomaly') { const run = st.run; run.offer = null; run.pendingLevels = 0; run.wave = 71; run.anomalies = arg ? arg.split(',') : ['hardened']; run.pendingAnomaly = true; recalc(); ui.closeOverlays(); ui.nextChoice(); }
   else if (name === 'void') { const run = st.run; run.offer = null; run.pendingLevels = 0; ui.closeOverlays(); run.wave = +(arg2 || 62); run.anomalies = (arg || 'lances').split(','); for (const id of ['laser', 'tesla']) { run.order.push(id); run.weapons[id] = 6; } run.weapons.cannon = 7; recalc(); bus.emit('anomalyPicked'); debugSetWave(run.wave);

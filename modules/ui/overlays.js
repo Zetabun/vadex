@@ -452,12 +452,12 @@ export function createOverlays(layer, hooks) {
 
   // ------------------------------------------------------------ debrief
   function showDebrief(s) {
-    const ship = SHIP_BY_ID[s.ship], ca = s.counter, win = ca?.cleared ? 'Stage cleared' : s.reason === 'abandoned' ? 'Sortie abandoned' : 'Signal lost';
+    const ship = SHIP_BY_ID[s.ship], ca = s.counter, win = ca?.cleared ? 'Stage cleared' : s.reason === 'abandoned' ? 'Sortie abandoned' : s.breached ? 'The line broke' : 'Signal lost';
     const salvageEl = h('b.count', '0'), long = fmtInt(s.salvage || 0).length; /* a long haul gets a smaller figure, so it fits its box on a phone */
     const clock = (t) => { t = Math.max(0, Math.floor(t)); const hh = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), sec = String(t % 60).padStart(2, '0'); return hh ? `${hh}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`; };
     const done = s.contracts.map((id) => CONTRACT_BY_ID[id]);
     const el = h('div.modal.debrief', { role: 'dialog', 'aria-label': 'Sortie debrief' },
-      h('div.modal-head' + (ca?.cleared ? '.won' : ''), h('div.kicker', ca ? `${ship.name} · Counterattack · Stage ${ca.stage}${ca.hard ? ' · Hard' : ''}` : `${ship.name} · Sector ${s.sector} · ${s.sectorName}` + (s.threat ? ` · Threat ${THREATS[s.threat].roman}` : '') + (s.mutator ? ` · Daily: ${MUTATOR_BY_ID[s.mutator].name}` : '') + (s.warp > 1 ? ` · Warp S${s.warp}` : '')), h('h2', win), h('div.pbs', s.highScore ? h('div.pb', 'New high score') : null, s.best && s.wave > 1 ? h('div.pb', 'New best wave') : null)),
+      h('div.modal-head' + (ca?.cleared ? '.won' : ''), h('div.kicker', ca ? `${ship.name} · Counterattack · Stage ${ca.stage}${ca.hard ? ' · Hard' : ''}` : `${ship.name} · Sector ${s.sector} · ${s.sectorName}` + (s.threat ? ` · Threat ${THREATS[s.threat].roman}` : '') + (s.mutator ? ` · Daily: ${MUTATOR_BY_ID[s.mutator].name}` : '') + (s.warp > 1 ? ` · Warp S${s.warp}` : '')), h('h2', win), s.breached ? h('p.breach-note', `The invaders breached sector ${s.sector} ${BAL.breachStrikes} times and got through.`) : null, h('div.pbs', s.highScore ? h('div.pb', 'New high score') : null, s.best && s.wave > 1 ? h('div.pb', 'New best wave') : null)),
       ca ? h('div.stars-row', [1, 2, 3].map((i) => h('span.star-big' + (i <= ca.stars ? '.on' : '') + (i > ca.stars - ca.gained && i <= ca.stars ? '.new' : ''), { style: `--d:${i * 180}ms` }, '★')),
         h('div.star-notes', h('small', (ca.cleared ? '✓' : '·') + ' Clear the stage'), h('small', (ca.hits <= 5 && ca.cleared ? '✓' : '·') + ` Take 5 hits or fewer (${ca.hits})`), h('small', (ca.killed >= 0.8 && ca.cleared ? '✓' : '·') + ` Destroy 80% of the assault (${Math.round(ca.killed * 100)}%)`)),
         ca.cores ? h('div.pilot-row.cores-row', h('span', 'Alien Cores'), h('b', '+' + ca.cores)) : null, ca.bounty ? h('div.pilot-row', h('span', 'First-clear bounty'), h('b', '+' + fmtInt(ca.bounty) + ' salvage')) : null,

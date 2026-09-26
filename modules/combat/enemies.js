@@ -3,7 +3,7 @@ import { G, count } from '@last-orbit/core/game.js';
 import { rand } from '@last-orbit/core/rng.js';
 import { BAL, FIELD } from '@last-orbit/data/balance.js';
 import { ENEMIES } from '@last-orbit/data/enemies.js';
-import { fx, sfx, spawnEnemy, spawnBullet, hurtPlayer, hitEnemy, killEnemy } from '@last-orbit/combat/world.js';
+import { fx, sfx, spawnEnemy, spawnBullet, hurtPlayer, hitEnemy, killEnemy, breach } from '@last-orbit/combat/world.js';
 import { movePath } from '@last-orbit/combat/paths.js';
 import { weave } from '@last-orbit/combat/anomalies.js';
 
@@ -89,6 +89,7 @@ export function updateEnemies(w, dt) {
 function landed(w, e) {
   const p = w.player; if (p.invuln <= 0 && !(w.abil.active.aegis > 0)) { p.hull -= BAL.landDamage; w.wave.damaged = true; fx(w, 'hurt', p.x, p.y); fx(w, 'shake', 0.6); fx(w, 'text', e.x, FIELD.LAND_Y + 4, 'BREACH', '#ff4d7a', 1); sfx(w, 'hurt');
     if (p.hull <= 0) hurtPlayer(w, 1e-9, e); }
+  breach(w); // a strike against the sector (world.js)
   e.rewardMul = 0; e.alive = false;
 }
 

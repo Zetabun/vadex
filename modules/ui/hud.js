@@ -34,20 +34,21 @@ export function createHud(hooks) {
     $.boss);
 
   $.loadout = h('div.loadout');
+  $.strikeI = Array.from({ length: BAL.breachStrikes }, () => h('i')); $.strikes = h('div.strikes', { title: 'Breaches this sector: the last ends the sortie' }, h('small', 'LINE'), $.strikeI);
   $.hullTxt = h('span.val'); $.hull = h('i'); $.shield = h('i'); $.shieldTxt = h('span.val');
   $.shieldRow = h('div.bar-row.shield-row', h('span.lbl', 'SHIELD'), h('div.meter.shield', $.shield), $.shieldTxt);
   $.abil = h('div.abilities');
   // Dodge: a small chip beside the hull bar, its ring filling as the dash recharges.
   $.dashRing = h('i.cd'); $.dash = h('div.dash-chip', { title: 'Dodge: double-tap a side' }, h('span.dash-glyph', '»'), $.dashRing);
   const dock = h('div#dock',
-    $.loadout,
+    h('div.dock-top', $.loadout, $.strikes),
     h('div.dock-row',
       $.dash, h('div.bars', $.shieldRow, h('div.bar-row', h('span.lbl', 'HULL'), h('div.meter.hull', $.hull), $.hullTxt)),
       $.abil));
   $.hintB = h('b'); $.hintS = h('span'); $.hint = h('div.fly-hint', $.hintB, $.hintS);
   const el = h('div.hud-layer', top, dock, $.hint);
 
-  let pipSig = '', loadSig = '', abilSig = '', hintT = 0, hintKind = '';
+  let pipSig = '', loadSig = '', abilSig = '', hintT = 0, hintKind = '', strikeSig = null;
   const abilBtns = {};
   function buildPips(wave) {
     const sec = sectorOf(wave), sig = sec.start + ':' + sec.len; if (sig === pipSig) return; pipSig = sig; clear($.pips);
@@ -78,6 +79,8 @@ export function createHud(hooks) {
     const run = G.state.run, w = G.world; if (!run || !w) return;
     const waveShown = w.wave.num || run.wave, sec = sectorOf(waveShown);
     buildLoadout(run); buildAbilities(run);
+    const k = run.mode === 'counter' ? -1 : run.strikes || 0; if (k !== strikeSig) { const was = strikeSig; strikeSig = k; $.strikes.hidden = k < 0; const n = BAL.breachStrikes;
+      $.strikeI.forEach((el, i) => { const lost = i >= n - k; setClass(el, 'lost', lost); setClass(el, 'hit', lost && was != null && i === n - k); }); setClass($.strikes, 'last', k === n - 1); }
     if (w.counter) {
       const c = w.counter; setText($.sector, `Counterattack · Stage ${c.stage.n}: ${c.stage.name}` + (c.hard ? ' · Hard' : ''));
       setText($.waveN, Math.round(counterProgress(w) * 100) + '%'); setText($.waveLbl, 'STAGE'); $.pips.hidden = true;
@@ -116,7 +119,7 @@ export function createHud(hooks) {
     const deg = Math.round(dk * 90) * 4; if (deg !== $.dashDeg) { $.dashDeg = deg; $.dashRing.style.setProperty('--p', deg + 'deg'); } setClass($.dash, 'ready', dk >= 1 && p.alive);
     const th = p.alive && w.wave.state !== 'dead' && !hooks.blocking?.() ? Math.round(Math.min(1, Math.abs(p.vx || 0) / 70) * 20) / 20 : 0; if (th !== $.thrust) { $.thrust = th; setThrust(th); }
   }
-  function reset() { pipSig = loadSig = abilSig = hintKind = ''; loadN = null; hintT = 0; $.dodgeCounted = false; $.steerThis = null; $.thrust = 0; $.dashDeg = -1; setThrust(0); for (const k in abilBtns) delete abilBtns[k]; }
+  function reset() { pipSig = loadSig = abilSig = hintKind = ''; loadN = null; strikeSig = null; hintT = 0; $.dodgeCounted = false; $.steerThis = null; $.thrust = 0; $.dashDeg = -1; setThrust(0); for (const k in abilBtns) delete abilBtns[k]; }
   /** The loadout icon under a screen point (a tap there explains the loadout), padded to be easy to hit. */
   function loadoutAt(x, y) {
     for (const c of $.loadout.children) { const r = c.getBoundingClientRect(); if (x >= r.left - 4 && x <= r.right + 4 && y >= r.top - 8 && y <= r.bottom + 8) return c.dataset.key || null; }

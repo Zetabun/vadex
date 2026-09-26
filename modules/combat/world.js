@@ -216,7 +216,24 @@ export function hurtPlayer(w, dmgMul, source) {
   fx(w, 'hurt', p.x, p.y); fx(w, 'shake', 0.4); sfx(w, 'hurt');
   if (p.hull <= 0) {
     if (p.lastStand && flag('f.lastStand')) { p.lastStand = false; p.hull = 0.01; p.invuln = 2; fx(w, 'text', p.x, p.y + 8, 'LAST STAND', '#ff5fa2', 1); return; }
-    p.hull = 0; p.alive = false; w.shots.length = 0; w.chargeShots = 0; fx(w, 'die', p.x, p.y, 8, 0x5ee6ff, 2); fx(w, 'shake', 1); sfx(w, 'bossdie');
-    bus.emit('playerDied', w);
+    killPlayer(w);
   }
+}
+/** The ship is destroyed (hull gone, or the line broken). */
+export function killPlayer(w) {
+  const p = w.player; if (!p.alive) return;
+  p.hull = 0; p.alive = false; w.shots.length = 0; w.chargeShots = 0; fx(w, 'die', p.x, p.y, 8, 0x5ee6ff, 2); fx(w, 'shake', 1); sfx(w, 'bossdie');
+  bus.emit('playerDied', w);
+}
+/** An invader got past the line: a strike against the sector (landings within BAL.breachGroup seconds of the last are
+ *  the same breach). The last strike breaks the line and ends the sortie; clearing the sector restores them (sim.js). */
+export function breach(w) {
+  const run = G.state.run, p = w.player; if (!run || w.counter || !p.alive) return;
+  const t = run.time || 0; if (t - (w.breachAt ?? -99) < BAL.breachGroup) return; w.breachAt = t;
+  run.strikes = (run.strikes || 0) + 1; count('breaches'); const left = BAL.breachStrikes - run.strikes;
+  fx(w, 'breach', run.strikes); fx(w, 'shake', 0.8);
+  if (left > 0) { fx(w, 'text', 0, FIELD.LAND_Y + 34, left > 1 ? `LINE BREACHED · ${left} LEFT` : 'LINE BREACHED · LAST CHANCE', '#ff4d7a', 2);
+    if (!G.state.seen.breach) { G.state.seen.breach = true; bus.emit('notice', { kind: 'unlock', kicker: 'Breach', title: 'They got past you', sub: `The sector can be breached ${BAL.breachStrikes} times: the last ends the sortie. Clearing the sector resets it.`, art: 'relic:r_giant' }); }
+    return; }
+  run.breached = true; fx(w, 'text', 0, FIELD.LAND_Y + 34, 'THE LINE IS BROKEN', '#ff4d7a', 3); killPlayer(w);
 }

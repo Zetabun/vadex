@@ -186,7 +186,7 @@ function clearWave(w) {
     if (!ws.damaged) count('flawlessBosses');
     if (!run.sectorHit) count('perfectSectors');
     if (run.wave === THREAT_GATE_WAVE && run.threat) maxStat('threatClear', run.threat);
-    run.pendingRelics += 1 + (route?.relic || 0); noteHull('sector', 1 - p.hull); p.hull = 1; p.shield = 1; ws.timer = 2.6;
+    run.pendingRelics += 1 + (route?.relic || 0); noteHull('sector', 1 - p.hull); p.hull = 1; p.shield = 1; run.strikes = 0; ws.timer = 2.6;
     // The route ends with its sector; the pilot picks the next one after the relic.
     run.route = null; run.pendingRoute = true; recalc(); applyRunMods(w);
     // Every Deep Void sector brings another anomaly (chosen after the route).
@@ -205,7 +205,7 @@ bus.on('playerDied', (w) => {
 });
 function afterDeath(w) {
   const run = G.state.run, p = w.player;
-  if (run.revivesUsed < Math.floor(G.sheet.n('revives'))) {
+  if (!run.breached && run.revivesUsed < Math.floor(G.sheet.n('revives'))) { // a broken line is not something a revive fixes
     run.revivesUsed++; p.alive = true; noteHull('revive', 1); p.hull = 1; p.shield = 1; p.invuln = 3; w.ebullets.length = 0;
     for (const h of w.hazards) h.t = Math.max(h.t, 99);
     w.hazards.length = 0; w.wave.state = w.wave.before === 'cleared' || w.wave.before === 'idle' ? w.wave.before : 'fighting'; if (w.wave.state !== 'fighting') w.wave.timer = Math.max(w.wave.timer, 1);

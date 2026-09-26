@@ -6,6 +6,7 @@
   - **A focus:** Firepower (more guns, higher ranks, crits and explosions), Survival (hull, armour, shields and repairs) or Tech (drones and abilities). The crew fits the catch-up cards and relics towards it, with the same judgement as Auto-pick.
   - **A warp perk**, one of three and only found on a warp: Slipstream (+35% salvage, but the invaders are tougher), Afterburners, Warp plating, Big-game hunter, Target lock, Navigator's log or Escort wing.
   - Then you see the build you're launching with. "Pick all the cards myself" is still there if you want the old way.
+- **Breaches end runs.** Each sector can be breached three times. An invader reaching the bottom line still costs 20% hull, and it's now also a strike against the sector; invaders landing together count as one breach. The third breach breaks the line and ends the sortie, and no revive saves it. Clearing the sector resets the count. Three markers by the ability button show how many breaches are left, pulsing red on the last one, and the debrief says when the line broke. Counterattack has no line, so it's unchanged.
 - **The loadout is one stack.** The row of gun and relic icons along the bottom of the screen is now a single stack in the corner: your three newest pieces fanned out, with a count of everything you've picked. Each new piece drops onto it. Tap it for the whole loadout, explained, with the game paused.
 
 ## v2.19.0 — 2026-09-26
