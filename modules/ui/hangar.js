@@ -75,7 +75,7 @@ import { BOARD_TABS, RETRY_MS } from '@last-orbit/data/global.js';
 import { BOOSTS, BOOST_BY_ID } from '@last-orbit/data/boosts.js';
 import { kit, kitCount } from '@last-orbit/progression/boosts.js';
 import { updatesUnseen } from '@last-orbit/progression/updates.js';
-import { gl, posting, boardsOn, tell, flush, boardName, shownInstead, boardOf, cachedBoard, boardFresh, fetchBoard } from '@last-orbit/progression/global.js';
+import { gl, posting, boardsOn, tell, flush, syncRank, boardName, shownInstead, boardOf, cachedBoard, boardFresh, fetchBoard } from '@last-orbit/progression/global.js';
 
 const TABS = [['launch', 'Launch'], ['missions', 'Missions'], ['workshop', 'Workshop'], ['armory', 'Armory'], ['ships', 'Ships'], ['contracts', 'Career'], ['records', 'Records'], ['awards', 'Awards'], ['deck', 'Deck']];
 // The tab bar holds five buttons. With more tabs than fit it pages: the first page has four tabs and More, the last
@@ -1135,7 +1135,7 @@ export function createHangar(hooks) {
   }
   /** Posts still waiting (made offline, or when the boards were busy) are tried again every couple of minutes. */
   let glAt = 0;
-  function globalTick() { const now = performance.now(); if (now < glAt) return; glAt = now + RETRY_MS; const g = gl(G.state); if (g.pending.length || g.forget) flush(G.state); }
+  function globalTick() { const now = performance.now(); if (now < glAt) return; glAt = now + RETRY_MS; const g = gl(G.state); if (g.pending.length || g.forget) flush(G.state); syncRank(G.state); /* the badge on the boards keeps up */ }
   addEventListener('online', () => { glAt = 0; });
   bus.on('globalPosted', () => { if (tab === 'records' && recTab === 'global') render(); });
   bus.on('updatesSeen', () => badges());

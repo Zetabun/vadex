@@ -77,8 +77,13 @@ ok(/^([0-9A-F]{4}-){7}[0-9A-F]{4}$/.test(key) && parseKey(key) === mine && parse
 const other = newState(); other.pilot.name = 'Somebody'; other.stats.sorties = 4;
 const who = await lookupPilot(parseKey(key));
 ok(who.name === 'Ace' && who.best > 0, 'the key names its pilot: ' + JSON.stringify(who));
-signIn(other, parseKey(key), who);
+other.pilot.rank = 7; G.state = other; signIn(other, parseKey(key), who); await new Promise((r) => setTimeout(r, 30));
 ok(gl(other).id === mine && gl(other).told && other.pilot.name === 'Ace' && gl(other).best === who.best && !gl(other).pending.length, 'signing in makes this device that pilot, with their callsign and best');
+ok(db.prepare('SELECT rank FROM players WHERE pid = ?').get(mine).rank === 7, 'signing in sends the rank straight away, so the badge shows without opening the boards: ' + db.prepare('SELECT rank FROM players WHERE pid = ?').get(mine).rank);
+other.pilot.rank = 9; bus.emit('rankUp', 9, []); await new Promise((r) => setTimeout(r, 30));
+ok(db.prepare('SELECT rank FROM players WHERE pid = ?').get(mine).rank === 9, 'a rank up sends the new rank too');
+const { syncRank } = await import('@last-orbit/progression/global.js'); ok(syncRank(other) === null, 'nothing more to send until the next rank up');
+G.state = st;
 await lookupPilot('0'.repeat(32)).then(() => ok(false, 'an unknown key should not sign in'), (e) => ok(e.status === 404, 'an unknown key is refused'));
 
 // ------------------------------------------------------------------ a callsign the boards will not show

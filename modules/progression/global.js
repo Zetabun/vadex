@@ -51,7 +51,7 @@ export const lookupPilot = (id) => send('/pilot?p=' + id);
 export function signIn(st, id, who = {}) {
   const g = gl(st); Object.assign(g, { id, told: true, best: who.best || 0, pending: [], forget: false, tag: who.tag || '', shownAs: who.name || '', sentAs: who.name || '' });
   st.settings.globalBoards = true; if (who.name && who.name !== 'Pilot') { st.pilot.name = who.name; st.seen.callsign = true; }
-  cache.clear(); bus.emit('globalSignedIn', who); return g;
+  g.rankSent = 0; cache.clear(); bus.emit('globalSignedIn', who); syncRank(st); /* the badge, straight away */ return g;
 }
 
 /** A board to look at: 'today' and 'yday' are the Daily Sortie's (by this device's calendar, like the Daily itself). */
@@ -121,7 +121,7 @@ export function flush(st = G.state) {
       try {
         const name = st.pilot?.name || '';
         const res = await send('/score', { p: pilotId(st), name, station: st.stationName || '', rank: st.pilot?.rank || 0, v: VERSION, entry: item.entry, boards: item.boards });
-        g.pending.shift(); g.shownAs = res.name; g.sentAs = name; /* what the boards made of that callsign */
+        g.pending.shift(); g.shownAs = res.name; g.sentAs = name; g.rankSent = Math.max(g.rankSent || 0, st.pilot?.rank || 0); /* what the boards made of that callsign; the rank went with it */
         for (const [b, v] of Object.entries(res.boards || {})) if (v?.me?.n) { const at = { n: v.me.n, of: v.total || v.me.n }; if (b === 'all') g.place = at; else g.dayPlace = { ...at, day: b.slice(6) }; } /* for the News */ if (res.tag) g.tag = res.tag; for (const [b, v] of Object.entries(res.boards || {})) cache.set(b, { at: Date.now(), data: v });
         bus.emit('globalPosted', item, res);
       } catch (e) {
@@ -140,8 +140,19 @@ const cache = new Map(), loading = new Map();
 export const cachedBoard = (id) => cache.get(id);
 export const boardFresh = (id) => { const c = cache.get(id); return !!c && Date.now() - c.at < BOARD_TTL; };
 /** Fetch a board (the top 50, how many are on it, and where this pilot stands). Resolves to its data, or rejects. */
+/** Keep this pilot's badge on the boards current without waiting for a post or a look at the boards (Records may not
+ *  be open yet on a fresh save): when their rank is above the one last sent, send it with a look at the all-time board.
+ *  Called after signing in, on a rank up and from the hangar's tick. */
+export function syncRank(st = G.state) {
+  const g = gl(st), r = st.pilot?.rank || 0;
+  if (!net.fetch || !posting(st) || !g.id || r <= (g.rankSent || 0)) return null;
+  return fetchBoard('all', st).catch(() => { g.rankSent = 0; /* try again later */ });
+}
+bus.on('rankUp', () => syncRank());
+
 export function fetchBoard(id, st = G.state) {
   if (loading.has(id)) return loading.get(id);
+  if (posting(st) && gl(st).id) gl(st).rankSent = Math.max(gl(st).rankSent || 0, st.pilot?.rank || 0); /* the look carries the rank */
   const p = send(`/board?b=${encodeURIComponent(id)}` + (posting(st) && gl(st).id ? `&p=${gl(st).id}&r=${st.pilot?.rank || 0}` : '')) /* the rank keeps this pilot's badge current */
     .then((data) => { cache.set(id, { at: Date.now(), data }); return data; })
     .finally(() => loading.delete(id));
