@@ -1,7 +1,7 @@
 // Fleet Ops: the launch deck in the Halo ring, the ninth room aboard to walk around (rendering/room.js). It opens with the
 // halo, at Overhaul rank 9. Three berths stand before the force field at the front, where the ships you are not flying
 // leave on expeditions (data/fleet.js) and come home: an empty pad, the ghost of a ship that is out (its place held),
-// or the ship itself back and waiting to be unloaded. A ship sent while you watch lifts off and goes out through the
+// or the ship itself back and waiting to be unloaded (scorched and smoking if it came home damaged). A ship sent while you watch lifts off and goes out through the
 // field; one coming home while you are here flies in and settles; one unloaded goes down to the hangar on the pad's
 // lift. The ring map in the middle is a hologram of everywhere they can go, round the station, each ship out a light on
 // its way there and back. The routes board on the left wall lists the destinations, the log on the right what came
@@ -13,11 +13,11 @@ import { playerParts, NOZZLES } from '@last-orbit/rendering/geometry.js';
 import { SHIP_BY_ID } from '@last-orbit/data/ships.js';
 import { MAT_BY_ID } from '@last-orbit/data/materials.js';
 import { DESTINATIONS, DEST_BY_ID, BERTHS, PATHFINDER_AT, destOpen } from '@last-orbit/data/fleet.js';
-import { fleet, tripDone, tripLeft } from '@last-orbit/progression/fleet.js';
+import { fleet, tripDone, tripLeft, tripFinds } from '@last-orbit/progression/fleet.js';
 const T = () => window.THREE;
 
 // Room: x -5.2..5.2, z -9.5 (the force field onto the halo) .. 3 (back wall, the doors), height 4.6.
-const W = 5.2, FRONT = -9.5, BACK = 3, H = 4.6, CYAN = 0x5ee6ff, TEAL = 0x6dffc8, MAP = { x: -2.75, z: -0.7, r: 1.05, y: 0.95 }, PAD_Y = 0.25;
+const W = 5.2, FRONT = -9.5, BACK = 3, H = 4.6, CYAN = 0x5ee6ff, TEAL = 0x6dffc8, EMBER = 0xff8a4a, MAP = { x: -2.75, z: -0.7, r: 1.05, y: 0.95 }, PAD_Y = 0.25;
 /** Where the berths stand: across the front, before the force field. */
 export const berthAt = (i) => ({ x: (i - 1) * 3, z: -5.8 });
 /** Where a destination sits on the ring map: round the station, further out the deeper it is. */
@@ -138,17 +138,23 @@ export class FleetRoom extends Room {
   }
   // ---------------------------------------------------------------- the ships
   /** A ship to stand on a pad, lying flat, nose to the field. solid: in its own colours (home); otherwise the hologram
-   *  of one that is out. Returns the group, with its engine glows. */
-  model(id, solid) {
+   *  of one that is out. dmg: home damaged (1 light, 2 heavy): its hull scorched, smoke rising off it, and when it is bad an
+   *  engine sputtering. Returns the group, with its engine glows (and smoke). */
+  model(id, solid, dmg = 0) {
     const THREE = T(), ship = SHIP_BY_ID[id], parts = playerParts(ship.id), Ph = (o) => new THREE.MeshPhongMaterial(o), out = new THREE.Group(), inner = new THREE.Group();
     const M = { hull: Ph({ color: 0x718996, emissive: 0x0c1420, shininess: 30 }), deck: Ph({ color: 0xe2eced, emissive: 0x141a22, shininess: 40 }), dark: Ph({ color: 0x152735 }), glass: Ph({ color: 0x125875, emissive: 0x073345, shininess: 110, specular: 0xb8f5ff }),
       trim: Ph({ color: ship.trim, emissive: new THREE.Color(ship.trim).multiplyScalar(0.4) }), gold: Ph({ color: 0xffb94e, emissive: 0x583000 }) };
+    if (dmg) { const soot = new THREE.Color(0x2a2420), k = dmg > 1 ? 0.6 : 0.38; for (const m of [M.hull, M.deck, M.gold]) m.color.lerp(soot, k); M.hull.emissive.setHex(dmg > 1 ? 0x2a0c04 : 0x140a06); M.trim.emissive.multiplyScalar(0.4); }
     const use = { hull: 'hull', deck: 'deck', cockpit: 'glass', chassis: 'dark', markings: 'gold', lights: 'trim', engine: 'trim' }, box = new THREE.Box3();
     for (const k of Object.keys(use)) { const geo = parts[k]; if (!geo) continue; geo.computeBoundingBox(); box.union(geo.boundingBox); if (solid) inner.add(new THREE.Mesh(geo, M[use[k]])); else { inner.add(new THREE.LineSegments(new THREE.EdgesGeometry(geo, 30), this.holoMat)); geo.dispose(); } }
     const size = box.getSize(new THREE.Vector3()), c = box.getCenter(new THREE.Vector3()), k = 1.75 / Math.max(size.x, size.y);
     inner.position.set(-c.x, -c.y, -box.min.z); /* centred on the pad, its belly on it */ const tilt = new THREE.Group(); tilt.rotation.x = -Math.PI / 2; tilt.scale.setScalar(k); tilt.add(inner); out.add(tilt);
-    out.userData.glows = [];
+    out.userData.glows = []; out.userData.smoke = [];
     if (solid) for (const [nx, ny] of NOZZLES[ship.id] || []) { const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.moteTex, color: ship.trim, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false })); gl.position.set(nx, ny - 0.18, 0); gl.scale.setScalar(0.8); inner.add(gl); out.userData.glows.push(gl); }
+    if (solid && dmg) {
+      for (let k = 0; k < (dmg > 1 ? 7 : 4); k++) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.moteTex, color: dmg > 1 ? 0x9a948c : 0xb4aea6, transparent: true, depthWrite: false, opacity: 0 })); sp.userData.at = [(Math.random() - 0.5) * 0.9, (Math.random() - 0.5) * 0.9, Math.random()]; out.add(sp); out.userData.smoke.push(sp); }
+      if (dmg > 1) { const f = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.moteTex, color: EMBER, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false })); f.position.set(0.5, 0.75, 0.3); f.scale.setScalar(0.45); /* over a split in her plating */ out.add(f); out.userData.spark = f; }
+    }
     return out;
   }
   drop(b) { if (!b.model) return; b.lift.remove(b.model); b.model.traverse((o) => { o.geometry?.dispose(); if (o.material && o.material !== this.holoMat) o.material.dispose(); }); b.model = null; }
@@ -156,14 +162,14 @@ export class FleetRoom extends Room {
    *  plays out: sent ships lift off and leave through the field, returning ones fly in, unloaded ones go down. */
   syncBerth(state, i, now) {
     const o = fleet(state).out[i], mode = !o ? 'empty' : tripDone(state, i, now) >= 1 ? 'home' : 'out', sig = o ? `${o.ship}:${o.at}:${mode}` : 'empty', b = this.berths[i];
-    if (sig === b.sig) return; const was = b.mode, ship = o?.ship || b.shipId; b.sig = sig; b.mode = mode; b.shipId = o?.ship;
+    if (sig === b.sig) return; const was = b.mode, ship = o?.ship || b.shipId, wasDmg = b.dmg || 0; b.sig = sig; b.mode = mode; b.shipId = o?.ship; b.dmg = o ? tripFinds(state, o).damage || 0 : 0;
     const watch = !this.fresh, left = o ? now - o.at : 0, back = o ? now - (o.at + o.need) : 0; /* only what just happened plays out */
     if (b.fly) { this.drop(b); b.fly = null; }
     this.drop(b);
     if (watch && mode === 'out' && was === 'empty' && left < 30000) { b.model = this.model(ship, true); b.lift.add(b.model); b.fly = { kind: 'out', t: 0, ship }; return; }
-    if (watch && mode === 'home' && was === 'out' && back < 120000) { b.model = this.model(ship, true); b.lift.add(b.model); b.fly = { kind: 'in', t: 0 }; this.place(b, 0); return; }
-    if (watch && mode === 'empty' && was === 'home' && ship) { b.model = this.model(ship, true); b.lift.add(b.model); b.fly = { kind: 'down', t: 0 }; return; }
-    if (mode !== 'empty') { b.model = this.model(o.ship, mode === 'home'); b.lift.add(b.model); }
+    if (watch && mode === 'home' && was === 'out' && back < 120000) { b.model = this.model(ship, true, b.dmg); b.lift.add(b.model); b.fly = { kind: 'in', t: 0 }; this.place(b, 0); return; }
+    if (watch && mode === 'empty' && was === 'home' && ship) { b.model = this.model(ship, true, wasDmg); b.lift.add(b.model); b.fly = { kind: 'down', t: 0 }; return; }
+    if (mode !== 'empty') { b.model = this.model(o.ship, mode === 'home', b.dmg); b.lift.add(b.model); }
   }
   /** Where a ship in flight is, k 0..1 along it. */
   place(b, k) {
@@ -193,18 +199,18 @@ export class FleetRoom extends Room {
   drawSigns(state, now) {
     const f = fleet(state);
     this.berths.forEach((b, i) => {
-      const o = f.out[i], d = o && DEST_BY_ID[o.dest], home = o && tripDone(state, i, now) >= 1, c = canvas(800, 200), x = c.getContext('2d'), col = home ? '#6dffc8' : o ? '#5ee6ff' : '#5a7488';
+      const o = f.out[i], d = o && DEST_BY_ID[o.dest], home = o && tripDone(state, i, now) >= 1, hurt = home && b.dmg, c = canvas(800, 200), x = c.getContext('2d'), col = hurt ? '#ff9a6a' : home ? '#6dffc8' : o ? '#5ee6ff' : '#5a7488';
       const g = x.createLinearGradient(0, 0, 0, 200); g.addColorStop(0, 'rgba(8,22,34,.85)'); g.addColorStop(1, 'rgba(8,22,34,.55)'); x.fillStyle = g; x.fillRect(0, 0, 800, 200);
       x.fillStyle = col; x.fillRect(0, 0, 800, 5); x.fillRect(0, 195, 800, 5); x.globalAlpha = 0.5; x.fillRect(0, 0, 6, 200); x.fillRect(794, 0, 6, 200); x.globalAlpha = 1;
       text(x, `BERTH ${i + 1}`, 30, 44, '800 26px sans-serif', col, 'left');
       if (!o) { text(x, 'EMPTY', 400, 104, '800 60px sans-serif', '#9fb4c8'); text(x, 'TAP TO SEND A SHIP OUT', 400, 162, '700 28px sans-serif', '#5ee6ff'); }
       else {
-        text(x, home ? 'HOME' : hrs(tripLeft(state, i, now)), 770, 44, '800 26px sans-serif', col, 'right');
+        text(x, hurt ? 'DAMAGED' : home ? 'HOME' : hrs(tripLeft(state, i, now)), 770, 44, '800 26px sans-serif', col, 'right');
         text(x, SHIP_BY_ID[o.ship].name.toUpperCase(), 400, 104, '800 60px sans-serif', '#e6fbff');
         text(x, home ? `BACK FROM ${d.name.toUpperCase()} · TAP TO UNLOAD` : `SCOUTING ${d.name.toUpperCase()}`, 400, 162, `700 ${d.name.length > 14 ? 25 : 28}px sans-serif`, col);
       }
       const m = b.sign.material; m.map?.dispose(); m.map = tex(c); m.needsUpdate = true;
-      b.rim.material.color.setHex(home ? TEAL : o ? CYAN : 0x2a5a66);
+      b.rim.material.color.setHex(hurt ? EMBER : home ? TEAL : o ? CYAN : 0x2a5a66); b.beam.material.color.setHex(hurt ? EMBER : TEAL);
     });
   }
   /** The routes board: every destination, how long a trip takes, what it brings, and what opens it. */
@@ -254,10 +260,12 @@ export class FleetRoom extends Room {
     }
     for (const b of this.berths) {
       const home = b.mode === 'home'; b.beam.material.opacity = home && !b.fly ? 0.05 + 0.03 * Math.sin(t * 2.4) : 0;
-      if (home && !b.fly) b.rim.material.color.setHex(TEAL).multiplyScalar(0.7 + 0.3 * Math.sin(t * 3));
+      if (home && !b.fly) b.rim.material.color.setHex(b.dmg ? EMBER : TEAL).multiplyScalar(0.7 + 0.3 * Math.sin(t * 3));
+      const md = b.model?.userData; if (md?.smoke?.length) for (const sp of md.smoke) { const [sx, sz, ph] = sp.userData.at, k = (t * 0.28 + ph) % 1; sp.position.set(sx + k * 0.25, 0.35 + k * 1.5, sz - k * 0.1); sp.scale.setScalar(0.45 + k * 1.2); sp.material.opacity = (b.dmg > 1 ? 0.55 : 0.38) * Math.sin(k * Math.PI); }
+      if (md?.spark) { const on = Math.random() < 0.18; md.spark.material.opacity = on ? 0.9 : 0.12; md.spark.scale.setScalar(on ? 0.5 + Math.random() * 0.3 : 0.3); }
       if (b.mode === 'out' && b.model && !b.fly) b.model.position.y = 0.25 + Math.sin(t * 1.2) * 0.03;
       if (b.fly) { const len = b.fly.kind === 'out' ? 3.2 : b.fly.kind === 'in' ? 3.4 : 1.2; b.fly.t += dt; const k = Math.min(1, b.fly.t / len); this.place(b, k);
-        if (k >= 1) { const kind = b.fly.kind, ship = b.fly.ship; b.fly = null; this.drop(b); if (kind === 'out') { b.model = this.model(ship, false); b.lift.add(b.model); } else if (kind === 'in') { b.model = this.model(b.shipId, true); b.lift.add(b.model); } } }
+        if (k >= 1) { const kind = b.fly.kind, ship = b.fly.ship; b.fly = null; this.drop(b); if (kind === 'out') { b.model = this.model(ship, false); b.lift.add(b.model); } else if (kind === 'in') { b.model = this.model(b.shipId, true, b.dmg); b.lift.add(b.model); } } }
     }
   }
 }

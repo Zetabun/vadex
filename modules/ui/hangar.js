@@ -48,8 +48,8 @@ import { YARD_RANK, YARD_STAGES, YARD_SHIP, YARD_LINES, yardOpen, stageSalvage }
 import { yardStage, yardDone, nextStage, stageBlock, buildStage } from '@last-orbit/progression/shipyard.js';
 import { VOID_BOSSES, VOID_BOSS_BP, VOID_LORE, BEACON_LINES, firstWaveOf } from '@last-orbit/data/beacons.js';
 import { beaten as voidBeaten, allBeaten as voidAllBeaten } from '@last-orbit/progression/beacons.js';
-import { DESTINATIONS, DEST_BY_ID, PATHFINDER_AT, FLEET_PAINT, OPS_LINES, fleetOpen, destOpen, mayFind } from '@last-orbit/data/fleet.js';
-import { fleet, shipAway, tripDone, tripLeft, cannotSend, sendShip, recallShip, collectShip, fleetCounts, nextHome } from '@last-orbit/progression/fleet.js';
+import { DESTINATIONS, DEST_BY_ID, PATHFINDER_AT, FLEET_PAINT, OPS_LINES, DAMAGE, fleetOpen, destOpen, mayFind, riskWord } from '@last-orbit/data/fleet.js';
+import { fleet, shipAway, tripDone, tripLeft, cannotSend, sendShip, recallShip, collectShip, fleetCounts, nextHome, damageOf, repairCost, canRepair, repairShip } from '@last-orbit/progression/fleet.js';
 import { sortieWorth } from '@last-orbit/progression/bounties.js';
 import { BOSSES } from '@last-orbit/data/bosses.js';
 import { STATION_CORE, MODULE_BY_ID, ALIEN_BY_ID, TROPHY_BY_ID, REBUILD_PARTS, rebuildPct, rebuildParts, stationSnapshot, caughtStages, hallOpen, STATION_TROPHIES, trophyWon, HUNTED } from '@last-orbit/data/station.js';
@@ -175,7 +175,7 @@ export function createHangar(hooks) {
     if (tmax > 0) items.push(h('button.op', { onclick: () => show('missions') }, art('relic:r_giant', 'op-ico'),
       h('div', h('small', 'Threat'), h('b', st.threat ? `${roman(st.threat)} · +${Math.round((threatSalvage(st.threat) - 1) * 100)}%` : 'Off'))));
     if (fleetOpen(st) && st.seen.ops) { const c = fleetCounts(st); items.push(h('button.op.fl-op' + (c.ready ? '.hot' : ''), { onclick: () => show('ops') }, h('span.op-ico', uiIcon('ops')),
-      h('div', h('small', 'Fleet'), h('b', c.ready ? `${c.ready} home` : c.out ? `Back in ${hrs(nextHome(st))}` : `${c.free} berth${c.free === 1 ? '' : 's'} free`)))); }
+      h('div', h('small', 'Fleet'), h('b', c.ready ? `${c.ready} home` : c.damaged ? `${c.damaged} to repair` : c.out ? `Back in ${hrs(nextHome(st))}` : `${c.free} berth${c.free === 1 ? '' : 's'} free`)))); }
     return items.length ? h('div.ops', items) : null;
   }
   /** Warp start: choose the sector to begin in, once later sectors have been reached. */
@@ -361,6 +361,7 @@ export function createHangar(hooks) {
       let action;
       const away = status === 'owned' ? shipAway(st, s.id) : -1; /* out on an expedition (Fleet Ops): she cannot fly till she is home */
       if (away >= 0) action = h('button.btn.ghost.fl-away', { onclick: () => show('ops') }, tripDone(st, away) >= 1 ? 'Home: unload her in Fleet Ops' : `Away · ${DEST_BY_ID[fleet(st).out[away].dest].name} · ${hrs(tripLeft(st, away))}`);
+      else if (status === 'owned' && damageOf(st, s.id)) action = h('div.fl-fixrow', h('small', `${DAMAGE[damageOf(st, s.id)].name} from an expedition: repair her to fly her again`), repairButton(s.id));
       else if (status === 'owned') action = h('button.btn' + (sel ? '.ghost' : '.primary'), { disabled: sel, onclick: () => { selectShip(s.id); playSfx('tab'); render(); } }, sel ? 'Selected' : 'Select');
       else if (status === 'buyable') action = h('button.btn.gold', { disabled: st.salvage < s.cost, onclick: () => { if (buyShip(s.id)) { playSfx('unlock'); hooks.flash?.(hex(s.trim)); render(); } else playSfx('deny'); } }, art('cur:salvage', 'cur-ico'), fmt(s.cost));
       else if (status === 'yard') action = yardOpen(st) ? h('button.btn.gold', { onclick: () => show('yard') }, `Build her in the Shipyard · ${yardStage(st)}/${YARD_STAGES.length}`) : h('div.lock-note', uiIcon('lock'), h('span', `Built in the Shipyard, which opens at Overhaul rank ${YARD_RANK}`));
@@ -658,10 +659,17 @@ export function createHangar(hooks) {
   const matOf = (d) => MAT_BY_ID[d.mat];
   function opsTitle() { const st = G.state, c = fleetCounts(st); return c.ready ? `${c.ready} home to unload` : c.out ? `${c.out} out · back in ${hrs(nextHome(st))}` : `${c.free} berth${c.free === 1 ? '' : 's'} free`; }
   const sendable = (st) => SHIPS.some((s) => !cannotSend(st, s.id));
+  /** Pays for a damaged ship's repairs; then after() (or a re-render). */
+  function fixShip(id, after) { const st = G.state, c = repairShip(st, id); if (!c) { playSfx('deny'); return; } playSfx('buy'); hooks.saveNow?.('fleet'); hooks.toast?.(`The ${SHIP_BY_ID[id].name} is repaired and ready to fly.`, 'good'); if (after) after(); else render(); }
+  /** Repair: what it costs (salvage, and Alloy for heavy damage); greyed out until you have it. */
+  function repairButton(id, after, small) {
+    const st = G.state, c = repairCost(st, id); if (!c) return null;
+    return h('button.btn.gold.fl-fix' + (small ? '.small' : ''), { disabled: !canRepair(st, id), onclick: () => fixShip(id, after) }, 'Repair', art('cur:salvage', 'cur-ico'), fmt(c.salvage), c.alloy ? h('span.fl-alloy', art('mat:alloy', 'cur-ico'), c.alloy) : null);
+  }
   /** What a trip to a destination brings: its material, salvage (by what your sorties pay), and mastery. */
   function destGives(d, st) {
     const worth = Math.max(10, Math.round((sortieWorth(st) * d.worth) / 10) * 10);
-    return h('div.fl-gives', matChip(d.mat, d.matN), h('span.fl-g', art('cur:salvage', 'mat-ico'), `~${fmt(worth)}`), h('span.fl-g', `+${d.mastery} mastery`), d.fragment ? h('span.fl-g.rare', 'Signal fragments') : null);
+    return h('div.fl-gives', matChip(d.mat, d.matN), h('span.fl-g', art('cur:salvage', 'mat-ico'), `~${fmt(worth)}`), h('span.fl-g', `+${d.mastery} mastery`), d.fragment ? h('span.fl-g.rare', 'Signal fragments') : null, h('span.fl-g.risk.r' + (d.risk < 0.12 ? 1 : d.risk < 0.24 ? 2 : 3), riskWord(d)));
   }
   /** The finds a trip might turn up, in a line. */
   const finds = (d, st) => { const f = mayFind(st, d, gardenOpen(st)); return f.length ? h('p.sub-note', `Maybe ${f.length > 1 ? f.slice(0, -1).join(', ') + ' or ' + f[f.length - 1] : f[0]} too.`) : null; };
@@ -675,15 +683,19 @@ export function createHangar(hooks) {
   /** An empty berth: choose a ship (any you own but the one you fly) and where it goes. */
   function sendPanel(i) {
     const st = G.state, ships = SHIPS.filter((s) => st.unlocked.ships[s.id]), can = ships.filter((s) => !cannotSend(st, s.id)), kicker = `Fleet Ops · Berth ${i + 1}`; playSfx('tab');
+    const hurt = ships.filter((s) => cannotSend(st, s.id) === 'damaged');
+    if (!can.length && hurt.length) { hooks.panel?.({ kicker, title: 'Repairs first', body: [h('p.sub-note', 'The ships you could send came home damaged. Repair one and it can go out again.'), h('div.fl-fixes', hurt.map((s) => h('div.fl-fixrow', h('small', `${s.name} · ${DAMAGE[damageOf(st, s.id)].name}`), repairButton(s.id, () => sendPanel(i)))))] }); return; }
     if (!can.length) { hooks.panel?.({ kicker, title: 'No ship to send', body: [h('p.sub-note', ships.length < 2 ? 'Any ship you own but the one you fly can go out. Buy another in the Ships menu and it can scout while you fly.' : 'Every ship you own is out already, or flying with you. Send the next one when a ship comes home.'), h('button.btn.ghost.small.d3-more', { onclick: () => { hooks.closeOverlays?.(); show('ships'); } }, 'Ships', uiIcon('chevron'))] }); return; }
     let pick = can[0].id; const chips = new Map();
     const row = h('div.fl-ships', ships.map((s) => { const why = cannotSend(st, s.id);
-      const b = h('button.fl-ship' + (s.id === pick ? '.on' : ''), { disabled: !!why, style: `--c:${hex(s.trim)}`, onclick: () => { pick = s.id; for (const [id, el] of chips) setClass(el, 'on', id === pick); playSfx('tab', 0.5); } },
-        art('ship:' + s.id, 'fl-art'), h('b', s.name), h('small', why === 'flying' ? 'You fly her' : why === 'away' ? 'Away' : `Mastery ${st.mastery?.[s.id]?.level || 1}`));
+      const fix = () => { const c = repairCost(st, s.id); if (!canRepair(st, s.id)) { playSfx('deny'); hooks.toast?.(`Repairs cost ${fmt(c.salvage)} salvage${c.alloy ? ` and ${c.alloy} Alloy` : ''}.`, 'info'); return; }
+        hooks.confirm?.({ kicker, title: `Repair the ${s.name}?`, text: `${DAMAGE[damageOf(st, s.id)].name}: ${fmt(c.salvage)} salvage${c.alloy ? ` and ${c.alloy} Alloy for new plating` : ''}. Then she is ready to go out again.`, yes: 'Repair', no: 'Not now', danger: false, onYes: () => fixShip(s.id, () => sendPanel(i)), onNo: () => sendPanel(i) }); };
+      const b = h('button.fl-ship' + (s.id === pick ? '.on' : '') + (why === 'damaged' ? '.hurt' : ''), { disabled: !!why && why !== 'damaged', style: `--c:${hex(s.trim)}`, onclick: () => { if (why === 'damaged') { fix(); return; } pick = s.id; for (const [id, el] of chips) setClass(el, 'on', id === pick); playSfx('tab', 0.5); } },
+        art('ship:' + s.id, 'fl-art'), h('b', s.name), h('small', why === 'flying' ? 'You fly her' : why === 'away' ? 'Away' : why === 'damaged' ? 'Damaged · repair' : `Mastery ${st.mastery?.[s.id]?.level || 1}${(st.refits?.[s.id] || 0) >= 2 ? ' · tough' : ''}`));
       chips.set(s.id, b); return b; }));
     const go = (d) => { const o = sendShip(st, i, pick, d.id); if (!o) { playSfx('deny'); return; } playSfx('unlock'); hooks.saveNow?.('fleet'); hooks.closeOverlays?.(); render(); hooks.toast?.(`The ${SHIP_BY_ID[pick].name} is away to ${d.name}: back in ${hrs(d.hours)}.`, 'good'); };
     hooks.panel?.({ kicker, title: 'Send a ship out', body: [h('h4.oh-sub', 'Which ship'), row, h('h4.oh-sub', 'Where to'), h('div.fl-dests', DESTINATIONS.map((d) => destRow(d, st, go))),
-      h('p.sub-note', 'It brings home that stretch\'s material, salvage and mastery, and now and then a Greenhouse seed, an Alien Core or a Blueprint. It keeps flying while the game is closed.')] });
+      h('p.sub-note', 'It brings home that stretch\'s material, salvage and mastery, and now and then a Greenhouse seed, an Alien Core or a Blueprint. It keeps flying while the game is closed. The further out, the likelier she comes home damaged and needs repairs; a ship with a reinforced frame (her second refit) is tougher.')] });
   }
   /** A ship out: how far along, when it is back, what it should bring; it can be called home early, empty-handed. */
   function tripPanel(i) {
@@ -701,8 +713,9 @@ export function createHangar(hooks) {
     playSfx('unlock'); hooks.flash?.(hex(matOf(d).color)); hooks.saveNow?.('fleet'); render();
     const rows = [['Salvage', `+${fmt(r.got.salvage)}`], ...Object.entries(r.got.mats).map(([id, n]) => [MAT_BY_ID[id].name, `+${n}`]),
       r.mastery ? [`${s.name} mastery`, r.mastery.to > r.mastery.from ? `Level ${r.mastery.to}` : `+${r.mastery.gained}`] : null,
-      ...r.got.seeds.map((id) => ['Greenhouse seed', SEED_BY_ID[id]?.name || id]), r.got.cores ? ['Alien Cores', `+${r.got.cores}`] : null, r.got.bp ? ['Blueprints', `+${r.got.bp}`] : null, r.got.fragments ? ['Signal fragment', 'Unreadable, for now'] : null].filter(Boolean);
-    hooks.panel?.({ kicker: `Home from ${d.name}`, title: `The ${s.name} is back`, body: [h('p.sub-note', `She ${r.line}.`), h('div.deck-board', rows.map(([k, v]) => h('div.db-row', h('small', k), h('b', v)))),
+      r.got.damage ? ['Damage', DAMAGE[r.got.damage].name] : null, ...r.got.seeds.map((id) => ['Greenhouse seed', SEED_BY_ID[id]?.name || id]), r.got.cores ? ['Alien Cores', `+${r.got.cores}`] : null, r.got.bp ? ['Blueprints', `+${r.got.bp}`] : null, r.got.fragments ? ['Signal fragment', 'Unreadable, for now'] : null].filter(Boolean);
+    const fix = r.got.damage ? h('div.fl-fixrow.hurt', h('small', 'She can\'t fly or go out again until she is repaired: here, or on her card in Ships.'), repairButton(r.ship, () => { hooks.closeOverlays?.(); render(); })) : null;
+    hooks.panel?.({ kicker: `Home from ${d.name}`, title: `The ${s.name} is back`, body: [h('p.sub-note', `She ${r.line}.`), h('div.deck-board', rows.map(([k, v]) => h('div.db-row', h('small', k), h('b', v)))), fix,
       r.paint ? h('p.fl-paint', `${f.home} expeditions home: the Pathfinder paint is yours. Find it in the Ships menu.`) : st.paints[FLEET_PAINT] ? null : h('p.sub-note', `${PATHFINDER_AT - f.home} more home for the Pathfinder paint.`)] });
     if (r.got.fragments && f.fragments === 1) setTimeout(() => hooks.say?.('That fragment is a signal, {n}, from further out than anything we know. I cannot read it. Not yet. Keep bringing them home.'), 600);
   }
@@ -717,7 +730,7 @@ export function createHangar(hooks) {
     const rows = f.log.map((e) => { const d = DEST_BY_ID[e.dest];
       return h('div.fl-log', h('div.fl-dt', h('b', `${SHIP_BY_ID[e.ship]?.name} · ${d?.name}`), h('small', `${dateLabel(e.at)} · she ${e.line}`)),
         h('div.fl-gives', Object.entries(e.got.mats || {}).map(([id, n]) => matChip(id, n)), h('span.fl-g', art('cur:salvage', 'mat-ico'), fmt(e.got.salvage)), e.got.seeds?.length ? h('span.fl-g.rare', 'Seed') : null,
-          e.got.cores ? h('span.fl-g.rare', `${e.got.cores} Core${e.got.cores > 1 ? 's' : ''}`) : null, e.got.bp ? h('span.fl-g.rare', 'Blueprint') : null, e.got.fragments ? h('span.fl-g.rare', 'Signal') : null)); });
+          e.got.cores ? h('span.fl-g.rare', `${e.got.cores} Core${e.got.cores > 1 ? 's' : ''}`) : null, e.got.bp ? h('span.fl-g.rare', 'Blueprint') : null, e.got.fragments ? h('span.fl-g.rare', 'Signal') : null, e.got.damage ? h('span.fl-g.hurt', DAMAGE[e.got.damage].name) : null)); });
     hooks.panel?.({ kicker: 'Fleet Ops', title: 'Expedition log', body: [rows.length ? h('div.fl-logs', rows) : h('p.sub-note', 'No ships home yet. Send one out from a berth and its return is logged here.'),
       h('p.sub-note', st.paints[FLEET_PAINT] ? `${f.home} expeditions home. The Pathfinder paint is yours.` : `${f.home} of ${PATHFINDER_AT} expeditions home for the Pathfinder paint.`),
       f.fragments ? h('p.sub-note', `${f.fragments} signal fragment${f.fragments > 1 ? 's' : ''} from the Deep Void, waiting to be read.`) : null] });
@@ -1297,6 +1310,7 @@ export function createHangar(hooks) {
     if (r.id === 'beacons') { const n = VOID_BOSSES.filter((id) => voidBeaten(st)[id]).length; return { text: n ? `${n} of ${VOID_BOSSES.length} Void bosses beaten` : r.for }; }
     if (r.id === 'ops') { const c = fleetCounts(st);
       if (c.ready) return { text: `${c.ready} ship${c.ready > 1 ? 's' : ''} home: unload ${c.ready > 1 ? 'them' : 'her'}`, ready: true };
+      if (c.damaged) return { text: `${c.damaged} ship${c.damaged > 1 ? 's' : ''} home damaged: repair ${c.damaged > 1 ? 'them' : 'her'} to fly again`, ready: true };
       if (c.free && sendable(st)) return { text: `${c.free} berth${c.free > 1 ? 's' : ''} free: send a ship out`, ready: true };
       return { text: c.out ? `${c.out} out · next home in ${hrs(nextHome(st))}` : r.for }; }
     if (r.id === 'garden') { const c = gardenCounts(st), seeds = seedCount(st);

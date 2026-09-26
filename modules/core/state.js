@@ -35,7 +35,7 @@ export function newState() {
     observatory: { charted: {} }, // the Observatory: the Deep Void depths charted (wave → when)
     shipyard: { stage: 0 }, // the Shipyard: stages of the Chimera built (all four: she is in the hangar)
     materials: { alloy: 0, crystal: 0, shard: 0 }, refits: {}, // materials banked from sorties and expeditions; each ship's refit level (data/refits.js)
-    fleet: { out: [null, null, null], log: [], sent: 0, home: 0, fragments: 0 }, // ships out on expeditions from Fleet Ops, by berth; the last few home (data/fleet.js)
+    fleet: { out: [null, null, null], log: [], sent: 0, home: 0, fragments: 0, damage: {} }, // ships out on expeditions from Fleet Ops, by berth; the last few home; ships home damaged (data/fleet.js)
     garden: { beds: [], seeds: {}, basket: {}, grown: {}, wateredDay: '', started: false }, // the Greenhouse: what each bed grows ({ id, at, need, extra }), seeds in the drawer, blooms in the basket, kinds ever grown, the day last watered
     beacons: { beaten: {} }, // the Beacon array: Void bosses beaten (id → when first)
     quarters: { restDay: '', rested: false, mood: 'warm' }, // the Pilot's quarters: the day last rested, whether that rest is still to be flown on, the lights' mood

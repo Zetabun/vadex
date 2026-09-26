@@ -44,7 +44,7 @@ export function buyShip(id) {
   const s = SHIP_BY_ID[id]; if (shipStatus(id) !== 'buyable' || G.state.salvage < s.cost) return false;
   G.state.salvage -= s.cost; G.state.unlocked.ships[id] = Date.now(); G.state.ship = id; G.state.stats.shipsOwned = Object.keys(G.state.unlocked.ships).length; recalc(); checkContracts(); bus.emit('bought', 'ship', id); return true;
 }
-export function selectShip(id) { if (!G.state.unlocked.ships[id] || G.state.run || G.state.fleet?.out?.some((o) => o?.ship === id)) return false; /* a ship out on an expedition (progression/fleet.js) stays out */ G.state.ship = id; recalc(); bus.emit('shipSelected', id); return true; }
+export function selectShip(id) { if (!G.state.unlocked.ships[id] || G.state.run || G.state.fleet?.out?.some((o) => o?.ship === id) || G.state.fleet?.damage?.[id]) return false; /* a ship out on an expedition (progression/fleet.js) stays out; one home damaged waits for repairs */ G.state.ship = id; recalc(); bus.emit('shipSelected', id); return true; }
 
 // ---------------------------------------------------------------- contracts
 export function contractProgress(c) { const v = Number(G.state.stats[c.stat]) || 0; return { cur: Math.min(v, c.goal), goal: c.goal, frac: Math.min(1, v / c.goal), done: !!G.state.contracts[c.id] }; }

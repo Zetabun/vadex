@@ -147,7 +147,7 @@ export class YardRoom extends Room {
   // ---------------------------------------------------------------- what is on show (rebuilt when it changes)
   sync(state) {
     const stage = yardStage(state), done = stage >= YARD_STAGES.length, owned = SHIPS.map((s) => (state.unlocked.ships[s.id] ? 1 : 0)).join(''), mastery = SHIPS.map((s) => state.mastery?.[s.id]?.level || 0).join(',');
-    const lit = (state.prestige?.level || 0) >= BEACON_RANK, halo = (state.prestige?.level || 0) >= FLEET_RANK, away = (state.fleet?.out || []).map((o) => (o ? o.ship + ':' + o.dest : '')).join(',');
+    const lit = (state.prestige?.level || 0) >= BEACON_RANK, halo = (state.prestige?.level || 0) >= FLEET_RANK, away = (state.fleet?.out || []).map((o) => (o ? o.ship + ':' + o.dest : '')).join(',') + JSON.stringify(state.fleet?.damage || {});
     const sig = [stage, done ? state.ship : '', done ? state.paint : '', state.stationName, owned, mastery, state.ship, stageBlock(state), lit, halo, away].join('|');
     if (sig === this.sig) return; this.sig = sig;
     // the way on to the Beacon array, at the front of the left wall by the bay doors
@@ -232,11 +232,11 @@ export class YardRoom extends Room {
     x.fillStyle = '#0b0f16'; x.fillRect(0, 0, 1024, 640); x.strokeStyle = '#7fb2ff'; x.lineWidth = 5; x.strokeRect(6, 6, 1012, 628);
     text(x, 'THE FLEET', 36, 54, '800 40px sans-serif', '#e6f1ff', 'left'); text(x, `${own}/${SHIPS.length} IN THE HANGAR`, 988, 54, '800 24px sans-serif', '#7fb2ff', 'right');
     SHIPS.forEach((s, i) => {
-      const cx = 180 + (i % 3) * 332, cy = 214 + Math.floor(i / 3) * 236, owned = !!state.unlocked.ships[s.id], fly = owned && state.ship === s.id, out = (state.fleet?.out || []).find((o) => o?.ship === s.id);
+      const cx = 180 + (i % 3) * 332, cy = 214 + Math.floor(i / 3) * 236, owned = !!state.unlocked.ships[s.id], fly = owned && state.ship === s.id, out = (state.fleet?.out || []).find((o) => o?.ship === s.id), hurt = owned && !out && state.fleet?.damage?.[s.id];
       x.fillStyle = fly ? 'rgba(109,255,142,.12)' : 'rgba(255,255,255,.035)'; x.fillRect(cx - 152, cy - 110, 304, 222);
       if (owned || s.yard) drawArt('ship:' + s.id, x, cx - 62, cy - 100, 124, () => { t.needsUpdate = true; }); else text(x, '?', cx, cy - 36, '800 96px sans-serif', '#323a4c');
       text(x, owned || s.yard ? s.name.toUpperCase() : 'UNKNOWN', cx, cy + 50, '800 28px sans-serif', owned ? '#e6f1ff' : s.yard ? '#fff0c8' : '#4a5264');
-      text(x, fly ? 'FLYING' : out ? `AWAY · ${(DEST_BY_ID[out.dest]?.name || '').toUpperCase()}` : owned ? `MASTERY ${state.mastery?.[s.id]?.level || 1}` : s.yard ? `IN THE YARD · ${this.stage}/${YARD_STAGES.length}` : 'NOT YET', cx, cy + 86, '800 21px sans-serif', fly ? '#6dff8e' : out ? '#6dffc8' : owned ? '#7fb2ff' : s.yard ? '#ffc93c' : '#3a4254');
+      text(x, fly ? 'FLYING' : out ? `AWAY · ${(DEST_BY_ID[out.dest]?.name || '').toUpperCase()}` : hurt ? 'DAMAGED · NEEDS REPAIR' : owned ? `MASTERY ${state.mastery?.[s.id]?.level || 1}` : s.yard ? `IN THE YARD · ${this.stage}/${YARD_STAGES.length}` : 'NOT YET', cx, cy + 86, '800 21px sans-serif', fly ? '#6dff8e' : out ? '#6dffc8' : hurt ? '#ff9a7a' : owned ? '#7fb2ff' : s.yard ? '#ffc93c' : '#3a4254');
     });
     t.needsUpdate = true;
   }

@@ -746,11 +746,20 @@ assert.throws(() => parseSave('{"run":{},"cur":{}}'), /Not a Last Orbit v2 save/
   assert.equal(st.fleet.out[0], null, 'The berth is free again'); assert.equal(st.fleet.log[0].ship, 'striker', 'It is logged'); assert.equal(st.fleet.home, 1);
   assert.equal(selectShip('striker'), true, 'Home again, she can fly'); selectShip('vanguard');
   F.sendShip(st, 1, 'bulwark', 's1', t0); const s1 = st.salvage; assert.ok(F.recallShip(st, 1)); assert.equal(st.salvage, s1, 'Called home early, she brings nothing'); assert.equal(st.fleet.out[1], null);
-  assert.deepEqual(F.fleetCounts(st, t0), { out: 0, ready: 0, free: 3, home: 1, fragments: 0 });
-  for (let k = 0; k < FD.PATHFINDER_AT; k++) { const at = t0 + k * 10 * HR; F.sendShip(st, 2, 'bulwark', 's1', at); assert.ok(F.collectShip(st, 2, at + 2 * HR)); }
+  assert.deepEqual(F.fleetCounts(st, t0), { out: 0, ready: 0, free: 3, home: 1, fragments: 0, damaged: 0 });
+  for (let k = 0; k < FD.PATHFINDER_AT; k++) { const at = t0 + k * 10 * HR; st.fleet.damage = {}; /* (repaired between trips) */ F.sendShip(st, 2, 'bulwark', 's1', at); assert.ok(F.collectShip(st, 2, at + 2 * HR)); }
   assert.ok(st.paints[FD.FLEET_PAINT], 'Twelve home: the Pathfinder paint'); assert.equal(st.fleet.log.length, 12, 'The log keeps the last twelve');
-  st.stats.bestWave = 70; const v = F.sendShip(st, 0, 'bulwark', 'void', t0); assert.ok(v, 'Past wave 60, the Deep Void'); const vf = F.tripFinds(st, v);
+  st.stats.bestWave = 70; st.fleet.damage = {}; const v = F.sendShip(st, 0, 'bulwark', 'void', t0); assert.ok(v, 'Past wave 60, the Deep Void'); const vf = F.tripFinds(st, v);
   assert.ok(F.collectShip(st, 0, t0 + FD.DEST_BY_ID.void.hours * HR).got.mats.shard > 0, 'The Deep Void brings Void shards'); assert.equal(st.fleet.fragments, vf.fragments, 'Only the Deep Void gives up signal fragments');
+  // damage: settled when she leaves, likelier further out, rarer with a reinforced frame; repaired for salvage (and Alloy)
+  const rolls = (frame) => { let n = 0; for (let k = 0; k < 3000; k++) if (F.tripFinds(st, { ship: 'bulwark', dest: 'void', at: t0 + k * 7919, need: HR, frame }).damage) n++; return n / 3000; };
+  const raw = rolls(0), tough = rolls(1); assert.ok(Math.abs(raw - FD.DEST_BY_ID.void.risk) < 0.04, `Deep Void risk ${raw}`); assert.ok(Math.abs(tough / raw - FD.FRAME_SAFER) < 0.12, 'A reinforced frame cuts the risk');
+  let hit = { ship: 'bulwark', dest: 's6', at: t0, need: 6 * HR }; while (!F.tripFinds(st, hit).damage) hit.at += 1;
+  st.fleet.out[1] = hit; const hr = F.collectShip(st, 1, hit.at + hit.need); assert.equal(F.damageOf(st, 'bulwark'), hr.got.damage, 'She comes home damaged'); assert.equal(st.fleet.log[0].got.damage, hr.got.damage, 'and the log says so');
+  assert.equal(F.cannotSend(st, 'bulwark'), 'damaged', 'A damaged ship cannot go out'); assert.equal(selectShip('bulwark'), false, 'nor fly');
+  st.fleet.damage.bulwark = 2; st.materials.alloy = 0; st.salvage = 1e6; const cost = F.repairCost(st, 'bulwark'); assert.equal(cost.alloy, FD.DAMAGE[2].alloy, 'Heavy damage needs Alloy for new plating');
+  assert.equal(F.repairShip(st, 'bulwark'), null, 'No Alloy, no repair'); st.materials.alloy = 10; assert.ok(F.repairShip(st, 'bulwark')); assert.equal(st.salvage, 1e6 - cost.salvage); assert.equal(st.materials.alloy, 10 - cost.alloy);
+  assert.equal(F.damageOf(st, 'bulwark'), 0, 'Repaired'); assert.equal(F.cannotSend(st, 'bulwark'), null); assert.equal(F.repairCost(st, 'bulwark'), null, 'Nothing to repair');
   const old = newState(); delete old.fleet; assert.deepEqual(F.fleet(old).out, [null, null, null], 'A save from before the fleet gets its berths');
   const short = newState(); short.fleet.out = [null]; assert.equal(F.fleet(short).out.length, 3); }
 

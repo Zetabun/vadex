@@ -27,7 +27,7 @@ import { refreshBounties, checkBounties, claimBounty } from '@last-orbit/progres
 import { BOUNTY_BY_ID } from '@last-orbit/data/bounties.js';
 import { ROOMS_ABOARD, roomAt } from '@last-orbit/data/rooms.js';
 import { DEST_BY_ID } from '@last-orbit/data/fleet.js';
-import { sendShip } from '@last-orbit/progression/fleet.js';
+import { sendShip, tripFinds } from '@last-orbit/progression/fleet.js';
 
 export async function initDebug(app, { hooks, ui } = {}) {
   // &st=<px>: pretend to have a notch (the top safe-area inset), to check layouts the way a phone shows them
@@ -224,7 +224,8 @@ function runScene(scene, hooks, ui) {
   // that many Void bosses beaten (default 2) and that many more met (default 1). view: lamp, left, right, log, window;
   // intro (a first visit).
   // ops[:view|tap:<exhibit>|intro|launch|return|empty|ships|hangar]: Fleet Ops at Overhaul rank 9 with four ships besides the
-  // one flown: the Striker a third of the way through scouting sector 4, the Bulwark home from the Deep Void, a berth free
+  // one flown: the Striker a third of the way through scouting sector 4, the Bulwark home from the Deep Void (badly
+  // damaged), the Revenant in the hangar with light damage, a berth free
   // and three returns in the log. view: map, berths, routes, log, field, back. launch: the Tempest sent out as you watch;
   // return: the Bulwark home as you watch; empty: nothing out yet; intro: a first visit; ships: the Ships menu, with the
   // Striker away; hangar: the Launch screen, with the Fleet shortcut.
@@ -239,8 +240,10 @@ function runScene(scene, hooks, ui) {
       log: arg === 'empty' ? [] : [logged('tempest', 's3', 3, { salvage: 4200, mats: { crystal: 15 }, cores: 1 }, 'found an abandoned relay still broadcasting'), logged('bulwark', 'void', 20, { salvage: 13400, mats: { shard: 31 }, fragments: 1, bp: 1 }, 'heard something singing past the last beacon'), logged('striker', 's1', 30, { salvage: 2600, mats: { alloy: 9 }, seeds: ['sunpetal'] }, 'picked through a wreck field')] };
     if (arg === 'empty') { st.fleet.sent = 0; st.fleet.home = 0; st.fleet.fragments = 0; }
     if (arg === 'return') st.fleet.out[1].at = now - st.fleet.out[1].need + 4000; /* home four seconds after you arrive */
+    const bw = st.fleet.out[1]; if (bw) for (let k = 0; k < 3000 && tripFinds(st, bw).damage !== 2; k++) bw.at += arg === 'return' ? 1 : -1; /* the Bulwark comes home badly damaged */
+    st.fleet.damage = arg === 'empty' ? {} : { revenant: 1 }; /* and the Revenant is in the hangar waiting on repairs */
     WORKSHOP.forEach((u, i) => { st.stationPeak[u.id] = u.max; st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.7 - (i % 5) * 0.12))); }); recalc();
-    if (arg === 'ships' || arg === 'hangar') { hooks.toHangar(arg === 'ships' ? 'ships' : 'launch'); if (arg === 'ships') setTimeout(() => document.querySelector('.fl-away')?.scrollIntoView({ block: 'center' }), 1200); return; }
+    if (arg === 'ships' || arg === 'hangar') { hooks.toHangar(arg === 'ships' ? 'ships' : 'launch'); if (arg === 'ships') setTimeout(() => (document.querySelector('.fl-fixrow') || document.querySelector('.fl-away'))?.scrollIntoView({ block: 'center' }), 1200); return; }
     hooks.toHangar('ops');
     const view = { map: [-0.95, 1.0, 0.81, -0.48], berths: [0, -2.4, 0, -0.14], routes: [1.3, -0.7, Math.PI / 2, 0.05], log: [-0.7, -0.7, -Math.PI / 2, 0.05], field: [1.6, -7.8, 0.25, 0.12], back: [0, -3.2, Math.PI, 0.06], launch: [1.2, -1.2, -0.37, -0.06] }[arg];
     if (view) { let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 60) setTimeout(place, 100); return; } r.pos.set(view[0], 0, view[1]); r.yaw = view[2]; r.pitch = view[3]; }; place(); }

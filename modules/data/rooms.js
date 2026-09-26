@@ -55,7 +55,7 @@ export const ROOMS_ABOARD = [
   { id: 'ops', name: 'Fleet Ops', icon: 'ops', seen: 'ops', rank: FLEET_RANK, color: 0x6dffc8,
     for: 'Send the ships you are not flying out on expeditions', via: 'yard', door: 'the far door on the Shipyard\'s right',
     lock: `Fleet Ops is in the Halo ring: it opens at Overhaul rank ${FLEET_RANK}.`,
-    intro: `The halo is up, and it can hear our ships all the way out. Fleet Ops is its launch deck, with three berths: the ships you are not flying can go out from them on expeditions. Send one to scout a sector you have cleared and it comes back hours later, even with the game closed, bringing that stretch's material, salvage and mastery, and now and then a seed, an Alien Core or a Blueprint. The further out, the longer it is gone. Past wave 60, the Deep Void is on the map too. Bring ${PATHFINDER_AT} home for the Pathfinder paint.` },
+    intro: `The halo is up, and it can hear our ships all the way out. Fleet Ops is its launch deck, with three berths: the ships you are not flying can go out from them on expeditions. Send one to scout a sector you have cleared and it comes back hours later, even with the game closed, bringing that stretch's material, salvage and mastery, and now and then a seed, an Alien Core or a Blueprint. The further out, the longer it is gone, and the riskier: a ship can come home damaged, and needs repairing before it flies again. Past wave 60, the Deep Void is on the map too. Bring ${PATHFINDER_AT} home for the Pathfinder paint.` },
 ];
 export const ROOM_BY_ID = Object.fromEntries(ROOMS_ABOARD.map((r) => [r.id, r]));
 /** The room an Overhaul to this rank opens (none at rank 4, the Solar wings, or at 10, the crown). */
