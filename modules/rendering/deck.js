@@ -174,6 +174,9 @@ export class DeckRoom extends Room {
     // the News: its ticker along the bottom (a long strip that scrolls) and its blinking LIVE light
     const tt = tex(canvas(2048, 64)); tt.wrapS = THREE.RepeatWrapping; this.ticker = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 0.11), new THREE.MeshBasicMaterial({ map: tt })); this.ticker.position.set(0, -0.82, 0.008); g.add(this.ticker);
     this.liveDot = new THREE.Mesh(new THREE.CircleGeometry(0.035, 16), new THREE.MeshBasicMaterial({ color: 0xffffff })); this.liveDot.position.set(-1.5, 0.767, 0.008); g.add(this.liveDot); this.newsSig = null;
+    // static, for changing the channel: noise over the whole screen, jumping about as it fades
+    const nc = canvas(128, 128), nx = nc.getContext('2d'); for (let y = 0; y < 128; y += 2) for (let x = 0; x < 128; x += 2) { const v = Math.floor(Math.random() * 255); nx.fillStyle = `rgb(${v},${v},${v})`; nx.fillRect(x, y, 2, 2); }
+    const nt = tex(nc, [3, 2]); this.tvStatic = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.75), new THREE.MeshBasicMaterial({ map: nt, transparent: true, opacity: 0, depthWrite: false })); this.tvStatic.position.z = 0.012; this.tvStatic.visible = false; g.add(this.tvStatic);
     const bezel = new THREE.Mesh(new THREE.BoxGeometry(3.36, 1.91, 0.06), new THREE.MeshPhongMaterial({ color: 0x1a2030, shininess: 40 })); bezel.position.set(TV_X, 1.75, BACK - 0.04); this.show.add(bezel);
     this.tag(g, 'replay'); this.tv = { hud, face, stats: state.stats, next: 0 };
     // the channel buttons on a bar under the screen: Last, Best, Boss, Daily (the one on is lit; one with nothing on it yet
@@ -182,6 +185,9 @@ export class DeckRoom extends Room {
     this.tvKeys = TV_CHANNELS.map((c, i) => { const k = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.2), new THREE.MeshBasicMaterial({ map: tex(canvas(200, 80)) })); k.position.set((i - 2) * 0.54, -1.06, 0.006); g.add(k); this.tag(k, 'tv:' + c.id); k.userData.ch = c.id; return k; });
     this.keySig = '';
   }
+  /** A channel button pressed: it pushes in and lights up; the TV cuts over through a burst of static. ok false: that
+   *  channel has nothing on it yet, and the button shakes instead. */
+  pressKey(id, ok = true) { const k = this.tvKeys?.find((o) => o.userData.ch === id); if (k) this.keyAnim = { k, t: 0, ok, x0: k.userData.x0 ?? (k.userData.x0 = k.position.x) }; if (ok) this.staticT = 0.45; }
   /** Which channel the TV is on (a setting; Last if the one chosen has nothing on it yet). */
   channel() { const ch = G.state?.settings?.tvChannel || 'last'; return ch === 'news' ? 'news' : replayOf(ch) ? ch : lastReplay() ? 'last' : 'news'; }
   /** The channel buttons: lit for the one on, plain for one with a recording, dark for one still empty. */
@@ -310,6 +316,10 @@ export class DeckRoom extends Room {
     this.holoGrid.rotation.z = this.t * 0.15;
     // the hologram, the ships, the banners
     this.station.animate(dt, night); this.station.body.rotation.set(0.25, this.t * 0.3, 0);
+    // a pressed channel button, and the static as the TV changes over
+    const ka = this.keyAnim; if (ka) { ka.t += dt; const u = Math.min(1, ka.t / (ka.ok ? 0.28 : 0.4)), push = Math.sin(u * Math.PI); ka.k.position.z = 0.006 - push * 0.025; ka.k.scale.setScalar(1 - push * 0.08); ka.k.material.color.setScalar(ka.ok ? 1 + push * 0.9 : 1);
+      ka.k.position.x = ka.x0 + (ka.ok ? 0 : Math.sin(u * Math.PI * 6) * 0.025 * (1 - u)); if (u >= 1) { ka.k.position.set(ka.x0, ka.k.position.y, 0.006); ka.k.scale.setScalar(1); ka.k.material.color.setScalar(1); this.keyAnim = null; } }
+    if (this.tvStatic) { this.tvStatic.visible = this.staticT > 0; if (this.staticT > 0) { this.staticT -= dt; this.tvStatic.material.opacity = Math.min(1, this.staticT / 0.3) * 0.95; this.tvStatic.material.map.offset.set(Math.random(), Math.random()); this.tvStatic.scale.y = this.staticT < 0.08 ? Math.max(0.02, this.staticT / 0.08) : 1; } }
     if (this.tv && this.channel() === 'news') { const ch = 'news'; this.drawKeys(ch); this.tvField.visible = this.tvLines.visible = false; this.ticker.visible = true; this.liveDot.visible = Math.floor(this.t * 1.6) % 2 === 0;
       const sig = this.sig; if (this.newsSig !== sig) { this.newsSig = sig; this.drawTicker(this.state || G.state); this.newsNext = 0; } if (this.t >= (this.newsNext || 0)) { this.newsNext = this.t + 8; this.drawNews(G.state); }
       this.ticker.material.map.offset.x = (this.t * 0.04) % 1; }

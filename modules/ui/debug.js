@@ -49,6 +49,8 @@ export async function initDebug(app, { hooks, ui } = {}) {
   if (scene) { panel.style.display = 'none'; G.demo = true; runScene(scene, hooks, ui); } // demo scenes never auto-pause
   // &at=x,z,yaw,pitch: once a room scene is up, stand there looking that way (for framing a shot of anything in it)
   const at = new URLSearchParams(location.search).get('at')?.split(',').map(Number);
+  // &tap=<exhibit>[,<ms>]: tap that exhibit in the room once the scene is up (default after 4 s)
+  const tapAt = new URLSearchParams(location.search).get('tap')?.split(','); if (scene && tapAt) setTimeout(() => ui.tap?.(tapAt[0]), +tapAt[1] || 4000);
   // &tv=<channel>: the Command Deck's TV on that channel (last, best, boss, daily, news)
   const tvCh = new URLSearchParams(location.search).get('tv'); if (scene && tvCh) G.state.settings.tvChannel = tvCh;
   // &bolt=paint,hat,eye: Bolt wears these (and has everything in its locker)

@@ -1190,8 +1190,9 @@ export function createHangar(hooks) {
   /** Switch the replay TV to a channel (Last, Best, Boss, Daily), if it has a recording yet. */
   function tvChannel(id) {
     const c = TV_CHANNELS.find((x) => x.id === id); if (!c) return false;
-    if (id !== 'news' && !replayOf(id)) { playSfx('deny'); hooks.toast?.(`Nothing on ${c.name} yet: ${c.how.toLowerCase()} and it records here.`, 'info'); return false; }
-    G.state.settings.tvChannel = id; playSfx('tab'); hooks.saveNow?.('tv'); return true;
+    const room = G.renderer?.room;
+    if (id !== 'news' && !replayOf(id)) { playSfx('deny'); room?.pressKey?.(id, false); hooks.toast?.(`Nothing on ${c.name} yet: ${c.how.toLowerCase()} and it records here.`, 'info'); return false; }
+    const changed = room?.channel?.() !== id; G.state.settings.tvChannel = id; playSfx('tab'); if (changed) playSfx('dash', 0.25, 1.8); /* a click, and the hiss of the channel changing */ room?.pressKey?.(id, changed); hooks.saveNow?.('tv'); return true;
   }
   /** All the news, to read: your stories first, then a few from around the station. */
   function newsPanel() {
