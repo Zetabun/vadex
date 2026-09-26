@@ -4,7 +4,8 @@
 // on, a crane overhead, the build console on the left, her blueprint on the left wall and the fleet board on the right.
 // The yard builds the Chimera (data/shipyard.js) in four stages, each showing on the ship: the plans as a hologram,
 // then her frame, her plating, her drive, and at last her colours, when the arms stand back and she lifts off the
-// cradle. After that the bay holds whichever ship you fly, in its paint. Doors lead back to the Observatory and out to
+// cradle. After that the bay holds whichever ship you fly, in its paint, or a ship in for a refit (progression/refits.js),
+// down on the cradle with the welders at her again and the console counting down. Doors lead back to the Observatory and out to
 // the hangar, on to the Beacon array once the beacons are lit, and to Fleet Ops once the halo is up. Tapping anything names it (the UI shows the details).
 import { Room, canvas, tex, text, drawSign, drawArt } from '@last-orbit/rendering/room.js';
 import { playerParts, supportCraftGeometry, NOZZLES } from '@last-orbit/rendering/geometry.js';
@@ -15,6 +16,7 @@ import { YARD_STAGES, YARD_SHIP } from '@last-orbit/data/shipyard.js';
 import { BEACON_RANK } from '@last-orbit/data/beacons.js';
 import { FLEET_RANK, DEST_BY_ID } from '@last-orbit/data/fleet.js';
 import { yardStage, nextStage, stageBlock } from '@last-orbit/progression/shipyard.js';
+import { refitProgress } from '@last-orbit/progression/refits.js';
 const T = () => window.THREE;
 
 // Room: x -5.5..5.5, z -12 (the bay doors) .. 3.5 (back wall, the doors), height 5.2.
@@ -148,7 +150,8 @@ export class YardRoom extends Room {
   sync(state) {
     const stage = yardStage(state), done = stage >= YARD_STAGES.length, owned = SHIPS.map((s) => (state.unlocked.ships[s.id] ? 1 : 0)).join(''), mastery = SHIPS.map((s) => state.mastery?.[s.id]?.level || 0).join(',');
     const lit = (state.prestige?.level || 0) >= BEACON_RANK, halo = (state.prestige?.level || 0) >= FLEET_RANK, away = (state.fleet?.out || []).map((o) => (o ? o.ship + ':' + o.dest : '')).join(',') + JSON.stringify(state.fleet?.damage || {});
-    const sig = [stage, done ? state.ship : '', done ? state.paint : '', state.stationName, owned, mastery, state.ship, stageBlock(state), lit, halo, away].join('|');
+    const rp = refitProgress(state), refit = done && rp && !rp.out ? rp : null; /* a ship in for a refit takes the cradle */
+    const sig = [stage, done ? state.ship : '', done ? state.paint : '', state.stationName, owned, mastery, state.ship, stageBlock(state), lit, halo, away, refit ? refit.ship + refit.step?.n : '', rp ? rp.ship + (rp.out ? 'o' : 'i') : ''].join('|');
     if (sig === this.sig) return; this.sig = sig;
     // the way on to the Beacon array, at the front of the left wall by the bay doors
     if (this.beaconDoor) { this.scene.remove(this.beaconDoor); this.untag(this.beaconDoor); } this.beaconDoor = new (T().Group)(); this.scene.add(this.beaconDoor);
@@ -158,6 +161,7 @@ export class YardRoom extends Room {
     this.door(this.opsDoor, W, -9.9, Math.PI / 2, 'FLEET OPS  ›', 'ops', { sealed: !halo, sign: '#e6fffa', edge: 0x6dffc8 });
     if (this.stageSeen != null && stage > this.stageSeen) this.flourish(done); // a stage just built: sparks all over, and if she is done, she lifts off
     this.stageSeen = stage; this.stage = stage; this.done = done; if (done && this.liftT == null) this.liftT = 99;
+    this.refit = refit; this.refitAny = rp; this.lastState = state; this.refitDrawAt = this.t + 15;
     this.buildShip(state); this.drawSign(state); this.drawConsole(state); this.drawBlueprint(); this.drawFleet(state); this.drawPlaque(state); this.drawLog(state);
   }
   /** The ship on the cradle as far as she is built: the plans (a hologram), her frame, her plating in bare metal, her
@@ -165,7 +169,7 @@ export class YardRoom extends Room {
   buildShip(state) {
     const THREE = T(), Ph = (o) => new THREE.MeshPhongMaterial(o);
     if (this.model) { this.pivot.remove(this.model); this.model.traverse((o) => { o.geometry?.dispose(); }); }
-    const done = this.done, id = done ? state.ship : YARD_SHIP, ship = SHIP_BY_ID[id] || SHIP_BY_ID[YARD_SHIP], stage = done ? 4 : this.stage, parts = playerParts(ship.id);
+    const done = this.done, id = done ? this.refit?.ship || state.ship : YARD_SHIP, ship = SHIP_BY_ID[id] || SHIP_BY_ID[YARD_SHIP], stage = done ? 4 : this.stage, parts = playerParts(ship.id);
     const paint = done ? PAINT_BY_ID[state.paint] : null, painted = paint && paint.id !== 'factory', trim = painted ? paint.trim ?? ship.trim : ship.trim, hullC = painted ? paint.hull ?? 0x718996 : 0x718996;
     const M = { hull: Ph({ color: hullC, emissive: 0x0c1420, shininess: 30 }), deck: Ph({ color: 0xe2eced, emissive: 0x141a22, shininess: 40 }), dark: Ph({ color: 0x152735 }), glass: Ph({ color: 0x125875, emissive: 0x073345, shininess: 110, specular: 0xb8f5ff }),
       trim: Ph({ color: trim, emissive: new THREE.Color(trim).multiplyScalar(0.4) }), gold: Ph({ color: 0xffb94e, emissive: 0x583000 }), primer: Ph({ color: 0x8e9a93, emissive: 0x0e1210, shininess: 14 }) };
@@ -189,7 +193,7 @@ export class YardRoom extends Room {
   /** The plate on the front of the cradle: whose hull this is and how far on. */
   drawPlaque(state) {
     const c = canvas(768, 102), x = c.getContext('2d'); x.fillStyle = '#12100a'; x.fillRect(0, 0, 768, 102); x.strokeStyle = '#ffc93c'; x.lineWidth = 5; x.strokeRect(4, 4, 760, 94);
-    text(x, this.done ? `IN DOCK · ${this.shipName.toUpperCase()}` : `CHIMERA · HULL 01 · STAGE ${this.stage}/${YARD_STAGES.length}`, 384, 52, '800 40px sans-serif', '#ffe9b0');
+    text(x, this.refit ? `IN FOR A REFIT · ${this.shipName.toUpperCase()}` : this.done ? `IN DOCK · ${this.shipName.toUpperCase()}` : `CHIMERA · HULL 01 · STAGE ${this.stage}/${YARD_STAGES.length}`, 384, 52, '800 40px sans-serif', '#ffe9b0');
     const m = this.plaque.material; m.map?.dispose(); m.map = tex(c); m.needsUpdate = true;
   }
   /** The build console: the stages, which are built, what the next one costs and whether the yard can start it. */
@@ -208,7 +212,10 @@ export class YardRoom extends Room {
       const cost = [`${fmt(n.cost.salvage)} SALVAGE`, n.cost.cores ? `${n.cost.cores} ALIEN CORES` : '', n.cost.bp ? `${n.cost.bp} BLUEPRINTS` : ''].filter(Boolean).join(' · ');
       text(x, cost, 384, 384, '800 25px sans-serif', block ? '#ff9f43' : '#6dff8e');
       text(x, block ? `SHORT OF ${{ salvage: 'SALVAGE', cores: 'ALIEN CORES', bp: 'BLUEPRINTS' }[block] || 'SOMETHING'}` : 'READY TO BUILD · TAP HER', 384, 430, '700 22px sans-serif', block ? '#a88060' : '#bfe9cc');
-    } else text(x, `IN DOCK: ${this.shipName.toUpperCase()}`, 384, 404, '800 30px sans-serif', '#6dff8e');
+    } else if (this.refit) { const r = this.refit, m = Math.ceil(r.mins), left = m >= 60 ? `${Math.floor(m / 60)}H ${String(m % 60).padStart(2, '0')}M` : `${m}M`;
+      text(x, `REFIT: ${this.shipName.toUpperCase()} · ${(r.step?.name || '').toUpperCase()}`, 384, 384, `800 ${this.shipName.length + (r.step?.name || '').length > 26 ? 20 : 24}px sans-serif`, '#ffc93c');
+      x.fillStyle = '#1a2230'; x.fillRect(84, 412, 600, 16); x.fillStyle = '#ffc93c'; x.fillRect(84, 412, 600 * r.k, 16); text(x, `${left} TO GO`, 384, 452, '700 20px sans-serif', '#fff0c8'); }
+    else text(x, `IN DOCK: ${this.shipName.toUpperCase()}`, 384, 404, '800 30px sans-serif', '#6dff8e');
     face.material.map.needsUpdate = true;
   }
   /** Her blueprint: the ship drawn large on the grid, and what she carries. */
@@ -232,11 +239,11 @@ export class YardRoom extends Room {
     x.fillStyle = '#0b0f16'; x.fillRect(0, 0, 1024, 640); x.strokeStyle = '#7fb2ff'; x.lineWidth = 5; x.strokeRect(6, 6, 1012, 628);
     text(x, 'THE FLEET', 36, 54, '800 40px sans-serif', '#e6f1ff', 'left'); text(x, `${own}/${SHIPS.length} IN THE HANGAR`, 988, 54, '800 24px sans-serif', '#7fb2ff', 'right');
     SHIPS.forEach((s, i) => {
-      const cx = 180 + (i % 3) * 332, cy = 214 + Math.floor(i / 3) * 236, owned = !!state.unlocked.ships[s.id], fly = owned && state.ship === s.id, out = (state.fleet?.out || []).find((o) => o?.ship === s.id), hurt = owned && !out && state.fleet?.damage?.[s.id];
+      const cx = 180 + (i % 3) * 332, cy = 214 + Math.floor(i / 3) * 236, owned = !!state.unlocked.ships[s.id], fly = owned && state.ship === s.id, out = (state.fleet?.out || []).find((o) => o?.ship === s.id), hurt = owned && !out && state.fleet?.damage?.[s.id], refitting = owned && this.refitAny?.ship === s.id;
       x.fillStyle = fly ? 'rgba(109,255,142,.12)' : 'rgba(255,255,255,.035)'; x.fillRect(cx - 152, cy - 110, 304, 222);
       if (owned || s.yard) drawArt('ship:' + s.id, x, cx - 62, cy - 100, 124, () => { t.needsUpdate = true; }); else text(x, '?', cx, cy - 36, '800 96px sans-serif', '#323a4c');
       text(x, owned || s.yard ? s.name.toUpperCase() : 'UNKNOWN', cx, cy + 50, '800 28px sans-serif', owned ? '#e6f1ff' : s.yard ? '#fff0c8' : '#4a5264');
-      text(x, fly ? 'FLYING' : out ? `AWAY · ${(DEST_BY_ID[out.dest]?.name || '').toUpperCase()}` : hurt ? 'DAMAGED · NEEDS REPAIR' : owned ? `MASTERY ${state.mastery?.[s.id]?.level || 1}` : s.yard ? `IN THE YARD · ${this.stage}/${YARD_STAGES.length}` : 'NOT YET', cx, cy + 86, '800 21px sans-serif', fly ? '#6dff8e' : out ? '#6dffc8' : hurt ? '#ff9a7a' : owned ? '#7fb2ff' : s.yard ? '#ffc93c' : '#3a4254');
+      text(x, refitting && !this.refitAny.out ? 'IN FOR A REFIT' : fly ? 'FLYING' : out ? `AWAY · ${(DEST_BY_ID[out.dest]?.name || '').toUpperCase()}` : hurt ? 'DAMAGED · NEEDS REPAIR' : owned ? `MASTERY ${state.mastery?.[s.id]?.level || 1}` : s.yard ? `IN THE YARD · ${this.stage}/${YARD_STAGES.length}` : 'NOT YET', cx, cy + 86, '800 21px sans-serif', refitting && !this.refitAny.out ? '#ffc93c' : fly ? '#6dff8e' : out ? '#6dffc8' : hurt ? '#ff9a7a' : owned ? '#7fb2ff' : s.yard ? '#ffc93c' : '#3a4254');
     });
     t.needsUpdate = true;
   }
@@ -262,13 +269,14 @@ export class YardRoom extends Room {
   }
   // ---------------------------------------------------------------- every frame
   update(dt) {
-    this.walk(dt); const t = this.t, v = (this._v ||= new (T().Vector3)()), working = !this.done && this.stage > 0;
+    this.walk(dt); const t = this.t, v = (this._v ||= new (T().Vector3)()), working = (!this.done && this.stage > 0) || !!this.refit; /* building her, or refitting a ship */
+    if (this.refit && t >= (this.refitDrawAt || 0) && this.lastState) { this.refitDrawAt = t + 15; this.refit = refitProgress(this.lastState) || this.refit; this.drawConsole(this.lastState); } /* the countdown, every 15 s */
     // the plans flicker; the engines glow once her drive is in, bright when she is done
     if (this.stage === 0 && !this.done) { this.holoMat.opacity = 0.38 + 0.14 * Math.sin(t * 3) - (Math.random() < 0.03 ? 0.25 : 0); this.holoBeam.material.opacity = 0.04 + 0.02 * Math.sin(t * 2); }
     for (const [i, g] of (this.glows || []).entries()) g.material.opacity = this.done ? 0.7 + 0.2 * Math.sin(t * 13 + i * 2) : this.stage >= 3 ? 0.28 + 0.06 * Math.sin(t * 5 + i) : 0;
     // the welders work while she is being built (sparks where they touch), and stand back once she is done
     for (const a of this.welders) {
-      const rest = this.done || this.stage === 0;
+      const rest = (this.done && !this.refit) || this.stage === 0;
       a.yaw.rotation.y = a.face + (rest ? 0 : Math.sin(t * 0.5 + a.ph) * 0.35); a.sh.rotation.z += ((rest ? 0.5 : -0.42 + Math.sin(t * 0.7 + a.ph) * 0.1) - a.sh.rotation.z) * Math.min(1, dt * 2); a.el.rotation.z += ((rest ? -1.4 : -0.5 + Math.sin(t * 0.9 + a.ph * 2) * 0.14) - a.el.rotation.z) * Math.min(1, dt * 2);
       const on = working && Math.sin(t * 1.3 + a.ph) > -0.2; a.glow.visible = on && Math.random() > 0.2; if (on && Math.random() < dt * 30) { a.tip.getWorldPosition(v); this.emit(v.x, v.y, v.z, 2, 1.6); }
     }
@@ -276,7 +284,7 @@ export class YardRoom extends Room {
     this.crane.position.z = -8.6 + Math.sin(t * 0.09) * 1; this.trolley.position.x = Math.sin(t * 0.13) * 1.7;
     const drop = 1.5 + Math.sin(t * 0.21) * 0.25; this.cable.scale.y = drop; this.cable.position.y = -0.41 - drop / 2; this.load.position.y = -0.41 - drop; this.load.rotation.y = Math.sin(t * 0.3) * 0.2;
     // she lifts off the cradle when she is commissioned, and hovers there
-    if (this.liftT != null && this.liftT < 99) this.liftT += dt; const k = this.done ? Math.min(1, (this.liftT ?? 99) / 2.4) : 0, ease = k * k * (3 - 2 * k);
+    if (this.liftT != null && this.liftT < 99) this.liftT += dt; const k = this.done && !this.refit ? Math.min(1, (this.liftT ?? 99) / 2.4) : 0, ease = k * k * (3 - 2 * k); /* down on the cradle while she is refitted */
     this.pivot.position.y = SHIP_Y + ease * 0.35 + Math.sin(t * 1.1) * 0.04 * ease; this.pivot.rotation.z = Math.sin(t * 0.7) * 0.015 * ease;
     if (this.flareT > 0) { this.flareT = Math.max(0, this.flareT - dt * 0.8); this.lamps[1].intensity = 0.5 + this.flareT * 2.2; }
     // sparks fall, bounce once off the cradle and die

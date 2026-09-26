@@ -21,6 +21,8 @@ export const REFIT_STEPS = [
   { cost: { crystal: 30, shard: 40 }, fx: [['damage', 'pow', 1.15], ['fireRate', 'pow', 1.1]], line: '+15% damage, +10% fire rate' },
 ];
 export const REFIT_MAX = REFIT_STEPS.length;
+/** How long each refit takes in the dock, in minutes (the ship can't fly or go out meanwhile; one refit at a time). */
+export const REFIT_MINUTES = [20, 40, 60, 120, 180];
 /** Refit step n (1-5) for a ship: its name, what it does, what it costs and its stat effects. */
 export function refitStep(shipId, n) {
   const s = SHIP_BY_ID[shipId], d = REFIT_STEPS[n - 1]; if (!s || !d) return null;

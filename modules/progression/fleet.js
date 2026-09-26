@@ -39,6 +39,7 @@ export function cannotSend(st, ship) {
   if (st.ship === ship) return 'flying';
   if (shipAway(st, ship) >= 0) return 'away';
   if (damageOf(st, ship)) return 'damaged';
+  if (st.refitting?.ship === ship) return 'refit';
   return null;
 }
 /** Sends a ship out from an empty berth to a destination it can reach. Returns the trip, or null. */

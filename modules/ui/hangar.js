@@ -6,8 +6,8 @@ import { fmt, fmtInt, fmtTime } from '@last-orbit/core/format.js';
 import { WORKSHOP } from '@last-orbit/data/workshop.js';
 import { SHIPS, SHIP_BY_ID } from '@last-orbit/data/ships.js';
 import { MATERIALS, MAT_BY_ID } from '@last-orbit/data/materials.js';
-import { REFIT_MAX, refitStep } from '@last-orbit/data/refits.js';
-import { mats, refitLevel, refitNext, canAfford, refitReady, buyRefit } from '@last-orbit/progression/refits.js';
+import { REFIT_MAX, REFIT_MINUTES, refitStep } from '@last-orbit/data/refits.js';
+import { mats, refitLevel, refitNext, canAfford, refitReady, buyRefit, refitProgress, takeOut, redock, inDock, settleRefit } from '@last-orbit/progression/refits.js';
 import { CONTRACTS } from '@last-orbit/data/contracts.js';
 import { WEAPONS, WEAPON_ORDER } from '@last-orbit/data/weapons.js';
 import { ABILITIES, ABILITY_ORDER } from '@last-orbit/data/abilities.js';
@@ -136,7 +136,7 @@ export function createHangar(hooks) {
     if (id === 'comms' || id === 'missions') postBounties();
     if (id === 'garden') startGarden(G.state); // the first visit finds a few seeds in the drawer
     checkWardrobe(G.state); // anything new for Bolt to wear (data/bolt.js)
-    if (id === 'ships' && G.state.seen.materials && !G.state.seen.refits) { G.state.seen.refits = true; setTimeout(() => hooks.menuIntro?.({ icon: 'ships', kicker: 'New', title: 'Ship refits', text: 'Each ship now has five refits of its own, paid in materials: Alloy from sectors 1-2, Crystal from 3-4, Void shards from 5-6 and the Deep Void. Warping past a stretch means going without its material. Find them on each hull\'s card, further down. A refit counts while you fly that ship, and an Overhaul leaves it alone. Tap your salvage at the top of the screen any time to see everything you hold.' }), 350); }
+    if (id === 'ships' && G.state.seen.materials && !G.state.seen.refits) { G.state.seen.refits = true; setTimeout(() => hooks.menuIntro?.({ icon: 'ships', kicker: 'New', title: 'Ship refits', text: 'Each ship now has five refits of its own, paid in materials: Alloy from sectors 1-2, Crystal from 3-4, Void shards from 5-6 and the Deep Void. Warping past a stretch means going without its material. Find them on each hull\'s card, further down. Each takes a while in the dock (20 minutes for the first, up to 3 hours for the last), one at a time, and that ship can't fly till it is done: take her out early if you need her, and the refit waits. A refit counts while you fly that ship, and an Overhaul leaves it alone. Tap your salvage at the top of the screen any time to see everything you hold.' }), 350); }
     // A menu the pilot has not earned yet stays shut (with a note on when it opens); a newly opened one explains itself once.
     if (menuState(id) === 'locked') { if (!quiet) { playSfx('deny'); hooks.toast?.(menuLockText(id), 'info'); } if (tab !== id) return; id = 'launch'; }
     if (menuState(id) === 'new') { menuSeen(id); setTimeout(() => hooks.menuIntro?.(MENU_BY_ID[id]), 150); }
@@ -170,7 +170,7 @@ export function createHangar(hooks) {
       fresh ? h('p.lede', 'Invaders are descending on the last orbit. Fly a sortie, level up mid-fight by picking upgrades, and bring salvage home to build a better ship.')
         : h('button.stat-row.as-link', { onclick: () => show('records'), 'aria-label': 'Open records' }, stat('High score', s.bestScore ? fmt(s.bestScore) : '—'), stat('Best wave', best ? `${best} · S${bestSector}` : '—'), stat('Sorties', fmtInt(s.sorties))),
       next.length ? h('div.next', h('div.kicker', next.length > 1 ? 'Next contracts' : 'Next contract'), next.map((c) => contractLine(c, true))) : null);
-    const go = h('div.launch-dock', h('button.launch-btn', { onclick: () => hooks.launch() }, uiIcon('launch'), h('span', 'Launch sortie'), h('small', ship.name + ' · ' + WEAPONS[ship.weapon].name + ' · ' + ABILITIES[ship.ability].name)));
+    const go = h('div.launch-dock', h('button.launch-btn', { onclick: () => launch() }, uiIcon('launch'), h('span', 'Launch sortie'), h('small', ship.name + ' · ' + WEAPONS[ship.weapon].name + ' · ' + ABILITIES[ship.ability].name)));
     return h('div.launch', h('div.ship-stage', { 'aria-hidden': 'true' }), card, history(), go);
   }
   const stat = (k, v) => h('div.stat', h('small', k), h('b', String(v)));
@@ -352,14 +352,49 @@ export function createHangar(hooks) {
     const m = mats(G.state);
     return h('div.mat-bank', h('div.mat-row', MATERIALS.map((d) => matChip(d.id, m[d.id] || 0))), h('p.sub-note', 'Materials for refits: Alloy from sectors 1-2, Crystal from 3-4, Void shards from 5-6 and the Deep Void. Bosses always drop some, elites often.'));
   }
-  /** A ship's refits: how far along, what each one did, and the next with its cost. */
+  /** A ship's refits: how far along, what each one did, and the next with its cost and how long it takes in the dock; or
+   *  the refit under way, if she is in the dock (take her out to fly her: it waits). */
+  const mins = (m) => (m >= 60 ? `${Math.floor(m / 60)}h ${String(Math.round(m % 60)).padStart(2, '0')}m` : `${Math.max(1, Math.ceil(m))}m`);
+  const dockName = () => (yardOpen(G.state) ? 'the dry dock' : 'the hangar');
   function refitBlock(s) {
     const st = G.state, lvl = refitLevel(st, s.id), next = refitNext(st, s.id), m = mats(st), pips = h('div.lvl-pips'); for (let i = 0; i < REFIT_MAX; i++) pips.append(h('i' + (i < lvl ? '.on' : '')));
-    const done = Array.from({ length: lvl }, (_, i) => refitStep(s.id, i + 1).line);
-    const go = () => { const got = buyRefit(st, s.id); if (!got) { playSfx('deny'); return; } playSfx('unlock'); hooks.flash?.(hex(s.trim)); hooks.saveNow?.('refit'); hooks.toast?.(`${s.name}: ${got.name}. ${got.line}.`, 'good'); render(); };
-    return h('div.refits', h('div.rf-head', h('small', 'Refits'), pips, h('span', `${lvl}/${REFIT_MAX}`)), done.length ? h('div.rf-done', done.map((d) => h('span', d))) : null,
-      next ? h('div.rf-next', h('div.rf-txt', h('b', next.name), h('small', next.line)), h('div.rf-cost', Object.entries(next.cost).map(([id, n]) => matChip(id, n, m[id] || 0))), h('button.btn.gold.small.rf-go', { disabled: !canAfford(st, next.cost), onclick: go }, 'Refit'))
+    const done = Array.from({ length: lvl }, (_, i) => refitStep(s.id, i + 1).line), p = refitProgress(st), mine = p?.ship === s.id;
+    const go = () => {
+      const got = buyRefit(st, s.id); if (!got) { playSfx('deny'); return; } playSfx('unlock'); hooks.flash?.(hex(s.trim)); hooks.saveNow?.('refit');
+      let also = ''; if (st.ship === s.id) { const other = SHIPS.find((o) => o.id !== s.id && st.unlocked.ships[o.id] && selectShip(o.id)); also = other ? ` You're flying the ${other.name} meanwhile.` : ' She is your only ship: take her out when you want to fly, and the refit waits.'; }
+      hooks.toast?.(`The ${s.name} is in ${dockName()}: ${got.name}, ready in ${mins(got.mins)}.${also}`, 'good'); render();
+    };
+    const head = h('div.rf-head', h('small', 'Refits'), pips, h('span', `${lvl}/${REFIT_MAX}`));
+    if (mine) {
+      const act = p.out ? h('button.btn.ghost.small.rf-go', { onclick: () => { redock(st); playSfx('tab'); hooks.saveNow?.('refit'); render(); } }, 'Back in the dock')
+        : h('button.btn.ghost.small.rf-go', { onclick: () => takeOutConfirm(s, () => render()) }, 'Take her out');
+      return h('div.refits.busy', head, done.length ? h('div.rf-done', done.map((d) => h('span', d))) : null,
+        h('div.rf-next', h('div.rf-txt', h('b', `${p.out ? 'Waiting' : 'In ' + dockName()}: ${p.step.name}`), h('small', p.out ? `${mins(p.mins)} to go · she goes back in after your next sortie` : `${mins(p.mins)} to go · she can't fly or go out till then`)), act,
+          h('div.rf-bar', h('i', { style: `width:${(p.k * 100).toFixed(1)}%` }))));
+    }
+    const busy = p && !mine ? `The dock is busy with the ${SHIP_BY_ID[p.ship]?.name}'s refit` : shipAway(st, s.id) >= 0 ? 'She is out on an expedition' : '';
+    return h('div.refits', head, done.length ? h('div.rf-done', done.map((d) => h('span', d))) : null,
+      next ? h('div.rf-next', h('div.rf-txt', h('b', next.name), h('small', `${next.line} · takes ${mins(REFIT_MINUTES[next.n - 1])}`)), h('div.rf-cost', Object.entries(next.cost).map(([id, n]) => matChip(id, n, m[id] || 0))), h('button.btn.gold.small.rf-go', { disabled: !canAfford(st, next.cost) || !!busy, onclick: go }, 'Refit'), busy ? h('small.rf-busy', busy) : null)
         : h('div.rf-max', 'Fully refitted'));
+  }
+  /** Taking a ship out of the dock early: the refit waits, and she goes back in after her sortie. */
+  function takeOutConfirm(s, then) {
+    const p = refitProgress(G.state); if (!p) return;
+    hooks.confirm?.({ kicker: 'Refit', title: `Take the ${s.name} out?`, text: `Her refit (${p.step.name}) has ${mins(p.mins)} to go. It waits, keeping what is done, and she goes back into the dock after your next sortie.`, yes: 'Take her out', no: 'Leave her in', danger: false,
+      onYes: () => { takeOut(G.state); playSfx('tab'); hooks.saveNow?.('refit'); then?.(); } });
+  }
+  /** Launching the ship that is in the dock: ask first (she comes out, and the refit waits). */
+  function launch(opts) {
+    const st = G.state, s = SHIP_BY_ID[st.ship]; if (!inDock(st, st.ship)) { hooks.launch(opts); return; }
+    takeOutConfirm(s, () => hooks.launch(opts));
+  }
+  /** A refit whose time is up is fitted, with a notice (checked every few seconds in the hangar). */
+  let refitAt = 0;
+  function refitTick() {
+    if (!G.state.refitting || performance.now() < refitAt) return; refitAt = performance.now() + 1500;
+    const got = settleRefit(G.state); if (!got) return; const s = SHIP_BY_ID[got.ship];
+    bus.emit('notice', { kind: 'unlock', kicker: 'Refit done', title: `${s.name}: ${got.name}`, sub: `${got.line}. Out of the dock and ready to fly.`, art: 'ship:' + got.ship });
+    playSfx('unlock', 0.6); hooks.saveNow?.('refit'); if (tab === 'ships' || tab === 'yard') render();
   }
   function shipsView() {
     const st = G.state, list = h('div.ships');
@@ -368,6 +403,7 @@ export function createHangar(hooks) {
       let action;
       const away = status === 'owned' ? shipAway(st, s.id) : -1; /* out on an expedition (Fleet Ops): she cannot fly till she is home */
       if (away >= 0) action = h('button.btn.ghost.fl-away', { onclick: () => show('ops') }, tripDone(st, away) >= 1 ? 'Home: unload her in Fleet Ops' : `Away · ${DEST_BY_ID[fleet(st).out[away].dest].name} · ${hrs(tripLeft(st, away))}`);
+      else if (status === 'owned' && inDock(st, s.id)) action = h('div.fl-fixrow', h('small', `In ${dockName()} for her refit: ${mins(refitProgress(st).mins)} to go`), h('button.btn.ghost', { onclick: () => takeOutConfirm(s, () => { selectShip(s.id); render(); }) }, 'Take her out and fly her'));
       else if (status === 'owned' && damageOf(st, s.id)) action = h('div.fl-fixrow', h('small', `${DAMAGE[damageOf(st, s.id)].name} from an expedition: repair her to fly her again`), repairButton(s.id));
       else if (status === 'owned') action = h('button.btn' + (sel ? '.ghost' : '.primary'), { disabled: sel, onclick: () => { selectShip(s.id); playSfx('tab'); render(); } }, sel ? 'Selected' : 'Select');
       else if (status === 'buyable') action = h('button.btn.gold', { disabled: st.salvage < s.cost, onclick: () => { if (buyShip(s.id)) { playSfx('unlock'); hooks.flash?.(hex(s.trim)); render(); } else playSfx('deny'); } }, art('cur:salvage', 'cur-ico'), fmt(s.cost));
@@ -437,7 +473,7 @@ export function createHangar(hooks) {
       h('ul.perks', h('li', 'Same seed for every pilot today'), h('li', 'One attempt'), h('li', 'Double pilot XP'), h('li', `Bonus ${fmtInt(dailyBonus(20, streakNext))}+ salvage`)),
       d.done ? h('div.daily-done', h('div.lock-note', uiIcon('check'), h('span', `Flown today: reached wave ${d.wave}. Next daily in ${untilMidnight()}.`)),
           G.state.daily.score != null ? h('button.btn.ghost.share-btn', { onclick: () => shareDaily() }, uiIcon('share'), 'Share result') : null)
-        : h('button.btn.gold.daily-go', { onclick: () => hooks.launch({ daily: true }) }, uiIcon('launch'), 'Fly the daily'));
+        : h('button.btn.gold.daily-go', { onclick: () => launch({ daily: true }) }, uiIcon('launch'), 'Fly the daily'));
     let threat;
     if (!tmax) threat = h('div.lock-note', uiIcon('lock'), h('span', `Threat levels open when you reach sector ${THREAT_UNLOCK_SECTOR} (Machine Territory).`));
     else {
@@ -747,7 +783,7 @@ export function createHangar(hooks) {
       const fix = () => { const c = repairCost(st, s.id); if (!canRepair(st, s.id)) { playSfx('deny'); hooks.toast?.(`Repairs cost ${fmt(c.salvage)} salvage${c.alloy ? ` and ${c.alloy} Alloy` : ''}.`, 'info'); return; }
         hooks.confirm?.({ kicker, title: `Repair the ${s.name}?`, text: `${DAMAGE[damageOf(st, s.id)].name}: ${fmt(c.salvage)} salvage${c.alloy ? ` and ${c.alloy} Alloy for new plating` : ''}. Then she is ready to go out again.`, yes: 'Repair', no: 'Not now', danger: false, onYes: () => fixShip(s.id, () => sendPanel(i)), onNo: () => sendPanel(i) }); };
       const b = h('button.fl-ship' + (s.id === pick ? '.on' : '') + (why === 'damaged' ? '.hurt' : ''), { disabled: !!why && why !== 'damaged', style: `--c:${hex(s.trim)}`, onclick: () => { if (why === 'damaged') { fix(); return; } pick = s.id; for (const [id, el] of chips) setClass(el, 'on', id === pick); playSfx('tab', 0.5); } },
-        art('ship:' + s.id, 'fl-art'), h('b', s.name), h('small', why === 'flying' ? 'You fly her' : why === 'away' ? 'Away' : why === 'damaged' ? 'Damaged · repair' : `Mastery ${st.mastery?.[s.id]?.level || 1}${(st.refits?.[s.id] || 0) >= 2 ? ' · tough' : ''}`));
+        art('ship:' + s.id, 'fl-art'), h('b', s.name), h('small', why === 'flying' ? 'You fly her' : why === 'away' ? 'Away' : why === 'refit' ? 'In for a refit' : why === 'damaged' ? 'Damaged · repair' : `Mastery ${st.mastery?.[s.id]?.level || 1}${(st.refits?.[s.id] || 0) >= 2 ? ' · tough' : ''}`));
       chips.set(s.id, b); return b; }));
     const go = (d) => { const o = sendShip(st, i, pick, d.id); if (!o) { playSfx('deny'); return; } playSfx('unlock'); hooks.saveNow?.('fleet'); hooks.closeOverlays?.(); render(); hooks.toast?.(`The ${SHIP_BY_ID[pick].name} is away to ${d.name}: back in ${hrs(d.hours)}.`, 'good'); };
     hooks.panel?.({ kicker, title: 'Send a ship out', body: [h('h4.oh-sub', 'Which ship'), row, h('h4.oh-sub', 'Where to'), h('div.fl-dests', DESTINATIONS.map((d) => destRow(d, st, go))),
@@ -886,7 +922,7 @@ export function createHangar(hooks) {
   // ------------------------------------------------------------ counterattack
   let counterHard = false;
   // The first Counterattack launch opens the briefing; launching from it marks it seen.
-  const launchCounter = (opts) => G.state.seen.counterIntro ? hooks.launch(opts) : hooks.counterIntro(() => { G.state.seen.counterIntro = true; hooks.launch(opts); });
+  const launchCounter = (opts) => G.state.seen.counterIntro ? launch(opts) : hooks.counterIntro(() => { G.state.seen.counterIntro = true; launch(opts); });
   function counterPanel() {
     const st = G.state, c = st.counter;
     if (!c.unlocked) return h('section.panel.ca-panel.locked', h('div.ca-head', h('div', h('div.kicker', 'New mode'), h('h3', 'Counterattack')), uiIcon('lock')),
@@ -1025,7 +1061,7 @@ export function createHangar(hooks) {
     // The room itself is 3D (rendering/deck.js and control.js, drawn while G.room is set); this is the touch layer over it.
     const p = G.state.pilot, hint = h('div.d3-hint', 'Drag to look around · Tap the floor to walk · Tap anything to inspect');
     const el = h('div.deck3d' + (id === 'control' ? '.control' : id === 'hall' ? '.hall' : id === 'comms' ? '.comms' : id === 'quarters' ? '.quarters' : id === 'observatory' ? '.observatory' : id === 'yard' ? '.yard' : id === 'beacons' ? '.beacons' : id === 'garden' ? '.garden' : id === 'ops' ? '.ops' : ''), { 'aria-label': `${ROOMS[id]}. Drag to look around, tap the floor to walk, tap an exhibit to inspect it.` },
-      h('div.d3-top', h('div.d3-title', h('small', ROOMS[id]), h('b', id === 'deck' || id === 'quarters' ? p.name || rankTitle(p.rank) : id === 'hall' ? `${caughtStages(G.state).length}/6 captured` : id === 'comms' ? `${(G.state.bounties?.list || []).filter((b) => b.done).length}/3 bounties done` : id === 'observatory' ? `${VOID_MARKS.filter((m) => isCharted(G.state, m)).length}/${VOID_MARKS.length} charted` : id === 'yard' ? (yardDone(G.state) ? `In dock: ${SHIP_BY_ID[G.state.ship]?.name}` : `Chimera · ${yardStage(G.state)}/${YARD_STAGES.length} built`) : id === 'beacons' ? `${VOID_BOSSES.filter((b) => voidBeaten(G.state)[b]).length}/${VOID_BOSSES.length} beaten` : id === 'garden' ? gardenTitle() : id === 'ops' ? opsTitle() : G.state.stationName || 'Station defence')), h('button.btn.ghost.small.d3-exit', { onclick: () => show(outside) }, uiIcon('back'), 'Exit')), hint);
+      h('div.d3-top', h('div.d3-title', h('small', ROOMS[id]), h('b', id === 'deck' || id === 'quarters' ? p.name || rankTitle(p.rank) : id === 'hall' ? `${caughtStages(G.state).length}/6 captured` : id === 'comms' ? `${(G.state.bounties?.list || []).filter((b) => b.done).length}/3 bounties done` : id === 'observatory' ? `${VOID_MARKS.filter((m) => isCharted(G.state, m)).length}/${VOID_MARKS.length} charted` : id === 'yard' ? (yardDone(G.state) ? (refitProgress(G.state) && !refitProgress(G.state).out ? `Refit: ${SHIP_BY_ID[refitProgress(G.state).ship]?.name} · ${mins(refitProgress(G.state).mins)}` : `In dock: ${SHIP_BY_ID[G.state.ship]?.name}`) : `Chimera · ${yardStage(G.state)}/${YARD_STAGES.length} built`) : id === 'beacons' ? `${VOID_BOSSES.filter((b) => voidBeaten(G.state)[b]).length}/${VOID_BOSSES.length} beaten` : id === 'garden' ? gardenTitle() : id === 'ops' ? opsTitle() : G.state.stationName || 'Station defence')), h('button.btn.ghost.small.d3-exit', { onclick: () => show(outside) }, uiIcon('back'), 'Exit')), hint);
     let down = null;
     if (watch && id === 'deck') { el.append(watch.el); el.classList.add('watching'); }
     el.addEventListener('pointerdown', (e) => { if (e.target.closest('button, input') || watch) return; down = { id: e.pointerId, x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, t: performance.now(), moved: false }; try { el.setPointerCapture(e.pointerId); } catch { /* not every pointer can be captured */ } });
@@ -1285,7 +1321,7 @@ export function createHangar(hooks) {
   function measureLayout() { lay.dirty = !(typeof ResizeObserver !== 'undefined'); lay.top = top.getBoundingClientRect().bottom; const b = el.getBoundingClientRect(), c = $.callout; lay.w = b.width; lay.h = b.height; lay.ch = c.offsetHeight; lay.cl = c.offsetLeft; lay.cw = c.offsetWidth; }
   /** Fleet Ops' title keeps up with its ships (one comes home while you stand there). */
   let opsAt = 0; function opsTick() { if (tab !== 'ops' || performance.now() < opsAt) return; opsAt = performance.now() + 1000; const b = $.body.querySelector('.deck3d.ops .d3-title b'); if (b) setText(b, opsTitle()); }
-  function update() { watchTick(); gunnerTick(); opsTick(); boltTick(); const sv = G.state.salvage; if ($.salvage._v !== sv) { $.salvage._v = sv; setText($.salvage, fmtInt(sv)); } badges(); pilotId(); stationDone(); if (lay.dirty) measureLayout(); G.hangarTop = lay.top; stationTag(); }
+  function update() { watchTick(); gunnerTick(); opsTick(); boltTick(); refitTick(); const sv = G.state.salvage; if ($.salvage._v !== sv) { $.salvage._v = sv; setText($.salvage, fmtInt(sv)); } badges(); pilotId(); stationDone(); if (lay.dirty) measureLayout(); G.hangarTop = lay.top; stationTag(); }
   /** Keep the label's text current, and its tap target over wherever the renderer drew it. */
   /** A buy that changed the station says so: a module rebuilt for the first time, lit once maxed, alien hardware fitted. */
   function stationNote(id, was) {

@@ -1,7 +1,7 @@
 // The sortie: start, experience and level-ups, card offers, relics, salvage and the end-of-run debrief.
 import { G, recalc, count, maxStat, toast, noteHull } from '@last-orbit/core/game.js';
 import { FOCUS_BY_ID, FOCUS_WEIGHT, WARP_PERKS, WARP_PERK_BY_ID, DRAFT_FROM } from '@last-orbit/data/warp.js';
-import { bankMaterials } from '@last-orbit/progression/refits.js';
+import { bankMaterials, takeOut, redock } from '@last-orbit/progression/refits.js';
 import { bus } from '@last-orbit/core/events.js';
 import { rand } from '@last-orbit/core/rng.js';
 import { newRun } from '@last-orbit/core/state.js';
@@ -60,6 +60,7 @@ export function startSortie(opts = {}) {
   const skipped = counter ? counter.n - 1 : warp - 1, perSector = BAL.warpCards + Math.round(G.sheet.n('warpCards'));
   run.pendingLevels = Math.round(G.sheet.n('startLevels')) + (start?.cards || 0) + skipped * perSector + (cpExtra || 0);
   run.pendingRelics = skipped * BAL.warpRelics + Math.round(G.sheet.n('startRelics'));
+  if (st.refitting?.ship === run.ship && st.refitting.since != null) takeOut(st); // flying her means taking her out of the dock: the refit waits
   count('sorties'); checkContracts();
   bus.emit('sortieStart', run);
   return run;
@@ -111,6 +112,7 @@ export function endSortie(reason = 'destroyed') {
   summary.voidMarks = !run.mode ? newMarks(run.prevBest || 0, reached) : []; // Deep Void depths reached for the first time
   summary.voidBeaten = run.voidBeaten || []; // Void bosses beaten for the first time
   if (!run.mode) st.history.unshift({ score: summary.score, wave: summary.wave, level: summary.level, ship: summary.ship, salvage: banked, time: summary.time, date: summary.date }); st.history.length = Math.min(st.history.length, 12);
+  if (st.refitting?.ship === run.ship) redock(st); // back into the dock, and the refit carries on
   recalc(); bus.emit('sortieEnded', summary);
   return summary;
 }

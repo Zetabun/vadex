@@ -15,7 +15,7 @@ import { chartable } from '@last-orbit/progression/observatory.js';
 import { observatoryOpen, VOID_MARKS } from '@last-orbit/data/observatory.js';
 import { yardOpen, YARD_STAGES } from '@last-orbit/data/shipyard.js';
 import { yardStage, yardDone, nextStage, stageBlock } from '@last-orbit/progression/shipyard.js';
-import { refitReady } from '@last-orbit/progression/refits.js';
+import { refitReady, refitProgress } from '@last-orbit/progression/refits.js';
 import { quartersOpen, KEEPSAKES } from '@last-orbit/data/quarters.js';
 import { dayKey } from '@last-orbit/data/daily.js';
 import { dailyToday, shipStatus, workshopMaxed } from '@last-orbit/progression/meta.js';
@@ -52,6 +52,7 @@ export function boltNews(st, room, now = Date.now()) {
   // the Shipyard: the next stage, if it can be built
   if (yardOpen(st) && !yardDone(st) && !stageBlock(st)) { const n = nextStage(st); out.push(say('yard:' + yardStage(st), 2, [['Brrrp!', 'The shipyard crews are ready: you can fund {stage} now.'], ['Bip bip!', 'The Chimera is waiting for {stage}. I can already hear the welders.']], { stage: n?.name?.toLowerCase() || 'the next stage' })); }
   // refits, a ship to buy
+  const rp = refitProgress(st, now); if (rp) out.push(say('dock:' + rp.ship + rp.step?.n, here('yard') ? 2 : 1, rp.out ? [['Bip?', 'The {ship}\'s refit is waiting for her. She goes back in after the sortie.']] : here('yard') ? [['Brrrp!', 'Look at the welders go! The {ship} is nearly done. {m} to go.'], ['Bip bip!', 'Sparks! The {ship} is getting her {step}.']] : [['Wrrr.', 'The crews are still at the {ship}. {m} to go.'], ['Bip.', 'I checked on the {ship} in the dock. Lots of sparks. {m} left.']], { ship: SHIP_BY_ID[rp.ship]?.name, step: (rp.step?.name || 'refit').toLowerCase(), m: hrs(rp.mins / 60) }));
   const refit = SHIPS.find((s) => refitReady(st, s.id)); if (refit) out.push(say('refit:' + refit.id + (st.refits?.[refit.id] || 0), 2, [['Bip!', 'The {ship} could take a refit. I have the materials counted.'], ['Brrp!', 'Enough materials for the {ship}\'s next refit. Ships menu!']], { ship: refit.name }));
   const buy = SHIPS.find((s) => shipStatus(s.id) === 'buyable' && st.salvage >= s.cost); if (buy) out.push(say('buy:' + buy.id, 1, [['Bip?', 'The {ship} is for sale in the Ships menu. And you can afford her. Just saying.']], { ship: buy.name }));
   // your quarters: the bunk; the Workshop full; the Daily Sortie

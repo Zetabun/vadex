@@ -717,10 +717,13 @@ assert.throws(() => parseSave('{"run":{},"cur":{}}'), /Not a Last Orbit v2 save/
   // refits: paid in materials, for a ship you own, counting only while you fly her
   fresh(); assert.equal(R.buyRefit(G.state, 'vanguard'), null, 'No materials, no refit');
   G.state.materials.alloy = 100; recalc(); const d0 = G.sheet.n('damage'), got = R.buyRefit(G.state, 'vanguard');
-  assert.equal(got.n, 1); assert.equal(G.state.materials.alloy, 75, 'It costs its materials'); assert.ok(Math.abs(G.sheet.n('damage') / d0 - 1.1) < 1e-9, 'Gun tuning: +10% damage');
+  assert.equal(got.n, 1); assert.equal(G.state.materials.alloy, 75, 'It costs its materials'); assert.equal(got.mins, 20, 'The first refit takes 20 minutes');
+  assert.ok(R.inDock(G.state, 'vanguard') && Math.abs(G.sheet.n('damage') / d0 - 1) < 1e-9, 'In the dock: not fitted yet');
+  assert.equal(R.settleRefit(G.state, Date.now() + 10 * 60000), null, 'Not done after 10 minutes'); assert.ok(R.settleRefit(G.state, Date.now() + 21 * 60000), 'Done after 20');
+  assert.ok(!G.state.refitting && Math.abs(G.sheet.n('damage') / d0 - 1.1) < 1e-9, 'Gun tuning: +10% damage');
   assert.equal(R.buyRefit(G.state, 'striker'), null, 'Only a ship you own');
   G.state.unlocked.ships.striker = 1; selectShip('striker'); assert.ok(!G.sheet.breakdown('damage').some((x) => x.group === 'Refits'), 'The Vanguard\'s refit stays with her');
-  selectShip('vanguard'); G.state.refits.vanguard = 3; G.state.materials.crystal = 60; recalc(); assert.equal(R.buyRefit(G.state, 'vanguard').n, 4); assert.equal(G.sheet.n('passivePower'), RF.PASSIVE_REFIT, 'The trait refit');
+  selectShip('vanguard'); G.state.refits.vanguard = 3; G.state.materials.crystal = 60; recalc(); assert.equal(R.buyRefit(G.state, 'vanguard').n, 4); R.settleRefit(G.state, Date.now() + 4 * 3600000); assert.equal(G.sheet.n('passivePower'), RF.PASSIVE_REFIT, 'The trait refit');
   launch(); const p = G.world.player; p.invuln = 0; p.dashInv = 0; p.hull = 0.301; hurtPlayer(G.world, 1); assert.equal(G.state.run.hullBy.wind, 0.4 * RF.PASSIVE_REFIT, 'Second Wind repairs 50% after its refit');
   G.state.refits.vanguard = RF.REFIT_MAX; assert.equal(R.refitNext(G.state, 'vanguard'), null, 'Five refits a ship'); endSortie('abandoned'); }
 
@@ -830,5 +833,18 @@ assert.throws(() => parseSave('{"run":{},"cur":{}}'), /Not a Last Orbit v2 save/
   const on = shot(BAL.shieldR - 0.3); assert.ok(on.shield > 0 && on.hull === 0 && on.left === 0, 'A shot touching the bubble hits the shield');
   const off = shot(BAL.shieldR + 2); assert.ok(off.shield === 0 && off.left === 1, 'One outside it misses'); w.ebullets.length = 0;
   p.shield = 0; const bare = shot(BAL.shieldR - 0.3); assert.ok(bare.hull === 0 && bare.left === 1, 'With the shield down, only the hull\'s own circle is hit'); endSortie('abandoned'); }
+
+// ---- v2.21: refits take time in the dock ----
+{ const R = await import('@last-orbit/progression/refits.js'), F = await import('@last-orbit/progression/fleet.js'), MIN = 60000;
+  fresh(); const st = G.state; st.unlocked.ships.striker = 1; st.materials.alloy = 200; st.prestige.level = 9; st.stats.sectorsCleared = 2; const t0 = Date.now();
+  assert.ok(R.buyRefit(st, 'striker', t0)); assert.equal(R.buyRefit(st, 'vanguard', t0), null, 'One refit at a time: the dock is busy');
+  assert.equal(selectShip('striker'), false, 'A ship in the dock can\'t be picked to fly'); assert.equal(F.cannotSend(st, 'striker'), 'refit', 'nor sent out');
+  assert.ok(Math.abs(R.refitProgress(st, t0 + 10 * MIN).mins - 10) < 0.01, 'Ten minutes in, ten to go');
+  assert.ok(R.takeOut(st, t0 + 10 * MIN)); assert.ok(Math.abs(R.refitProgress(st, t0 + 60 * MIN).mins - 10) < 0.01, 'Taken out: the refit waits'); assert.equal(R.settleRefit(st, t0 + 60 * MIN), null);
+  assert.equal(selectShip('striker'), true, 'Out of the dock she can fly'); selectShip('vanguard');
+  assert.ok(R.redock(st, t0 + 60 * MIN)); assert.ok(R.settleRefit(st, t0 + 71 * MIN), 'Back in the dock, it finishes'); assert.equal(st.refits.striker, 1);
+  // flying the ship in the dock takes her out; she goes back in after the sortie
+  st.materials.alloy = 200; selectShip('vanguard'); R.buyRefit(st, 'vanguard', t0); launch(); assert.ok(!R.inDock(st, 'vanguard') && st.refitting, 'Launching takes her out');
+  endSortie('abandoned'); assert.ok(R.inDock(st, 'vanguard'), 'and the sortie over, she is back in'); }
 
 console.log('Sortie, cards, relics, contracts, workshop, ships, pickups, revive and save checks pass.');

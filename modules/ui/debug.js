@@ -51,6 +51,8 @@ export async function initDebug(app, { hooks, ui } = {}) {
   const at = new URLSearchParams(location.search).get('at')?.split(',').map(Number);
   // &tap=<exhibit>[,<ms>]: tap that exhibit in the room once the scene is up (default after 4 s)
   const tapAt = new URLSearchParams(location.search).get('tap')?.split(','); if (scene && tapAt) setTimeout(() => ui.tap?.(tapAt[0]), +tapAt[1] || 4000);
+  // &refit=<ship>[,<minutes done>]: that ship in the dock for its next refit, that far in (default 10 minutes)
+  const refitQ = new URLSearchParams(location.search).get('refit')?.split(','); if (scene && refitQ) setTimeout(() => { const st = G.state, ship = refitQ[0]; st.unlocked.ships[ship] ||= 1; const n = (st.refits?.[ship] || 0) + 1, need = ([20, 40, 60, 120, 180][n - 1] || 60) * 60000; st.refitting = { ship, n, done: (+refitQ[1] || 10) * 60000, need, since: Date.now() }; if (st.ship === ship) st.ship = 'vanguard' === ship ? 'striker' : 'vanguard'; for (const r of ROOMS_ABOARD) if (r.seen) (st.seen.offered ||= {})[r.id] = true; recalc(); hooks.toHangar(G.room || scene.split(':')[0].split('&')[0]); }, 700); /* and redraw with it */
   // &tv=<channel>: the Command Deck's TV on that channel (last, best, boss, daily, news)
   const tvCh = new URLSearchParams(location.search).get('tv'); if (scene && tvCh) G.state.settings.tvChannel = tvCh;
   // &bolt=paint,hat,eye: Bolt wears these (and has everything in its locker)
