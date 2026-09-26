@@ -13,6 +13,11 @@ imports = json.loads(match.group(1))['imports']
 mapped = {root / value.split('?', 1)[0].removeprefix('./') for value in imports.values()}
 assert mapped == set(modules), 'Import map and published module tree differ (run tools/build_importmap.py)'
 assert all(value.startswith('./modules/') for value in imports.values()), 'Import map must use relative source paths'
+# Every release keeps a save made by that build (tests/saves, made by tools/save_fixture.mjs), and the save regression
+# loads them all, so no later build can stop an older save loading. Preview builds (2.19.0-p1) don't need one.
+version = re.search(r'\?v=([^"]+)"', match.group(1)).group(1)
+if re.fullmatch(r'\d+\.\d+\.\d+', version):
+    assert (root / 'tests' / 'saves' / f'v{version}.json').is_file(), f'No kept save for v{version}: run node --experimental-loader ./tests/loader.mjs tools/save_fixture.mjs'
 for module in modules:
     subprocess.run(['node', '--check', str(module)], check=True, cwd=root)
 # A trailing // comment whose text reads like code has almost always swallowed code by accident (a comment inserted
