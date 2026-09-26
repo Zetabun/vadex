@@ -12,13 +12,14 @@ import { COSMETIC_BY_ID, HAPPY_AT, DIZZY_AT, boltHere } from '@last-orbit/data/b
 import { boltOf } from '@last-orbit/progression/bolt.js';
 const T = () => window.THREE;
 const canvas = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
-const EYE_Y = 1.6, R = 0.12;
+const EYE_Y = 1.6, R = 0.12, BELT = -0.07, EYE_UP = 0.014; /* the band is a belt below the eye, so it never crosses it */
 
 /** A soft round glow, a heart and a Z, for the sprites. */
 function glowTex(THREE) { const c = canvas(64, 64), x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.35, 'rgba(255,255,255,.45)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return new THREE.CanvasTexture(c); }
 function iconTex(THREE, kind) {
   const c = canvas(64, 64), x = c.getContext('2d');
   if (kind === 'heart') { x.fillStyle = '#ff6fae'; x.beginPath(); x.moveTo(32, 54); x.bezierCurveTo(4, 34, 10, 8, 32, 22); x.bezierCurveTo(54, 8, 60, 34, 32, 54); x.fill(); }
+  else if (kind === 'news') { x.fillStyle = '#ffc857'; x.beginPath(); if (x.roundRect) x.roundRect(6, 4, 52, 44, 14); else x.rect(6, 4, 52, 44); x.fill(); x.beginPath(); x.moveTo(22, 46); x.lineTo(18, 60); x.lineTo(34, 46); x.fill(); x.fillStyle = '#1a1300'; x.font = '900 34px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('!', 32, 27); }
   else { x.fillStyle = '#cfe8ff'; x.font = '800 44px sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('z', 32, 34); }
   return new THREE.CanvasTexture(c);
 }
@@ -31,14 +32,14 @@ class Companion {
     const body = (this.bodyMat = Ph({ color: 0xdfe4ee, specular: 0xffffff, shininess: 80 })), band = (this.bandMat = Ph({ color: 0xffb070, specular: 0x886644, shininess: 60 }));
     this.tilt = new THREE.Group(); m.add(this.tilt); /* banks, pitches, spins and hops; the model itself only moves and turns */
     this.tilt.add(new THREE.Mesh(new THREE.SphereGeometry(R, 24, 16), body));
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(R + 0.012, 0.018, 10, 32), band); ring.rotation.x = Math.PI / 2; this.tilt.add(ring);
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(Math.sqrt(R * R - BELT * BELT) + 0.01, 0.016, 10, 32), band); ring.rotation.x = Math.PI / 2; ring.position.y = BELT; this.tilt.add(ring);
     // fins either side, on the band, and a vent on the back
-    this.fins = [-1, 1].map((s) => { const f = new THREE.Group(); f.position.set(s * (R + 0.02), 0, 0.01); const blade = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.012, 0.06), band); blade.position.x = s * 0.035; f.add(blade); this.tilt.add(f); return f; });
+    this.fins = [-1, 1].map((s) => { const f = new THREE.Group(); f.position.set(s * (Math.sqrt(R * R - BELT * BELT) + 0.02), BELT, 0.01); const blade = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.012, 0.06), band); blade.position.x = s * 0.035; f.add(blade); this.tilt.add(f); return f; });
     const vent = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.02, 16), Ph({ color: 0x3a3f4a })); vent.rotation.x = Math.PI / 2; vent.position.z = R - 0.004; this.tilt.add(vent);
     // the eye: a dark bezel and a screen just clear of the shell, so no edge sinks into it (it faces -z, towards you)
-    const bezel = new THREE.Mesh(new THREE.CircleGeometry(0.074, 28), new THREE.MeshBasicMaterial({ color: 0x0b0f18 })); bezel.position.z = -(R + 0.001); bezel.rotation.y = Math.PI; this.tilt.add(bezel);
+    const bezel = new THREE.Mesh(new THREE.CircleGeometry(0.074, 28), new THREE.MeshBasicMaterial({ color: 0x0b0f18 })); bezel.position.set(0, EYE_UP, -(R + 0.001)); bezel.rotation.y = Math.PI; this.tilt.add(bezel);
     this.eyeCanvas = canvas(128, 128); this.eyeTex = new THREE.CanvasTexture(this.eyeCanvas);
-    this.eye = new THREE.Mesh(new THREE.CircleGeometry(0.064, 28), new THREE.MeshBasicMaterial({ map: this.eyeTex, transparent: true })); this.eye.position.z = -(R + 0.003); this.eye.rotation.y = Math.PI; this.tilt.add(this.eye);
+    this.eye = new THREE.Mesh(new THREE.CircleGeometry(0.064, 28), new THREE.MeshBasicMaterial({ map: this.eyeTex, transparent: true })); this.eye.position.set(0, EYE_UP, -(R + 0.003)); this.eye.rotation.y = Math.PI; this.tilt.add(this.eye);
     // the antenna, its tip pulsing
     const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 0.1, 6), Ph({ color: 0x8890a0 })); ant.position.set(0.03, R + 0.045, 0.02); ant.rotation.z = -0.15; this.tilt.add(ant);
     this.tip = new THREE.Mesh(new THREE.SphereGeometry(0.017, 10, 8), new THREE.MeshBasicMaterial({ color: 0xff4d6a })); this.tip.position.set(0.038, R + 0.098, 0.02); this.tilt.add(this.tip);
@@ -51,6 +52,7 @@ class Companion {
     this.hit = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.36, 0.34), new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false })); this.hit.visible = false; this.hit.userData.exhibit = 'bolt'; m.add(this.hit);
     // hearts and z's
     this.heartT = iconTex(THREE, 'heart'); this.zT = iconTex(THREE, 'z');
+    this.news = new THREE.Sprite(new THREE.SpriteMaterial({ map: iconTex(THREE, 'news'), transparent: true, depthWrite: false })); this.news.scale.setScalar(0.11); this.news.position.set(0.1, R + 0.2, 0); this.news.visible = false; m.add(this.news); /* something to say */
     this.v = new THREE.Vector3(); this.want = new THREE.Vector3(); this.look = new THREE.Vector3(); this.yawNow = 0;
     this.dress(boltOf(G.state).wear); this.setExpr('open');
   }
@@ -138,6 +140,10 @@ class Companion {
     if (this.combo >= HAPPY_AT) { this.react = { kind: Math.random() < 0.5 ? 'nuzzle' : 'spin', t: 0, len: this.combo % 2 ? 1.1 : 0.9 }; this.setExpr('love'); this.exprT = 1.6; for (let i = 0; i < 3; i++) setTimeout(() => this.model && this.room && this.puff('heart'), i * 180); return 'happy'; }
     this.react = { kind: this.combo % 2 ? 'spin' : 'hop', t: 0, len: this.combo % 2 ? 0.9 : 0.6 }; this.setExpr('happy'); this.exprT = 1; return 'tap';
   }
+  /** Something to say: a "!" over it, until it says it. */
+  setNews(on) { if (this.news) this.news.visible = !!on; }
+  /** Saying it: it flies up to you, bright-eyed, for a moment. */
+  speak() { if (!this.model || this.sleeping) return; this.setNews(false); this.react = { kind: 'speak', t: 0, len: 2.4 }; this.setExpr('happy'); this.exprT = 2.2; }
   /** Down onto its dock for a nap (in your quarters, while you rest). */
   napAt(p) { if (!this.model) return; this.dock = p; this.mode = 'sleep'; this.sleeping = true; this.setExpr('sleep'); }
   /** Fetch: the toy is thrown to a spot; it goes and gets it, and brings it back to where it lives. */
@@ -165,6 +171,7 @@ class Companion {
     }
     // a tap: nuzzle up close
     if (this.react?.kind === 'nuzzle') { const f = this.fwd(room); this.want.set(room.pos.x + f.x * 0.62, EYE_Y - 0.12, room.pos.z + f.z * 0.62); speed = 8; }
+    else if (this.react?.kind === 'speak') { const f = this.fwd(room); this.want.set(room.pos.x + f.x * 1.0 - f.z * 0.18, EYE_Y - 0.24 + Math.sin(this.t * 5) * 0.02, room.pos.z + f.z * 1.0 + f.x * 0.18); this.clampTo(room, this.want); speed = 6; lookAt = cam.position; }
     // fly there, springy, never through the walls
     const k = Math.min(1, dt * speed); this.v.lerp(this.want.clone().sub(p).multiplyScalar(speed * 0.9), k); if (this.arriveT > 0) { this.arriveT -= dt; this.v.multiplyScalar(1.02); }
     p.addScaledVector(this.v, dt); this.clampTo(room, p);
@@ -182,6 +189,7 @@ class Companion {
     // alive: fins flap with speed, the tip pulses, the hover glow breathes, it blinks now and then, the propeller turns
     const sp = this.v.length(); for (const [i, f] of this.fins.entries()) f.rotation.x = Math.sin(this.t * (8 + sp * 10) + i) * (0.15 + Math.min(0.5, sp * 0.4));
     this.tipGlow.material.opacity = 0.5 + 0.5 * Math.sin(this.t * 3); this.hover.material.opacity = this.sleeping ? 0.2 : 0.45 + 0.15 * Math.sin(this.t * 6) + Math.min(0.3, sp * 0.2);
+    if (this.news.visible) { this.news.position.y = R + 0.2 + Math.abs(Math.sin(this.t * 4)) * 0.03; }
     if (this.prop) this.prop.rotation.y += dt * (10 + sp * 20); if (this.beacon) this.beacon.material.color.setHex(Math.sin(this.t * 4) > 0 ? 0xfff0c8 : 0x8a7a5a);
     if (!this.sleeping && this.expr === 'open' && Math.random() < dt * 0.35) { this.setExpr('blink'); this.exprT = 0.12; }
     // hearts and z's drift up and fade

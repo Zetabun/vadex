@@ -802,4 +802,15 @@ assert.throws(() => parseSave('{"run":{},"cur":{}}'), /Not a Last Orbit v2 save/
   assert.ok(D.BOLT_SAYS.breach.some((l) => l[1] === w[1]), 'It remembers the line breaking'); assert.equal(B.welcomeLine(st, new Date(2026, 8, 1, 14, 5)), null, 'and says so once');
   const back = parseSave(JSON.stringify(st)); assert.equal(back.bolt.wear.paint, 'rust'); assert.equal(back.bolt.pets, 25, 'Bolt saves'); }
 
+// ---- v2.21: what Bolt notices (progression/boltTalk.js) ----
+{ const N = await import('@last-orbit/progression/boltTalk.js'), F = await import('@last-orbit/progression/fleet.js'), HR = 3600000;
+  fresh(); const st = G.state; st.prestige.level = 9; st.stats.sectorsCleared = 2; st.unlocked.ships.striker = 1; st.unlocked.ships.bulwark = 1; recalc();
+  const t0 = Date.now() - 2 * HR; F.sendShip(st, 0, 'striker', 's1', t0);
+  let news = N.boltNews(st, 'deck'); const home = news.find((n) => n.key.startsWith('home:'));
+  assert.ok(home && home.pri === 3 && home.line[1].includes('Striker'), 'A ship home is news, and it names her'); assert.equal(news[0], home, 'the most pressing first');
+  assert.ok(N.boltNews(st, 'ops').find((n) => n.key.startsWith('home:')).line[1].match(/berth|counted/i), 'said differently in Fleet Ops itself');
+  F.collectShip(st, 0); st.fleet.damage.bulwark = 2; news = N.boltNews(st, 'deck');
+  assert.ok(!news.some((n) => n.key.startsWith('home:')), 'Unloaded: no longer news'); assert.ok(news.some((n) => n.key === 'hurt:bulwark' && n.pri === 2), 'A ship waiting on repairs');
+  assert.ok(N.boltNews(st, 'quarters').some((n) => n.key.startsWith('rest:') && n.pri === 2), 'In the quarters, the bunk'); assert.ok(news.every((n) => n.line[0] && n.line[1] && !n.line[1].includes('{')), 'Every line filled in'); }
+
 console.log('Sortie, cards, relics, contracts, workshop, ships, pickups, revive and save checks pass.');

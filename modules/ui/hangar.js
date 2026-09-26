@@ -41,9 +41,10 @@ import { settleSiege, repairStation } from '@last-orbit/progression/siege.js';
 import { commsOpen, refreshBounties, bountyProgress, bountyText, claimBounty, rerollBounty, bountyClaimable, untilNextPost } from '@last-orbit/progression/bounties.js';
 import { COMMS_RANK, BOUNTY_BONUS_BP, TRANSMISSIONS } from '@last-orbit/data/bounties.js';
 import { REST_BONUS, KEEPSAKES, PHOTOS } from '@last-orbit/data/quarters.js';
-import { COSMETICS, SLOTS as BOLT_SLOTS, ORBIT_ON_BOLT } from '@last-orbit/data/bolt.js';
+import { COSMETICS, SLOTS as BOLT_SLOTS, ORBIT_ON_BOLT, boltHere } from '@last-orbit/data/bolt.js';
 import { bolt } from '@last-orbit/rendering/bolt.js';
 import { boltOf, owns, wear, pat, fetched, boltLine, roomLine, welcomeLine, checkWardrobe } from '@last-orbit/progression/bolt.js';
+import { boltNews } from '@last-orbit/progression/boltTalk.js';
 import { rest, nextMood } from '@last-orbit/progression/quarters.js';
 import { VOID_MARKS, MARK_BY_WAVE, SKY_LINES, voidSector } from '@last-orbit/data/observatory.js';
 import { chartable, chartMark, isCharted } from '@last-orbit/progression/observatory.js';
@@ -513,15 +514,32 @@ export function createHangar(hooks) {
   /** Tapping something in your quarters: the bunk (rest), the keepsakes, the log, the photos, the lights, Bolt, the
    *  poster, the window, or a door. */
   // ------------------------------------------------------------ Bolt (data/bolt.js, rendering/bolt.js)
-  let boltTaps = 0, boltQuietT = 0;
+  let boltTaps = 0, boltQuietT = 0, boltPending = null, boltCheckT = 0;
+  const boltSaid = new Map(); /* news key → when it was said: news rests a while once said (pressing news 10 minutes, the rest 25) */
+  const boltFresh = () => { const now = performance.now(), st = G.state; return G.room && boltHere(st) && st.seen?.quarters ? boltNews(st, G.room).filter((n) => now - (boltSaid.get(n.key) ?? -1e9) > (n.pri >= 2 ? 6e5 : 15e5)) : []; };
+  const boltNewsSaid = (n) => { boltSaid.set(n.key, performance.now()); boltPending = null; bolt.setNews(false); };
   /** Bolt says something unprompted, now and then (never over ORBIT, a panel, or itself a moment ago). */
   const boltMaySay = (line, gap = 45) => { const now = performance.now(); if (!line || hooks.blocking?.() || hooks.commsBusy?.() || now < boltQuietT) return false; boltQuietT = now + gap * 1000; hooks.boltSay?.(line); return true; };
-  /** Tapped, wherever it is: a spin, a hop, hearts, or dizzy; a pat counted; its beep (and now and then ORBIT on it). */
+  /** Tapped, wherever it is: a spin, a hop, hearts, or dizzy; a pat counted; its beep (and now and then ORBIT on it).
+   *  If it has news (a "!" over it), the news first. */
   function boltTap() {
+    if (boltPending) { const n = boltPending; boltNewsSaid(n); bolt.speak(); playSfx('unlock', 0.45, 1.9); boltQuietT = performance.now() + 20000; hooks.boltSay?.(n.line); return; }
     const mood = bolt.tap(); pat(G.state); boltTaps++;
     playSfx(mood === 'dizzy' ? 'deny' : 'unlock', 0.45, mood === 'happy' ? 2.1 : 1.7); boltQuietT = performance.now() + 20000;
     if (mood !== 'happy' && mood !== 'dizzy' && boltTaps % 6 === 0) { hooks.say?.(ORBIT_ON_BOLT[(boltTaps / 6 - 1) % ORBIT_ON_BOLT.length]); return; }
+    const chat = mood === 'tap' && Math.random() < 0.3 ? boltFresh()[0] : null; /* now and then, something about how things stand instead */
+    if (chat) { boltNewsSaid(chat); hooks.boltSay?.(chat.line); return; }
     hooks.boltSay?.(boltLine(mood === 'woke' ? 'sleep' : mood));
+  }
+  /** News it can't keep to itself: a "!" over it, then it flies up and says it (not over ORBIT or a panel). */
+  function boltAnnounce(n, wait = 1800) {
+    boltPending = n; bolt.setNews(true);
+    setTimeout(() => { if (boltPending !== n || !G.room) return; if (hooks.blocking?.() || hooks.commsBusy?.()) { boltCheckT = 0; return; } boltNewsSaid(n); bolt.speak(); boltQuietT = performance.now() + 40000; hooks.boltSay?.(n.line); }, wait);
+  }
+  /** Every few seconds in a room: pressing news it has not said lately, it says (at most one line in 40 seconds). */
+  function boltTick() {
+    if (!G.room || boltPending || performance.now() < boltQuietT || (boltCheckT -= 1) > 0) return; boltCheckT = 360; /* frames, about 6 s */
+    const n = boltFresh().find((x) => x.pri >= 2); if (n && !hooks.blocking?.() && !hooks.commsBusy?.()) boltAnnounce(n);
   }
   /** Bolt's locker: what it wears, a slot at a time (what is still to find says how), and whether it comes along. */
   function boltLocker() {
@@ -535,7 +553,12 @@ export function createHangar(hooks) {
     hooks.panel?.({ kicker: 'Pilot\'s quarters', title: 'Bolt\'s locker', body: [h('p.sub-note', `Things for Bolt to wear, ${mine} of ${total} found. They turn up as you fly: each one says what earns it. Bolt has had ${b.pets} pat${b.pets === 1 ? '' : 's'} and played fetch ${b.fetches} time${b.fetches === 1 ? '' : 's'}.`),
       ...BOLT_SLOTS.flatMap(([slot, name]) => [h('h4.oh-sub', name), grid(slot)]), h('h4.oh-sub', 'Where it goes'), follow] });
   }
-  bus.on('boltEnter', (room) => { setTimeout(() => { const st = G.state; boltMaySay(welcomeLine(st) || roomLine(st, room) || (Math.random() < 0.18 ? boltLine('greet') : null), 50); }, 1300); });
+  /** Into a room with you: coming back from a sortie or a long time away, a room it has not been in, pressing news, or
+   *  now and then a greeting or something about the room. */
+  bus.on('boltEnter', (room) => { boltPending = null; bolt.setNews(false); setTimeout(() => { const st = G.state; if (G.room !== room) return;
+    const first = welcomeLine(st) || roomLine(st, room); if (first) { boltMaySay(first, 50); return; }
+    const news = boltFresh(); if (news[0]?.pri >= 2 && performance.now() >= boltQuietT) { boltAnnounce(news[0], 900); return; }
+    const r = Math.random(), idle = news.find((n) => n.key === 'room:' + room); if (r < 0.2 && idle && boltMaySay(idle.line, 50)) boltSaid.set(idle.key, performance.now()); else if (r > 0.82) boltMaySay(boltLine('greet'), 50); }, 1300); });
   bus.on('boltInspect', () => { if (Math.random() < 0.35) boltMaySay(boltLine('idle'), 60); });
   bus.on('boltFetched', () => { const n = fetched(G.state); hooks.saveNow?.('bolt'); hooks.boltSay?.(boltLine('fetch')); if (n === 1) setTimeout(() => hooks.toast?.('Bolt loves fetch. Tap its toy any time.', 'info'), 2500); });
   function quartersExhibit(kind) {
@@ -1251,7 +1274,7 @@ export function createHangar(hooks) {
   function measureLayout() { lay.dirty = !(typeof ResizeObserver !== 'undefined'); lay.top = top.getBoundingClientRect().bottom; const b = el.getBoundingClientRect(), c = $.callout; lay.w = b.width; lay.h = b.height; lay.ch = c.offsetHeight; lay.cl = c.offsetLeft; lay.cw = c.offsetWidth; }
   /** Fleet Ops' title keeps up with its ships (one comes home while you stand there). */
   let opsAt = 0; function opsTick() { if (tab !== 'ops' || performance.now() < opsAt) return; opsAt = performance.now() + 1000; const b = $.body.querySelector('.deck3d.ops .d3-title b'); if (b) setText(b, opsTitle()); }
-  function update() { watchTick(); gunnerTick(); opsTick(); const sv = G.state.salvage; if ($.salvage._v !== sv) { $.salvage._v = sv; setText($.salvage, fmtInt(sv)); } badges(); pilotId(); stationDone(); if (lay.dirty) measureLayout(); G.hangarTop = lay.top; stationTag(); }
+  function update() { watchTick(); gunnerTick(); opsTick(); boltTick(); const sv = G.state.salvage; if ($.salvage._v !== sv) { $.salvage._v = sv; setText($.salvage, fmtInt(sv)); } badges(); pilotId(); stationDone(); if (lay.dirty) measureLayout(); G.hangarTop = lay.top; stationTag(); }
   /** Keep the label's text current, and its tap target over wherever the renderer drew it. */
   /** A buy that changed the station says so: a module rebuilt for the first time, lit once maxed, alien hardware fitted. */
   function stationNote(id, was) {

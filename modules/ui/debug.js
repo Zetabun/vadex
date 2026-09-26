@@ -262,6 +262,7 @@ function runScene(scene, hooks, ui) {
     const bw = st.fleet.out[1]; if (bw) for (let k = 0; k < 3000 && tripFinds(st, bw).damage !== 2; k++) bw.at += arg === 'return' ? 1 : -1; /* the Bulwark comes home badly damaged */
     st.fleet.damage = arg === 'empty' ? {} : { revenant: 1 }; /* and the Revenant is in the hangar waiting on repairs */
     WORKSHOP.forEach((u, i) => { st.stationPeak[u.id] = u.max; st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.7 - (i % 5) * 0.12))); }); recalc();
+    if (arg === 'news') st.bolt = { ...(st.bolt || {}), rooms: { ops: Date.now() } }; /* ops:news: Bolt has been here before, so it leads with its news */
     if (arg === 'ships' || arg === 'hangar') { hooks.toHangar(arg === 'ships' ? 'ships' : 'launch'); if (arg === 'ships') setTimeout(() => (document.querySelector('.fl-fixrow') || document.querySelector('.fl-away'))?.scrollIntoView({ block: 'center' }), 1200); return; }
     hooks.toHangar('ops');
     const view = { map: [-0.95, 1.0, 0.81, -0.48], berths: [0, -2.4, 0, -0.14], routes: [1.3, -0.7, Math.PI / 2, 0.05], log: [-0.7, -0.7, -Math.PI / 2, 0.05], field: [1.6, -7.8, 0.25, 0.12], back: [0, -3.2, Math.PI, 0.06], launch: [1.2, -1.2, -0.37, -0.06] }[arg];
