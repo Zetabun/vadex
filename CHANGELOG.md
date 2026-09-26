@@ -1,6 +1,6 @@
 # Changelog
 
-## v2.25.2
+## v2.25.2 — 2026-09-26
 
 Fixes and polish.
 
