@@ -1,3 +1,6 @@
 # wrangler caches and its local database (api/: the global boards worker)
 .wrangler/
 api/.wrangler/
+# Python caches (tools/)
+__pycache__/
+*.pyc

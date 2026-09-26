@@ -10,6 +10,7 @@ if not version:
     m = re.search(r'\?v=([0-9.]+)', html)
     version = m.group(1) if m else '2.0.0'
 # The Updates tab's history is rebuilt from CHANGELOG.md first, so every release carries its own notes.
+sys.dont_write_bytecode = True  # no __pycache__ in the repository
 sys.path.insert(0, str(root / 'tools'))
 import build_updates
 notes = build_updates.build()
