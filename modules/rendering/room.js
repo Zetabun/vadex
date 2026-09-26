@@ -63,6 +63,15 @@ export function bake(root, anchors = new Set()) {
   }
   return saved;
 }
+/** Free what a scene holds on the GPU: its geometry buffers, materials (their shaders) and textures. The objects stay
+ *  usable (three.js uploads them again if drawn), so anything shared with another scene (the battle's shape cache) is safe. */
+export function disposeScene(scene) {
+  const seen = new Set();
+  scene.traverse((o) => {
+    if (o.geometry && !seen.has(o.geometry)) { seen.add(o.geometry); o.geometry.dispose(); }
+    for (const m of Array.isArray(o.material) ? o.material : o.material ? [o.material] : []) { if (seen.has(m)) continue; seen.add(m); for (const k in m) { const v = m[k]; if (v?.isTexture && !seen.has(v)) { seen.add(v); v.dispose(); } } m.dispose(); }
+  });
+}
 export function canvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
 export function tex(c, repeat) { const THREE = T(), t = new THREE.CanvasTexture(c); t.anisotropy = 4; if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(...repeat); } return t; }
 /** An icon from the game's art set, drawn into a canvas once it has loaded (the SVG's colour variables inlined). */
@@ -288,6 +297,14 @@ export class Room {
     return { x, z };
   }
   resize(w, h) { this.cam.aspect = w / Math.max(1, h); this.cam.updateProjectionMatrix(); }
+  /** Take the room down (rendering/renderer.js keeps only the last few you were in): Bolt is sent on first, so it keeps
+   *  its own model, then everything the room holds on the GPU is freed, a screen's own scene and render target too (the
+   *  Command Deck's replay TV). */
+  dispose() {
+    if (bolt.room === this) bolt.leave();
+    for (const v of Object.values(this)) if (v?.target?.isWebGLRenderTarget) { v.target.dispose(); if (v.scene?.isScene) disposeScene(v.scene); }
+    disposeScene(this.scene); this.disposed = true;
+  }
   /** Keys walk relative to where you are looking; a tap target walks you there. Places the camera. */
   walk(dt) {
     this.t += dt;

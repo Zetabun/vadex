@@ -26,6 +26,11 @@ import { YardRoom } from '@last-orbit/rendering/shipyard.js';
 import { BeaconRoom } from '@last-orbit/rendering/beacons.js';
 import { CipherRoom } from '@last-orbit/rendering/cipher.js';
 import { hidden } from '@last-orbit/data/sectors.js';
+import { disposeScene } from '@last-orbit/rendering/room.js';
+/** How many rooms stay built at once: the one you are in and the last two you came through. A room further back is
+ *  taken down and built again (in a moment) if you go back: all twelve kept at once came to about 150 MB of textures
+ *  (TESTING.md), too much to hold on an older phone. */
+const ROOM_KEEP = 3;
 import { FleetRoom } from '@last-orbit/rendering/fleet.js';
 import { IntroScene } from '@last-orbit/rendering/intro.js';
 import { RebuildScene } from '@last-orbit/rendering/rebuild.js';
@@ -199,7 +204,13 @@ export class Renderer {
   addText(x, y, v, color, size) { if (v == null || v === 'null' || v === 'undefined') return; const T = this.texts; if (T.length >= 70) { if (!size) return; T.shift(); } T.push({ x: x + (Math.random() - 0.5) * (size ? 0 : 4), y, s: v instanceof Big ? (size === 2 ? '+' : '') + fmt(v) : String(v), c: css(color ?? 0xffffff), size, t: 0, life: size ? 1.5 : 0.7 }); }
 
   /** The room aboard that is open (G.room: 'deck', 'control', 'hall', 'comms', 'quarters', 'observatory', 'yard', 'beacons' or 'gunner'), built the first time it is visited. */
-  get room() { if (G.mode !== 'hangar' || !G.room) return null; const R = (this.rooms ||= {}); return (R[G.room] ||= G.room === 'control' ? new ControlRoom() : G.room === 'gunner' ? new GunnerScene() : G.room === 'hall' ? new HallRoom() : G.room === 'comms' ? new CommsRoom() : G.room === 'quarters' ? new QuartersRoom() : G.room === 'observatory' ? new ObservatoryRoom() : G.room === 'yard' ? new YardRoom() : G.room === 'beacons' ? new BeaconRoom() : G.room === 'garden' ? new GardenRoom() : G.room === 'ops' ? new FleetRoom() : G.room === 'cipher' ? new CipherRoom() : new DeckRoom()); }
+  get room() { if (G.mode !== 'hangar' || !G.room) return null; const R = (this.rooms ||= {}); return (R[G.room] ||= G.room === 'control' ? new ControlRoom() : G.room === 'gunner' ? new GunnerScene() : G.room === 'hall' ? new HallRoom() : G.room === 'comms' ? new CommsRoom() : G.room === 'quarters' ? new QuartersRoom() : G.room === 'observatory' ? new ObservatoryRoom() : G.room === 'yard' ? new YardRoom() : G.room === 'beacons' ? new BeaconRoom() : G.room === 'garden' ? new GardenRoom() : G.room === 'ops' ? new FleetRoom() : G.room === 'cipher' ? new CipherRoom() : new DeckRoom()) && this.keepRoom(G.room); }
+  /** The room just entered goes to the front of the line; any past the last few is taken down. Returns the room. */
+  keepRoom(id) {
+    const order = (this.roomOrder ||= []); if (order[0] !== id) { this.roomOrder = [id, ...order.filter((x) => x !== id)]; for (const old of this.roomOrder.splice(ROOM_KEEP)) this.dropRoom(old); }
+    return this.rooms[id];
+  }
+  dropRoom(id) { const r = this.rooms?.[id]; if (!r) return; delete this.rooms[id]; if (this.synced === r) this.synced = null; r.silence?.(); if (r.dispose) r.dispose(); else disposeScene(r.scene); }
 
   // ------------------------------------------------------------------ frame
   render(dt, w, speedMul = 1) {
