@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.26.0
+
+The Cipher: the finale.
+
+- **The Cipher (a new room aboard, in the Stellar crown at Overhaul rank 10).** The crown's great crystal hears the signal from past the Deep Void. Bring home signal fragments and decode them here one at a time by tuning the signal: match its frequency, phase and strength. Each fragment lights a glyph and reads out a line of a message. The walls keep the message so far, and a chart of where it points. Its door is on the left of the Beacon array.
+- **Signal fragments from Void bosses.** Deep Void expeditions still find them, and now a Void boss sometimes drops one when it falls (a notice says so, and the debrief counts them). Once the message is whole, each fragment decodes into an echo worth a Blueprint.
+- **The Origin: a hidden sector.** Read all seven glyphs and, on any Deep Void run, one of the routes is to follow the signal: ten waves past the edge of the charts, under a pale sun, as strong as the Deep Void sector they take the place of. The Scribe waits halfway.
+- **The Cipher: the final boss.** At the end of the Origin waits the thing that has been sending the signal. It fights in the voices of the bosses it watched you beat: Bastion's beams, the Wyrm's rain, the Dreadnought's shells, the Oracle's blinks and the Singularity's wells, then all of them at once. Beating it the first time pays 10 Blueprints, the Keeper paint and the Keeper title; after that, 2 Blueprints each time.
+- **Keeper of the last orbit.** The first win brings a finale, your title becomes Keeper, and the News covers it.
+- **Records tells you how to get your callsign back.** If the boards show you as Pilot because your callsign belongs to another pilot key (from an earlier save or another device), Records now suggests signing in with that key.
+- tests/cipher-regression.mjs covers decoding, the route, the Origin, the Cipher's voices and its rewards; tests/cipher-probe.mjs duels it against the Void bosses at the same depth (at wave 70 with a strong late-game build: the Cipher about 260 s, 7 of 8 beaten, beside the Choir 270 s and Mirror Host 230 s). Debug scenes cipher[...], route:signal, origin[:scribe|boss], debrief:cipher.
+
 ## v2.25.2 — 2026-09-26
 
 Fixes and polish.

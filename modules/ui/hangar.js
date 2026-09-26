@@ -877,7 +877,7 @@ export function createHangar(hooks) {
     const fix = r.got.damage ? h('div.fl-fixrow.hurt', h('small', 'She can\'t fly or go out again until she is repaired: here, or on her card in Ships.'), repairButton(r.ship, () => { hooks.closeOverlays?.(); render(); })) : null;
     hooks.panel?.({ kicker: `Home from ${d.name}`, title: `The ${s.name} is back`, body: [h('p.sub-note', `She ${r.line}.`), h('div.deck-board', rows.map(([k, v]) => h('div.db-row', h('small', k), h('b', v)))), fix,
       r.paint ? h('p.fl-paint', `${f.home} expeditions home: the Pathfinder paint is yours. Find it in the Ships menu.`) : st.paints[FLEET_PAINT] ? null : h('p.sub-note', `${PATHFINDER_AT - f.home} more home for the Pathfinder paint.`)] });
-    if (r.got.fragments && f.fragments === 1) setTimeout(() => hooks.say?.('That fragment is a signal, {n}, from further out than anything we know. I cannot read it. Not yet. Keep bringing them home.'), 600);
+    if (r.got.fragments && f.fragments === 1 && !cipherOpen(G.state)) setTimeout(() => hooks.say?.('That fragment is a signal, {n}, from further out than anything we know. I cannot read it. Not yet. Keep bringing them home.'), 600);
   }
   /** Every destination: what it brings and how long it takes, or what opens it. */
   function routesPanel() {
@@ -893,7 +893,7 @@ export function createHangar(hooks) {
           e.got.cores ? h('span.fl-g.rare', `${e.got.cores} Core${e.got.cores > 1 ? 's' : ''}`) : null, e.got.bp ? h('span.fl-g.rare', 'Blueprint') : null, e.got.fragments ? h('span.fl-g.rare', 'Signal') : null, e.got.canister ? h('span.fl-g', 'Canister') : null, e.got.damage ? h('span.fl-g.hurt', DAMAGE[e.got.damage].name) : null)); });
     hooks.panel?.({ kicker: 'Fleet Ops', title: 'Expedition log', body: [rows.length ? h('div.fl-logs', rows) : h('p.sub-note', 'No ships home yet. Send one out from a berth and its return is logged here.'),
       h('p.sub-note', st.paints[FLEET_PAINT] ? `${f.home} expeditions home. The Pathfinder paint is yours.` : `${f.home} of ${PATHFINDER_AT} expeditions home for the Pathfinder paint.`),
-      f.fragments ? h('p.sub-note', `${f.fragments} signal fragment${f.fragments > 1 ? 's' : ''} from the Deep Void, waiting to be read.`) : null] });
+      f.fragments ? h('p.sub-note', `${f.fragments} signal fragment${f.fragments > 1 ? 's' : ''} from the Deep Void, waiting to be read` + (cipherOpen(G.state) ? ': decode them in the Cipher room, in the crown.' : `. The crown will read them, at Overhaul rank ${CIPHER_RANK}.`)) : null] });
   }
   /** Tapping something in Fleet Ops: a berth (send, see the trip, or unload), the ring map or the routes board, the log,
    *  the field, or a door. */

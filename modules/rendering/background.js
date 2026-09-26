@@ -104,7 +104,7 @@ export class Background {
     p.material = d.decor === 'none' ? this.earthMat : this.rockMat; p.rotation.set(d.decor === 'none' ? 1.15 : 0, 0, 0);
     if (d.decor === 'none') { p.position.set(-40, -235, -120); p.scale.setScalar(260); }
     else if (d.decor === 'rocks') { p.position.set(95, 215, -130); p.scale.setScalar(55); p.material.color.set(0x9a9aa8); p.material.emissive.set(0x0c0c12); }
-    else if (d.decor === 'glyphs') { p.position.set(0, 290, -140); p.scale.setScalar(70); p.material.color.set(0xfff3c4); p.material.emissive.set(0x8a7440); } /* the Origin's pale sun, where the signal comes from */
+    else if (d.decor === 'glyphs') { p.position.set(78, 330, -150); p.scale.setScalar(26); p.material.color.set(0xb8a878); p.material.emissive.set(0x3a3018); } /* the Origin's pale sun, where the signal comes from */
     else if (d.decor === 'grid') { p.position.set(0, 330, -135); p.scale.setScalar(150); p.material.color.set(0x0c3a32); p.material.emissive.set(0x031512); }
     else if (d.decor === 'rings') { p.position.set(30, 200, -120); p.scale.setScalar(26); p.material.color.set(0x000000); p.material.emissive.set(0x000000); this.disc.position.copy(p.position); this.disc.scale.setScalar(26); this.disc.rotation.x = -1.15; }
     if (instant) { const u = this.sky.material.uniforms; u.c0.value.copy(t.c0); u.c1.value.copy(t.c1); u.c2.value.copy(t.c2); u.mistCol.value.copy(t.mistCol); u.mist.value = t.mist; }
@@ -116,7 +116,7 @@ export class Background {
     const B = this.blobs; B.begin(); const n = this.decor === 'mist' || this.decor === 'spores' ? 40 : 10, big = this.decor === 'spores' ? 0.35 : 1;
     for (let i = 0; i < n; i++) { const s = this.blobSeed[i], y = ((s[1] * 400 - this.t * (2 + s[2] * 5)) % 400 + 400) % 400 - 120, sz = (50 + s[3] * 110) * big; B.add((s[0] - 0.5) * 300 + Math.sin(this.t * 0.1 + i) * 10, y, sz, sz, 0, this.accent, 0.05 + s[2] * 0.07); }
     B.end();
-    const H = this.halo; H.begin(); if (this.decor === 'none') H.add(-40, -5, 420, 90, 0, rgb(0x5aa8ff), 0.26 - 0.14 * this.earthMat.uniforms.night.value); if (this.decor === 'rings') { H.add(30, 200, 150, 150, 0, rgb(0xffb060), 0.3); this.disc.rotation.z = this.t * 0.2; } if (this.decor === 'glyphs') H.add(0, 290, 260 + 20 * Math.sin(this.t * 0.7), 260 + 20 * Math.sin(this.t * 0.7), 0, rgb(0xffe9a8), 0.32); H.end();
+    const H = this.halo; H.begin(); if (this.decor === 'none') H.add(-40, -5, 420, 90, 0, rgb(0x5aa8ff), 0.26 - 0.14 * this.earthMat.uniforms.night.value); if (this.decor === 'rings') { H.add(30, 200, 150, 150, 0, rgb(0xffb060), 0.3); this.disc.rotation.z = this.t * 0.2; } if (this.decor === 'glyphs') H.add(78, 330, 120 + 10 * Math.sin(this.t * 0.7), 120 + 10 * Math.sin(this.t * 0.7), 0, rgb(0xffe9a8), 0.18); H.end();
     if (this.rocks.visible) { const d = this.dummy; for (let i = 0; i < 14; i++) { const r = this.rockSeed[i]; d.position.set(r[0], ((r[1] - this.t * r[5]) % 300 + 300) % 300 - 80, r[2]); d.rotation.set(this.t * 0.1 + r[4], this.t * 0.13 * r[5] * 0.3, r[4]); d.scale.setScalar(r[3]); d.updateMatrix(); this.rocks.setMatrixAt(i, d.matrix); } this.rocks.instanceMatrix.needsUpdate = true; }
     if (this.grid.visible) this.grid.position.y = -((this.t * 6) % 20);
     if (this.decor === 'none') this.planet.position.y = -235;

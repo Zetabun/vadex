@@ -1,5 +1,6 @@
 // UI root: switches between the Hangar and the sortie HUD, owns overlays, banners, toasts and screen effects,
 // and tells the renderer how much of the screen the battlefield may use.
+import { CIPHER_END } from '@last-orbit/data/cipher.js';
 import { BOOST_BY_ID, kitOn } from '@last-orbit/data/boosts.js';
 import { MAT_BY_ID, materialOf } from '@last-orbit/data/materials.js';
 import { draftDue } from '@last-orbit/progression/run.js';
@@ -160,6 +161,7 @@ export function initUI(app, hooks) {
     // The station AI speaks up at milestones, in the hangar, once the pilot has a callsign; never in the gun seat (it
     // saves its lines until the pilot leaves the Siege).
     if (G.room === 'gunner') { comms.hold(); commsT = 1.5; }
+    else if (G.mode === 'hangar' && G.state.cipher?.beaten && !G.state.seen.cipherEnd && !G.introPlaying && !overlays.blocking()) { G.state.seen.cipherEnd = true; overlays.showMenuIntro(CIPHER_END); } /* the finale, once */
     else if (G.mode === 'hangar' && !G.introPlaying && G.state.seen.callsign && !overlays.blocking() && (commsT -= dt) <= 0) { commsT = 1.5; if (!announceRoom()) comms.check(); }
   }
   /** The greeting when the app opens (or right after a new pilot registers). */

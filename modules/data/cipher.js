@@ -59,6 +59,10 @@ export const ORIGIN = {
 /** What beating the Cipher pays: Blueprints (the first time, and a few every time after), the Keeper paint and title. */
 export const CIPHER_BP = 10, CIPHER_BP_AGAIN = 2, KEEPER_PAINT = 'keeper', KEEPER_TITLE = 'Keeper';
 
+/** Told once, back in the hangar after the Cipher first falls. */
+export const CIPHER_END = { icon: 'cipher', kicker: 'The signal is silent', title: 'Keeper of the last orbit',
+  text: 'The Cipher is beaten, and for the first time since the Fall nothing past the Deep Void is listening to the last orbit. The station is whole, the crown is quiet, and the crews have started calling you something new: Keeper. The Keeper paint is in your hangar. The Origin is still out there, if you ever want to go back: follow the signal on any Deep Void run.' };
+
 /** What ORBIT says in the Cipher room, round and round, by how far the reading has got. */
 export const CIPHER_LINES = {
   none: ['The crown hears it clearer than anything else aboard, {n}: the signal from past the Deep Void. I need fragments of it to read.', 'Deep Void expeditions bring fragments home, and the Void bosses sometimes drop one when they fall.'],
