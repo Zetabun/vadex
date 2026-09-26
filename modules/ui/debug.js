@@ -11,6 +11,8 @@ import { step } from '@last-orbit/combat/sim.js';
 import { TICK } from '@last-orbit/data/balance.js';
 import { recTick, recStop, lastReplay, replayBytes } from '@last-orbit/progression/recorder.js';
 import { debugSetWave } from '@last-orbit/combat/sim.js';
+import { followSignal } from '@last-orbit/progression/cipher.js';
+import { LAST_WAVE } from '@last-orbit/data/sectors.js';
 import { killEnemy } from '@last-orbit/combat/world.js';
 import { spawnPickup } from '@last-orbit/combat/pickups.js';
 import { enterSandbox, exportSave, parseSave } from '@last-orbit/save/save.js';
@@ -331,6 +333,18 @@ function runScene(scene, hooks, ui) {
     if (view) { let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 60) setTimeout(place, 100); return; } r.pos.set(view[0], 0, view[1]); r.yaw = view[2]; r.pitch = view[3]; }; place(); }
     if (arg === 'tap') setTimeout(() => ui.tap?.(arg2 || 'log'), 1500);
     return; }
+  // cipher[:<glyphs read>[:<fragments held>[:<do>[:<view>]]]]: the Cipher room (default 3 read, 2 held). do: tune (the
+  // console: the tuner), message, chart, loom, window, glyph<n> (tapped), beaten (the Cipher beaten), intro (first visit).
+  // view: loom, left, right, window, plinths (where you stand)
+  if (name === 'cipher') { const read = Math.max(0, Math.min(7, arg === '' || arg == null ? 3 : +arg)), held = arg2 === '' || arg2 == null ? 2 : +arg2;
+    st.pilot.name = 'Adam'; st.seen.callsign = true; st.seen.cipher = arg3 !== 'intro'; st.prestige.level = 10; st.stationName = 'Halcyon'; st.stats.bestWave = 124; st.stats.bestSector = 13;
+    for (const l of LINES) st.seen.comms[l.id] = 1; st.seen.commsInit = true; for (const r of ROOMS_ABOARD) (st.seen.offered ||= {})[r.id] = true;
+    st.cipher = { decoded: read, echoes: 0, beaten: arg3 === 'beaten' ? Date.now() : 0, kills: arg3 === 'beaten' ? 2 : 0, best: arg3 === 'beaten' ? 187 : 0 }; st.fleet.fragments = held;
+    WORKSHOP.forEach((u) => { st.stationPeak[u.id] = u.max; }); recalc(); hooks.toHangar('cipher');
+    const view = { loom: [0, -0.4, 0, 0.12], left: [-1.2, -0.6, 0.9, 0.05], right: [1.2, -0.6, -0.9, 0.05], window: [0, -5.9, 0, 0.15], plinths: [0, -1.9, 0, -0.05] }[arg4];
+    if (view) { let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 60) setTimeout(place, 100); return; } r.pos.set(view[0], 0, view[1]); r.yaw = view[2]; r.pitch = view[3]; }; place(); }
+    const tap = arg3 === 'tune' ? 'console' : ['message', 'chart', 'loom', 'window', 'crystal'].includes(arg3) || /^glyph\d$/.test(arg3 || '') ? arg3 : null; if (tap) setTimeout(() => ui.tap?.(tap), 1500);
+    return; }
   // sgdamage[:tab]: a station left damaged by a lost siege (three systems out), seen from a tab or room (default Defence Control)
   if (name === 'sgdamage') { st.pilot.name = 'Adam'; st.seen.callsign = true; st.counter.unlocked = true; st.counter.stars[1] = 2; st.counter.stars[2] = 1; st.seen.control = true; st.seen.gunnerIntro = true; st.stationName = 'Halcyon';
     WORKSHOP.forEach((u, i) => { st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.6 - (i % 5) * 0.13))); }); st.siege.damage = { ids: ['w_shield', 'w_hull', 'w_dmg'], tier: 2, cost: 1400 }; st.seen.commsInit = true; for (const l of LINES) st.seen.comms[l.id] = 1; recalc(); hooks.toHangar(arg || 'control');
@@ -434,7 +448,11 @@ function runScene(scene, hooks, ui) {
     setTimeout(() => { const w = G.world, list = w.enemies.filter((e) => e.alive && e.slot).sort((a, b) => a.slot.y - b.slot.y || a.slot.x - b.slot.x); for (const e of list) { e.def = def; e.type = arg; e.color = def.color; e.r = def.r; e.link = null; }
       if (def.link) for (let i = 0; i + 1 < list.length; i += 2) if (list[i].slot.y === list[i + 1].slot.y) { list[i].link = list[i + 1]; list[i + 1].link = list[i]; } }, 400);
     setInterval(() => { const w = G.world; if (!w?.player || !st.run) return; if (st.run.offer || st.run.relicOffer) { st.run.offer = st.run.relicOffer = null; st.run.pendingLevels = st.run.pendingRelics = 0; ui.closeOverlays(); } w.player.hull = 1; const s = Math.sin(performance.now() / 1300); w.input.hold = s > 0.35 ? 1 : s < -0.35 ? -1 : 0; }, 100); }
-  else if (name === 'route') { st.run.offer = null; st.run.pendingLevels = 0; st.run.pendingRoute = true; ui.closeOverlays(); ui.nextChoice(); }
+  else if (name === 'route') { st.run.offer = null; st.run.pendingLevels = 0; if (arg === 'signal') { st.prestige.level = Math.max(10, st.prestige.level || 0); st.cipher.decoded = 7; st.run.wave = LAST_WAVE + 21; } st.run.pendingRoute = true; ui.closeOverlays(); ui.nextChoice(); } /* route:signal: in the Deep Void with the message read */
+  // origin[:scribe|boss]: a sortie that has followed the signal into the Origin (the ship does not die)
+  else if (name === 'origin') { const run = st.run; run.offer = null; run.pendingLevels = 0; ui.closeOverlays(); st.prestige.level = Math.max(10, st.prestige.level || 0); st.cipher.decoded = 7;
+    for (const id of ['laser', 'tesla', 'missile']) { run.order.push(id); run.weapons[id] = 9; } run.weapons.cannon = 9; recalc(); const start = LAST_WAVE + 21; run.wave = start; followSignal(run); debugSetWave(arg === 'boss' ? start + 9 : arg === 'scribe' ? start + 4 : start);
+    setInterval(() => { const w = G.world; if (!w?.player || !st.run) return; if (st.run.offer || st.run.relicOffer || st.run.pendingAnomaly || st.run.routeOffer) { st.run.offer = st.run.relicOffer = st.run.routeOffer = null; st.run.pendingLevels = st.run.pendingRelics = 0; st.run.pendingAnomaly = st.run.pendingRoute = false; ui.closeOverlays(); } w.player.hull = 1; const s = Math.sin(performance.now() / 1300); w.input.hold = s > 0.35 ? 1 : s < -0.35 ? -1 : 0; }, 100); }
   else if (name === 'fusion') { const run = st.run; run.offer = null; run.pendingLevels = 0; run.order.push('laser'); run.weapons.cannon = 7; run.weapons.laser = 7; st.mastery.vanguard = { level: 5, xp: 0 }; recalc();
     run.offer = [{ kind: 'fusion', id: 'fu_twinsuns', rarity: 'fusion' }, { kind: 'signature', id: run.ship, rarity: 'signature' }, { kind: 'mod', id: 'm_dmg', stack: 1, rarity: 'common' }]; ui.closeOverlays(); ui.nextChoice(); }
   else if (name === 'notice') bus.emit('notice', { kind: 'unlock', kicker: 'Contract complete', title: 'Hold the Line', salvage: 40, sub: 'Weapon: Lance Laser unlocked', art: 'weapon:laser' });

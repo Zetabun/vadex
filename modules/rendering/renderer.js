@@ -24,6 +24,8 @@ import { QuartersRoom } from '@last-orbit/rendering/quarters.js';
 import { ObservatoryRoom } from '@last-orbit/rendering/observatory.js';
 import { YardRoom } from '@last-orbit/rendering/shipyard.js';
 import { BeaconRoom } from '@last-orbit/rendering/beacons.js';
+import { CipherRoom } from '@last-orbit/rendering/cipher.js';
+import { hidden } from '@last-orbit/data/sectors.js';
 import { FleetRoom } from '@last-orbit/rendering/fleet.js';
 import { IntroScene } from '@last-orbit/rendering/intro.js';
 import { RebuildScene } from '@last-orbit/rendering/rebuild.js';
@@ -197,7 +199,7 @@ export class Renderer {
   addText(x, y, v, color, size) { if (v == null || v === 'null' || v === 'undefined') return; const T = this.texts; if (T.length >= 70) { if (!size) return; T.shift(); } T.push({ x: x + (Math.random() - 0.5) * (size ? 0 : 4), y, s: v instanceof Big ? (size === 2 ? '+' : '') + fmt(v) : String(v), c: css(color ?? 0xffffff), size, t: 0, life: size ? 1.5 : 0.7 }); }
 
   /** The room aboard that is open (G.room: 'deck', 'control', 'hall', 'comms', 'quarters', 'observatory', 'yard', 'beacons' or 'gunner'), built the first time it is visited. */
-  get room() { if (G.mode !== 'hangar' || !G.room) return null; const R = (this.rooms ||= {}); return (R[G.room] ||= G.room === 'control' ? new ControlRoom() : G.room === 'gunner' ? new GunnerScene() : G.room === 'hall' ? new HallRoom() : G.room === 'comms' ? new CommsRoom() : G.room === 'quarters' ? new QuartersRoom() : G.room === 'observatory' ? new ObservatoryRoom() : G.room === 'yard' ? new YardRoom() : G.room === 'beacons' ? new BeaconRoom() : G.room === 'garden' ? new GardenRoom() : G.room === 'ops' ? new FleetRoom() : new DeckRoom()); }
+  get room() { if (G.mode !== 'hangar' || !G.room) return null; const R = (this.rooms ||= {}); return (R[G.room] ||= G.room === 'control' ? new ControlRoom() : G.room === 'gunner' ? new GunnerScene() : G.room === 'hall' ? new HallRoom() : G.room === 'comms' ? new CommsRoom() : G.room === 'quarters' ? new QuartersRoom() : G.room === 'observatory' ? new ObservatoryRoom() : G.room === 'yard' ? new YardRoom() : G.room === 'beacons' ? new BeaconRoom() : G.room === 'garden' ? new GardenRoom() : G.room === 'ops' ? new FleetRoom() : G.room === 'cipher' ? new CipherRoom() : new DeckRoom()); }
 
   // ------------------------------------------------------------------ frame
   render(dt, w, speedMul = 1) {
@@ -213,7 +215,7 @@ export class Renderer {
     this.lerpIn(w, renderAlpha());
     if (this.supportWorld !== w) { this.supportWorld = w; this.salvageDrops.length = 0; this.salvageCraft = null; this.repairCraft = null; this.repairBeamT = 0; }
     this.fitCamera(dt); if (this.shake > 0) this.shake = Math.max(0, this.shake - dt * 2.2);
-    const secIdx = w.base.sectorIdx % 6; if (secIdx !== this.lastSector) { this.bg.setSector(secIdx, this.lastSector < 0); this.lastSector = secIdx; this.rails.material.color.set(this.bg.target.mistCol); }
+    const secIdx = w.base.sectorIdx === hidden.origin ? 'origin' : w.base.sectorIdx % 6; if (secIdx !== this.lastSector) { this.bg.setSector(secIdx, this.lastSector < 0); this.lastSector = secIdx; this.rails.material.color.set(this.bg.target.mistCol); }
     // Counterattack flies away from the home planet: no horizon, and the starfield rushes past.
     // Event Horizon draws its own singularity in the field, so the backdrop's black hole steps aside.
     const ownHole = w.set?.kind === 'horizon';

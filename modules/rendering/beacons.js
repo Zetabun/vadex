@@ -9,6 +9,7 @@ import { Room, canvas, tex, text, drawSign } from '@last-orbit/rendering/room.js
 import { shapeGeometry } from '@last-orbit/rendering/geometry.js';
 import { BOSSES } from '@last-orbit/data/bosses.js';
 import { VOID_BOSSES, firstWaveOf } from '@last-orbit/data/beacons.js';
+import { CIPHER_RANK } from '@last-orbit/data/cipher.js';
 const T = () => window.THREE;
 
 // Room: x -4.2..4.2, z -8 (window) .. 3 (back wall, the doors), height 4.2.
@@ -94,8 +95,12 @@ export class BeaconRoom extends Room {
   // ---------------------------------------------------------------- what is on display (rebuilt when it changes)
   sync(state) {
     const beat = state.beacons?.beaten || {}, met = state.seen?.bosses || {}, by = state.stats?.bossBy || {};
-    const sig = [VOID_BOSSES.map((id) => (beat[id] ? 2 : met[id] ? 1 : 0) + ':' + (by[id] || 0)).join(','), state.stationName].join('|');
+    const crown = (state.prestige?.level || 0) >= CIPHER_RANK;
+    const sig = [VOID_BOSSES.map((id) => (beat[id] ? 2 : met[id] ? 1 : 0) + ':' + (by[id] || 0)).join(','), state.stationName, crown].join('|');
     if (sig === this.sig) return; this.sig = sig; const THREE = T();
+    // the way up into the crown, to the Cipher, on the left wall by the doors
+    if (this.cipherDoor) { this.scene.remove(this.cipherDoor); this.untag(this.cipherDoor); } this.cipherDoor = new THREE.Group(); this.scene.add(this.cipherDoor);
+    this.door(this.cipherDoor, -W, 1.2, -Math.PI / 2, 'THE CIPHER  ›', 'cipher', { sealed: !crown, sign: '#fff4dc', edge: 0x6dfff0 });
     this.answers.forEach((a, i) => {
       const def = BOSSES[a.id], s = beat[a.id] ? 2 : met[a.id] ? 1 : 0, col = new THREE.Color(def.color); a.state = s;
       while (a.holder.children.length) a.holder.remove(a.holder.children[0]);

@@ -11,6 +11,7 @@ import { YARD_RANK } from '@last-orbit/data/shipyard.js';
 import { BEACON_RANK } from '@last-orbit/data/beacons.js';
 import { gardenOpen, WING_RANK } from '@last-orbit/data/garden.js';
 import { FLEET_RANK, PATHFINDER_AT } from '@last-orbit/data/fleet.js';
+import { CIPHER_RANK } from '@last-orbit/data/cipher.js';
 
 /** id: its hangar tab (and the exhibit kind of the doors that lead there). rank: the Overhaul rank that opens it, or
  *  open: what does (when: said while it is shut; announce: it offers the way aboard when it opens, as an Overhaul's room
@@ -56,9 +57,13 @@ export const ROOMS_ABOARD = [
     for: 'Send the ships you are not flying out on expeditions', via: 'yard', door: 'the far door on the Shipyard\'s right',
     lock: `Fleet Ops is in the Halo ring: it opens at Overhaul rank ${FLEET_RANK}.`,
     intro: `The halo is up, and it can hear our ships all the way out. Fleet Ops is its launch deck, with three berths: the ships you are not flying can go out from them on expeditions. Send one to scout a sector you have cleared and it comes back hours later, even with the game closed, bringing that stretch's material, salvage and mastery, and now and then a seed, an Alien Core or a Blueprint. The further out, the longer it is gone, and the riskier: a ship can come home damaged, and needs repairing before it flies again. Past wave 60, the Deep Void is on the map too. Bring ${PATHFINDER_AT} home for the Pathfinder paint.` },
+  { id: 'cipher', name: 'The Cipher', icon: 'cipher', seen: 'cipher', rank: CIPHER_RANK, announce: true, color: 0x6dfff0,
+    for: 'Decode the signal from past the Deep Void, and find where it comes from', via: 'beacons', door: 'the left-hand door in the Beacon array',
+    lock: `The Cipher is in the Stellar crown: it opens at Overhaul rank ${CIPHER_RANK}.`,
+    intro: 'The crown is in place, and its great crystal hears the signal from past the Deep Void clearer than anything aboard. Bring home signal fragments (Deep Void expeditions find them, and Void bosses drop them now and then) and decode each one here by tuning the signal: each gives up a glyph and a line of a message. Read all seven, and the message tells you where the signal comes from.' },
 ];
 export const ROOM_BY_ID = Object.fromEntries(ROOMS_ABOARD.map((r) => [r.id, r]));
-/** The room an Overhaul to this rank opens (none at rank 4, the Solar wings, or at 10, the crown). */
+/** The room an Overhaul to this rank opens (none at rank 4, the Solar wings: that adds the Greenhouse's second wing). */
 export const roomAt = (rank) => ROOMS_ABOARD.find((r) => r.rank === rank) || null;
 /** The room an Overhaul to this rank adds to (the Solar wings: the Greenhouse's second wing). */
 export const wingAt = (rank) => ROOMS_ABOARD.find((r) => r.wing?.rank === rank) || null;

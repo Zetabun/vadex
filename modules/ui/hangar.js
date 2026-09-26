@@ -53,7 +53,8 @@ import { yardStage, yardDone, nextStage, stageBlock, buildStage } from '@last-or
 import { VOID_BOSSES, VOID_BOSS_BP, VOID_LORE, BEACON_LINES, firstWaveOf } from '@last-orbit/data/beacons.js';
 import { beaten as voidBeaten, allBeaten as voidAllBeaten } from '@last-orbit/progression/beacons.js';
 import { CIPHER_RANK, GLYPHS, FRAGMENTS, CIPHER_LINES, KEEPER_TITLE, CIPHER_BP, cipherOpen } from '@last-orbit/data/cipher.js';
-import { cipherOf, fragmentsHeld, messageRead, glyphsRead, cannotDecode, keeper } from '@last-orbit/progression/cipher.js';
+import { cipherOf, fragmentsHeld, messageRead, glyphsRead, cannotDecode, decodeFragment, tuningFor, keeper } from '@last-orbit/progression/cipher.js';
+import { glyphSvg } from '@last-orbit/ui/glyph.js';
 import { DESTINATIONS, DEST_BY_ID, PATHFINDER_AT, FLEET_PAINT, OPS_LINES, DAMAGE, fleetOpen, destOpen, mayFind, riskWord } from '@last-orbit/data/fleet.js';
 import { fleet, shipAway, tripDone, tripLeft, cannotSend, sendShip, recallShip, collectShip, fleetCounts, nextHome, damageOf, repairCost, canRepair, repairShip } from '@last-orbit/progression/fleet.js';
 import { sortieWorth } from '@last-orbit/progression/bounties.js';
@@ -130,7 +131,7 @@ export function createHangar(hooks) {
   const el = h('div#hangar', top, $.body, $.coSvg, $.stationHot, $.callout, $.nav);
 
   // The rooms aboard the station: 3D spaces to walk round, each reached from the hangar and left the way you came.
-  const ROOMS = { deck: 'Command Deck', control: 'Defence Control', gunner: 'Gunner seat', hall: 'Trophy Hall', comms: 'Comms room', quarters: 'Pilot\'s quarters', observatory: 'Observatory', yard: 'Shipyard', beacons: 'Beacon array', garden: 'Greenhouse', ops: 'Fleet Ops' };
+  const ROOMS = { deck: 'Command Deck', control: 'Defence Control', gunner: 'Gunner seat', hall: 'Trophy Hall', comms: 'Comms room', quarters: 'Pilot\'s quarters', observatory: 'Observatory', yard: 'Shipyard', beacons: 'Beacon array', garden: 'Greenhouse', ops: 'Fleet Ops', cipher: 'The Cipher' };
   let outside = 'launch'; // the hangar tab the rooms lead back to
   let gunTier = 1, gunFrom = 'control'; // the siege in the gunner seat, and where leaving it goes
   function show(id, quiet) {
@@ -165,7 +166,7 @@ export function createHangar(hooks) {
   function render(top = false) {
     const y = $.body.scrollTop; clear($.body);
     lay.dirty = true; /* the ship card may have moved */
-    const view = { launch: launchView, missions: missionsView, workshop: workshopView, armory: armoryView, ships: shipsView, contracts: contractsView, records: recordsView, awards: awardsView, deck: () => roomView('deck'), control: () => roomView('control'), hall: () => roomView('hall'), comms: () => roomView('comms'), quarters: () => roomView('quarters'), observatory: () => roomView('observatory'), yard: () => roomView('yard'), beacons: () => roomView('beacons'), garden: () => roomView('garden'), ops: () => roomView('ops'), gunner: () => gunnerView() }[tab]();
+    const view = { launch: launchView, missions: missionsView, workshop: workshopView, armory: armoryView, ships: shipsView, contracts: contractsView, records: recordsView, awards: awardsView, deck: () => roomView('deck'), control: () => roomView('control'), hall: () => roomView('hall'), comms: () => roomView('comms'), quarters: () => roomView('quarters'), observatory: () => roomView('observatory'), yard: () => roomView('yard'), beacons: () => roomView('beacons'), garden: () => roomView('garden'), ops: () => roomView('ops'), cipher: () => roomView('cipher'), gunner: () => gunnerView() }[tab]();
     $.body.append(view); $.body.scrollTop = top ? 0 : y;
   }
 
@@ -763,11 +764,56 @@ export function createHangar(hooks) {
     const st = G.state;
     if (kind === 'exit') { show(outside); return; }
     if (kind === 'yard') { show('yard'); return; }
+    if (kind === 'cipher') { show('cipher'); return; }
     if (kind === 'log') { beaconsPanel(); return; }
     if (kind.startsWith('answer')) { answerPanel(+kind.slice(6)); return; }
     playSfx('tab');
     if (kind === 'beacon') { const met = VOID_BOSSES.filter((id) => st.seen?.bosses?.[id] && !voidBeaten(st)[id]); hooks.say?.(met.length ? `${BOSSES[met[0]].name} answered and is still out there, {n}. The beacon can hear it breathing.` : BEACON_LINES[beaconTalk++ % BEACON_LINES.length]); return; }
     if (kind === 'window') hooks.say?.(VOID_BOSSES.some((id) => voidBeaten(st)[id]) ? 'Every light out there is something that answered, {n}, and that you beat. We leave the beacons burning for the rest.' : 'Watch the dark past the beam, {n}. When something answers, you will see it.');
+  }
+  // ------------------------------------------------------------ the Cipher (data/cipher.js)
+  function cipherTitle() { const st = G.state, c = cipherOf(st); return c.beaten ? 'The signal is silent' : messageRead(st) ? 'The message is read' : `${c.decoded || 0}/${FRAGMENTS} glyphs read`; }
+  /** Decode a fragment: tune its signal (overlays.showTune), and the glyph it gives up is read into the message. */
+  function decodeNext() {
+    const st = G.state, why = cannotDecode(st);
+    if (why) { playSfx('deny'); hooks.say?.(fragmentsHeld(st) ? why : messageRead(st) ? 'No fragments left, {n}. The message is whole: the rest are only echoes, when they come.' : 'No fragments to read, {n}. Deep Void expeditions bring them home, and the Void bosses drop them now and then.'); return; }
+    playSfx('tab'); hooks.tune?.({ n: tuningFor(st), echo: messageRead(st), decode: () => { const got = decodeFragment(st); hooks.saveNow?.('cipher'); render(); if (got?.last) setTimeout(() => hooks.say?.('The message is whole, {n}. It is a place. When you pick your route in the Deep Void, follow the signal.'), 1500); return got; }, next: decodeNext });
+  }
+  /** The message so far: each glyph read and its line, the rest still dark. */
+  function messagePanel() {
+    const st = G.state, read = glyphsRead(st), held = fragmentsHeld(st); playSfx('tab');
+    hooks.panel?.({ kicker: 'The Cipher', title: 'The message', body: [
+      h('p.sub-note', read.length ? 'What ORBIT makes of the signal from past the Deep Void, a glyph at a time.' : 'Nothing read yet. Each signal fragment decoded at the console gives up a glyph, and a line of the message.'),
+      h('div.cg-lines', GLYPHS.map((g, i) => i < read.length ? h('div.cg-line', glyphSvg(g), h('div', h('small', 'Glyph of ' + g.name), h('b', g.line))) : h('div.cg-line.dark', h('span.cg-glyph.q', '?'), h('div', h('small', `Glyph ${i + 1}`), h('b', 'Not yet read'))))),
+      held ? h('button.btn.gold.wide', { onclick: () => { hooks.closeOverlays?.(); decodeNext(); } }, `Decode a fragment · ${held} held`) : h('p.sub-note', messageRead(st) ? 'The message is whole.' : 'Deep Void expeditions from Fleet Ops bring fragments home, and a Void boss sometimes drops one when it falls.')] });
+  }
+  /** Where the signal comes from, how to get there, and what is waiting. */
+  function originPanel() {
+    const st = G.state, c = cipherOf(st), read = messageRead(st), clock = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; playSfx('tab');
+    hooks.panel?.({ kicker: 'The Cipher', title: 'The Origin', body: [
+      h('p.sub-note', !read ? `Somewhere past the edge of the charts. Read all ${FRAGMENTS} glyphs and the message will say where.` : c.beaten ? 'The signal is silent. The Origin is still out there, and the way to it is still open, if you want to go back.' : 'The message is coordinates. On a Deep Void run, when you choose your route, one of them will be to follow the signal: ten waves past the edge of the charts, and at the end, whatever has been sending it.'),
+      read ? h('p.boss-tip', h('b', 'How to beat it'), BOSSES.cipher.tip) : null,
+      h('div.deck-board', [['Glyphs read', `${Math.min(FRAGMENTS, c.decoded || 0)}/${FRAGMENTS}`], ['Fragments held', String(fragmentsHeld(st))], ['The Cipher', c.beaten ? `Beaten ×${c.kills || 1}` : read ? 'Waiting in the Origin' : 'Unknown'], ['Quickest kill', c.best ? clock(c.best) : '—'], ['First kill pays', `+${CIPHER_BP} Blueprints, the Keeper paint and title`]].map(([k, v]) => h('div.db-row', h('small', k), h('b', v))))] });
+  }
+  /** One glyph's plinth. */
+  function glyphPanel(n) {
+    const st = G.state, g = GLYPHS[n - 1]; if (!g) return; const read = n <= (cipherOf(st).decoded || 0); playSfx('tab');
+    hooks.panel?.({ kicker: 'The Cipher', title: read ? 'Glyph of ' + g.name : `Glyph ${n}`, body: read ? [h('div.cg-big', glyphSvg(g, 'cg-glyph big')), h('p.cg-quote', g.line)] : [h('p.sub-note', `Dark. It lights when the ${['first', 'second', 'third', 'fourth', 'fifth', 'sixth', 'seventh'][n - 1]} fragment is decoded.`)] });
+  }
+  /** Tapping something in the Cipher: the console, the message, the chart, a glyph's plinth, the loom, the crystal, the
+   *  window, or a door. */
+  let cipherTalk = 0;
+  function cipherExhibit(kind) {
+    const st = G.state, c = cipherOf(st);
+    if (kind === 'exit') { show(outside); return; }
+    if (kind === 'beacons') { show('beacons'); return; }
+    if (kind === 'console' || (kind === 'loom' && fragmentsHeld(st))) { decodeNext(); return; } /* the loom decodes too, when there is something to decode */
+    if (kind === 'message') { messagePanel(); return; }
+    if (kind === 'chart') { originPanel(); return; }
+    if (kind.startsWith('glyph')) { glyphPanel(+kind.slice(5)); return; }
+    playSfx('tab'); const lines = CIPHER_LINES[c.beaten ? 'beaten' : messageRead(st) ? 'read' : c.decoded ? 'some' : 'none'];
+    if (kind === 'loom' || kind === 'crystal') { hooks.say?.(lines[cipherTalk++ % lines.length]); return; }
+    if (kind === 'window') hooks.say?.(c.beaten ? 'Nothing out there is listening now, {n}. Just stars.' : messageRead(st) ? 'That light, {n}, past everything. That is the Origin. It was always there. We just could not see it.' : 'Somewhere out there, past the Deep Void. The more of the message we read, the clearer it gets.');
   }
   // ------------------------------------------------------------ Fleet Ops (data/fleet.js)
   const matOf = (d) => MAT_BY_ID[d.mat];
@@ -1069,7 +1115,7 @@ export function createHangar(hooks) {
     if (!boardFresh(id) && !(Date.now() - (boardFail[id] || 0) < 30e3)) fetchBoard(id).then(() => { delete boardFail[id]; }, () => { boardFail[id] = Date.now(); }).finally(() => { if (tab === 'records' && recTab === 'global') render(); });
     const instead = on ? shownInstead(st) : '', name = (instead || boardName(st)) + (g.tag ? ' #' + g.tag : '');
     const intro = h('section.panel.gl-intro' + (on ? '' : '.off') + (instead ? '.instead' : ''), art('ach:trophy', 'gl-ico'), h('div',
-      on && instead ? [h('b', `The boards show you as ${name}`), h('small', `"${st.pilot.name}" cannot go on the global boards: it is taken by another pilot or not allowed there. Your Daily Sortie and any new best still go up. Pick another callsign in Settings to show it.`)]
+      on && instead ? [h('b', `The boards show you as ${name}`), h('small', `"${st.pilot.name}" cannot go on the global boards: it is taken by another pilot or not allowed there. Your Daily Sortie and any new best still go up. If that callsign is yours from an earlier save or another device, sign in with its pilot key (Settings > Pilot key); otherwise pick another callsign in Settings.`)]
       : on ? [h('b', `You post as ${name}`), h('small', `Your Daily Sortie and any new best go up after each sortie.${g.tag ? ` Your tag shows beside your name when another pilot has the same one.` : ''} ${st.pilot.name ? 'Change your callsign' : 'Add a callsign'} in Settings.`)]
         : [h('b', 'Your scores stay on this device'), h('small', boardsOn(st) ? 'You join the boards once Records is open.' : 'Global boards are off in Settings. You can still look.')]));
     const chips = h('div.gl-boards', BOARD_TABS.map((b) => h('button.gl-chip' + (b.id === boardTab ? '.on' : ''), { onclick: () => { if (boardTab === b.id) return; boardTab = b.id; playSfx('tab'); render(); } }, b.name)));
@@ -1121,8 +1167,8 @@ export function createHangar(hooks) {
   function roomView(id) {
     // The room itself is 3D (rendering/deck.js and control.js, drawn while G.room is set); this is the touch layer over it.
     const p = G.state.pilot, hint = h('div.d3-hint', 'Drag to look around · Tap the floor to walk · Tap anything to inspect');
-    const el = h('div.deck3d' + (id === 'control' ? '.control' : id === 'hall' ? '.hall' : id === 'comms' ? '.comms' : id === 'quarters' ? '.quarters' : id === 'observatory' ? '.observatory' : id === 'yard' ? '.yard' : id === 'beacons' ? '.beacons' : id === 'garden' ? '.garden' : id === 'ops' ? '.ops' : ''), { 'aria-label': `${ROOMS[id]}. Drag to look around, tap the floor to walk, tap an exhibit to inspect it.` },
-      h('div.d3-top', h('div.d3-title', h('small', ROOMS[id]), h('b', id === 'deck' || id === 'quarters' ? p.name || rankTitle(p.rank) : id === 'hall' ? `${caughtStages(G.state).length}/6 captured` : id === 'comms' ? `${(G.state.bounties?.list || []).filter((b) => b.done).length}/3 bounties done` : id === 'observatory' ? `${VOID_MARKS.filter((m) => isCharted(G.state, m)).length}/${VOID_MARKS.length} charted` : id === 'yard' ? (yardDone(G.state) ? (refitProgress(G.state) && !refitProgress(G.state).out ? `Refit: ${SHIP_BY_ID[refitProgress(G.state).ship]?.name} · ${mins(refitProgress(G.state).mins)}` : `In dock: ${SHIP_BY_ID[G.state.ship]?.name}`) : `Chimera · ${yardStage(G.state)}/${YARD_STAGES.length} built`) : id === 'beacons' ? `${VOID_BOSSES.filter((b) => voidBeaten(G.state)[b]).length}/${VOID_BOSSES.length} beaten` : id === 'garden' ? gardenTitle() : id === 'ops' ? opsTitle() : G.state.stationName || 'Station defence')), h('button.btn.ghost.small.d3-exit', { onclick: () => show(outside) }, uiIcon('back'), 'Exit')), hint);
+    const el = h('div.deck3d' + (id === 'control' ? '.control' : id === 'hall' ? '.hall' : id === 'comms' ? '.comms' : id === 'quarters' ? '.quarters' : id === 'observatory' ? '.observatory' : id === 'yard' ? '.yard' : id === 'beacons' ? '.beacons' : id === 'garden' ? '.garden' : id === 'ops' ? '.ops' : id === 'cipher' ? '.cipher' : ''), { 'aria-label': `${ROOMS[id]}. Drag to look around, tap the floor to walk, tap an exhibit to inspect it.` },
+      h('div.d3-top', h('div.d3-title', h('small', ROOMS[id]), h('b', id === 'deck' || id === 'quarters' ? p.name || rankTitle(p.rank) : id === 'hall' ? `${caughtStages(G.state).length}/6 captured` : id === 'comms' ? `${(G.state.bounties?.list || []).filter((b) => b.done).length}/3 bounties done` : id === 'observatory' ? `${VOID_MARKS.filter((m) => isCharted(G.state, m)).length}/${VOID_MARKS.length} charted` : id === 'yard' ? (yardDone(G.state) ? (refitProgress(G.state) && !refitProgress(G.state).out ? `Refit: ${SHIP_BY_ID[refitProgress(G.state).ship]?.name} · ${mins(refitProgress(G.state).mins)}` : `In dock: ${SHIP_BY_ID[G.state.ship]?.name}`) : `Chimera · ${yardStage(G.state)}/${YARD_STAGES.length} built`) : id === 'beacons' ? `${VOID_BOSSES.filter((b) => voidBeaten(G.state)[b]).length}/${VOID_BOSSES.length} beaten` : id === 'garden' ? gardenTitle() : id === 'ops' ? opsTitle() : id === 'cipher' ? cipherTitle() : G.state.stationName || 'Station defence')), h('button.btn.ghost.small.d3-exit', { onclick: () => show(outside) }, uiIcon('back'), 'Exit')), hint);
     let down = null;
     if (watch && id === 'deck') { el.append(watch.el); el.classList.add('watching'); }
     el.addEventListener('pointerdown', (e) => { if (e.target.closest('button, input') || watch) return; down = { id: e.pointerId, x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, t: performance.now(), moved: false }; try { el.setPointerCapture(e.pointerId); } catch { /* not every pointer can be captured */ } });
@@ -1135,7 +1181,7 @@ export function createHangar(hooks) {
     const up = (e) => {
       if (!down || e.pointerId !== down.id) return; const tap = !down.moved && performance.now() - down.t < 450; down = null; hint.classList.add('off');
       if (!tap) return; const r = G.renderer.canvas.getBoundingClientRect(), res = G.renderer.room?.pick(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-      if (res?.exhibit === 'bolt') boltTap(); else if (res?.exhibit) ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit, quarters: quartersExhibit, observatory: observatoryExhibit, yard: yardExhibit, beacons: beaconExhibit, garden: gardenExhibit, ops: opsExhibit }[id] || exhibit)(res.exhibit); else if (res?.walk) playSfx('tab', 0.4);
+      if (res?.exhibit === 'bolt') boltTap(); else if (res?.exhibit) ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit, quarters: quartersExhibit, observatory: observatoryExhibit, yard: yardExhibit, beacons: beaconExhibit, garden: gardenExhibit, ops: opsExhibit, cipher: cipherExhibit }[id] || exhibit)(res.exhibit); else if (res?.walk) playSfx('tab', 0.4);
     };
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', () => { down = null; });
     return el;
@@ -1474,6 +1520,10 @@ export function createHangar(hooks) {
     if (r.id === 'observatory') { const n = chartable(st).length, done = VOID_MARKS.filter((m) => isCharted(st, m)).length; return n ? { text: `${n} new ${n > 1 ? 'depths' : 'depth'} to chart`, ready: true } : { text: done ? `${done} of ${VOID_MARKS.length} depths charted` : r.for }; }
     if (r.id === 'yard') { if (yardDone(st)) return { text: 'The Chimera is built: try her paints in the dock' }; const n = nextStage(st), step = `stage ${n.n} of ${YARD_STAGES.length}, ${n.name.toLowerCase()}`; return stageBlock(st) ? { text: `The Chimera, ${step}` } : { text: `Ready to build ${step}`, ready: true }; }
     if (r.id === 'beacons') { const n = VOID_BOSSES.filter((id) => voidBeaten(st)[id]).length; return { text: n ? `${n} of ${VOID_BOSSES.length} Void bosses beaten` : r.for }; }
+    if (r.id === 'cipher') { const c = cipherOf(st), held = fragmentsHeld(st);
+      if (held && !messageRead(st)) return { text: `${held} fragment${held > 1 ? 's' : ''} to decode`, ready: true };
+      if (c.beaten) return { text: `The Cipher beaten ×${c.kills || 1}` }; if (messageRead(st)) return { text: 'Follow the signal on a Deep Void run', ready: true };
+      return { text: c.decoded ? `${c.decoded} of ${FRAGMENTS} glyphs read` : r.for }; }
     if (r.id === 'ops') { const c = fleetCounts(st);
       if (c.ready) return { text: `${c.ready} ship${c.ready > 1 ? 's' : ''} home: unload ${c.ready > 1 ? 'them' : 'her'}`, ready: true };
       if (c.damaged) return { text: `${c.damaged} ship${c.damaged > 1 ? 's' : ''} home damaged: repair ${c.damaged > 1 ? 'them' : 'her'} to fly again`, ready: true };
@@ -1508,5 +1558,5 @@ export function createHangar(hooks) {
   bus.on('contract', () => { if (G.mode === 'hangar') render(); });
   bus.on('medal', () => { if (G.mode === 'hangar' && tab === 'awards') { G.state.seen.medals = medalTotal().earned; render(); } });
   layoutNav();
-  return { el, top, nav: $.nav, show, board, render, update, siege: (n) => launchSiege(n), tap: (kind) => kind === 'bolt' ? boltTap() : ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit, quarters: quartersExhibit, observatory: observatoryExhibit, yard: yardExhibit, beacons: beaconExhibit, garden: gardenExhibit, ops: opsExhibit }[G.room] || exhibit)(kind), get tab() { return tab; } };
+  return { el, top, nav: $.nav, show, board, render, update, siege: (n) => launchSiege(n), tap: (kind) => kind === 'bolt' ? boltTap() : ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit, quarters: quartersExhibit, observatory: observatoryExhibit, yard: yardExhibit, beacons: beaconExhibit, garden: gardenExhibit, ops: opsExhibit, cipher: cipherExhibit }[G.room] || exhibit)(kind), get tab() { return tab; } };
 }

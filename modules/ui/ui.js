@@ -36,6 +36,7 @@ export function initUI(app, hooks) {
     menuIntro: (m) => overlays.showMenuIntro(m),
     replayIntro: () => { overlays.close(); intro.play({ tap: false }); },
     panel: (o) => overlays.showPanel(o),
+    tune: (o) => overlays.showTune(o), /* the Cipher: tuning a fragment */
     nameStation: () => overlays.showStationName(),
     say: (text) => comms.say(text),
     boltSay: (line) => { if (line) comms.say(`*${line[0]}* ${line[1]}`, 'bolt'); },

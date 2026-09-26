@@ -29,6 +29,9 @@ import { ROUTE_BY_ID } from '@last-orbit/data/routes.js';
 import { FUSION_BY_ID } from '@last-orbit/data/fusions.js';
 import { sectorOf } from '@last-orbit/data/sectors.js';
 import { BOSSES } from '@last-orbit/data/bosses.js';
+import { FRAGMENTS, TUNE, tuneTarget, tuneLocks, tuned } from '@last-orbit/data/cipher.js';
+import { glyphSvg } from '@last-orbit/ui/glyph.js';
+import { typeText } from '@last-orbit/ui/comms.js';
 import { BAL } from '@last-orbit/data/balance.js';
 import { unlockLabel, pilotProgress, medalDesc, overhaul, overhaulReward, blueprintLevel, setCallsign, cleanCallsign, CALLSIGN_MAX, setStationName, cleanStationName, STATION_NAME_MAX } from '@last-orbit/progression/meta.js';
 import { TRAILS, OVERHAUL_COST_STEP, OVERHAUL_FX_CAP } from '@last-orbit/data/prestige.js';
@@ -118,8 +121,8 @@ export function createOverlays(layer, hooks) {
       setTimeout(() => { const r = pickRoute(i); if (r && r.id !== 'steady') hooks.flash?.('#ffc857'); if (!hooks.nextChoice()) close(); }, 200); };
     run.routeOffer.forEach((id, i) => {
       const r = ROUTE_BY_ID[id];
-      cards.append(h('button.card.route' + (id === 'steady' ? '.steady' : ''), { style: `--c:#ffc857;--r:#ffb547;--d:${i * 90}ms`, onclick: () => choose(i), 'data-autofocus': i === 0 ? '' : null },
-        h('div.card-art', art(r.art, 'card-icon')), h('div.card-main', h('div.card-kicker', h('span', id === 'steady' ? 'No risk' : 'Risk and reward'), h('span.rar', 'Route')), h('div.card-title', r.name), h('div.card-body', r.desc)), h('span.card-key', String(i + 1))));
+      cards.append(h('button.card.route' + (id === 'steady' ? '.steady' : '') + (r.special ? '.signal' : ''), { style: r.special ? `--c:#ffe9a8;--r:#6dfff0;--d:${i * 90}ms` : `--c:#ffc857;--r:#ffb547;--d:${i * 90}ms`, onclick: () => choose(i), 'data-autofocus': i === 0 ? '' : null },
+        h('div.card-art', art(r.art, 'card-icon')), h('div.card-main', h('div.card-kicker', h('span', id === 'steady' ? 'No risk' : r.special ? 'The Cipher' : 'Risk and reward'), h('span.rar', r.special ? 'Hidden' : 'Route')), h('div.card-title', r.name), h('div.card-body', r.desc)), h('span.card-key', String(i + 1))));
     });
     const el = h('div.modal.route-pick', { role: 'dialog', 'aria-label': 'Choose a route' },
       h('div.modal-head', h('div.kicker', `Next: Sector ${next.idx + 1} · ${next.def.name}`), h('h2', 'Choose your route'), h('p', 'The route holds until this sector\u2019s boss falls.')), cards);
@@ -293,6 +296,49 @@ export function createOverlays(layer, hooks) {
     const el = h('div.modal.info-panel', { role: 'dialog', 'aria-label': title }, h('div.modal-head', kicker ? h('div.kicker', kicker) : null, h('h2', title)), ...body,
       h('div.modal-actions', h('button.btn.primary', { onclick: close, 'data-autofocus': '' }, 'Close')));
     mount('panel', el, (e) => { if (e.key === 'Escape') { close(); return true; } return false; });
+  }
+
+  // ------------------------------------------------------------ the Cipher: tuning a fragment's signal (data/cipher.js)
+  /** Match the fragment's signal (gold, noisy) with your own (teal): frequency in whole steps, phase and strength. Each
+   *  dial's light comes on when it is close enough; all three and the fragment is decoded. n: the fragment's number (it
+   *  sets the target); echo: the message is already whole; decode(): called once tuned, returns what it gave up
+   *  ({ glyph, n, last, echo, bp }); next(): decode another (offered while fragments are left). */
+  function showTune({ n, echo, decode, next }) {
+    const target = tuneTarget(n), set = { freq: TUNE.freqMin, phase: 0, amp: 0.5 }, cv = h('canvas.tn-wave', { width: 640, height: 240 }), x = cv.getContext('2d'), t0 = performance.now();
+    let done = false, was = {};
+    const pips = { freq: h('span.tn-pip', 'Frequency'), phase: h('span.tn-pip', 'Phase'), amp: h('span.tn-pip', 'Strength') }, freqOut = h('b.tn-val', String(set.freq));
+    const step = (d) => { if (done) return; set.freq = Math.max(TUNE.freqMin, Math.min(TUNE.freqMax, set.freq + d)); freqOut.textContent = String(set.freq); playSfx('tab', 0.4); check(); };
+    const phase = slider(() => set.phase, (v) => { set.phase = v; check(); }, 0, 1, 0.01, 'Phase'), amp = slider(() => set.amp, (v) => { set.amp = v; check(); }, TUNE.ampMin, TUNE.ampMax, 0.01, 'Strength');
+    const controls = h('div.tn-controls',
+      h('div.tn-row', h('span', 'Frequency'), h('div.tn-step', h('button.btn.ghost.small', { onclick: () => step(-1), 'aria-label': 'Lower frequency' }, '−'), freqOut, h('button.btn.ghost.small', { onclick: () => step(1), 'aria-label': 'Higher frequency' }, '+'))),
+      h('label.tn-row', h('span', 'Phase'), phase), h('label.tn-row', h('span', 'Strength'), amp));
+    const result = h('div.tn-result'), actions = h('div.modal-actions', h('button.btn.ghost', { onclick: close, 'data-autofocus': '' }, 'Not now'));
+    const el = h('div.modal.tune', { role: 'dialog', 'aria-label': 'Tune the signal' },
+      h('div.modal-head', h('div.kicker', echo ? 'The Cipher · an echo' : `The Cipher · fragment ${n + 1} of ${FRAGMENTS}`), h('h2', 'Tune the signal'), h('p', 'Match your signal (teal) to the fragment\u2019s (gold): frequency, phase and strength. Each light comes on when that dial is close enough.')),
+      cv, h('div.tn-pips', pips.freq, pips.phase, pips.amp), controls, result, actions);
+    const wave = (f, p, a, color, width, noise) => { x.strokeStyle = color; x.lineWidth = width; x.beginPath(); for (let i = 0; i <= 256; i++) { const u = i / 256, y = 120 - Math.sin((u * f + p) * Math.PI * 2) * a * 95 + (noise ? (Math.random() - 0.5) * noise : 0); if (i) x.lineTo(u * 640, y); else x.moveTo(0, y); } x.stroke(); };
+    const draw = () => {
+      if (!el.isConnected) return; requestAnimationFrame(draw);
+      const t = (performance.now() - t0) / 1000, drift = t * 0.06; /* both waves roll along together, so they can be compared */
+      x.fillStyle = '#071113'; x.fillRect(0, 0, 640, 240); x.strokeStyle = 'rgba(109,255,240,.1)'; x.lineWidth = 1;
+      for (let i = 1; i < 8; i++) { x.beginPath(); x.moveTo(i * 80, 0); x.lineTo(i * 80, 240); x.stroke(); } x.beginPath(); x.moveTo(0, 120); x.lineTo(640, 120); x.stroke();
+      wave(target.freq, target.phase + drift, target.amp, done ? '#ffe9a8' : 'rgba(255,233,168,.85)', done ? 6 : 4, done ? 0 : 14);
+      if (!done) wave(set.freq, set.phase + drift, set.amp, '#6dfff0', 3, 0);
+    };
+    function check() {
+      const l = tuneLocks(target, set);
+      for (const k of ['freq', 'phase', 'amp']) { setClass(pips[k], 'on', l[k]); if (l[k] && !was[k]) playSfx('tab', 0.5); } was = l;
+      if (done || !tuned(target, set)) return;
+      done = true; el.classList.add('tuned'); for (const i of controls.querySelectorAll('input, button')) i.disabled = true; playSfx('unlock');
+      const got = decode(); if (!got) return;
+      clear(result);
+      if (got.echo) result.append(h('div.tn-echo', h('b', 'An echo of the message'), h('small', `+${got.bp} Blueprint`)));
+      else { const line = h('p.cg-quote'); result.append(glyphSvg(got.glyph, 'cg-glyph big'), h('small.tn-name', `Glyph of ${got.glyph.name} · ${got.n + 1} of ${FRAGMENTS}`), line); typeText(line, got.glyph.line, { speed: 34 });
+        if (got.last) result.append(h('p.tn-last', 'The message is whole. It is a place: the Origin, past the edge of the charts. Follow the signal on your next Deep Void run.')); }
+      clear(actions); actions.append((G.state.fleet?.fragments || 0) > 0 && next ? h('button.btn.gold', { onclick: () => { close(); setTimeout(next, 80); } }, 'Decode the next') : null, h('button.btn.primary', { onclick: close, 'data-autofocus': '' }, 'Done'));
+    }
+    mount('tune', el, (e) => { if (e.key === 'Escape') { close(); return true; } return false; });
+    check(); draw();
   }
 
   // ------------------------------------------------------------ the station is complete (every Workshop upgrade maxed)
@@ -661,7 +707,7 @@ export function createOverlays(layer, hooks) {
   };
 
   return {
-    showKit, showOffer, showWarp, showRelics, showRoutes, showAnomalies, showPause, showSettings, showDebrief, showLoadout, showCounterIntro, showOverhaul, showMenuIntro, showRoomOffer, showCallsign, showStationComplete, showPanel, showStationName, showSiegeIntro, showConfirm, showSiegeDebrief, close,
+    showKit, showOffer, showWarp, showRelics, showRoutes, showAnomalies, showPause, showSettings, showDebrief, showLoadout, showCounterIntro, showOverhaul, showMenuIntro, showRoomOffer, showCallsign, showStationComplete, showPanel, showTune, showStationName, showSiegeIntro, showConfirm, showSiegeDebrief, close,
     get kind() { return open?.kind || null; },
     /** Combat freezes while any overlay is up. */
     blocking: () => !!open,

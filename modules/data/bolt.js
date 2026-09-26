@@ -85,6 +85,7 @@ export const BOLT_ROOMS = {
   yard: ['Brrrp!', 'The shipyard! I want to help. I will hold this. Nothing. I will hold nothing.'],
   beacons: ['Bip...', 'Something out there is answering. I do not like it.'],
   garden: ['Bee!', 'Sprig! Hello Sprig! We are friends. Sprig does not know yet.'],
+  cipher: ['Bzzt?', 'The big crystal hums at me. I hum back. We are friends now, I think.'],
   ops: ['Bip bip!', 'When the ships come home, I count them. All of them. Every time.'],
 };
 /** What ORBIT says about Bolt, now and then, when you tap it. */
