@@ -31,6 +31,14 @@ function newId() {
 export const pilotId = (st = G.state) => (gl(st).id ||= newId());
 /** The name the boards show for this pilot: their callsign, or Pilot without one. */
 export const boardName = (st = G.state) => st.pilot?.name || 'Pilot';
+/** A callsign as the boards keep it (api/src/index.js tidy: letters, numbers and . _ ' - only, 16 at most). */
+const tidyName = (s) => [...String(s || '').replace(/[^\p{L}\p{N} ._'-]/gu, '').replace(/\s+/g, ' ').trim()].slice(0, 16).join('').trim();
+/** The name the boards show instead of this pilot's callsign ('Pilot' when it is reserved for someone else, not
+ *  allowed, or reset by a moderator), or '' when they show the callsign (or nothing has gone up since it changed). */
+export function shownInstead(st = G.state) {
+  const g = gl(st), sent = st.pilot?.name || '';
+  return sent && g.shownAs && g.sentAs === sent && tidyName(sent).toLowerCase() !== g.shownAs.toLowerCase() ? g.shownAs : '';
+}
 // ------------------------------------------------------------------ the pilot key: signing in elsewhere
 // The key is this device's id, shown in groups of four. Entered on another device (or after a fresh save), that
 // device becomes the same pilot on the boards: name, tag, badge, role and scores. Its own save is untouched.
@@ -41,7 +49,7 @@ export function parseKey(text) { const hex = String(text || '').toLowerCase().re
 export const lookupPilot = (id) => send('/pilot?p=' + id);
 /** Become that pilot on this device. Scores already posted from here stay with the old id. */
 export function signIn(st, id, who = {}) {
-  const g = gl(st); Object.assign(g, { id, told: true, best: who.best || 0, pending: [], forget: false, tag: who.tag || '', shownAs: who.name || '' });
+  const g = gl(st); Object.assign(g, { id, told: true, best: who.best || 0, pending: [], forget: false, tag: who.tag || '', shownAs: who.name || '', sentAs: who.name || '' });
   st.settings.globalBoards = true; if (who.name && who.name !== 'Pilot') { st.pilot.name = who.name; st.seen.callsign = true; }
   cache.clear(); bus.emit('globalSignedIn', who); return g;
 }
@@ -111,8 +119,10 @@ export function flush(st = G.state) {
     while (g.pending.length && posting(st)) {
       const item = g.pending[0]; if (sent++) await wait(POST_GAP);
       try {
-        const res = await send('/score', { p: pilotId(st), name: st.pilot?.name || '', station: st.stationName || '', rank: st.pilot?.rank || 0, v: VERSION, entry: item.entry, boards: item.boards });
-        g.pending.shift(); g.shownAs = res.name; if (res.tag) g.tag = res.tag; for (const [b, v] of Object.entries(res.boards || {})) cache.set(b, { at: Date.now(), data: v });
+        const name = st.pilot?.name || '';
+        const res = await send('/score', { p: pilotId(st), name, station: st.stationName || '', rank: st.pilot?.rank || 0, v: VERSION, entry: item.entry, boards: item.boards });
+        g.pending.shift(); g.shownAs = res.name; g.sentAs = name; /* what the boards made of that callsign */
+        for (const [b, v] of Object.entries(res.boards || {})) if (v?.me?.n) { const at = { n: v.me.n, of: v.total || v.me.n }; if (b === 'all') g.place = at; else g.dayPlace = { ...at, day: b.slice(6) }; } /* for the News */ if (res.tag) g.tag = res.tag; for (const [b, v] of Object.entries(res.boards || {})) cache.set(b, { at: Date.now(), data: v });
         bus.emit('globalPosted', item, res);
       } catch (e) {
         bus.emit('globalPosted', item, null, retryable(e) ? 'offline' : e.message);

@@ -2,7 +2,7 @@
 // up as a new wave began), a Stooper diving into the ship crashes into it, and boss shots hit harder than an
 // invader's.
 import { G, recalc } from '@last-orbit/core/game.js';
-import { newState } from '@last-orbit/core/state.js';
+import { newState, erasedState, introDue } from '@last-orbit/core/state.js';
 import { initWorld, step } from '@last-orbit/combat/sim.js';
 import { spawnEnemy } from '@last-orbit/combat/world.js';
 import { startSortie, nextOffer, pickCard } from '@last-orbit/progression/run.js';
@@ -37,6 +37,15 @@ ok(!e.alive && Math.abs(lost - Math.min(1, want)) < 0.02, `a Stooper diving into
 // ------------------------------------------------------------------ boss shots hit harder
 const src = readFileSync(new URL('../modules/combat/bosses.js', import.meta.url), 'utf8');
 ok(BAL.bossShot > 1 && !/[^.]spawnBullet\(w, (?!x, y, vx)/.test(src), 'every boss shot goes through bossShot (half as hard again as an invader\'s)');
+
+// ------------------------------------------------------------------ the opening does not replay by itself (v2.25.2)
+const old = newState(); old.seen.intro = true; old.stats.sorties = 40; old.global.id = 'a'.repeat(32); old.global.told = true;
+const erased = erasedState(old);
+ok(erased.seen.intro && erased.global.id === old.global.id && erased.global.told && erased.stats.sorties === 0, 'erasing a save keeps having seen the opening (and the place on the boards), and nothing else');
+ok(!introDue(erased), 'so the opening does not play by itself on a later launch');
+const hit = newState(); hit.stats.sorties = 12; /* a save erased before the fix, flown since */
+ok(!introDue(hit) && hit.seen.intro, 'a save that has flown without the flag is marked seen, not shown the opening again');
+const brandNew = newState(); ok(introDue(brandNew), 'a brand-new pilot still gets the opening');
 
 if (failures) { console.error(`playtest-regression: ${failures} failed`); process.exit(1); }
 console.log('playtest-regression: all passed');

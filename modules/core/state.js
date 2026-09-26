@@ -66,6 +66,23 @@ export function newState() {
 }
 
 /** Fill in anything missing from an older/partial save using defaults (deep, non-destructive). */
+/** A fresh save after Erase save. The pilot keeps what was never progress: the debug sandbox, the one-time veteran
+ *  check, their place on the global boards (name tag, badge, any DEV tag) and having seen the opening (Settings >
+ *  Story replays it). */
+export function erasedState(old) {
+  const s = newState();
+  s.meta.sandbox = !!old?.meta?.sandbox; s.meta.legacyChecked = !!old?.meta?.legacyChecked;
+  s.global.id = old?.global?.id || ''; s.global.told = !!old?.global?.told;
+  s.seen.intro = !!old?.seen?.intro;
+  return s;
+}
+/** Whether the opening plays by itself at launch: only for a pilot who has not flown yet. A save that has flown
+ *  without the flag (an erase before v2.25.2, an old backup) is marked seen instead of surprising them with it. */
+export function introDue(st) {
+  if (st.seen.intro) return false;
+  if ((st.stats?.sorties || 0) > 0) { st.seen.intro = true; return false; }
+  return true;
+}
 export function withDefaults(obj, def) {
   if (obj == null) return def;
   if (Array.isArray(def) || typeof def !== 'object' || def === null) return obj;

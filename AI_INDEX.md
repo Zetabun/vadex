@@ -14,6 +14,9 @@
 | Global boards (posting, fetching, the Records Global tab, the Deck TV's Boards channel) | `modules/progression/global.js`, `modules/data/global.js`, `api/src/index.js`, `tests/global-regression.mjs`, `tests/api-regression.mjs` |
 | Field kit (supply meter, canisters, boosts, the kit panel and HUD chips) | `modules/data/boosts.js`, `modules/progression/boosts.js`, `modules/ui/hud.js`, `modules/ui/overlays.js` (showKit), `tests/kit-regression.mjs`, `tests/kit-probe.mjs` |
 | What's new (the gear's "!", Settings > Updates) | `modules/progression/updates.js`, `modules/data/updates.js` (generated from `CHANGELOG.md` by `tools/build_updates.py`), `modules/ui/overlays.js` (showSettings) |
+| The Deck TV's News channel (stories from the save, lore, ticker) | `modules/data/news.js`, `modules/rendering/deck.js` (drawNews), `tests/news-regression.mjs` |
+| ORBIT's milestone lines (held in the gun seat) | `modules/ui/comms.js` (LINES, hold), `modules/ui/ui.js` (update) |
+| The opening cinematic (when it plays by itself), Erase save | `modules/core/state.js` (introDue, erasedState), `modules/main.js` (boot, hardReset), `modules/ui/intro.js` |
 | Battle readability (enemy shots vs drops, Settings > Enemy shots, background decor) | `modules/rendering/renderer.js` (drawPickups, enemy shots), `modules/rendering/background.js`, `tests/playtest-regression.mjs` |
 | Release check and balance bot | `tools/run_release_gates.py`, `tests/sortie-regression.mjs`, `tests/balance-sim.mjs` |
 

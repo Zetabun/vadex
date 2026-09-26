@@ -371,9 +371,8 @@ export class Renderer {
     for (let i = 0; i < w.ebullets.length; i++) { const b = w.ebullets[i]; if (!b.alive) continue; const c = shotCol || BULLET_COL[b.kind] || RED, r = b.r * (flash ? 1 + 0.15 * pulse : 1);
       if (this.overGround) B.dark.add(b.x, b.y, r * 4.4, r * 4.4, 0, WHITE, 1);
       if (b.kind === 'snipe') { B.streak.add(b.x, b.y, r * 9, r * 2, Math.atan2(b.vy, b.vx), RED, 1.5); B.streak.add(b.x, b.y, r * 5, r, Math.atan2(b.vy, b.vx), WHITE, 1); }
-      else { // an enemy shot: a trail behind it (it is moving, and at you), a dark rim, a hot core; drops never look like this
-        const g = this.overGround ? 1.25 : 1, sp = Math.hypot(b.vx, b.vy) || 1, tl = r * 5.5 * g;
-        B.streak.add(b.x - (b.vx / sp) * tl * 0.5, b.y - (b.vy / sp) * tl * 0.5, tl, r * 1.5 * g, Math.atan2(b.vy, b.vx), c, 0.6);
+      else { // an enemy shot: a dark rim round a hot core, no trail (it looked busy), and drops never look like this
+        const g = this.overGround ? 1.25 : 1;
         if (!this.overGround) B.dark.add(b.x, b.y, r * 3.4, r * 3.4, 0, WHITE, 0.85);
         B.soft.add(b.x, b.y, r * 4.4 * g, r * 4.4 * g, 0, c, 1.1 * g); B.soft.add(b.x, b.y, r * 2.1 * g, r * 2.1 * g, 0, WHITE, 1.2); }
     }

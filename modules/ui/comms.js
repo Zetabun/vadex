@@ -35,12 +35,14 @@ export const LINES = [
 
 export function createComms(app) {
   const text = h('div.cm-text'), who = h('div.cm-who', 'ORBIT · station AI'), el = h('div#comms', { role: 'status', onclick: () => hide() }, h('div.cm-av', h('i')), h('div.cm-main', who, text));
-  app.append(el); let hideT = 0, busy = false;
-  function hide() { clearTimeout(hideT); clearTimeout(text._tt); el.classList.remove('on'); busy = false; }
+  app.append(el); let hideT = 0, busy = false, current = null;
+  function hide() { clearTimeout(hideT); clearTimeout(text._tt); el.classList.remove('on'); busy = false; current = null; }
+  /** Stop talking for now (the pilot took the gun seat): a milestone line cut short is heard again later. */
+  function hold() { if (!busy) return; if (current) delete G.state.seen.comms?.[current]; hide(); }
   /** A line typed out in the box: ORBIT's, or Bolt's (speaker 'bolt': its beep, then what ORBIT says it means, in Bolt's
    *  own orange and a higher, quicker chirp). */
   function say(line, speaker = 'orbit') {
-    clearTimeout(hideT); busy = true; el.classList.add('on'); const n = G.state.pilot.name || 'Pilot', isBolt = speaker === 'bolt';
+    clearTimeout(hideT); busy = true; current = null; el.classList.add('on'); const n = G.state.pilot.name || 'Pilot', isBolt = speaker === 'bolt';
     el.classList.toggle('bolt', isBolt); who.textContent = isBolt ? 'BOLT · translated by ORBIT' : 'ORBIT · station AI';
     typeText(text, line.replace('{n}', n), { speed: isBolt ? 30 : 36, pitch: isBolt ? 1.9 : 1, onDone: () => { clearTimeout(hideT); hideT = setTimeout(hide, 4200); } });
   }
@@ -50,7 +52,7 @@ export function createComms(app) {
     if (!st.seen.commsInit) { st.seen.commsInit = true; for (const l of LINES) if (l.id !== 'welcome' && l.when(st)) seen[l.id] = true; }
     if (busy) return false;
     const line = LINES.find((l) => !seen[l.id] && l.when(st)); if (!line) return false;
-    seen[line.id] = true; say(line.text); return true;
+    seen[line.id] = true; say(line.text); current = line.id; return true;
   }
-  return { say, check, hide, get busy() { return busy; } };
+  return { say, check, hide, hold, get busy() { return busy; } };
 }

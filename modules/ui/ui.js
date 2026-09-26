@@ -156,8 +156,10 @@ export function initUI(app, hooks) {
 
   function update(dt) {
     if (G.mode === 'sortie') hud.update(dt); else hangar.update();
-    // The station AI speaks up at milestones, in the hangar, once the pilot has a callsign.
-    if (G.mode === 'hangar' && !G.introPlaying && G.state.seen.callsign && !overlays.blocking() && (commsT -= dt) <= 0) { commsT = 1.5; if (!announceRoom()) comms.check(); }
+    // The station AI speaks up at milestones, in the hangar, once the pilot has a callsign; never in the gun seat (it
+    // saves its lines until the pilot leaves the Siege).
+    if (G.room === 'gunner') { comms.hold(); commsT = 1.5; }
+    else if (G.mode === 'hangar' && !G.introPlaying && G.state.seen.callsign && !overlays.blocking() && (commsT -= dt) <= 0) { commsT = 1.5; if (!announceRoom()) comms.check(); }
   }
   /** The greeting when the app opens (or right after a new pilot registers). */
   function greet(fresh) { const n = G.state.pilot.name; if (n) banner(fresh ? 'Welcome aboard' : 'Welcome back', n, null, 'var(--cyan)', 2600); }

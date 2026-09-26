@@ -4,7 +4,7 @@
 
 | Directory | Responsibility |
 |---|---|
-| `modules/core/` | Save-state defaults, large numbers, events, formatting and the shared `G` context |
+| `modules/core/` | Save-state defaults (and what survives Erase save: `erasedState`), large numbers, events, formatting and the shared `G` context |
 | `modules/data/` | Definitions and tuning: sectors, enemies, bosses, weapons, abilities, cards, relics, ships, Workshop, contracts, balance |
 | `modules/combat/` | Fixed-step battle simulation, damage, loot pickups, player, weapons, drones, enemies and bosses |
 | `modules/progression/` | Derived stats (`stats.js`), the sortie (`run.js`) and between-sortie spending and contracts (`meta.js`) |

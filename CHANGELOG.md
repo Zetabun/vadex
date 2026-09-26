@@ -1,5 +1,17 @@
 # Changelog
 
+## v2.25.2
+
+Fixes and polish.
+
+- **Fixed: the opening no longer plays again by itself.** After erasing a save, the opening cinematic came back on some later launch, even ranks into the new save. Erasing now remembers you have seen it, and the opening only plays by itself for a pilot who has not flown yet. Settings > Story > Watch intro still plays it whenever you like.
+- **Fixed: long paint names no longer break in half.** "Greenhouse" and "Lightkeeper" split mid-word on the Ships screen on a phone. Paint, trail and banner names now shrink a touch to fit on narrower phones, and every screen was checked at three phone sizes for words broken in two.
+- **Enemy shots without the trails.** The streak behind each enemy shot was busy rather than helpful, so it is gone. Shots stay red, with a dark rim and a hot core, and still look nothing like drops.
+- **ORBIT keeps quiet while you are on the guns.** In the Station Siege its messages covered the Missile button, and talked about other things mid-fight. It now saves them for when you leave the gun seat.
+- **Records tells you when the boards cannot show your callsign.** If your callsign is reserved, taken or not allowed on the global boards, Records > Global now says the boards show you as Pilot, and why. Your scores still go up; pick another callsign in Settings to show yours.
+- **More News on the Command Deck TV.** New stories about your place on the global boards and in today's Daily, your Daily streak, the field kit, a ship in the dry dock or home damaged, a new room waiting for your first visit, and Bolt's latest outfit. Eight new station stories run between them.
+- tools/overflow.mjs also lists words broken across two lines; tests/news-regression.mjs covers the new stories, and tests/playtest-regression.mjs the opening after an erase.
+
 ## v2.25.1 — 2026-09-26
 
 Changes from playtesting.

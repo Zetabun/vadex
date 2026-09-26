@@ -3,7 +3,7 @@
 import { G, recalc, toast } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { setNotation } from '@last-orbit/core/format.js';
-import { newState } from '@last-orbit/core/state.js';
+import { erasedState, introDue } from '@last-orbit/core/state.js';
 import { FIELD } from '@last-orbit/data/balance.js';
 import { initWorld, advance } from '@last-orbit/combat/sim.js';
 import { useAbility } from '@last-orbit/combat/abilities.js';
@@ -45,7 +45,7 @@ const hooks = {
   // a save restored from a backup code replaces this device's progress, and is saved at once
   restoreSave: async (s) => { adopt(s); ui.setMode('hangar'); await save('restore'); toast('Progress restored from your backup.', 'good'); },
   saveNow: (why = 'manual') => save(why),
-  hardReset: async () => { await hardReset(); const s = newState(); s.meta.sandbox = G.state.meta.sandbox; s.meta.legacyChecked = G.state.meta.legacyChecked; s.global.id = G.state.global?.id || ''; s.global.told = !!G.state.global?.told; /* the pilot keeps their place on the global boards (their name tag, badge, any DEV tag) */ adopt(s); ui.setMode('hangar'); await save('reset'); toast('Save erased. Good luck, pilot.', 'warn'); setTimeout(() => ui.callsign({ first: true }), 600); },
+  hardReset: async () => { await hardReset(); const s = erasedState(G.state); /* keeps their place on the global boards and having seen the opening */ adopt(s); ui.setMode('hangar'); await save('reset'); toast('Save erased. Good luck, pilot.', 'warn'); setTimeout(() => ui.callsign({ first: true }), 600); },
 };
 
 function finish(reason) {
@@ -171,9 +171,10 @@ async function boot() {
     save('legacy');
   }
   // Callsign: asked once (new pilots, and existing ones the first time this version runs); after that, a greeting.
-  // The opening cinematic plays once (new pilots, and everyone the first time this version runs), then the callsign.
+  // The opening cinematic plays once, for a pilot who has not flown yet (core/state.js introDue), then the callsign;
+  // Settings > Story plays it again.
   const afterIntro = () => { if (!G.state.seen.callsign) setTimeout(() => ui.callsign({ first: true }), 300); else setTimeout(() => ui.greet(), 400); };
-  if (!/[?&]scene=/.test(location.search)) { if (!G.state.seen.intro) ui.intro({ tap: true, done: () => { G.state.seen.intro = true; save('intro'); afterIntro(); } }); else afterIntro(); }
+  if (!/[?&]scene=/.test(location.search)) { if (introDue(G.state)) ui.intro({ tap: true, done: () => { G.state.seen.intro = true; save('intro'); afterIntro(); } }); else afterIntro(); }
   wireInput();
   addEventListener('resize', () => { renderer.resize(); ui.measure(); }); new ResizeObserver(() => { renderer.resize(); ui.measure(); }).observe(app);
   document.addEventListener('visibilitychange', () => {

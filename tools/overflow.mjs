@@ -1,6 +1,7 @@
 // Finds interface that runs off the side of a phone screen: loads debug scenes at a phone's size (W, H: an iPhone 16 by
 // default) and lists every element that sticks out past the left or right edge and is not inside something that
-// scrolls or clips it, the outermost first (the one to fix). Needs the local server, like tools/shoot.mjs.
+// scrolls or clips it, the outermost first (the one to fix). Also lists words broken across two lines (a label too
+// narrow for its word, like "Greenhous / e"). Needs the local server, like tools/shoot.mjs.
 //   node tools/overflow.mjs [scene ...]        (PORT, W, H, WAIT env as for shoot.mjs; SHOTS=dir also saves screenshots)
 import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
@@ -29,7 +30,18 @@ const probe = `(() => {
   const hidden = (e) => { for (let a = e.parentElement; a && a !== document.body; a = a.parentElement) { const s = getComputedStyle(a); if (/(auto|scroll|hidden|clip)/.test(s.overflowX)) { const r = a.getBoundingClientRect(); if (r.right <= vw + 1 && r.left >= -1) return true; } } return false; };
   const bad = (e) => { const s = getComputedStyle(e); if (s.display === 'none' || s.visibility === 'hidden' || +s.opacity === 0 || s.position === 'fixed' && e.id === 'gl') return false; const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0 && (r.right > vw + 1 || r.left < -1) && !hidden(e); };
   for (const e of document.querySelectorAll('#app *, body > *')) { if (e.closest('svg') && e.tagName !== 'svg' || e.tagName === 'CANVAS') continue; if (bad(e) && !(e.parentElement && bad(e.parentElement))) { const r = e.getBoundingClientRect(); out.push({ el: name(e), path: [e.parentElement, e.parentElement?.parentElement].filter(Boolean).map(name).reverse().join(' > '), left: Math.round(r.left), right: Math.round(r.right), text: (e.innerText || '').trim().slice(0, 50).replace(/\\s+/g, ' ') }); } }
-  return JSON.stringify({ vw, page: document.documentElement.scrollWidth, out });
+  // words split across lines: each word (hyphens and slashes are fair places to break) whose pieces sit on different lines
+  const split = [], walk = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n; (n = walk.nextNode());) {
+    const el = n.parentElement; if (!el || el.closest('svg, script, style, canvas') || !el.getClientRects().length) continue;
+    const s = getComputedStyle(el); if (s.visibility === 'hidden' || +s.opacity === 0) continue;
+    for (const m of n.data.matchAll(/[^\\s\\-\\/\u2013\u2014\u00b7]{3,}/g)) {
+      const r = document.createRange(); r.setStart(n, m.index); r.setEnd(n, m.index + m[0].length);
+      const tops = [...r.getClientRects()].filter((q) => q.width > 0.5).map((q) => Math.round(q.top));
+      if (tops.length > 1 && Math.max(...tops) - Math.min(...tops) > 3) split.push({ word: m[0], el: name(el), text: (el.innerText || '').trim().slice(0, 50).replace(/\\s+/g, ' ') });
+    }
+  }
+  return JSON.stringify({ vw, page: document.documentElement.scrollWidth, out, split });
 })()`;
 let problems = 0;
 for (const scene of scenes) {
@@ -37,9 +49,10 @@ for (const scene of scenes) {
   await sleep(+(process.env.WAIT || 3500));
   const r = JSON.parse((await send('Runtime.evaluate', { expression: probe, returnByValue: true })).result.result.value);
   if (SHOTS) { const shot = await send('Page.captureScreenshot', { format: 'png' }); writeFileSync(resolve(SHOTS, scene.replace(/[^a-z0-9_-]/gi, '-') + '.png'), Buffer.from(shot.result.data, 'base64')); }
-  if (!r.out.length && r.page <= r.vw) { console.log(`ok   ${scene}`); continue; }
-  problems++; console.log(`OFF  ${scene} (page ${r.page}px wide on a ${r.vw}px screen)`);
-  for (const o of r.out) console.log(`       ${o.left}..${o.right}  ${o.el}   in ${o.path}   "${o.text}"`);
+  if (!r.out.length && r.page <= r.vw && !r.split.length) { console.log(`ok   ${scene}`); continue; }
+  problems++;
+  if (r.out.length || r.page > r.vw) { console.log(`OFF  ${scene} (page ${r.page}px wide on a ${r.vw}px screen)`); for (const o of r.out) console.log(`       ${o.left}..${o.right}  ${o.el}   in ${o.path}   "${o.text}"`); }
+  if (r.split.length) { console.log(`WRAP ${scene} (a word broken across lines)`); for (const o of r.split) console.log(`       "${o.word}"  ${o.el}   "${o.text}"`); }
 }
-console.log(problems ? `${problems} screen(s) with something off the side` : 'Nothing off the side');
+console.log(problems ? `${problems} screen(s) with something off the side or a broken word` : 'Nothing off the side, no broken words');
 ws.close(); proc.kill();

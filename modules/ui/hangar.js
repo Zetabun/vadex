@@ -72,7 +72,7 @@ import { BOARD_TABS, RETRY_MS } from '@last-orbit/data/global.js';
 import { BOOSTS, BOOST_BY_ID } from '@last-orbit/data/boosts.js';
 import { kit, kitCount } from '@last-orbit/progression/boosts.js';
 import { updatesUnseen } from '@last-orbit/progression/updates.js';
-import { gl, posting, boardsOn, tell, flush, boardName, boardOf, cachedBoard, boardFresh, fetchBoard } from '@last-orbit/progression/global.js';
+import { gl, posting, boardsOn, tell, flush, boardName, shownInstead, boardOf, cachedBoard, boardFresh, fetchBoard } from '@last-orbit/progression/global.js';
 
 const TABS = [['launch', 'Launch'], ['missions', 'Missions'], ['workshop', 'Workshop'], ['armory', 'Armory'], ['ships', 'Ships'], ['contracts', 'Career'], ['records', 'Records'], ['awards', 'Awards'], ['deck', 'Deck']];
 // The tab bar holds five buttons. With more tabs than fit it pages: the first page has four tabs and More, the last
@@ -1065,9 +1065,10 @@ export function createHangar(hooks) {
   function globalView() {
     const st = G.state, g = gl(st), id = boardOf(boardTab), c = cachedBoard(id), def = BOARD_TABS.find((b) => b.id === boardTab), on = posting(st);
     if (!boardFresh(id) && !(Date.now() - (boardFail[id] || 0) < 30e3)) fetchBoard(id).then(() => { delete boardFail[id]; }, () => { boardFail[id] = Date.now(); }).finally(() => { if (tab === 'records' && recTab === 'global') render(); });
-    const name = boardName(st) + (g.tag ? ' #' + g.tag : '');
-    const intro = h('section.panel.gl-intro' + (on ? '' : '.off'), art('ach:trophy', 'gl-ico'), h('div',
-      on ? [h('b', `You post as ${name}`), h('small', `Your Daily Sortie and any new best go up after each sortie.${g.tag ? ` Your tag shows beside your name when another pilot has the same one.` : ''} ${st.pilot.name ? 'Change your callsign' : 'Add a callsign'} in Settings.`)]
+    const instead = on ? shownInstead(st) : '', name = (instead || boardName(st)) + (g.tag ? ' #' + g.tag : '');
+    const intro = h('section.panel.gl-intro' + (on ? '' : '.off') + (instead ? '.instead' : ''), art('ach:trophy', 'gl-ico'), h('div',
+      on && instead ? [h('b', `The boards show you as ${name}`), h('small', `"${st.pilot.name}" cannot go on the global boards: it is taken by another pilot or not allowed there. Your Daily Sortie and any new best still go up. Pick another callsign in Settings to show it.`)]
+      : on ? [h('b', `You post as ${name}`), h('small', `Your Daily Sortie and any new best go up after each sortie.${g.tag ? ` Your tag shows beside your name when another pilot has the same one.` : ''} ${st.pilot.name ? 'Change your callsign' : 'Add a callsign'} in Settings.`)]
         : [h('b', 'Your scores stay on this device'), h('small', boardsOn(st) ? 'You join the boards once Records is open.' : 'Global boards are off in Settings. You can still look.')]));
     const chips = h('div.gl-boards', BOARD_TABS.map((b) => h('button.gl-chip' + (b.id === boardTab ? '.on' : ''), { onclick: () => { if (boardTab === b.id) return; boardTab = b.id; playSfx('tab'); render(); } }, b.name)));
     const daily = boardTab !== 'all' ? dailyFor(id.slice(6)) : null;

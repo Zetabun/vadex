@@ -34,6 +34,7 @@ await flush(st);
 ok(gl(st).pending.length === 0 && sent.length === 1 && /^[0-9a-f]{32}$/.test(sent[0].body.p) && sent[0].body.name === 'Ace' && sent[0].body.station === 'Haven' && sent[0].body.rank === st.pilot.rank, 'it goes up with the id, callsign and station: ' + JSON.stringify(sent[0]?.body));
 ok(posted.at(-1).res?.boards?.all?.me?.n === 1 && cachedBoard('all')?.data?.total === 1, 'the post says where it landed and refreshes the board');
 ok(/^[2-9A-HJKMNP-Z]{4}$/.test(gl(st).tag || ''), 'the pilot keeps the tag the boards gave them: ' + gl(st).tag);
+ok(gl(st).place?.n === 1 && gl(st).place.of === 1, 'the pilot keeps their place on the all-time board (for the News): ' + JSON.stringify(gl(st).place));
 
 // ------------------------------------------------------------------ which boards a sortie goes to
 st.daily.lastDay = today;
@@ -79,6 +80,16 @@ ok(who.name === 'Ace' && who.best > 0, 'the key names its pilot: ' + JSON.string
 signIn(other, parseKey(key), who);
 ok(gl(other).id === mine && gl(other).told && other.pilot.name === 'Ace' && gl(other).best === who.best && !gl(other).pending.length, 'signing in makes this device that pilot, with their callsign and best');
 await lookupPilot('0'.repeat(32)).then(() => ok(false, 'an unknown key should not sign in'), (e) => ok(e.status === 404, 'an unknown key is refused'));
+
+// ------------------------------------------------------------------ a callsign the boards will not show
+const { shownInstead } = await import('@last-orbit/progression/global.js');
+db.prepare("INSERT INTO reserved (nkey, pid) VALUES ('zetabun', ?)").run('f'.repeat(32));
+const third = newState(); third.pilot.name = 'Zetabun'; third.records.top = [{ score: 30000, wave: 20, ship: 'vanguard', level: 14, kills: 300, threat: 0, daily: false, warp: 1, date: Date.now() - 864e5 }];
+ok(!shownInstead(third), 'nothing to say before anything has gone up');
+tell(third); await flush(third);
+ok(gl(third).shownAs === 'Pilot' && shownInstead(third) === 'Pilot', 'a reserved callsign: the pilot is told the boards show them as Pilot: ' + gl(third).shownAs);
+third.pilot.name = 'Zeta Two'; ok(!shownInstead(third), 'a new callsign: nothing to say until it has gone up');
+ok(!shownInstead(st) && gl(st).shownAs === 'Ace', 'a callsign the boards show as it is: nothing to say');
 
 if (failures) { console.error(`global-regression: ${failures} failed`); process.exit(1); }
 console.log('global-regression: all passed');

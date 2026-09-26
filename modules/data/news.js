@@ -1,6 +1,7 @@
 // Station News: the Command Deck TV's News channel (rendering/deck.js). Stories from what has been happening to you
 // (the sortie just flown, your records, the station's rebuild, the fleet, sieges, the Greenhouse, bounties, the Daily
-// Sortie, the Deep Void, even Bolt), with the station's lore, the weather, sport and adverts in between, and a ticker
+// Sortie and the global boards, the field kit, the dry dock, the Deep Void, even Bolt's outfits), with the station's
+// lore, the weather, sport and adverts in between, and a ticker
 // along the bottom. Stories are worked out from the save each time the channel is shown; the lore is fixed.
 import { SHIP_BY_ID } from '@last-orbit/data/ships.js';
 import { sectorOf } from '@last-orbit/data/sectors.js';
@@ -8,6 +9,9 @@ import { rebuildPct } from '@last-orbit/data/station.js';
 import { DEST_BY_ID } from '@last-orbit/data/fleet.js';
 import { VOID_BOSSES } from '@last-orbit/data/beacons.js';
 import { BOSSES } from '@last-orbit/data/bosses.js';
+import { dayKey } from '@last-orbit/data/daily.js';
+import { COSMETIC_BY_ID } from '@last-orbit/data/bolt.js';
+import { ROOMS_ABOARD, roomFresh } from '@last-orbit/data/rooms.js';
 
 const fmt = (n) => Math.round(n || 0).toLocaleString('en-GB');
 /** The station's stories, always in the running: history, the invaders, the people out there, weather, sport, adverts. */
@@ -25,6 +29,14 @@ export const LORE = [
   { tag: 'Advert', art: 'relic:r_titan', head: 'Titan Frame: be the wall', body: 'Plating so thick the invaders give up and go home. Terms apply. They do not give up. They do not go home.' },
   { tag: 'Advert', art: 'cur:salvage', head: 'Sell your salvage? Never.', body: 'The Workshop pays in rebuilt station, and that is the best price there is. A message from the Rebuild Committee.' },
   { tag: 'Culture', art: 'relic:r_scholar', head: 'The station choir is back', body: 'Rehearsals resume in the Habitat ring on rest days. They are looking for tenors, and for someone to tell the Comms spire to stop singing along.' },
+  { tag: 'History', art: 'ws:w_hull', head: 'The ring that would not turn', body: 'For six years after the Fall the Habitat ring stood still. It took four hundred volunteers and one very old manual to get it spinning again.' },
+  { tag: 'Deep Void', art: 'relic:r_quantum', head: 'Beacon keepers hear a pattern', body: 'The signal past the Deep Void repeats. Not quite the same each time, the keepers say, as if it is counting. Nobody has worked out what to.' },
+  { tag: 'Science', art: 'relic:r_leech', head: 'Seeds older than the station', body: 'Some of the seeds in the Greenhouse came up with the first colonists. They still grow. The botanists would like everyone to stop asking if they are edible.' },
+  { tag: 'Community', art: 'ws:w_magnet', head: 'Lost and found', body: 'One left boot, one spanner with a name scratched off, and a small drone toy that squeaks. Ask at the Command Deck. The toy may already have been claimed.' },
+  { tag: 'Weather', art: 'relic:r_chrono', head: 'Cold snap on the shadow side', body: 'Pipes on the night side of the ring are icing up again. Maintenance asks everyone to run a warm tap for ten minutes and think warm thoughts.' },
+  { tag: 'Sport', art: 'ws:w_rate', head: 'Pilots v deck crew: the rematch', body: 'Last year the deck crew won the zero-g football by eleven goals. The pilots have trained. The deck crew have trained harder, and have better boots.' },
+  { tag: 'Advert', art: 'boost:kit', head: 'Field kit: boost responsibly', body: 'Salvage Surge, Data Burst, Overcharge. Keep your canisters for when it counts. Five of each in the kit, and the rest sold for salvage. A message from Supply.' },
+  { tag: 'Culture', art: 'relic:r_phoenix', head: 'Film night: The Fall, again', body: 'The Habitat ring cinema shows the same film every rest day. Nobody remembers voting for it. Everybody still goes.' },
   { tag: 'Culture', art: 'relic:r_predict', head: 'ORBIT answers your questions', body: 'Asked what it does when nobody is flying, the station AI said it "counts the stars and recalibrates the kettle". It did not say which it prefers.' },
 ];
 
@@ -49,6 +61,19 @@ export function newsStories(st) {
   // the Greenhouse, bounties, the Daily Sortie, Bolt
   const grown = Object.keys(st.garden?.grown || {}).length; if (grown) out.push({ tag: 'Greenhouse', art: 'relic:r_leech', head: `${grown} kind${grown > 1 ? 's' : ''} of plant grown aboard`, body: 'The old greenhouse is green again. Sprig the drone reports "excellent soil, adequate pilot".' });
   const done = (st.bounties?.list || []).filter((b) => b.done).length; if (done) out.push({ tag: 'Radio', art: 'relic:r_midas', head: `${done} bount${done > 1 ? 'ies' : 'y'} settled today`, body: 'The trawlers and miners send their thanks, and more jobs.' });
+  // the global boards and the Daily Sortie
+  const gp = st.global?.told && st.global.place, dp = st.global?.told && st.global.dayPlace;
+  if (dp?.n && dp.day === dayKey()) out.push({ tag: 'Daily', art: 'ach:calendar', head: dp.n === 1 ? `${name} leads today's Daily` : `Daily Sortie: ${name} #${dp.n} of ${fmt(dp.of)}`, body: `Every pilot everywhere flew the same sortie today. ${dp.n === 1 ? 'Nobody has beaten it yet.' : 'There is still time to climb before the board resets.'}` });
+  if (gp?.n) out.push({ tag: 'Boards', art: 'ach:trophy', head: gp.n === 1 ? `${name} tops the global boards` : `${name} #${gp.n} on the global boards`, body: `Out of ${fmt(gp.of)} pilot${gp.of === 1 ? '' : 's'} on the all-time board. ${gp.n <= 10 ? 'The Deck has started a sweepstake.' : 'Crews on the Deck keep checking the numbers.'}` });
+  if ((st.daily?.streak || 0) >= 3) out.push({ tag: 'Daily', art: 'ach:flame', head: `${st.daily.streak} Daily Sorties in a row`, body: 'The same sortie as everyone else, every day. The Deck has stopped betting against it.' });
+  // the field kit, the dry dock, the fleet's scrapes
+  if ((s.boostsUsed || 0) >= 3) out.push({ tag: 'Supply', art: 'boost:kit', head: `${fmt(s.boostsUsed)} field boosts used`, body: `Supply canisters keep reaching the front${s.canisters ? `: ${fmt(s.canisters)} so far` : ''}. The quartermaster reminds pilots to keep one back for a bad day.` });
+  const dock = st.refitting && SHIP_BY_ID[st.refitting.ship]; if (dock) out.push({ tag: 'Shipyard', art: 'ship:' + st.refitting.ship, head: `The ${dock.name} in dry dock`, body: `Welders are working through the night on her next refit. Ask them how long and they say "soon". Ask again and they say "sooner if you stop asking".` });
+  const hurt = Object.keys(st.fleet?.damage || {}).filter((id) => st.fleet.damage[id] && SHIP_BY_ID[id]); if (hurt.length) { const ship = SHIP_BY_ID[hurt[0]].name; out.push({ tag: 'Fleet', art: 'ship:' + hurt[0], head: `The ${ship} limps home`, body: `Back from an expedition with scorched plating${hurt.length > 1 ? `, and ${hurt.length - 1} more ship${hurt.length > 2 ? 's' : ''} with her` : ''}. Fleet Ops will not send ${hurt.length > 1 ? 'them' : 'her'} out again until ${hurt.length > 1 ? 'they are' : 'she is'} repaired.` }); }
+  // a room opened and not yet visited
+  const fresh = ROOMS_ABOARD.filter((r) => roomFresh(r.id, st)).pop(); if (fresh) out.push({ tag: 'Breaking', art: 'ach:flag', head: `${fresh.name} opens aboard`, body: `The crews have finished the ${fresh.name}. It is waiting for its first visit from ${name}.` });
+  const look = st.bolt?.wear, hat = look && look.hat !== 'none' && COSMETIC_BY_ID['hat:' + look.hat], coat = look && look.paint !== 'factory' && COSMETIC_BY_ID['paint:' + look.paint];
+  if (hat || coat) out.push({ tag: 'Fashion', art: 'relic:r_swarm', head: `Bolt steps out in ${hat ? 'a ' + hat.name.toLowerCase() : coat.name.toLowerCase() + ' paint'}`, body: `The station's best-dressed drone was seen in ${[coat && coat.name.toLowerCase() + ' paint', hat && 'a ' + hat.name.toLowerCase()].filter(Boolean).join(' and ')}. Critics call it bold. Bolt calls it "beep".` });
   if (st.bolt?.pets > 10) out.push({ tag: 'Local', art: 'relic:r_swarm', head: 'Drone refuses to leave pilot\'s side', body: `The maintenance unit known as Bolt has now been patted ${fmt(st.bolt.pets)} times. It describes this as "not enough".` });
   return out;
 }
