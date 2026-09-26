@@ -1,7 +1,15 @@
 # Changelog
 
-## v2.20.1 — unreleased
+## v2.21.0 — unreleased
 
+- **Bolt comes with you.** The maintenance drone from your quarters now follows you through every room aboard, once you have met it there. It flies in through the door behind you and keeps to the lower right of your view (on a phone as well), clear of walls and furniture. When you stand still for a while it drifts off to look at something, then comes back.
+  - **New look:** an expressive eye (happy, love, sleepy, surprised, dizzy, curious), fins, a hover glow and a pulsing antenna. It turns to look at you and banks as it flies.
+  - **Pat it:** it spins or hops. Pat it a few times in a row and it gets giddy, with heart eyes and hearts, and nuzzles up to you. Pat it too many times and it gets dizzy.
+  - **Its corner in your quarters,** by the head of your bunk: a locker, a charging dock where it naps while you rest (or when you tap the dock), and a toy on the rug. Tap the toy and Bolt plays fetch.
+  - **It talks:** its beeps, with ORBIT's translation, in its own orange speech box and a higher, quicker voice. It has lines for when you come back from a sortie (a new best, a loss, the line broken, cutting it short), after a long time away, late at night and first thing, for the first time it comes into each room, and for pats, games, naps and new outfits. None repeats until all of its kind have been said. ORBIT has more to say about it too.
+  - **Dress it up:** 23 pieces to find, across paints, hats and eye colours. They're earned by playing: sorties, sectors, bosses, the Deep Void, the Daily Sortie, the Greenhouse, expeditions, sieges, your pilot rank, Overhauls, pats and games of fetch. The locker shows what each is for, and you can leave Bolt at home if you prefer.
+- **Door fixes:** a door's control panel no longer sinks into a wall, a corner or a wall beam; it moves to the free side. In low rooms, door signs stand in front of the light strip along the top of the walls instead of behind it.
+- The note under the materials in the Ships menu has room to breathe.
 - **Card synergies explain themselves.** The strip on an upgrade card that said something like "Demolition 1/3" now shows the set as pips (the cards of it you hold, and this one glowing) and says in words how many more different cards its bonus needs after this one, and what the bonus does. For example: "2 more after this for its bonus: 20% more kills explode, +25% blast radius".
 
 ## v2.20.0 — 2026-09-26

@@ -37,6 +37,8 @@ export function initUI(app, hooks) {
     panel: (o) => overlays.showPanel(o),
     nameStation: () => overlays.showStationName(),
     say: (text) => comms.say(text),
+    boltSay: (line) => { if (line) comms.say(`*${line[0]}* ${line[1]}`, 'bolt'); },
+    commsBusy: () => comms.busy,
     stationNamed: () => { if (G.mode === 'hangar') hangar.render(); },
     closeOverlays: () => overlays.close(),
     stationComplete: () => overlays.showStationComplete(),

@@ -97,9 +97,9 @@ function sendToReverb(node, wet) {
 
 // ------------------------------------------------------------------ the station AI's voice, and big explosions
 /** One soft chirp of the station AI's 'voice' for a typed letter: a short rising sine, vowels a little higher. */
-export function voiceBlip(ch, vol = 1) {
+export function voiceBlip(ch, vol = 1, pitch = 1) {
   if (!ctx || ctx.state !== 'running' || !/[a-z0-9]/i.test(ch)) return;
-  const now = ctx.currentTime, base = 330 + ('aeiou'.includes(ch.toLowerCase()) ? 90 : 0) + (ch.charCodeAt(0) % 7) * 12;
+  const now = ctx.currentTime, base = (330 + ('aeiou'.includes(ch.toLowerCase()) ? 90 : 0) + (ch.charCodeAt(0) % 7) * 12) * pitch;
   const o = ctx.createOscillator(), g = ctx.createGain(), f = ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 2400;
   o.type = 'sine'; o.frequency.setValueAtTime(base, now); o.frequency.exponentialRampToValueAtTime(base * 1.12, now + 0.05);
   g.gain.setValueAtTime(0.0001, now); g.gain.linearRampToValueAtTime(0.1 * vol, now + 0.008); g.gain.exponentialRampToValueAtTime(0.0008, now + 0.07);

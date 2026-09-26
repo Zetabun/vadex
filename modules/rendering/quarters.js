@@ -3,9 +3,12 @@
 // in it once a day and the next sortie banks more salvage); the keepsakes you have picked up on a cabinet on the left
 // wall, each turning on its stand on a lit shelf (the ones still to find are dim shapes); your desk on the right with the pilot's log on the
 // wall over it and a recruitment poster beside; photos of the big moments pinned up between the doors; a switch for the
-// lights' mood; and Bolt, the maintenance drone that follows you round. A door by the back leads down to the
+// lights' mood; and Bolt's corner by the head of your bunk: its locker (what it wears), its charging dock on top (where it naps
+// while you rest) and its toy on the rug (tap it and Bolt plays fetch). Bolt itself goes everywhere with you
+// (rendering/bolt.js). A door by the back leads down to the
 // Observatory once it is back. Tapping anything names it.
 import { Room, canvas, tex, drawArt, text } from '@last-orbit/rendering/room.js';
+import { bolt } from '@last-orbit/rendering/bolt.js';
 import { earthMaterial, nightAmount } from '@last-orbit/rendering/background.js';
 import { KEEPSAKES, PHOTOS, MOOD_BY_ID } from '@last-orbit/data/quarters.js';
 import { rankTitle } from '@last-orbit/data/career.js';
@@ -14,7 +17,7 @@ const T = () => window.THREE;
 
 // Room: x -3..3, z -4.8 (window) .. 2.4 (back wall, the doors), height 2.9. Small: it is a cabin.
 const W = 3, FRONT = -4.8, BACK = 2.4, H = 2.9;
-const BUNK = { x0: -1.7, x1: 0.55, d: 0.95 }, SHELF = { z: -1.45, w: 2 }, DESK = { z: -2.75 };
+const BUNK = { x0: -1.7, x1: 0.55, d: 0.95 }, SHELF = { z: -1.45, w: 2 }, DESK = { z: -2.75 }, LOCKER = { z: -3.05, h: 1.05 }, TOY = { x: 0.35, z: -1.25 };
 const hex = (n) => '#' + n.toString(16).padStart(6, '0');
 /** Where the keepsakes stand along a shelf, four to a shelf. */
 const keepX = (col) => -SHELF.w / 2 + 0.28 + col * ((SHELF.w - 0.56) / 3);
@@ -46,8 +49,8 @@ export class QuartersRoom extends Room {
       lamp: 0xffd2a0, lampI: 0.5, panel: 0xfff0dc, panelW: 1.2, hemi: 0.5, sky: 0xffe8d0, sun: 0.5,
       window: { hw: 2.2, y0: 0.8, y1: 2.4, struts: [-0.75, 0.75] }, lamps: [-3.3, -0.9, 1.4], ribs: [-4.35, -0.1] }); /* clear of the poster and the Observatory door */
     this.nearFront = 0.8;
-    this.furnish(); this.outside(); this.bolt = this.makeBolt();
-    this.blocks.push({ x0: BUNK.x0 - 0.1, x1: BUNK.x1 + 0.1, z0: FRONT, z1: FRONT + BUNK.d + 0.2 }, { x0: -W, x1: -W + 0.6, z0: SHELF.z - SHELF.w / 2 - 0.05, z1: SHELF.z + SHELF.w / 2 + 0.05 }, { x0: W - 0.85, x1: W, z0: DESK.z - 0.85, z1: DESK.z + 0.85 });
+    this.furnish(); this.outside(); this.boltCorner(); this.isQuarters = true;
+    this.blocks.push({ x0: BUNK.x0 - 0.1, x1: BUNK.x1 + 0.1, z0: FRONT, z1: FRONT + BUNK.d + 0.2 }, { x0: -W, x1: -W + 0.6, z0: SHELF.z - SHELF.w / 2 - 0.05, z1: SHELF.z + SHELF.w / 2 + 0.05 }, { x0: W - 0.85, x1: W, z0: DESK.z - 0.85, z1: DESK.z + 0.85 }, { x0: -W, x1: -W + 0.6, z0: LOCKER.z - 0.4, z1: LOCKER.z + 0.4 });
     this.bakeStatic(); /* still parts merged into fewer draw calls (room.js) */
   }
   // ---------------------------------------------------------------- the room
@@ -107,20 +110,37 @@ export class QuartersRoom extends Room {
     this.door(S, 1.95, BACK, 0, 'HANGAR  ›', 'exit', { sign: '#ffe2c4', edge: 0xffb070 });
     this.door(S, -1.95, BACK, 0, 'TROPHY HALL  ›', 'hall', { sign: '#ffe2b0', edge: 0xffc857 });
   }
-  /** Bolt: a little round drone with a ring round its middle and one eye, following you about. */
-  makeBolt() {
-    const THREE = T(), g = new THREE.Group(); g.position.set(0.35, 1.42, -0.3); this.scene.add(g);
-    const body = new THREE.Mesh(new THREE.SphereGeometry(0.13, 20, 14), new THREE.MeshPhongMaterial({ color: 0xdfe4ee, specular: 0xffffff, shininess: 80 })); g.add(body);
-    const band = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.022, 8, 28), new THREE.MeshPhongMaterial({ color: 0xffb070, shininess: 60 })); band.rotation.x = Math.PI / 2; g.add(band);
-    this.boltEye = new THREE.Mesh(new THREE.CircleGeometry(0.055, 20), new THREE.MeshBasicMaterial({ color: 0x5ee6ff })); this.boltEye.position.z = -0.128; this.boltEye.rotation.y = Math.PI; g.add(this.boltEye);
-    const ant = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, 0.12, 6), new THREE.MeshPhongMaterial({ color: 0x8890a0 })); ant.position.y = 0.18; g.add(ant);
-    this.boltTip = new THREE.Mesh(new THREE.SphereGeometry(0.02, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff4d6a })); this.boltTip.position.y = 0.245; g.add(this.boltTip);
-    this.hitBox(g, 0.5, 0.5, 0.5, 0, 0, 0); this.tag(g, 'bolt'); this.boltV = new THREE.Vector3(); this.spin = 0; return g;
+  /** Bolt's corner, on the left wall by the head of your bunk: its locker (stencilled BOLT, a light over it while something new
+   *  waits inside), its charging dock on top, and its toy, a big hex nut, on the rug. */
+  boltCorner() {
+    const THREE = T(), S = this.scene, Ph = (o) => new THREE.MeshPhongMaterial(o), steel = Ph({ color: 0x4a4f5c, specular: 0x8a90a0, shininess: 45 }), trimM = Ph({ color: 0xffb070, emissive: 0x2a1400, shininess: 40 });
+    const lk = new THREE.Group(); lk.position.set(-W + 0.26, 0, LOCKER.z); lk.rotation.y = Math.PI / 2; S.add(lk); /* its +z faces into the room */
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.62, LOCKER.h, 0.44), steel); body.position.y = LOCKER.h / 2; lk.add(body);
+    const lc = canvas(256, 384), lx = lc.getContext('2d'); lx.fillStyle = '#3e4350'; lx.fillRect(0, 0, 256, 384); lx.strokeStyle = '#2a2e38'; lx.lineWidth = 6; lx.strokeRect(14, 14, 228, 356);
+    for (let y = 40; y < 110; y += 16) { lx.fillStyle = '#23262f'; lx.fillRect(70, y, 116, 7); } /* vents */ text(lx, 'BOLT', 128, 200, '900 64px sans-serif', '#ffb070'); lx.fillStyle = '#c9ced8'; lx.fillRect(196, 230, 14, 60); /* the handle */
+    const face = new THREE.Mesh(new THREE.PlaneGeometry(0.56, LOCKER.h - 0.08), new THREE.MeshPhongMaterial({ map: tex(lc), shininess: 30 })); face.position.set(0, LOCKER.h / 2, 0.222); lk.add(face);
+    this.lockerLight = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.025, 0.03), new THREE.MeshBasicMaterial({ color: 0xffc857 })); this.lockerLight.position.set(0, LOCKER.h - 0.03, 0.235); lk.add(this.lockerLight);
+    this.hitBox(lk, 0.7, LOCKER.h, 0.6, 0, LOCKER.h / 2, 0.05); this.tag(lk, 'locker');
+    // the charging dock on top: a pad, a glowing ring, a little mast
+    const dock = new THREE.Group(); dock.position.set(0, LOCKER.h, 0); lk.add(dock); const pad = new THREE.Mesh(new THREE.CylinderGeometry(0.19, 0.21, 0.04, 28), steel); pad.position.y = 0.02; dock.add(pad);
+    this.dockRing = new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.012, 8, 36), new THREE.MeshBasicMaterial({ color: 0x5ee6ff })); this.dockRing.rotation.x = Math.PI / 2; this.dockRing.position.y = 0.045; dock.add(this.dockRing);
+    const mast = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.28, 0.03), trimM); mast.position.set(0, 0.16, -0.17); dock.add(mast);
+    this.hitBox(dock, 0.5, 0.45, 0.5, 0, 0.2, 0); this.tag(dock, 'dock'); lk.updateMatrixWorld(true); this.boltDock = dock.localToWorld(new THREE.Vector3(0, 0.2, 0)); /* where Bolt naps */
+    // the toy: a big hex nut on the rug
+    this.toy = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.05, 6), Ph({ color: 0xffc857, specular: 0xffffff, shininess: 80 })); this.toy.position.set(TOY.x, 0.04, TOY.z); S.add(this.toy); this.toyHome = this.toy.position.clone();
+    const hole = new THREE.Mesh(new THREE.CylinderGeometry(0.028, 0.028, 0.052, 14), Ph({ color: 0x2a2020 })); this.toy.add(hole);
+    this.toyHit = this.hitBox(S, 0.35, 0.3, 0.35, TOY.x, 0.12, TOY.z); this.tag(this.toyHit, 'toy');
   }
-  /** Tapped: Bolt spins round, happily. */
-  poke() { this.spin = 1; }
+  /** Throw Bolt's toy: somewhere open on the floor, away from you; Bolt goes and gets it. */
+  throwToy() {
+    const THREE = T(); if (this.toy.parent !== this.scene) return false; let to = null;
+    for (let k = 0; k < 20 && !to; k++) { const c = this.clamp(-W + 0.6 + Math.random() * (2 * W - 1.2), FRONT + BUNK.d + 0.6 + Math.random() * (BACK - FRONT - BUNK.d - 1.4)); if (Math.hypot(c.x - this.pos.x, c.z - this.pos.z) > 1.2) to = new THREE.Vector3(c.x, 0.04, c.z); }
+    return bolt.fetch(this.toy, this.toyHome, to || new THREE.Vector3(-this.toy.position.x, 0.04, this.toy.position.z));
+  }
+  /** Bolt goes up to its dock for a nap. */
+  napBolt() { bolt.napAt(this.boltDock); }
   /** A night in the bunk: the lights go down and come back up. */
-  sleep() { this.sleepT = 2.4; }
+  sleep() { this.sleepT = 2.4; this.napBolt(); }
   /** Earth below the window, the stars. */
   outside() {
     const THREE = T(), S = this.scene;
@@ -136,6 +156,7 @@ export class QuartersRoom extends Room {
   }
   // ---------------------------------------------------------------- what is on display (rebuilt when it changes)
   sync(state) {
+    this.lockerNew = !!state.bolt?.fresh;
     const earned = KEEPSAKES.map((k) => (k.req(state) ? 1 : 0)).join(''), photos = PHOTOS.map((p) => (p.req(state) ? 1 : 0)).join(''), q = state.quarters || {};
     const sig = [earned, photos, q.mood, state.pilot.name, state.pilot.rank, state.ship, state.stats.bestWave, state.prestige?.level || 0].join('|');
     if (sig === this.sig) return; this.sig = sig; const THREE = T();
@@ -206,12 +227,8 @@ export class QuartersRoom extends Room {
     for (const o of this.pieces?.children || []) if (o.userData.has) o.rotation.y = Math.sin(t * 0.5 + o.userData.spin) * 0.6;
     // a night in the bunk: the lights go down, then come back up
     if (this.sleepT > 0) { this.sleepT = Math.max(0, this.sleepT - dt); const k = Math.sin((1 - this.sleepT / 2.4) * Math.PI); for (const l of this.lamps) l.intensity = this.mood.lampI * (1 - k * 0.92); this.hemi.intensity = this.mood.hemi * (1 - k * 0.85); this.lightMat.color.setHex(this.mood.panel ?? 0xfff0dc).multiplyScalar(1 - k * 0.88); this.readLamp.visible = this.readGlow.visible = k < 0.5; }
-    // Bolt keeps near you: ahead and off to one side, bobbing; it turns to look at you
-    const fx = -Math.sin(this.yaw), fz = -Math.cos(this.yaw), want = new THREE.Vector3(this.pos.x + fx * 2 - fz * 0.62, 1.5 + Math.sin(t * 1.7) * 0.06, this.pos.z + fz * 2 + fx * 0.62); /* at the edge of your view, peeking in */
-    want.x = Math.max(-W + 0.4, Math.min(W - 0.4, want.x)); want.z = Math.max(FRONT + 0.5, Math.min(BACK - 0.5, want.z));
-    this.boltV.lerp(want.sub(this.bolt.position).multiplyScalar(1.6), Math.min(1, dt * 2)); this.bolt.position.addScaledVector(this.boltV, dt);
-    this.bolt.lookAt(this.cam.position.x, this.bolt.position.y, this.cam.position.z); this.bolt.rotateY(Math.PI); if (this.spin > 0) { this.spin = Math.max(0, this.spin - dt * 0.9); this.bolt.rotateY((1 - this.spin) * Math.PI * 4); }
-    this.boltTip.visible = Math.sin(t * 3) > 0; this.boltEye.scale.y = Math.sin(t * 0.7) > 0.97 ? 0.15 : 1; // it blinks
+    // Bolt's corner: the dock's ring breathes; the locker light blinks while something new waits in it
+    this.dockRing.material.color.setHex(0x5ee6ff).multiplyScalar(0.6 + 0.4 * Math.sin(t * 2)); this.lockerLight.visible = !!this.lockerNew && Math.sin(t * 5) > -0.2;
   }
 }
 /** Lines of text that fit a width. */

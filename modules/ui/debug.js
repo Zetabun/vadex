@@ -1,5 +1,6 @@
 // ?debug=1 test panel. It switches to a sandbox save slot first, so nothing here touches the real save.
 import { ALIEN_TECH } from '@last-orbit/data/alientech.js';
+import { COSMETICS } from '@last-orbit/data/bolt.js';
 import { G, recalc, toast } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { WEAPON_ORDER } from '@last-orbit/data/weapons.js';
@@ -48,6 +49,9 @@ export async function initDebug(app, { hooks, ui } = {}) {
   if (scene) { panel.style.display = 'none'; G.demo = true; runScene(scene, hooks, ui); } // demo scenes never auto-pause
   // &at=x,z,yaw,pitch: once a room scene is up, stand there looking that way (for framing a shot of anything in it)
   const at = new URLSearchParams(location.search).get('at')?.split(',').map(Number);
+  // &bolt=paint,hat,eye: Bolt wears these (and has everything in its locker)
+  const dressed = new URLSearchParams(location.search).get('bolt')?.split(',');
+  if (scene && dressed) setTimeout(() => { const b = (G.state.bolt ||= {}); b.owned ||= {}; for (const [slot, list] of Object.entries(COSMETICS)) for (const c of list) b.owned[slot + ':' + c.id] = 1; b.wear = { paint: dressed[0] || 'factory', hat: dressed[1] || 'none', eye: dressed[2] || 'cyan' }; bus.emit('boltDressed'); }, 900);
   if (scene && at?.length >= 3) { let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 80) setTimeout(place, 100); return; } setTimeout(() => { r.pos.set(at[0], 0, at[1]); r.target = null; r.yaw = at[2]; r.pitch = at[3] || 0; }, 400); }; place(); }
   window.gunnerBot = gunnerBot;
   window.__lo = { G }; /* for tools/perf.mjs: the renderer's counts, in debug builds only */
@@ -194,6 +198,7 @@ function runScene(scene, hooks, ui) {
     const view = { bunk: [-0.4, -2.3, 0.15, -0.3], shelf: [0.9, -1.45, 1.5708, 0.02], desk: [-0.7, -1.9, -1.2, -0.05], photos: [0, -1.5, Math.PI, 0.04], window: [0, -2.6, 0, 0.12] }[arg];
     if (view) { let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 60) setTimeout(place, 100); return; } r.pos.set(view[0], 0, view[1]); r.yaw = view[2]; r.pitch = view[3]; }; place(); }
     if (arg === 'tap') setTimeout(() => ui.tap?.(arg2 || 'shelf'), 1500);
+    if (arg === 'pat') setTimeout(() => { for (let i = 0; i < (+arg2 || 4); i++) setTimeout(() => ui.tap?.('bolt'), i * 250); }, 1800); /* quarters:pat[:n]: Bolt patted n times in a row */
     return; }
   // observatory[:view|tap[:best wave[:charted]]]: the Observatory at Overhaul rank 6, the best wave (default 94) and how many
   // depths already charted (default 2). view: telescope, chart, orrery, dome, window, tap:<exhibit> or intro (a first visit).

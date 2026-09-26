@@ -46,10 +46,4 @@ export const MOODS = [
 ];
 export const MOOD_BY_ID = Object.fromEntries(MOODS.map((m) => [m.id, m]));
 
-// What ORBIT says about Bolt, round and round.
-export const BOLT_LINES = [
-  'That is Bolt, {n}. It was built to scrub carbon off the reactor. It follows you instead.',
-  'Bolt has been in here every day since you moved in. It rearranges your keepsakes when you are out.',
-  'I asked Bolt why it stays. It beeped twice. I think that means you.',
-  'Bolt tried to fly a sortie once. It got as far as the airlock.',
-];
+// What ORBIT says about Bolt is in data/bolt.js, with the rest of Bolt.

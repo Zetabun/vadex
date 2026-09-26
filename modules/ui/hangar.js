@@ -40,7 +40,10 @@ import { SIEGE_TIERS, SIEGE_SYSTEMS, SIEGE_CONSOLES, CONSOLE_BY_ID, TIER_BY_N, S
 import { settleSiege, repairStation } from '@last-orbit/progression/siege.js';
 import { commsOpen, refreshBounties, bountyProgress, bountyText, claimBounty, rerollBounty, bountyClaimable, untilNextPost } from '@last-orbit/progression/bounties.js';
 import { COMMS_RANK, BOUNTY_BONUS_BP, TRANSMISSIONS } from '@last-orbit/data/bounties.js';
-import { REST_BONUS, KEEPSAKES, PHOTOS, BOLT_LINES } from '@last-orbit/data/quarters.js';
+import { REST_BONUS, KEEPSAKES, PHOTOS } from '@last-orbit/data/quarters.js';
+import { COSMETICS, SLOTS as BOLT_SLOTS, ORBIT_ON_BOLT } from '@last-orbit/data/bolt.js';
+import { bolt } from '@last-orbit/rendering/bolt.js';
+import { boltOf, owns, wear, pat, fetched, boltLine, roomLine, welcomeLine, checkWardrobe } from '@last-orbit/progression/bolt.js';
 import { rest, nextMood } from '@last-orbit/progression/quarters.js';
 import { VOID_MARKS, MARK_BY_WAVE, SKY_LINES, voidSector } from '@last-orbit/data/observatory.js';
 import { chartable, chartMark, isCharted } from '@last-orbit/progression/observatory.js';
@@ -129,6 +132,7 @@ export function createHangar(hooks) {
     // Today's bounties are posted when you arrive in the Comms room (or look in Missions).
     if (id === 'comms' || id === 'missions') postBounties();
     if (id === 'garden') startGarden(G.state); // the first visit finds a few seeds in the drawer
+    checkWardrobe(G.state); // anything new for Bolt to wear (data/bolt.js)
     if (id === 'ships' && G.state.seen.materials && !G.state.seen.refits) { G.state.seen.refits = true; setTimeout(() => hooks.menuIntro?.({ icon: 'ships', kicker: 'New', title: 'Ship refits', text: 'Each ship now has five refits of its own, paid in materials: Alloy from sectors 1-2, Crystal from 3-4, Void shards from 5-6 and the Deep Void. Warping past a stretch means going without its material. Find them on each hull\'s card, further down. A refit counts while you fly that ship, and an Overhaul leaves it alone. Tap your salvage at the top of the screen any time to see everything you hold.' }), 350); }
     // A menu the pilot has not earned yet stays shut (with a note on when it opens); a newly opened one explains itself once.
     if (menuState(id) === 'locked') { if (!quiet) { playSfx('deny'); hooks.toast?.(menuLockText(id), 'info'); } if (tab !== id) return; id = 'launch'; }
@@ -508,7 +512,32 @@ export function createHangar(hooks) {
   // ------------------------------------------------------------ the Pilot's quarters
   /** Tapping something in your quarters: the bunk (rest), the keepsakes, the log, the photos, the lights, Bolt, the
    *  poster, the window, or a door. */
-  let boltTalk = 0;
+  // ------------------------------------------------------------ Bolt (data/bolt.js, rendering/bolt.js)
+  let boltTaps = 0, boltQuietT = 0;
+  /** Bolt says something unprompted, now and then (never over ORBIT, a panel, or itself a moment ago). */
+  const boltMaySay = (line, gap = 45) => { const now = performance.now(); if (!line || hooks.blocking?.() || hooks.commsBusy?.() || now < boltQuietT) return false; boltQuietT = now + gap * 1000; hooks.boltSay?.(line); return true; };
+  /** Tapped, wherever it is: a spin, a hop, hearts, or dizzy; a pat counted; its beep (and now and then ORBIT on it). */
+  function boltTap() {
+    const mood = bolt.tap(); pat(G.state); boltTaps++;
+    playSfx(mood === 'dizzy' ? 'deny' : 'unlock', 0.45, mood === 'happy' ? 2.1 : 1.7); boltQuietT = performance.now() + 20000;
+    if (mood !== 'happy' && mood !== 'dizzy' && boltTaps % 6 === 0) { hooks.say?.(ORBIT_ON_BOLT[(boltTaps / 6 - 1) % ORBIT_ON_BOLT.length]); return; }
+    hooks.boltSay?.(boltLine(mood === 'woke' ? 'sleep' : mood));
+  }
+  /** Bolt's locker: what it wears, a slot at a time (what is still to find says how), and whether it comes along. */
+  function boltLocker() {
+    const st = G.state, b = boltOf(st); b.fresh = 0; playSfx('tab'); const room = G.renderer?.room; if (room) room.lockerNew = false;
+    const swatch = (slot, c) => slot === 'paint' ? h('i.bl-sw', { style: `background:linear-gradient(135deg,${hex(c.body)} 55%,${hex(c.band)} 55%)` }) : slot === 'eye' ? h('i.bl-sw.eye', { style: `--c:${hex(c.color)}` }) : h('i.bl-sw.hat', uiIcon(c.id === 'none' ? 'close' : 'awards'));
+    const grid = (slot) => h('div.bl-grid', COSMETICS[slot].map((c) => { const have = owns(st, slot, c.id), on = b.wear[slot] === c.id;
+      return h('button.bl-item' + (on ? '.on' : '') + (have ? '' : '.locked'), { disabled: !have, title: have ? c.name : c.how, onclick: () => { if (wear(st, slot, c.id)) { playSfx('buy'); hooks.saveNow?.('bolt'); hooks.closeOverlays?.(); boltLocker(); setTimeout(() => hooks.boltSay?.(boltLine('dress')), 250); } } },
+        swatch(slot, c), h('b', c.name), h('small', have ? (on ? 'Wearing' : 'Wear it') : c.how)); }));
+    const follow = h('button.btn.ghost.small.bl-follow', { onclick: () => { b.follow = !b.follow; hooks.saveNow?.('bolt'); playSfx('tab'); hooks.closeOverlays?.(); boltLocker(); } }, b.follow ? 'Bolt comes with me round the station' : 'Bolt stays in my quarters');
+    const total = Object.values(COSMETICS).reduce((n, l) => n + l.length, 0), mine = Object.entries(COSMETICS).reduce((n, [slot, l]) => n + l.filter((c) => owns(st, slot, c.id)).length, 0);
+    hooks.panel?.({ kicker: 'Pilot\'s quarters', title: 'Bolt\'s locker', body: [h('p.sub-note', `Things for Bolt to wear, ${mine} of ${total} found. They turn up as you fly: each one says what earns it. Bolt has had ${b.pets} pat${b.pets === 1 ? '' : 's'} and played fetch ${b.fetches} time${b.fetches === 1 ? '' : 's'}.`),
+      ...BOLT_SLOTS.flatMap(([slot, name]) => [h('h4.oh-sub', name), grid(slot)]), h('h4.oh-sub', 'Where it goes'), follow] });
+  }
+  bus.on('boltEnter', (room) => { setTimeout(() => { const st = G.state; boltMaySay(welcomeLine(st) || roomLine(st, room) || (Math.random() < 0.18 ? boltLine('greet') : null), 50); }, 1300); });
+  bus.on('boltInspect', () => { if (Math.random() < 0.35) boltMaySay(boltLine('idle'), 60); });
+  bus.on('boltFetched', () => { const n = fetched(G.state); hooks.saveNow?.('bolt'); hooks.boltSay?.(boltLine('fetch')); if (n === 1) setTimeout(() => hooks.toast?.('Bolt loves fetch. Tap its toy any time.', 'info'), 2500); });
   function quartersExhibit(kind) {
     const st = G.state, room = G.renderer?.room;
     if (kind === 'exit') { show(outside); return; }
@@ -522,7 +551,9 @@ export function createHangar(hooks) {
       return;
     }
     if (kind === 'mood') { const m = nextMood(st); room?.setMood?.(m); playSfx('tab'); hooks.toast?.(`Lights: ${m.name}`, 'info'); hooks.saveNow?.('mood'); return; }
-    if (kind === 'bolt') { room?.poke?.(); playSfx('unlock', 0.5, 1.7); hooks.say?.(BOLT_LINES[boltTalk++ % BOLT_LINES.length]); return; }
+    if (kind === 'locker') { boltLocker(); return; }
+    if (kind === 'dock') { room?.napBolt?.(); playSfx('tab', 0.5, 0.7); setTimeout(() => hooks.boltSay?.(boltLine('sleep')), 900); return; }
+    if (kind === 'toy') { if (room?.throwToy?.()) playSfx('dash', 0.4, 1.3); return; }
     playSfx('tab');
     if (kind === 'poster') { hooks.say?.('The recruitment poster. They printed a thousand of them after the Fall, {n}. You answered.'); return; }
     if (kind === 'window') { hooks.say?.('The Outer ring faces the Earth. On a clear night you can see where the cities were, {n}.'); return; }
@@ -982,7 +1013,7 @@ export function createHangar(hooks) {
     const up = (e) => {
       if (!down || e.pointerId !== down.id) return; const tap = !down.moved && performance.now() - down.t < 450; down = null; hint.classList.add('off');
       if (!tap) return; const r = G.renderer.canvas.getBoundingClientRect(), res = G.renderer.room?.pick(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
-      if (res?.exhibit) ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit, quarters: quartersExhibit, observatory: observatoryExhibit, yard: yardExhibit, beacons: beaconExhibit, garden: gardenExhibit, ops: opsExhibit }[id] || exhibit)(res.exhibit); else if (res?.walk) playSfx('tab', 0.4);
+      if (res?.exhibit === 'bolt') boltTap(); else if (res?.exhibit) ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit, quarters: quartersExhibit, observatory: observatoryExhibit, yard: yardExhibit, beacons: beaconExhibit, garden: gardenExhibit, ops: opsExhibit }[id] || exhibit)(res.exhibit); else if (res?.walk) playSfx('tab', 0.4);
     };
     el.addEventListener('pointerup', up); el.addEventListener('pointercancel', () => { down = null; });
     return el;
@@ -1304,6 +1335,7 @@ export function createHangar(hooks) {
     if (r.id === 'control') { const d = siegeDamage(st), n = nextSiege(st); if (d) return { text: `${d.ids.length} system${d.ids.length > 1 ? 's' : ''} down: repair them here`, ready: true }; return { text: n ? `Next siege: ${n.name}` : r.for }; }
     if (r.id === 'hall') { const n = caughtStages(st).length; return { text: n ? `${n} of ${STATION_TROPHIES.length} Counterattack bosses captured` : r.for }; }
     if (r.id === 'comms') { if (bountyClaimable(st)) return { text: 'A bounty is done: claim it', ready: true }; const bt = st.bounties; if (bt?.day !== dayKey()) return { text: 'Today\'s bounties are posted', ready: true }; return { text: `Today's bounties: ${bt.list.filter((b) => b.done).length} of ${bt.list.length} done` }; }
+    if (r.id === 'quarters' && st.bolt?.fresh) return { text: 'Bolt found something new to wear: see its locker', ready: true };
     if (r.id === 'quarters') return q?.rested ? { text: `Rested: +${pct}% salvage next sortie` } : q?.restDay === dayKey() ? { text: 'Rested today: the bunk is yours tomorrow' } : { text: `Your bunk is made: rest for +${pct}% salvage`, ready: true };
     if (r.id === 'observatory') { const n = chartable(st).length, done = VOID_MARKS.filter((m) => isCharted(st, m)).length; return n ? { text: `${n} new ${n > 1 ? 'depths' : 'depth'} to chart`, ready: true } : { text: done ? `${done} of ${VOID_MARKS.length} depths charted` : r.for }; }
     if (r.id === 'yard') { if (yardDone(st)) return { text: 'The Chimera is built: try her paints in the dock' }; const n = nextStage(st), step = `stage ${n.n} of ${YARD_STAGES.length}, ${n.name.toLowerCase()}`; return stageBlock(st) ? { text: `The Chimera, ${step}` } : { text: `Ready to build ${step}`, ready: true }; }
@@ -1341,5 +1373,5 @@ export function createHangar(hooks) {
   bus.on('contract', () => { if (G.mode === 'hangar') render(); });
   bus.on('medal', () => { if (G.mode === 'hangar' && tab === 'awards') { G.state.seen.medals = medalTotal().earned; render(); } });
   layoutNav();
-  return { el, top, nav: $.nav, show, board, render, update, siege: (n) => launchSiege(n), tap: (kind) => ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit, quarters: quartersExhibit, observatory: observatoryExhibit, yard: yardExhibit, beacons: beaconExhibit, garden: gardenExhibit, ops: opsExhibit }[G.room] || exhibit)(kind), get tab() { return tab; } };
+  return { el, top, nav: $.nav, show, board, render, update, siege: (n) => launchSiege(n), tap: (kind) => kind === 'bolt' ? boltTap() : ({ control: controlExhibit, hall: hallExhibit, comms: commsExhibit, quarters: quartersExhibit, observatory: observatoryExhibit, yard: yardExhibit, beacons: beaconExhibit, garden: gardenExhibit, ops: opsExhibit }[G.room] || exhibit)(kind), get tab() { return tab; } };
 }

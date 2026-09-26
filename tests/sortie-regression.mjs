@@ -787,4 +787,19 @@ assert.throws(() => parseSave('{"run":{},"cur":{}}'), /Not a Last Orbit v2 save/
   G.state.workshop.w_revive = 0; recalc(); run.time = 14; Wd.breach(w); assert.equal(run.strikes, 3); assert.ok(run.breached && !w.player.alive, 'The third breaks the line');
   const s = endSortie('destroyed'); assert.ok(s.breached, 'The debrief knows'); }
 
+// ---- v2.21: Bolt (data/bolt.js, progression/bolt.js) ----
+{ const B = await import('@last-orbit/progression/bolt.js'), D = await import('@last-orbit/data/bolt.js');
+  fresh(); const st = G.state; st.stats.sorties = 30; st.stats.sectorsCleared = 1;
+  assert.deepEqual(B.checkWardrobe(st), [], 'No Bolt before your quarters open');
+  st.prestige.level = 5; let notes = 0; const off = bus.on('notice', (n) => { if (n.kicker === 'Bolt found something') notes++; });
+  const got = B.checkWardrobe(st); off(); assert.ok(got.includes('paint:rust') && got.includes('eye:amber') && got.includes('hat:prop'), 'Earned pieces go in its locker');
+  assert.equal(notes, 1, 'Several at once: one notice'); assert.equal(st.bolt.fresh, got.length, 'and the locker says there is something new');
+  assert.ok(B.wear(st, 'paint', 'rust')); assert.equal(B.wear(st, 'paint', 'gold'), false, 'Only what it owns'); assert.equal(st.bolt.wear.paint, 'rust');
+  for (let i = 0; i < 25; i++) B.pat(st); assert.ok(B.owns(st, 'eye', 'pink'), '25 pats: pink eyes');
+  const seen = new Set(); for (let i = 0; i < D.BOLT_SAYS.tap.length; i++) seen.add(B.boltLine('tap')[1]); assert.equal(seen.size, D.BOLT_SAYS.tap.length, 'No line again until all of its kind are said');
+  assert.ok(B.roomLine(st, 'deck')); assert.equal(B.roomLine(st, 'deck'), null, 'A room\'s line, once');
+  bus.emit('sortieEnded', { reason: 'destroyed', breached: true, wave: 20, best: false }); const w = B.welcomeLine(st, new Date(2026, 8, 1, 14));
+  assert.ok(D.BOLT_SAYS.breach.some((l) => l[1] === w[1]), 'It remembers the line breaking'); assert.equal(B.welcomeLine(st, new Date(2026, 8, 1, 14, 5)), null, 'and says so once');
+  const back = parseSave(JSON.stringify(st)); assert.equal(back.bolt.wear.paint, 'rust'); assert.equal(back.bolt.pets, 25, 'Bolt saves'); }
+
 console.log('Sortie, cards, relics, contracts, workshop, ships, pickups, revive and save checks pass.');

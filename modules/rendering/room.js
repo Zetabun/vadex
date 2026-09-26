@@ -2,6 +2,7 @@
 // window in the front wall), doors, walking, looking and tapping. Drag to look, tap the floor to walk there, tap an
 // exhibit to inspect it (the UI shows the details). W/A/S/D walk. Each room builds its exhibits on top.
 import { artSvg } from '@last-orbit/ui/art.js';
+import { bolt } from '@last-orbit/rendering/bolt.js';
 import { playSfx } from '@last-orbit/audio/audio.js';
 import { G } from '@last-orbit/core/game.js';
 import { ROOM_BY_ID, roomFresh } from '@last-orbit/data/rooms.js';
@@ -138,6 +139,7 @@ export class Room {
     // structure: ribs down the side walls, beams across the ceiling, and a cove light along the top of the walls
     const rib = Ph({ color: L.rib ?? 0x323c55, specular: 0x4a5a78, shininess: 30 }), cove = (this.coveMat = new THREE.MeshBasicMaterial({ color: L.cove ?? L.strip ?? 0x5ee6ff, transparent: true, opacity: 0.7 }));
     for (const z of L.ribs) { for (const s of [-1, 1]) box(0.14, H, 0.22, s * (W - 0.07), H / 2, z, rib); if (!L.open) box(2 * W, 0.16, 0.22, 0, H - 0.08, z, rib); }
+    this.ribZ = L.ribs; /* doors on the side walls keep their panels off them */
     for (const s of [-1, 1]) box(0.03, 0.03, D, s * (W - 0.05), H - 0.2, (FRONT + BACK) / 2, cove); box(2 * W, 0.03, 0.03, 0, H - 0.2, BACK - 0.05, cove);
     // where a tap on the floor is taking you
     this.marker = new THREE.Mesh(new THREE.RingGeometry(0.18, 0.24, 32), new THREE.MeshBasicMaterial({ color: L.strip ?? 0x5ee6ff, transparent: true, opacity: 0 })); this.marker.rotation.x = -Math.PI / 2; this.marker.position.y = 0.02; S.add(this.marker);
@@ -199,16 +201,24 @@ export class Room {
     }
     // the sign over the door, and the panel beside it (a way through, or a padlock)
     const sw = label.length > 12 ? 1.62 : 1.2, cw = Math.round(sw * 256), sc = canvas(cw, 80), sx = sc.getContext('2d');
+    const out = Math.abs(OH + F + 0.22 - ((this.H || 99) - 0.2)) < 0.22 ? 0.075 : 0; /* a low room: the sign stands off the wall, in front of the cove light along its top */
     const bg = sx.createLinearGradient(0, 0, 0, 80); bg.addColorStop(0, '#0c1628'); bg.addColorStop(1, '#060b16'); sx.fillStyle = bg; sx.fillRect(0, 0, cw, 80);
     sx.fillStyle = css; sx.fillRect(0, 0, cw, 4); sx.fillRect(0, 76, cw, 4); sx.globalAlpha = 0.5; sx.fillRect(10, 12, 6, 56); sx.fillRect(cw - 16, 12, 6, 56); sx.globalAlpha = 1;
     sx.shadowColor = css; sx.shadowBlur = 14; text(sx, label, cw / 2, 42, `800 ${sw > 1.3 ? 30 : 32}px sans-serif`, txt); sx.shadowBlur = 0;
-    put(new THREE.BoxGeometry(sw + 0.06, 0.34, 0.05 + lift * 0.3), metal, 0, OH + F + 0.22, 0.025 + lift * 0.15);
-    put(new THREE.PlaneGeometry(sw, 0.3), new THREE.MeshBasicMaterial({ map: tex(sc) }), 0, OH + F + 0.22, 0.052 + lift * 0.3);
+    put(new THREE.BoxGeometry(sw + 0.06, 0.34, 0.05 + lift * 0.3 + out), metal, 0, OH + F + 0.22, (0.05 + lift * 0.3 + out) / 2);
+    put(new THREE.PlaneGeometry(sw, 0.3), new THREE.MeshBasicMaterial({ map: tex(sc) }), 0, OH + F + 0.22, 0.052 + lift * 0.3 + out);
     const pc = canvas(96, 144), px = pc.getContext('2d'); px.fillStyle = '#060b16'; px.fillRect(0, 0, 96, 144); px.strokeStyle = css; px.lineWidth = 4; px.strokeRect(4, 4, 88, 136); px.fillStyle = css; px.strokeStyle = css;
     if (sealed) { px.lineWidth = 7; px.beginPath(); px.arc(48, 62, 16, Math.PI, 0); px.stroke(); px.fillRect(26, 62, 44, 36); px.fillStyle = '#060b16'; px.fillRect(45, 72, 6, 14); }
     else for (const y of [52, 82]) { px.lineWidth = 7; px.beginPath(); px.moveTo(34, y - 14); px.lineTo(56, y); px.lineTo(34, y + 14); px.stroke(); }
     px.fillStyle = sealed ? '#ff9aa8' : sign; px.font = '800 15px sans-serif'; px.textAlign = 'center'; px.fillText(sealed ? 'LOCKED' : 'OPEN', 48, 126);
-    const pside = OW + F + 0.24; put(new THREE.BoxGeometry(0.24, 0.36, 0.05 + lift * 0.3), metal, pside, 1.22, 0.025 + lift * 0.15); put(new THREE.PlaneGeometry(0.2, 0.3), new THREE.MeshBasicMaterial({ map: tex(pc) }), pside, 1.22, 0.052 + lift * 0.3);
+    // beside the door, on whichever side has room: inside the corners, and clear of the side walls' ribs (standing off the
+    // wall past a rib if neither side is clear)
+    const onSide = this.W && Math.abs(Math.abs(x) - this.W) < 0.05; g.updateWorldMatrix(true, true);
+    const at = (s) => f.localToWorld(new THREE.Vector3(s * (OW + F + 0.24), 1.22, 0));
+    const ribAt = (s) => onSide && (this.ribZ || []).some((rz) => Math.abs(at(s).z - rz) < 0.26);
+    const cornered = (s) => { if (!this.W) return false; const w = at(s); return onSide ? w.z + 0.14 > this.BACK - 0.02 || w.z - 0.14 < this.FRONT + 0.25 : Math.abs(w.x) + 0.14 > this.W - 0.02; };
+    const ok = (s) => !cornered(s) && !ribAt(s), pdir = ok(1) ? 1 : ok(-1) ? -1 : cornered(1) ? -1 : 1, pout = ribAt(pdir) ? 0.15 : 0, pside = pdir * (OW + F + 0.24);
+    put(new THREE.BoxGeometry(0.24, 0.36, 0.05 + lift * 0.3 + pout), metal, pside, 1.22, (0.05 + lift * 0.3 + pout) / 2); put(new THREE.PlaneGeometry(0.2, 0.3), new THREE.MeshBasicMaterial({ map: tex(pc) }), pside, 1.22, 0.052 + lift * 0.3 + pout);
     // a strip of light on the floor at the threshold
     const fc = canvas(8, 64), fx = fc.getContext('2d'), fg = fx.createLinearGradient(0, 0, 0, 64); fg.addColorStop(0, css); fg.addColorStop(1, css + '00'); fx.fillStyle = fg; fx.fillRect(0, 0, 8, 64);
     const strip = put(new THREE.PlaneGeometry(2 * OW, 0.5 + deep), new THREE.MeshBasicMaterial({ map: tex(fc), transparent: true, opacity: 0.35, depthWrite: false }), 0, 0.012, 0.25 - deep / 2); strip.rotation.x = -Math.PI / 2; /* from the leaves out into the room */
@@ -216,7 +226,7 @@ export class Room {
     let news = null;
     if (ROOM_BY_ID[kind]?.seen) {
       const nc = canvas(128, 64), nx = nc.getContext('2d'); nx.fillStyle = '#ffc857'; nx.beginPath(); if (nx.roundRect) nx.roundRect(4, 6, 120, 52, 12); else nx.rect(4, 6, 120, 52); nx.fill(); text(nx, 'NEW', 64, 33, '900 32px sans-serif', '#1a1300');
-      news = put(new THREE.PlaneGeometry(0.34, 0.17), new THREE.MeshBasicMaterial({ map: tex(nc), transparent: true }), sw / 2 - 0.1, OH + F + 0.35, 0.08); news.rotation.z = -0.12; news.visible = false;
+      news = put(new THREE.PlaneGeometry(0.34, 0.17), new THREE.MeshBasicMaterial({ map: tex(nc), transparent: true }), sw / 2 - 0.1, OH + F + 0.35, 0.08 + out); news.rotation.z = -0.12; news.visible = false;
     }
     // clip the leaves (and the tape) to the doorway, in world space
     g.updateWorldMatrix(true, true);
@@ -302,5 +312,5 @@ export class Room {
     return bake(this.scene, new Set(this.exhibits));
   }
   offscreen() {}
-  render(gl, dt) { this.update(dt); this.offscreen(gl); gl.localClippingEnabled = true; /* the doors' leaves are clipped to their doorways */ gl.setClearColor(0x000000, 1); gl.render(this.scene, this.cam); }
+  render(gl, dt) { this.update(dt); bolt.visit(this, dt); /* Bolt comes along (rendering/bolt.js) */ this.offscreen(gl); gl.localClippingEnabled = true; /* the doors' leaves are clipped to their doorways */ gl.setClearColor(0x000000, 1); gl.render(this.scene, this.cam); }
 }

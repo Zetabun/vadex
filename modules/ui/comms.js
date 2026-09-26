@@ -7,11 +7,11 @@ import { STATION_CORE, STATION_ALIEN, STATION_TROPHIES, trophyWon } from '@last-
 import { gardenOpen } from '@last-orbit/data/garden.js';
 
 /** Type text into el letter by letter, chirping every other letter. */
-export function typeText(el, text, { speed = 38, onDone } = {}) {
+export function typeText(el, text, { speed = 38, onDone, pitch = 1 } = {}) {
   clearTimeout(el._tt); let i = 0;
   const step = () => {
     if (i >= text.length) { onDone?.(); return; }
-    const ch = text[i++]; el.textContent = text.slice(0, i); if (i % 2) voiceBlip(ch, 0.9);
+    const ch = text[i++]; el.textContent = text.slice(0, i); if (i % 2) voiceBlip(ch, 0.9, pitch);
     el._tt = setTimeout(step, /[.,!?]/.test(ch) ? 230 : speed);
   };
   step();
@@ -33,12 +33,15 @@ export const LINES = [
 ];
 
 export function createComms(app) {
-  const text = h('div.cm-text'), el = h('div#comms', { role: 'status', onclick: () => hide() }, h('div.cm-av', h('i')), h('div.cm-main', h('div.cm-who', 'ORBIT · station AI'), text));
+  const text = h('div.cm-text'), who = h('div.cm-who', 'ORBIT · station AI'), el = h('div#comms', { role: 'status', onclick: () => hide() }, h('div.cm-av', h('i')), h('div.cm-main', who, text));
   app.append(el); let hideT = 0, busy = false;
   function hide() { clearTimeout(hideT); clearTimeout(text._tt); el.classList.remove('on'); busy = false; }
-  function say(line) {
-    clearTimeout(hideT); busy = true; el.classList.add('on'); const n = G.state.pilot.name || 'Pilot';
-    typeText(text, line.replace('{n}', n), { speed: 36, onDone: () => { clearTimeout(hideT); hideT = setTimeout(hide, 4200); } });
+  /** A line typed out in the box: ORBIT's, or Bolt's (speaker 'bolt': its beep, then what ORBIT says it means, in Bolt's
+   *  own orange and a higher, quicker chirp). */
+  function say(line, speaker = 'orbit') {
+    clearTimeout(hideT); busy = true; el.classList.add('on'); const n = G.state.pilot.name || 'Pilot', isBolt = speaker === 'bolt';
+    el.classList.toggle('bolt', isBolt); who.textContent = isBolt ? 'BOLT · translated by ORBIT' : 'ORBIT · station AI';
+    typeText(text, line.replace('{n}', n), { speed: isBolt ? 30 : 36, pitch: isBolt ? 1.9 : 1, onDone: () => { clearTimeout(hideT); hideT = setTimeout(hide, 4200); } });
   }
   /** Deliver the next milestone line not yet heard. Pilots already past milestones when this arrived only hear the welcome. */
   function check() {
