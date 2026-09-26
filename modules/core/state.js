@@ -17,7 +17,7 @@ export function newState() {
   return {
     v: SCHEMA,
     meta: { created: now, lastSave: now, playTime: 0, sandbox: false, legacyChecked: false, introSeen: false, lastBackup: 0 },
-    settings: { master: 0.7, music: 0.5, sfx: 0.8, shake: true, dmgNumbers: true, scanlines: false, quality: 'auto', notation: 'suffix', speed: 1, holdSides: true, haptics: true },
+    settings: { master: 0.7, music: 0.5, sfx: 0.8, shake: true, dmgNumbers: true, scanlines: false, quality: 'auto', notation: 'suffix', speed: 1, holdSides: true, haptics: true, globalBoards: true },
     salvage: 0,
     ship: 'vanguard',
     pilot: { rank: 1, xp: 0, name: '' }, // name: the pilot's callsign, asked for on first launch
@@ -37,6 +37,7 @@ export function newState() {
     materials: { alloy: 0, crystal: 0, shard: 0 }, refits: {}, // materials banked from sorties and expeditions; each ship's refit level (data/refits.js)
     refitting: null, // the refit under way in the dock: { ship, n, done, need, since } (progression/refits.js)
     bolt: { wear: { paint: 'factory', hat: 'none', eye: 'cyan' }, owned: {}, rooms: {}, pets: 0, fetches: 0, follow: true }, // Bolt: what it wears and owns, its pats and games (data/bolt.js)
+    global: { id: '', told: false, best: 0, pending: [], forget: false }, // the global boards (progression/global.js): this device's id, told about them, the best posted to 'all', posts waiting to go up
     fleet: { out: [null, null, null], log: [], sent: 0, home: 0, fragments: 0, damage: {} }, // ships out on expeditions from Fleet Ops, by berth; the last few home; ships home damaged (data/fleet.js)
     garden: { beds: [], seeds: {}, basket: {}, grown: {}, wateredDay: '', started: false }, // the Greenhouse: what each bed grows ({ id, at, need, extra }), seeds in the drawer, blooms in the basket, kinds ever grown, the day last watered
     beacons: { beaten: {} }, // the Beacon array: Void bosses beaten (id → when first)

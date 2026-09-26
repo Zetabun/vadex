@@ -19,8 +19,12 @@ import { siegeUnlocked } from '@last-orbit/data/siege.js';
 import { ReplayScreen, replayTitle, replayEnding } from '@last-orbit/rendering/replay.js';
 import { lastReplay, loadReplay, replayOf, CHANNELS } from '@last-orbit/progression/recorder.js';
 import { newsStories, newsTicker, LORE } from '@last-orbit/data/news.js';
+import { BOARD_TABS } from '@last-orbit/data/global.js';
+import { dailyFor } from '@last-orbit/data/daily.js';
+import { boardOf, cachedBoard, boardFresh, fetchBoard } from '@last-orbit/progression/global.js';
 /** The TV's channels: the replays, and the News. */
-export const TV_CHANNELS = [...CHANNELS, { id: 'news', name: 'News', how: '' }];
+export const TV_CHANNELS = [...CHANNELS, { id: 'news', name: 'News', how: '', live: true }, { id: 'boards', name: 'Boards', how: '', live: true }]; /* live: always something on */
+const BOARD_TURN = 10; // seconds each board is on the Boards channel before the next
 import { G } from '@last-orbit/core/game.js';
 import { SHIP_BY_ID } from '@last-orbit/data/ships.js';
 import { ROOMS_ABOARD, roomOpen, roomFresh } from '@last-orbit/data/rooms.js';
@@ -179,23 +183,23 @@ export class DeckRoom extends Room {
     const nt = tex(nc, [3, 2]); this.tvStatic = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.75), new THREE.MeshBasicMaterial({ map: nt, transparent: true, opacity: 0, depthWrite: false })); this.tvStatic.position.z = 0.012; this.tvStatic.visible = false; g.add(this.tvStatic);
     const bezel = new THREE.Mesh(new THREE.BoxGeometry(3.36, 1.91, 0.06), new THREE.MeshPhongMaterial({ color: 0x1a2030, shininess: 40 })); bezel.position.set(TV_X, 1.75, BACK - 0.04); this.show.add(bezel);
     this.tag(g, 'replay'); this.tv = { hud, face, stats: state.stats, next: 0 };
-    // the channel buttons on a bar under the screen: Last, Best, Boss, Daily (the one on is lit; one with nothing on it yet
-    // is dark); tapping one switches the TV over
-    const bar = new THREE.Mesh(new THREE.BoxGeometry(2.78, 0.26, 0.05), new THREE.MeshPhongMaterial({ color: 0x141a28, shininess: 40 })); bar.position.set(0, -1.06, -0.02); g.add(bar);
-    this.tvKeys = TV_CHANNELS.map((c, i) => { const k = new THREE.Mesh(new THREE.PlaneGeometry(0.5, 0.2), new THREE.MeshBasicMaterial({ map: tex(canvas(200, 80)) })); k.position.set((i - 2) * 0.54, -1.06, 0.006); g.add(k); this.tag(k, 'tv:' + c.id); k.userData.ch = c.id; return k; });
+    // the channel buttons on a bar under the screen: Last, Best, Boss, Daily, News and Boards (the one on is lit; one with
+    // nothing on it yet is dark); tapping one switches the TV over
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(3.12, 0.26, 0.05), new THREE.MeshPhongMaterial({ color: 0x141a28, shininess: 40 })); bar.position.set(0, -1.06, -0.02); g.add(bar);
+    this.tvKeys = TV_CHANNELS.map((c, i) => { const k = new THREE.Mesh(new THREE.PlaneGeometry(0.48, 0.2), new THREE.MeshBasicMaterial({ map: tex(canvas(192, 80)) })); k.position.set((i - (TV_CHANNELS.length - 1) / 2) * 0.51, -1.06, 0.006); g.add(k); this.tag(k, 'tv:' + c.id); k.userData.ch = c.id; return k; });
     this.keySig = '';
   }
   /** A channel button pressed: it pushes in and lights up; the TV cuts over through a burst of static. ok false: that
    *  channel has nothing on it yet, and the button shakes instead. */
   pressKey(id, ok = true) { const k = this.tvKeys?.find((o) => o.userData.ch === id); if (k) this.keyAnim = { k, t: 0, ok, x0: k.userData.x0 ?? (k.userData.x0 = k.position.x) }; if (ok) this.staticT = 0.45; }
   /** Which channel the TV is on (a setting; Last if the one chosen has nothing on it yet). */
-  channel() { const ch = G.state?.settings?.tvChannel || 'last'; return ch === 'news' ? 'news' : replayOf(ch) ? ch : lastReplay() ? 'last' : 'news'; }
+  channel() { const ch = G.state?.settings?.tvChannel || 'last'; return TV_CHANNELS.find((c) => c.id === ch)?.live ? ch : replayOf(ch) ? ch : lastReplay() ? 'last' : 'news'; }
   /** The channel buttons: lit for the one on, plain for one with a recording, dark for one still empty. */
   drawKeys(on) {
     const sig = on + CHANNELS.map((c) => (replayOf(c.id) ? 1 : 0)).join(''); if (sig === this.keySig || !this.tvKeys) return; this.keySig = sig;
-    this.tvKeys.forEach((k, i) => { const c = TV_CHANNELS[i], has = c.id === 'news' || !!replayOf(c.id), lit = c.id === on, x = k.material.map.image.getContext('2d'), news = c.id === 'news';
-      x.fillStyle = lit ? (news ? '#ff4d6a' : '#5ee6ff') : has ? '#1c2640' : '#0e1220'; x.fillRect(0, 0, 200, 80); x.strokeStyle = lit ? '#e8fbff' : has ? (news ? '#ff4d6a' : '#5ee6ff') : '#2a3450'; x.lineWidth = 4; x.strokeRect(3, 3, 194, 74);
-      text(x, c.name.toUpperCase(), 100, 42, '800 32px sans-serif', lit ? '#062030' : has ? '#dff6ff' : '#3a4460'); k.material.map.needsUpdate = true; });
+    this.tvKeys.forEach((k, i) => { const c = TV_CHANNELS[i], has = c.live || !!replayOf(c.id), lit = c.id === on, x = k.material.map.image.getContext('2d'), col = c.id === 'news' ? '#ff4d6a' : c.id === 'boards' ? '#ffc857' : '#5ee6ff';
+      x.fillStyle = lit ? col : has ? '#1c2640' : '#0e1220'; x.fillRect(0, 0, 192, 80); x.strokeStyle = lit ? '#e8fbff' : has ? col : '#2a3450'; x.lineWidth = 4; x.strokeRect(3, 3, 186, 74);
+      text(x, c.name.toUpperCase(), 96, 42, `800 ${c.name.length > 5 ? 28 : 32}px sans-serif`, lit ? '#062030' : has ? '#dff6ff' : '#3a4460'); k.material.map.needsUpdate = true; });
   }
   /** The News channel: a story at a time (yours, then the station's lore, in turn), redrawn only when the story changes
    *  (a new one every eight seconds); the LIVE light blinks and the ticker scrolls without redrawing anything. */
@@ -213,6 +217,42 @@ export class DeckRoom extends Room {
     wrap(story.body, '500 25px sans-serif', 640).slice(0, 5).forEach((l, i) => text(x, l, 330, 196 + head.length * 52 + i * 34, '500 25px sans-serif', '#b8c6e0', 'left'));
     x.fillStyle = '#0e1630'; x.fillRect(40, 104, 256, 256); x.strokeStyle = col; x.lineWidth = 3; x.strokeRect(40, 104, 256, 256);
     tv.face.material.map.needsUpdate = true; const shown = this.newsI; drawArt(story.art || 'cur:salvage', x, 64, 128, 208, () => { if (this.newsI === shown) tv.face.material.map.needsUpdate = true; });
+  }
+  /** The Boards channel: the global boards (progression/global.js), today's Daily and the all-time board in turn, the
+   *  top eight with this pilot picked out (and their own place under them, if they are further down). A board not
+   *  fetched lately is fetched; one that cannot be reached shows no signal. Redrawn only when what it shows changes. */
+  drawBoards(state) {
+    const tv = this.tv, x = tv.hud.getContext('2d'), tab = this.boardTab, id = boardOf(tab), c = cachedBoard(id), def = BOARD_TABS.find((b) => b.id === tab);
+    x.fillStyle = '#060b1a'; x.fillRect(0, 0, 1024, 560); x.fillStyle = '#ffc857'; x.fillRect(0, 0, 1024, 70); x.fillStyle = '#b8862a'; x.fillRect(0, 66, 1024, 4);
+    text(x, 'GLOBAL BOARDS', 86, 36, '900 32px sans-serif', '#1a1204', 'left');
+    const daily = tab !== 'all' ? dailyFor(id.slice(6)) : null, total = c?.data?.total || 0;
+    text(x, def.name.toUpperCase() + (daily ? ' · ' + daily.mutator.name.toUpperCase() : ''), 400, 38, '800 22px sans-serif', '#3a2808', 'left');
+    if (c) text(x, `${total.toLocaleString()} PILOT${total === 1 ? '' : 'S'}`, 990, 37, '800 22px sans-serif', '#1a1204', 'right');
+    const fit = (str, font, w) => { x.font = font; if (x.measureText(str).width <= w) return str; while (str.length > 1 && x.measureText(str + '…').width > w) str = str.slice(0, -1); return str + '…'; };
+    const line = (r, y, you) => {
+      if (r.me) { x.fillStyle = 'rgba(94,230,255,.16)'; x.fillRect(24, y - 24, 976, 48); x.fillStyle = '#5ee6ff'; x.fillRect(24, y - 24, 6, 48); }
+      x.fillStyle = r.n === 1 ? '#ffc857' : r.n <= 3 ? '#8a94b8' : '#1c2640'; x.beginPath(); x.arc(70, y, 19, 0, Math.PI * 2); x.fill();
+      text(x, String(r.n), 70, y + 1, `800 ${r.n > 99 ? 15 : 20}px sans-serif`, r.n <= 3 ? '#1a1204' : '#dff6ff');
+      const nm = fit((you ? 'YOU · ' : '') + r.name + (r.tag ? ' #' + r.tag : ''), '800 27px sans-serif', 420); text(x, nm, 108, y + 1, '800 27px sans-serif', r.me ? '#e8fbff' : '#ffffff', 'left');
+      x.font = '800 27px sans-serif'; const nw = x.measureText(nm).width; if (r.station && nw < 380) text(x, fit(r.station, '600 18px sans-serif', 420 - nw - 16), 108 + nw + 14, y + 2, '600 18px sans-serif', '#7f8bb0', 'left');
+      text(x, `WAVE ${r.wave}` + (r.threat ? ` · T${r.threat}` : '') + (r.warp > 1 ? ` · S${r.warp}` : ''), 700, y + 1, '700 19px sans-serif', '#9fb0d0', 'right');
+      text(x, r.score.toLocaleString(), 990, y + 1, '800 28px sans-serif', r.n === 1 ? '#ffc857' : '#e8fbff', 'right');
+    };
+    const note = (a, b) => { text(x, a, 512, 250, '800 36px sans-serif', '#ffffff'); if (b) text(x, b, 512, 300, '500 24px sans-serif', '#9fb0d0'); };
+    if (!c) { if (this.boardFail?.[id]) note('NO SIGNAL FROM THE BOARDS', 'Scores are safe on this station and go up when the link is back.'); else note('TUNING IN…'); }
+    else if (!c.data.top.length) note(tab === 'all' ? 'THE BOARD IS EMPTY' : 'NOBODY ON THE BOARD YET', def.empty);
+    else {
+      const top = c.data.top.slice(0, 8), me = c.data.me; top.forEach((r, i) => line(r, 108 + i * 50, false));
+      if (me && me.n > 8) { x.fillStyle = 'rgba(255,255,255,.12)'; x.fillRect(60, 506, 904, 2); line(me, 530, true); }
+      else text(x, 'TAP THE SCREEN FOR THE FULL BOARDS', 512, 530, '700 18px sans-serif', '#5ee6ff');
+    }
+    tv.face.material.map.needsUpdate = true;
+  }
+  /** Keep the Boards channel's board fresh: fetch it when it is old (after a failure, not again for a minute). */
+  boardsTick() {
+    const id = boardOf(this.boardTab); this.boardFail ||= {}; this.boardTry ||= {};
+    if (boardFresh(id) || this.t < (this.boardTry[id] || 0)) return;
+    this.boardTry[id] = this.t + 60; fetchBoard(id).then(() => { this.boardFail[id] = false; this.boardTry[id] = 0; this.boardsSig = null; }, () => { this.boardFail[id] = true; this.boardsSig = null; });
   }
   /** The ticker's text, drawn once on a long strip that scrolls. */
   drawTicker(state) {
@@ -323,7 +363,10 @@ export class DeckRoom extends Room {
     const ka = this.keyAnim; if (ka) { ka.t += dt; const u = Math.min(1, ka.t / (ka.ok ? 0.28 : 0.4)), push = Math.sin(u * Math.PI); ka.k.position.z = 0.006 - push * 0.025; ka.k.scale.setScalar(1 - push * 0.08); ka.k.material.color.setScalar(ka.ok ? 1 + push * 0.9 : 1);
       ka.k.position.x = ka.x0 + (ka.ok ? 0 : Math.sin(u * Math.PI * 6) * 0.025 * (1 - u)); if (u >= 1) { ka.k.position.set(ka.x0, ka.k.position.y, 0.006); ka.k.scale.setScalar(1); ka.k.material.color.setScalar(1); this.keyAnim = null; } }
     if (this.tvStatic) { this.tvStatic.visible = this.staticT > 0; if (this.staticT > 0) { this.staticT -= dt; this.tvStatic.material.opacity = Math.min(1, this.staticT / 0.3) * 0.95; this.tvStatic.material.map.offset.set(Math.random(), Math.random()); this.tvStatic.scale.y = this.staticT < 0.08 ? Math.max(0.02, this.staticT / 0.08) : 1; } }
-    if (this.tv && this.channel() === 'news') { const ch = 'news'; this.drawKeys(ch); this.tvField.visible = this.tvLines.visible = false; this.ticker.visible = true; this.liveDot.visible = Math.floor(this.t * 1.6) % 2 === 0;
+    if (this.tv && this.channel() === 'boards') { this.drawKeys('boards'); this.tvField.visible = this.tvLines.visible = this.ticker.visible = false; this.newsSig = null; this.liveDot.visible = Math.floor(this.t * 1.6) % 2 === 0;
+      const turn = Math.floor(this.t / BOARD_TURN) % 2; this.boardTab = turn ? 'all' : 'today'; this.boardsTick();
+      const id = boardOf(this.boardTab), c = cachedBoard(id), sig = [id, c?.at, this.boardFail?.[id]].join(); if (this.boardsSig !== sig) { this.boardsSig = sig; this.drawBoards(G.state); } }
+    else if (this.tv && this.channel() === 'news') { this.boardsSig = null; const ch = 'news'; this.drawKeys(ch); this.tvField.visible = this.tvLines.visible = false; this.ticker.visible = true; this.liveDot.visible = Math.floor(this.t * 1.6) % 2 === 0;
       const sig = this.sig; if (this.newsSig !== sig) { this.newsSig = sig; this.drawTicker(this.state || G.state); this.newsNext = 0; } if (this.t >= (this.newsNext || 0)) { this.newsNext = this.t + 8; this.drawNews(G.state); }
       this.ticker.material.map.offset.x = (this.t * 0.04) % 1; }
     else if (this.tv) { if (this.tvField) { this.tvField.visible = this.tvLines.visible = true; this.ticker.visible = this.liveDot.visible = false; this.newsSig = null; } const ch = this.channel(), r = replayOf(ch) || lastReplay(); if (this.replay.rep !== r) this.replay.load(r); this.drawKeys(ch); this.replay.update(dt); if (this.tvSeen !== false && this.t >= this.tv.next) { this.tv.next = this.t + 0.2; this.drawTv(); } }

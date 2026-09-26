@@ -1,0 +1,15 @@
+# Last Orbit's global boards: its own worker, separate from every other worker on the account.
+# Once, to set it up (from api/): npx wrangler d1 create last-orbit   (put the id it prints in database_id below)
+#                                 npx wrangler d1 execute last-orbit --remote --file schema.sql
+# Then:  npx wrangler deploy       (https://last-orbit-api.adambullas.workers.dev)
+#        npx wrangler dev          (a local copy with its own database, at http://127.0.0.1:8787; apply schema.sql with
+#                                   --local first; open the game with &api=http://127.0.0.1:8787)
+name = "last-orbit-api"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "last-orbit"
+database_id = "cd5ca159-297c-4080-aa77-6f8bcaaa560f"

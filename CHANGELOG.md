@@ -1,5 +1,21 @@
 # Changelog
 
+## v2.22.0 — 2026-09-26
+
+- **Global boards.** Your scores now go up against every pilot's, on any device. Records has a new Global tab next to your own records, with three boards:
+  - **Today's Daily:** everyone flies the same Daily Sortie, so this is the fair race. One attempt each, so your first score stands. The day's twist is shown with the board.
+  - **Yesterday:** yesterday's Daily, with its final standings.
+  - **All-time:** every pilot's best sortie, with Threat and warp start shown.
+  - Each board shows the top 50 and how many pilots are on it. Your own row is highlighted, and if you're further down it's pinned under the top 50 with your rank.
+  - You post under your callsign, with your station's name. Without a callsign you show as Pilot; add one in Settings. Names are tidied like a callsign, and rude ones are replaced with Pilot.
+  - **Name tags.** Every pilot gets a four-character tag from the boards. When two pilots on a board have the same name, both show their tag (Ace #4F2A, Ace #91CX); otherwise names stand alone. No two pilots ever share a name and a tag, so nobody can pass as someone else by copying their callsign.
+- **Posting is automatic.** After a sortie, a Daily goes up to its day's board, and a new best goes up to the all-time board. The debrief says where it landed (for example "Daily #12 of 340 · All-time #88 of 1,204"). Offline, the score waits in your save and goes up the next time the boards can be reached, so nothing is lost.
+- **Joining.** Once Records is open, a notice says you're on the boards and what name you post under, and your best sortie so far goes straight up to the all-time board.
+- **Moving to another device:** your backup code (Settings, Save backup) carries your place on the boards, so restoring it on another phone or a PC keeps you the same pilot. The backup screen now warns not to share the code, since it is your save and your place on the boards.
+- **Settings has a Global boards switch.** Turning it off takes you off every board, and your scores stay on your device. Turning it back on puts your best back up.
+- **A Boards channel on the Command Deck's TV.** A sixth channel button shows today's Daily and the all-time board in turn, ten seconds each, with the top eight. Your row is picked out, and if you're further down your own place is pinned at the bottom. Tapping the screen on this channel opens the full boards in Records.
+- **Behind the scenes:** the boards run on a small server of their own (a Cloudflare Worker with a database), separate from the game's site. It checks each score against the wave reached, the time taken and the kills, so impossible scores are refused. It takes one post every few seconds from a pilot. If it's down or busy, the game carries on as normal and the boards just say they're out of reach. Your id is random, is made on your device, and is never shown to anyone.
+
 ## v2.21.0 — 2026-09-26
 
 - **Bolt comes with you.** The maintenance drone from your quarters now follows you through every room aboard, once you have met it there. It flies in through the door behind you and keeps to the lower right of your view (on a phone as well), clear of walls and furniture. When you stand still for a while it drifts off to look at something, then comes back.

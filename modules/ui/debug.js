@@ -46,6 +46,8 @@ export async function initDebug(app, { hooks, ui } = {}) {
   app.append(panel);
   // ?debug=1&scene=… jumps straight to a screen, for screenshots and layout checks.
   const scene = new URLSearchParams(location.search).get('scene');
+  // &api=<local server>: the sandbox has joined the global boards, and posts there (progression/global.js net.local)
+  if (scene && new URLSearchParams(location.search).get('api')) G.state.global.told = true;
   if (scene) { panel.style.display = 'none'; G.demo = true; runScene(scene, hooks, ui); } // demo scenes never auto-pause
   // &at=x,z,yaw,pitch: once a room scene is up, stand there looking that way (for framing a shot of anything in it)
   const at = new URLSearchParams(location.search).get('at')?.split(',').map(Number);
@@ -53,7 +55,7 @@ export async function initDebug(app, { hooks, ui } = {}) {
   const tapAt = new URLSearchParams(location.search).get('tap')?.split(','); if (scene && tapAt) setTimeout(() => ui.tap?.(tapAt[0]), +tapAt[1] || 4000);
   // &refit=<ship>[,<minutes done>]: that ship in the dock for its next refit, that far in (default 10 minutes)
   const refitQ = new URLSearchParams(location.search).get('refit')?.split(','); if (scene && refitQ) setTimeout(() => { const st = G.state, ship = refitQ[0]; st.unlocked.ships[ship] ||= 1; const n = (st.refits?.[ship] || 0) + 1, need = ([20, 40, 60, 120, 180][n - 1] || 60) * 60000; st.refitting = { ship, n, done: (+refitQ[1] || 10) * 60000, need, since: Date.now() }; if (st.ship === ship) st.ship = 'vanguard' === ship ? 'striker' : 'vanguard'; for (const r of ROOMS_ABOARD) if (r.seen) (st.seen.offered ||= {})[r.id] = true; recalc(); hooks.toHangar(G.room || scene.split(':')[0].split('&')[0]); }, 700); /* and redraw with it */
-  // &tv=<channel>: the Command Deck's TV on that channel (last, best, boss, daily, news)
+  // &tv=<channel>: the Command Deck's TV on that channel (last, best, boss, daily, news, boards)
   const tvCh = new URLSearchParams(location.search).get('tv'); if (scene && tvCh) G.state.settings.tvChannel = tvCh;
   // &bolt=paint,hat,eye: Bolt wears these (and has everything in its locker)
   const dressed = new URLSearchParams(location.search).get('bolt')?.split(',');
@@ -398,6 +400,8 @@ function runScene(scene, hooks, ui) {
   }
   if (arg === 'locked') { st.unlocked.weapons = { cannon: 1, laser: 1 }; st.unlocked.abilities = { overdrive: 1 }; }
   // A tab scene can scroll to a section by its heading: ships:engine shows the engine trails.
+  // records:global[:yday|all]: the global boards (point the game at a local server with &api=http://127.0.0.1:8787)
+  if (name === 'records' && arg === 'global') { for (const r of ROOMS_ABOARD) (st.seen.offered ||= {})[r.id] = true; /* no room offers over the boards */ hooks.toHangar('records'); setTimeout(() => { [...document.querySelectorAll('.gl-seg button')].find((x) => x.textContent === 'Global')?.click(); if (arg2) setTimeout(() => [...document.querySelectorAll('.gl-chip')].find((x) => x.textContent.toLowerCase().startsWith(arg2))?.click(), 200); }, 400); return; }
   if (['workshop', 'armory', 'ships', 'contracts', 'launch', 'missions', 'records', 'awards'].includes(name)) { hooks.toHangar(name); if (arg && arg !== 'locked') setTimeout(() => [...document.querySelectorAll('h3')].find((x) => x.textContent.toLowerCase().includes(arg))?.scrollIntoView(), 500); return; }
   hooks.launch();
   if (name === 'warp') { if (arg3 === 'build') setTimeout(() => { document.querySelector('.wd-focus')?.click(); document.querySelector('.wd-perk')?.click(); setTimeout(() => document.querySelector('.wd-go')?.click(), 300); }, 1200); return; } /* warp:<sector>:go[:build]: the catch-up draft (build: fitted, the build shown) */
@@ -440,7 +444,7 @@ function runScene(scene, hooks, ui) {
     bus.on('stats', () => { G.sheet.totalN['f.autopilot'] = 1; G.sheet.totalN.autoDodge = 2; }); recalc(); debugSetWave(run.wave);
     setInterval(() => { if (st.run?.offer) st.run.offer = null, st.run.pendingLevels = 0; if (st.run) st.run.pendingRelics = 0; if (st.run?.relicOffer) st.run.relicOffer = null; ui.closeOverlays?.(); const p = G.world?.player; if (p) { p.hull = 1; p.invuln = 1; } }, 200);
   }
-  else if (name === 'debrief') { st.run.salvage = 812; st.run.weapons.laser = 5; st.run.order.push('laser'); st.run.relics.push('r_glass'); st.run.contractsDone = ['c_wave5', 'c_kills']; st.run.score = 52340; st.run.medalsDone = [{ id: 'a_score', tier: 1, xp: 250 }, { id: 'f_solo', tier: 0, xp: 400 }]; if (arg === 'garden') { st.run.garden = ['sunpetal', 'mistvine']; st.run.seeds = ['emberroot', 'mistvine', 'hivebloom']; } st.run.mats = { alloy: 14, crystal: 3 }; if (big) { st.run.salvage = 23456789; st.run.score = 987654321; st.run.level = 64; st.run.stats.kills = 4321; st.run.stats.bossKills = 9; st.run.time = 1478; } G.world.wave.num = big ? 96 : 23; hooks.abandon(); }
+  else if (name === 'debrief') { st.run.salvage = 812; st.run.time = 610; st.run.stats.kills = 540; /* a believable sortie for the global boards */ st.run.weapons.laser = 5; st.run.order.push('laser'); st.run.relics.push('r_glass'); st.run.contractsDone = ['c_wave5', 'c_kills']; st.run.score = 52340; st.run.medalsDone = [{ id: 'a_score', tier: 1, xp: 250 }, { id: 'f_solo', tier: 0, xp: 400 }]; if (arg === 'garden') { st.run.garden = ['sunpetal', 'mistvine']; st.run.seeds = ['emberroot', 'mistvine', 'hivebloom']; } st.run.mats = { alloy: 14, crystal: 3 }; if (big) { st.run.salvage = 23456789; st.run.score = 987654321; st.run.level = 64; st.run.stats.kills = 4321; st.run.stats.bossKills = 9; st.run.time = 1478; } G.world.wave.num = big ? 96 : 23; hooks.abandon(); }
 }
 
 /** The crew look test: the four survivors placed and posed in the Greenhouse, moving with the room; the camera set. */

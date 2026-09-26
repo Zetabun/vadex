@@ -1,5 +1,6 @@
 // Full-screen moments that pause combat: level-up cards, relic choice, pause/settings and the sortie debrief.
 import { G } from '@last-orbit/core/game.js';
+import { bus } from '@last-orbit/core/events.js';
 import { fmt, fmtInt } from '@last-orbit/core/format.js';
 import { RARITY, MOD_BY_ID } from '@last-orbit/data/cards.js';
 import { ABILITIES } from '@last-orbit/data/abilities.js';
@@ -37,7 +38,8 @@ import { COUNTER_TOP, STAR_HITS, STAR_KILLS } from '@last-orbit/data/counter.js'
 import { FIELD } from '@last-orbit/data/balance.js';
 import { MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
 import { applyVolumes, playSfx } from '@last-orbit/audio/audio.js';
-import { h, clear, toggle, slider, select, scrollHints, setClass } from '@last-orbit/ui/dom.js';
+import { h, clear, toggle, slider, select, scrollHints, setClass, setText } from '@last-orbit/ui/dom.js';
+import { setBoards } from '@last-orbit/progression/global.js';
 import { uiIcon } from '@last-orbit/ui/icons.js';
 import { art } from '@last-orbit/ui/art.js';
 import { dailyShareText, shareText } from '@last-orbit/ui/share.js';
@@ -147,6 +149,7 @@ export function createOverlays(layer, hooks) {
       field('Story', h('button.btn.ghost.small.callsign-edit', { onclick: () => hooks.replayIntro?.() }, 'Watch intro', uiIcon('play'))),
       field('Station name', h('button.btn.ghost.small.callsign-edit', { onclick: () => showStationName({ fromSettings: true }) }, G.state.stationName || 'Name it', uiIcon('chevron'))),
       field('Callsign', h('button.btn.ghost.small.callsign-edit', { onclick: () => showCallsign({ fromSettings: true }) }, G.state.pilot.name || 'Add callsign', uiIcon('chevron'))),
+      fromPause ? null : field('Global boards', toggle(() => G.state.settings.globalBoards !== false, (v) => { setBoards(G.state, v); hooks.saveNow?.('settings'); hooks.toast?.(v ? 'Your scores go up to the global boards again.' : 'Global boards off: your scores are coming off them and stay on this device.', 'info'); }, 'Post scores to the global boards')),
       fromPause ? null : field('Save backup', h('button.btn.ghost.small.callsign-edit' + (backedUp() ? '' : '.nudge'), { onclick: () => showBackup() }, backupAge(), uiIcon('chevron'))),
       field('Master volume', slider(() => s.master, set('master'), 0, 1, 0.05, 'Master volume')),
       field('Music', slider(() => s.music, set('music'), 0, 1, 0.05, 'Music volume')),
@@ -359,8 +362,8 @@ export function createOverlays(layer, hooks) {
       h('div.modal-head', h('div.kicker', 'Settings'), h('h2', 'Save backup'), h('p', 'Your progress is kept on this device only, and iOS can clear a home-screen app\'s storage when the phone runs low on space. Keep a backup code somewhere safe, like Notes or an email to yourself.')),
       saveCard(G.state),
       h('div.bk-actions', navigator.share ? h('button.btn.gold', { onclick: share }, uiIcon('share'), 'Share backup') : null, h('button.btn' + (navigator.share ? '.ghost' : '.gold'), { onclick: copy }, 'Copy code')),
-      note, box,
-      h('h3.bk-h', 'Restore'), h('p.sub-note', 'Paste a backup code to bring that progress onto this device.'), input, err, go,
+      note, box, h('p.bk-warn', 'Do not share this code: it is your save and your place on the global boards.'),
+      h('h3.bk-h', 'Restore'), h('p.sub-note', 'Paste a backup code to bring that progress onto this device (another phone, a PC), with your place on the global boards.'), input, err, go,
       h('div.modal-actions', h('button.btn.primary', { onclick: () => showSettings(false), 'data-autofocus': '' }, 'Done')));
     mount('backup', el, (e) => { if (e.key === 'Escape') { showSettings(false); return true; } return false; });
   }
@@ -456,6 +459,17 @@ export function createOverlays(layer, hooks) {
   }
 
   // ------------------------------------------------------------ debrief
+  /** The debrief's line on the global boards (progression/global.js): posting, then where the sortie landed, or that it
+   *  waits to go up. */
+  function globalRow(s) {
+    const b = h('b', 'Posting…'), row = h('div.pilot-row.global-row', h('span', 'Global boards'), b);
+    const off = bus.on('globalPosted', (item, res, why) => {
+      if (item !== s.global) return; off(); if (!b.isConnected) return;
+      if (!res) { setText(b, why === 'offline' ? 'Waiting: it goes up when the link is back' : 'Not taken by the boards'); setClass(row, 'wait', true); return; }
+      setText(b, Object.entries(res.boards || {}).map(([id, v]) => `${id === 'all' ? 'All-time' : 'Daily'} #${fmtInt(v.me?.n || 0)} of ${fmtInt(v.total)}`).join(' · ')); setClass(row, 'on', true);
+    });
+    return row;
+  }
   function showDebrief(s) {
     const ship = SHIP_BY_ID[s.ship], ca = s.counter, win = ca?.cleared ? 'Stage cleared' : s.reason === 'abandoned' ? 'Sortie abandoned' : s.breached ? 'The line broke' : 'Signal lost';
     const salvageEl = h('b.count', '0'), long = fmtInt(s.salvage || 0).length; /* a long haul gets a smaller figure, so it fits its box on a phone */
@@ -471,6 +485,7 @@ export function createOverlays(layer, hooks) {
         ca.checkpoint ? h('div.pilot-row', h('span', 'Checkpoint saved'), h('b', 'Past the mini-boss')) : null, ca.resumed ? h('small.cp-note', 'Checkpoint run: the clear star only. Fly the whole stage for the other two.') : null) : null,
       h('div.hero-row', ca ? h('div.big-wave', h('small', 'Stage'), h('b', String(ca.stage))) : h('div.big-wave', h('small', 'Wave'), h('b', String(s.wave))), h('div.earned', h('small', 'Salvage banked'), h('div' + (long >= 10 ? '.xlong' : long >= 8 ? '.long' : ''), art('cur:salvage', 'cur-ico'), salvageEl))),
       h('div.score-row', h('small', 'Score'), h('b', fmtInt(s.score || 0)), s.place ? h('span', `#${s.place} of your top 10`) : s.prevScore ? h('span', `Best ${fmtInt(s.prevScore)}`) : null),
+      s.global ? globalRow(s) : null,
       h('div.stat-grid', stat('Level', s.level), stat('Kills', fmtInt(s.kills)), stat('Bosses', s.bosses), stat('Time', clock(s.time))),
       s.daily ? h('div.earned.daily-earned', h('small', `Daily bonus · ${s.daily.streak}-day streak`), h('div', art('cur:salvage', 'cur-ico'), '+' + fmtInt(s.daily.bonus))) : null,
       ...(s.voidBeaten || []).map((b) => h('div.pilot-row.void-row', h('span', `Void boss beaten: ${b.name}`), h('b', `+${b.bp} Blueprints` + (b.paint ? ' · Lightkeeper paint' : '')))),

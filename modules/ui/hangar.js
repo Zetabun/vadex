@@ -63,11 +63,13 @@ import { garden, growth, hoursLeft, startGarden, plant, water, wateredToday, har
 import { stationBlueprint, pieceThumb } from '@last-orbit/ui/stationArt.js';
 import { replayTitle, replayEnding } from '@last-orbit/rendering/replay.js';
 import { CHANNELS, replayOf } from '@last-orbit/progression/recorder.js';
-const TV_CHANNELS = [...CHANNELS, { id: 'news', name: 'News', how: '' }];
+const TV_CHANNELS = [...CHANNELS, { id: 'news', name: 'News', how: '', live: true }, { id: 'boards', name: 'Boards', how: '', live: true }]; /* as rendering/deck.js */
 import { TURRET_MOD, TURRET_RARITY, turretKit } from '@last-orbit/data/turret.js';
 import { nightAmount } from '@last-orbit/rendering/background.js';
 import { DRONES } from '@last-orbit/data/drones.js';
-import { MUTATOR_BY_ID, dayKey } from '@last-orbit/data/daily.js';
+import { MUTATOR_BY_ID, dayKey, dailyFor } from '@last-orbit/data/daily.js';
+import { BOARD_TABS, RETRY_MS } from '@last-orbit/data/global.js';
+import { gl, posting, boardsOn, tell, flush, boardName, boardOf, cachedBoard, boardFresh, fetchBoard } from '@last-orbit/progression/global.js';
 
 const TABS = [['launch', 'Launch'], ['missions', 'Missions'], ['workshop', 'Workshop'], ['armory', 'Armory'], ['ships', 'Ships'], ['contracts', 'Career'], ['records', 'Records'], ['awards', 'Awards'], ['deck', 'Deck']];
 // The tab bar holds five buttons. With more tabs than fit it pages: the first page has four tabs and More, the last
@@ -136,6 +138,9 @@ export function createHangar(hooks) {
     if (id === 'comms' || id === 'missions') postBounties();
     if (id === 'garden') startGarden(G.state); // the first visit finds a few seeds in the drawer
     checkWardrobe(G.state); // anything new for Bolt to wear (data/bolt.js)
+    // With Records open, the pilot joins the global boards (progression/global.js): told once, and their best goes up.
+    if (menuState('records') === 'open' && tell(G.state)) { G.state.seen.records = false; flush(G.state); const who = boardName(G.state);
+      setTimeout(() => bus.emit('notice', { kind: 'unlock', kicker: 'New', title: 'Global boards', sub: `Your Daily and best scores now go up as ${who}. See where you stand in Records, or on the Deck TV.`, art: 'ach:trophy' }), 900); }
     if (id === 'ships' && G.state.seen.materials && !G.state.seen.refits) { G.state.seen.refits = true; setTimeout(() => hooks.menuIntro?.({ icon: 'ships', kicker: 'New', title: 'Ship refits', text: 'Each ship now has five refits of its own, paid in materials: Alloy from sectors 1-2, Crystal from 3-4, Void shards from 5-6 and the Deep Void. Warping past a stretch means going without its material. Find them on each hull\'s card, further down. Each takes a while in the dock (20 minutes for the first, up to 3 hours for the last), one at a time, and that ship cannot fly till it is done: take her out early if you need her, and the refit waits. A refit counts while you fly that ship, and an Overhaul leaves it alone. Tap your salvage at the top of the screen any time to see everything you hold.' }), 350); }
     // A menu the pilot has not earned yet stays shut (with a note on when it opens); a newly opened one explains itself once.
     if (menuState(id) === 'locked') { if (!quiet) { playSfx('deny'); hooks.toast?.(menuLockText(id), 'info'); } if (tab !== id) return; id = 'launch'; }
@@ -1033,7 +1038,44 @@ export function createHangar(hooks) {
   }
 
   // ------------------------------------------------------------ records: high scores and personal bests
+  let recTab = 'mine', boardTab = 'today'; // Records' two halves (yours, and the global boards) and the board looked at
+  const boardFail = {}; // board id → when it last could not be reached (not asked again for half a minute)
+  /** Records' switch between the pilot's own records and the global boards. */
+  const recSeg = () => h('div.gl-seg', { role: 'tablist' }, [['mine', 'Yours'], ['global', 'Global']].map(([id, name]) =>
+    h('button' + (recTab === id ? '.on' : ''), { role: 'tab', 'aria-selected': String(recTab === id), onclick: () => { if (recTab === id) return; recTab = id; playSfx('tab'); render(true); } }, name)));
+  /** From the Deck TV's Boards channel: the boards in full, on the board the TV was showing. */
+  function openBoards(t) { recTab = 'global'; if (t) boardTab = t; show('records'); }
+  /** The global boards (progression/global.js): today's and yesterday's Daily Sortie, and every pilot's best. A board
+   *  is fetched when it is old; meanwhile (or if it cannot be reached) the last fetch shows, or a note. */
+  function globalView() {
+    const st = G.state, g = gl(st), id = boardOf(boardTab), c = cachedBoard(id), def = BOARD_TABS.find((b) => b.id === boardTab), on = posting(st);
+    if (!boardFresh(id) && !(Date.now() - (boardFail[id] || 0) < 30e3)) fetchBoard(id).then(() => { delete boardFail[id]; }, () => { boardFail[id] = Date.now(); }).finally(() => { if (tab === 'records' && recTab === 'global') render(); });
+    const name = boardName(st) + (g.tag ? ' #' + g.tag : '');
+    const intro = h('section.panel.gl-intro' + (on ? '' : '.off'), art('ach:trophy', 'gl-ico'), h('div',
+      on ? [h('b', `You post as ${name}`), h('small', `Your Daily Sortie and any new best go up after each sortie.${g.tag ? ` Your tag shows beside your name when another pilot has the same one.` : ''} ${st.pilot.name ? 'Change your callsign' : 'Add a callsign'} in Settings.`)]
+        : [h('b', 'Your scores stay on this device'), h('small', boardsOn(st) ? 'You join the boards once Records is open.' : 'Global boards are off in Settings. You can still look.')]));
+    const chips = h('div.gl-boards', BOARD_TABS.map((b) => h('button.gl-chip' + (b.id === boardTab ? '.on' : ''), { onclick: () => { if (boardTab === b.id) return; boardTab = b.id; playSfx('tab'); render(); } }, b.name)));
+    const daily = boardTab !== 'all' ? dailyFor(id.slice(6)) : null;
+    const row = (r, you) => h('li.lead.gl-row' + (r.n === 1 ? '.first' : '') + (r.me ? '.me' : ''),
+      h('span.lead-n', String(r.n)),
+      h('div.lead-main', h('b', (you ? 'You · ' : '') + r.name, r.tag ? h('span.gl-tag', '#' + r.tag) : null), h('small', [`Wave ${r.wave}`, SHIP_BY_ID[r.ship]?.name, r.station].filter(Boolean).join(' · '))),
+      h('div.lead-tags', h('b.gl-score', fmtInt(r.score)), r.threat ? h('span.tag.tag-threat', 'Threat ' + roman(r.threat)) : null, r.warp > 1 ? h('span.tag.tag-warp', 'Warp S' + r.warp) : null));
+    let list;
+    if (!c) list = h('div.lock-note', uiIcon('records'), h('span', boardFail[id] ? 'The boards are out of reach right now. Your scores are safe on this device and go up when they can.' : 'Reaching the boards…'));
+    else if (!c.data.top.length) list = h('div.lock-note', uiIcon('records'), h('span', def.empty));
+    else { const d = c.data; list = h('div', h('ol.leader.gl-list', d.top.map((r) => row(r)), d.me && d.me.n > d.top.length ? [h('li.gl-gap', '···'), row(d.me, true)] : null),
+      h('p.gl-foot', `${fmtInt(d.total)} pilot${d.total === 1 ? '' : 's'} on this board` + (boardFail[id] ? ' · the boards are out of reach, so this is the last look' : ''))); }
+    const wait = on && g.pending.length ? h('p.gl-wait', `${g.pending.length === 1 ? 'A score is' : g.pending.length + ' scores are'} waiting to go up`) : null;
+    return h('div.screen', h('div.screen-head', h('h2', 'Records'), h('p', 'Pilots everywhere. The Daily is the same sortie for every one of them.')), recSeg(), intro, chips,
+      daily ? h('p.gl-day', `${boardTab === 'yday' ? 'Yesterday' : 'Today'}: ${daily.mutator.name} · ${daily.mutator.desc}`) : null, wait, list);
+  }
+  /** Posts still waiting (made offline, or when the boards were busy) are tried again every couple of minutes. */
+  let glAt = 0;
+  function globalTick() { const now = performance.now(); if (now < glAt) return; glAt = now + RETRY_MS; const g = gl(G.state); if (g.pending.length || g.forget) flush(G.state); }
+  addEventListener('online', () => { glAt = 0; });
+  bus.on('globalPosted', () => { if (tab === 'records' && recTab === 'global') render(); });
   function recordsView() {
+    if (recTab === 'global') return globalView();
     const st = G.state, s = st.stats, rec = st.records, d = st.daily;
     const hero = h('section.panel.rec-hero',
       h('div.rec-main', art('ach:trophy', 'rec-ico'), h('div', h('div.kicker', 'High score'), h('b.rec-score', s.bestScore ? fmtInt(s.bestScore) : '—'), h('small', s.bestScore ? 'Beat it on your next sortie' : 'Fly a sortie to set your first score'))),
@@ -1051,7 +1093,7 @@ export function createHangar(hooks) {
       return h('div.ship-best' + (owned ? '' : '.locked'), { style: `--c:${hex(sh.trim)}` }, art('ship:' + sh.id, 'row-icon'), h('div.row-main', h('b', sh.name), h('small', b ? `Best wave ${b.wave} · Mastery ${masteryOf(sh.id).level}` : owned ? 'No scored sortie yet' : 'Not owned yet')), h('b.sb-score', b ? fmtInt(b.score) : '—')); }));
     const life = h('div.stat-grid.bests', stat('Sorties', fmtInt(s.sorties)), stat('Invaders', fmt(s.kills)), stat('Bosses', fmtInt(s.bossKills)),
       stat('Waves cleared', fmtInt(s.wavesCleared || 0)), stat('Salvage earned', fmt(s.totalSalvage || 0)), stat('Play time', fmtTime(Math.round(st.meta.playTime || 0))));
-    return h('div.screen', h('div.screen-head', h('h2', 'Records'), h('p', 'Your personal bests. Every sortie is a shot at a new one.')),
+    return h('div.screen', h('div.screen-head', h('h2', 'Records'), h('p', 'Your personal bests. Every sortie is a shot at a new one.')), recSeg(),
       hero, bannerHint('score'), h('h3', 'Personal bests'), bests, h('h3', 'Top sorties'), top, h('h3', 'Ship bests'), ships, h('h3', 'Lifetime'), life);
   }
   const dateLabel = (t) => { const d = new Date(t), now = new Date(); return d.toDateString() === now.toDateString() ? 'Today' : d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }); };
@@ -1210,7 +1252,7 @@ export function createHangar(hooks) {
     const restart = () => { rp.seek(0); rp.paused = false; playSfx('tab', 0.5); };
     const el = h('div.rp-watch',
       h('div.rp-head', h('div.rp-title', h('small', h('i.rp-dot'), 'Replay'), h('b', name.title), h('span', name.sub)), h('button.btn.ghost.small.rp-close', { onclick: () => stopWatching(), 'aria-label': 'Close the replay' }, uiIcon('close'))),
-      h('div.rp-ch', TV_CHANNELS.map((c) => h('button.rp-chb' + (d.channel?.() === c.id ? '.on' : '') + (c.id === 'news' || replayOf(c.id) ? '' : '.empty'), { onclick: () => { if (d.channel?.() === c.id) return; if (tvChannel(c.id)) { stopWatching(); if (c.id !== 'news') { d.replay.load(replayOf(c.id)); watchReplay(); } } } }, c.name))), /* News: back to the Deck, the TV on it */
+      h('div.rp-ch', TV_CHANNELS.map((c) => h('button.rp-chb' + (d.channel?.() === c.id ? '.on' : '') + (c.live || replayOf(c.id) ? '' : '.empty'), { onclick: () => { if (d.channel?.() === c.id) return; if (tvChannel(c.id)) { stopWatching(); if (!c.live) { d.replay.load(replayOf(c.id)); watchReplay(); } } } }, c.name))), /* News and Boards: back to the Deck, the TV on it */
       h('div.rp-stats', $w.wave = h('b'), $w.score = h('span'), h('i.rp-hull', $w.hull = h('i'))),
       $w.end = h('div.rp-end' + (end.lost ? '.lost' : ''), h('b', end.text), $w.endSub = h('small'), h('button.btn.primary', { onclick: restart }, uiIcon('reroll'), 'Watch again')),
       h('div.rp-bar', h('button.rp-btn', { onclick: restart, 'aria-label': 'From the start' }, uiIcon('reroll')),
@@ -1226,7 +1268,7 @@ export function createHangar(hooks) {
   function tvChannel(id) {
     const c = TV_CHANNELS.find((x) => x.id === id); if (!c) return false;
     const room = G.renderer?.room;
-    if (id !== 'news' && !replayOf(id)) { playSfx('deny'); room?.pressKey?.(id, false); hooks.toast?.(`Nothing on ${c.name} yet: ${c.how.toLowerCase()} and it records here.`, 'info'); return false; }
+    if (!c.live && !replayOf(id)) { playSfx('deny'); room?.pressKey?.(id, false); hooks.toast?.(`Nothing on ${c.name} yet: ${c.how.toLowerCase()} and it records here.`, 'info'); return false; }
     const changed = room?.channel?.() !== id; G.state.settings.tvChannel = id; playSfx('tab'); if (changed) playSfx('dash', 0.25, 1.8); /* a click, and the hiss of the channel changing */ room?.pressKey?.(id, changed); hooks.saveNow?.('tv'); return true;
   }
   function stopWatching() {
@@ -1246,7 +1288,7 @@ export function createHangar(hooks) {
   /** Tapping an exhibit on the deck: its details, as a panel. */
   function exhibit(kind) {
     if (kind === 'exit') { show(outside); return; }
-    if (kind === 'replay') { if (G.renderer?.room?.channel?.() === 'news') playSfx('tab', 0.35); else watchReplay(); return; } /* the News is to be watched, not read */
+    if (kind === 'replay') { const ch = G.renderer?.room?.channel?.(); if (ch === 'news') playSfx('tab', 0.35); else if (ch === 'boards') openBoards(G.renderer.room.boardTab); else watchReplay(); return; } /* the News is to be watched, not read; the Boards open in full in Records */
     if (kind.startsWith('tv:')) { tvChannel(kind.slice(3)); return; }
     if (kind === 'control') { show('control'); return; }
     if (kind === 'hall') { show('hall'); return; }
@@ -1321,7 +1363,7 @@ export function createHangar(hooks) {
   function measureLayout() { lay.dirty = !(typeof ResizeObserver !== 'undefined'); lay.top = top.getBoundingClientRect().bottom; const b = el.getBoundingClientRect(), c = $.callout; lay.w = b.width; lay.h = b.height; lay.ch = c.offsetHeight; lay.cl = c.offsetLeft; lay.cw = c.offsetWidth; }
   /** Fleet Ops' title keeps up with its ships (one comes home while you stand there). */
   let opsAt = 0; function opsTick() { if (tab !== 'ops' || performance.now() < opsAt) return; opsAt = performance.now() + 1000; const b = $.body.querySelector('.deck3d.ops .d3-title b'); if (b) setText(b, opsTitle()); }
-  function update() { watchTick(); gunnerTick(); opsTick(); boltTick(); refitTick(); const sv = G.state.salvage; if ($.salvage._v !== sv) { $.salvage._v = sv; setText($.salvage, fmtInt(sv)); } badges(); pilotId(); stationDone(); if (lay.dirty) measureLayout(); G.hangarTop = lay.top; stationTag(); }
+  function update() { watchTick(); gunnerTick(); opsTick(); boltTick(); refitTick(); globalTick(); const sv = G.state.salvage; if ($.salvage._v !== sv) { $.salvage._v = sv; setText($.salvage, fmtInt(sv)); } badges(); pilotId(); stationDone(); if (lay.dirty) measureLayout(); G.hangarTop = lay.top; stationTag(); }
   /** Keep the label's text current, and its tap target over wherever the renderer drew it. */
   /** A buy that changed the station says so: a module rebuilt for the first time, lit once maxed, alien hardware fitted. */
   function stationNote(id, was) {

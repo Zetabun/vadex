@@ -8,7 +8,7 @@ export const MENUS = [
   { id: 'armory', sorties: 2, icon: 'armory', title: 'Armory', text: 'Every weapon and ability that can turn up as a card. Open one to see how it evolves; contracts unlock the rest.' },
   { id: 'contracts', sorties: 2, icon: 'contracts', title: 'Career', text: 'Contracts are goals that unlock new weapons, abilities and ships. Pilot ranks pay out paint jobs and salvage.' },
   { id: 'ships', sorties: 3, icon: 'ships', title: 'Ships', text: 'New hulls with their own guns and abilities, plus the paint jobs, banners and trails you have earned.' },
-  { id: 'records', sorties: 3, icon: 'records', title: 'Records', text: 'Your best scores, waves and sorties. Every run is a shot at a new personal best.' },
+  { id: 'records', sorties: 3, icon: 'records', title: 'Records', text: 'Your best scores, waves and sorties, and the global boards: every pilot, everywhere, and the Daily Sortie that all of them fly. Every run is a shot at a new best.' },
   { id: 'missions', sorties: 3, counter: true, icon: 'missions', title: 'Missions', text: 'A fresh Daily Sortie every day, Threat levels for bigger rewards, and later on, Counterattack.' },
   { id: 'awards', sorties: 4, icon: 'awards', title: 'Awards', text: 'Medals for milestones. Each pays pilot XP, and collecting them unlocks banners for your ship.' },
   // overhaul: opens at this Overhaul rank instead of after a number of sorties.

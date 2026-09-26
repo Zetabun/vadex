@@ -11,6 +11,7 @@
 | Difficulty and economy numbers | `modules/data/balance.js` |
 | HUD, Hangar, overlays, CSS | `modules/ui/hud.js`, `modules/ui/hangar.js`, `modules/ui/overlays.js`, `index.html` |
 | Save compatibility | `modules/core/state.js`, `modules/save/save.js` |
+| Global boards (posting, fetching, the Records Global tab, the Deck TV's Boards channel) | `modules/progression/global.js`, `modules/data/global.js`, `api/src/index.js`, `tests/global-regression.mjs`, `tests/api-regression.mjs` |
 | Release check and balance bot | `tools/run_release_gates.py`, `tests/sortie-regression.mjs`, `tests/balance-sim.mjs` |
 
 The import map in `index.html` resolves each `@last-orbit/` specifier to a published module path. `tests/loader.mjs` resolves the same specifiers in Node.
