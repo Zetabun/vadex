@@ -21,7 +21,7 @@ export const ROOMS_ABOARD = [
     for: 'Grow boosts for your next sortie', via: 'deck', door: 'the Command Deck\'s back door, by the lounge',
     lock: 'The old greenhouse opens a few sorties in, once you have cleared sector 1.',
     intro: 'Power is back in the old greenhouse, and something in here survived. Plant the seeds you find by beating bosses and they grow while you are away; water the beds once a day to help them along. Harvest a bloom and your next sortie takes it with you as a boost. There are three seeds in the drawer to start you off.',
-    wing: { rank: WING_RANK, chip: 'Greenhouse: second wing', gives: 'Greenhouse: a second wing, six more beds, faster growth', kicker: 'The greenhouse grows', intro: 'The Solar wings are powering the rest of the greenhouse. The second wing is open: six more beds under grow lights, and everything you plant grows half as fast again.' } },
+    wing: { rank: WING_RANK, chip: 'Greenhouse: second wing', gives: 'Six more beds, and everything grows faster', kicker: 'The greenhouse grows', intro: 'The Solar wings are powering the rest of the greenhouse. The second wing is open: six more beds under grow lights, and everything you plant grows half as fast again.' } },
   { id: 'deck', name: 'Command Deck', icon: 'deck', rank: 1, color: 0x5ee6ff, for: 'Your medals, banners, records and ships on show' },
   { id: 'control', name: 'Defence Control', icon: 'control', seen: 'control', open: siegeUnlocked, when: 'Opens when you clear Counterattack stage 1', color: 0xffb547,
     for: 'Hold the station in a Station Siege', via: 'deck', door: 'the Command Deck\'s right-hand door',

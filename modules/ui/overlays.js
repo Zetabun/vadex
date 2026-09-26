@@ -28,7 +28,7 @@ import { sectorOf } from '@last-orbit/data/sectors.js';
 import { BOSSES } from '@last-orbit/data/bosses.js';
 import { BAL } from '@last-orbit/data/balance.js';
 import { unlockLabel, pilotProgress, medalDesc, overhaul, overhaulReward, blueprintLevel, setCallsign, cleanCallsign, CALLSIGN_MAX, setStationName, cleanStationName, STATION_NAME_MAX } from '@last-orbit/progression/meta.js';
-import { TRAILS, OVERHAUL_COST_STEP } from '@last-orbit/data/prestige.js';
+import { TRAILS, OVERHAUL_COST_STEP, OVERHAUL_FX_CAP } from '@last-orbit/data/prestige.js';
 import { PAINT_BY_ID, rankTitle } from '@last-orbit/data/career.js';
 import { THREATS } from '@last-orbit/data/threat.js';
 import { COUNTER_TOP, STAR_HITS, STAR_KILLS } from '@last-orbit/data/counter.js';
@@ -385,11 +385,23 @@ export function createOverlays(layer, hooks) {
   // ------------------------------------------------------------ overhaul
   function showOverhaul() {
     const st = G.state, bp = overhaulReward(), head = blueprintLevel('bp_head'), rank = st.prestige.level + 1, trail = TRAILS.find((t) => t.at === rank), piece = STATION_CORE.find((c) => c.at === rank), room = roomAt(rank), wing = wingAt(rank);
-    const list = (title, items, cls) => h('div.oh-col' + cls, h('b', title), h('ul', items.map((t) => h('li', t))));
+    const hex = (n) => '#' + n.toString(16).padStart(6, '0');
+    // what it brings, a row each (a picture, what it is, a line on it), then what stays, in tags
+    const item = (ic, title, sub, c) => h('div.oh-item', { style: c != null ? `--c:${hex(c)}` : null }, h('span.oh-ic', ic), h('div.oh-txt', h('b', title), sub ? h('small', sub) : null));
+    const swatch = trail && (trail.style === 'prism' ? 'conic-gradient(#ff5d8f,#ffc857,#6dff8e,#5ee6ff,#b69cff,#ff5d8f)' : `radial-gradient(circle at 50% 30%,#fff 0 18%,${hex(trail.color)} 40%,${hex(trail.core ?? trail.color)}55 100%)`);
+    const same = room && piece && room.name === piece.name; /* the piece is the room (the Command Deck, the Observatory…): one row */
+    const gets = [item(h('i.bp-ico'), `${bp} Blueprints`, 'Escort drones and perks, never lost'),
+      piece && !same ? item(uiIcon('station'), piece.name, 'Built onto your station') : null,
+      room ? item(uiIcon(room.icon), room.name, room.for, room.color) : null,
+      wing ? item(uiIcon(wing.icon), wing.wing.chip, wing.wing.gives, wing.color) : null,
+      item(h('b.oh-rk', String(rank)), `Overhaul rank ${rank}`, rank <= OVERHAUL_FX_CAP ? '+10% salvage and +2% damage, for good' : 'The salvage and damage bonus is maxed'),
+      trail ? item(h('i.swatch.trail-sw', { style: `background:${swatch}` }), `${trail.name} engine trail`, 'For every ship') : null,
+      rank === 1 ? item(uiIcon('awards'), 'Overhaul Log banner', 'Legendary') : null];
+    const keep = ['Your station', 'Salvage', 'Ships, weapons, abilities', 'Paints and banners', 'Ranks and medals', 'Mastery and records', 'Counterattack', 'Alien Tech', 'Blueprints and escorts'];
     const el = h('div.modal.confirm.oh-confirm', { role: 'alertdialog', 'aria-label': 'Overhaul the Workshop?' },
-      h('div.modal-head', h('div.kicker', `Overhaul rank ${rank}`), h('h2', 'Overhaul?'), h('p', `Every Workshop upgrade goes back to ${head ? 'level ' + head + ' (Head Start)' : 'zero'}. Your next few sorties will be tougher while you rebuild, and each rank makes the Workshop ${Math.round(OVERHAUL_COST_STEP * 100)}% dearer.`)),
-      h('div.oh-cols', list('You get', [`${bp} Blueprints`, piece ? `Station: the ${piece.name}` : null, room ? `${room.name}: ${room.for[0].toLowerCase() + room.for.slice(1)}` : null, wing ? wing.wing.gives : null, 'Overhaul rank ' + rank + ': +10% salvage, +2% damage', trail ? `${trail.name} engine trail` : null, rank === 1 ? 'Overhaul Log legendary banner' : null].filter(Boolean), '.get'),
-        list('You keep', ['Your station: every module stays built', 'Salvage in the bank', 'Ships, weapons and abilities', 'Paints, banners and ranks', 'Mastery, medals and records', 'Counterattack and Alien Tech', 'Blueprints and escorts'], '.keep')),
+      h('div.modal-head', h('div.kicker', `Overhaul rank ${rank}`), h('h2', 'Overhaul?'), h('p', `The Workshop goes back to ${head ? 'level ' + head + ' (Head Start)' : 'zero'}, so the next few sorties are tougher while you rebuild. Each rank makes it ${Math.round(OVERHAUL_COST_STEP * 100)}% dearer.`)),
+      h('section.oh-get', h('h4.oh-sub', 'You get'), gets),
+      h('section.oh-keep', h('h4.oh-sub', 'You keep'), h('div.oh-tags', keep.map((k) => h('span', k)))),
       h('div.modal-actions', h('button.btn.ghost', { onclick: close, 'data-autofocus': '' }, 'Not yet'),
         h('button.btn.gold', { onclick: () => { const got = overhaul(); close(); if (got) hooks.overhauled?.(got); } }, 'Overhaul')));
     mount('confirm', el, (e) => { if (e.key === 'Escape') { close(); return true; } return false; });

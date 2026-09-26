@@ -8,8 +8,9 @@
   - **Blooms are boosts for your next sortie**, never permanent stats, so they matter as much late on as early: +15% salvage (Sunpetal), start with a card (Emberroot), two more rerolls (Mistvine), +25% shield (Ironbark), +20% XP (Hivebloom), one more card to choose from (Gravity fern), a relic to pick at the start (Starbloom), +15% damage (Nightshade) and an extra revive (Beacon lily). Harvest a bloom into the basket and your next sortie takes one of every kind in it. The Launch card shows what it will take, and the debrief says what it used and which seeds came home.
   - **The Solar wings (Overhaul rank 4) power the second wing:** six more beds under grow lights, and everything grows half as fast again. The old tree at the far end comes back into leaf.
   - **Grow every kind once** for the **Verdant** paint. The herbarium between the doors keeps a pressed specimen of each, and the old tree flowers when it is full.
-  - Also in the room: the seed drawer, the potting bench with the basket, the tap and rain barrel, and Sprig, the drone that tends the beds and mists them when you water.
+  - Also in the room: the seed drawer, the potting bench with the basket, the water point (the tap on its board, the hose reel and the water butt), a fan turning in the gable over the doors, and Sprig, the drone that tends the beds. When you water, Sprig fills up at the butt and then mists every bed still growing.
 - The station card, the Launch screen's station callout and the Deck's directory all list the Greenhouse, with what is waiting there: blooms to harvest, empty beds, beds to water. The Overhaul roadmap's rank 4 card and the Overhaul confirmation say what the Solar wings do for it.
+- **The Overhaul confirmation is easier to read:** one column instead of two. What you get is a row each, with a picture: the Blueprints, the station piece, the room it opens, the rank bonus and any engine trail. What you keep is a set of tags underneath.
 
 ## v2.17.0 — 2026-09-26
 

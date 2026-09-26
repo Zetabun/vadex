@@ -225,9 +225,9 @@ function runScene(scene, hooks, ui) {
     if (mode === 'door') { const at = { hall: ['deck', -1.8, 0, Math.PI / 2], comms: ['hall', 1.2, 1.75, -Math.PI / 2], quarters: ['hall', -1.2, 1.75, Math.PI / 2], observatory: ['quarters', -0.2, 1.15, -Math.PI / 2], yard: ['observatory', 0.8, 0.6, -Math.PI / 2], beacons: ['yard', -2.3, -9.9, Math.PI / 2] }[fresh?.id];
       if (!at) { hooks.toHangar('launch'); return; } hooks.toHangar(at[0]); let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 60) setTimeout(place, 100); return; } r.pos.set(at[1], 0, at[2]); r.yaw = at[3]; r.pitch = 0.1; }; place(); return; }
     hooks.toHangar('launch'); if (mode === 'offer') setTimeout(() => ui.offerRoom(rank), 600); else if (mode === 'card') setTimeout(() => document.querySelector('.st-callout')?.click(), 900); return; }
-  // garden[:wing][:view|tap:<exhibit>|intro|offer|bloom]: the Greenhouse with a bloom, a bud and a sprout in the old bay
+  // garden[:wing][:view[:tap:<exhibit>]|tap:<exhibit>|intro|offer|bloom]: the Greenhouse with a bloom, a bud and a sprout in the old bay
   // (wing: Overhaul rank 4, the second wing lit and planted too; bloom: every bed in bloom, a kind to each). views: island,
-  // drawer, water, herbarium, partition, wing, rows, back.
+  // drawer, bench, water, herbarium, partition, wing, rows, back, roof.
   if (name === 'garden') { const wing = arg === 'wing', a = wing ? arg2 : arg, b = wing ? arg3 : arg2, H = 3600000, now = Date.now();
     st.pilot.name = 'Adam'; st.seen.callsign = true; st.stationName = 'Halcyon'; st.stats.sorties = 12; st.stats.sectorsCleared = 3; st.stats.bestWave = 34; st.prestige.level = wing ? 4 : 0;
     for (const l of LINES) st.seen.comms[l.id] = 1; st.seen.commsInit = true; st.seen.garden = a !== 'intro' && a !== 'offer'; st.seen.offered = a === 'offer' ? {} : { garden: true };
@@ -238,9 +238,9 @@ function runScene(scene, hooks, ui) {
     WORKSHOP.forEach((u, i) => { st.stationPeak[u.id] = u.max; st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.6 - (i % 5) * 0.12))); }); recalc();
     if (a === 'offer') { hooks.toHangar('launch'); return; }
     hooks.toHangar('garden');
-    const view = { island: [0, 1.1, 0, -0.3], drawer: [1.3, 0.6, -1.5708, -0.1], water: [-1.5, 0.8, 1.5708, -0.1], herbarium: [-0.1, 0.6, Math.PI, 0.08], partition: [0.4, -1.6, 0.15, 0.05], wing: [0, -4.6, 0, -0.12], rows: [0.3, -4.3, 0.42, -0.2], back: [0, -2.6, Math.PI, 0.02] }[a === 'bloom' && wing ? 'rows' : a];
+    const view = { island: [0, 1.1, 0, -0.3], drawer: [1.3, 0.55, -1.5708, -0.1], bench: [1.2, -1.15, -1.5708, -0.28], water: [-1.15, 0.55, 1.5708, -0.18], herbarium: [-0.1, 0.6, Math.PI, 0.08], partition: [0, -2.6, 0, 0.2], wing: [0, -4.6, 0, -0.12], rows: [0.3, -4.3, 0.42, -0.2], back: [0, -2.6, Math.PI, 0.02], roof: [1.6, 1.5, 0.35, 0.95] }[a === 'bloom' && wing ? 'rows' : a];
     if (view) { let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 60) setTimeout(place, 100); return; } r.pos.set(view[0], 0, view[1]); r.yaw = view[2]; r.pitch = view[3]; }; place(); }
-    if (a === 'tap') setTimeout(() => ui.tap?.(b || 'bed0'), 1500);
+    if (a === 'tap') setTimeout(() => ui.tap?.(b || 'bed0'), 1500); else if (view && b === 'tap') setTimeout(() => ui.tap?.((wing ? arg4 : arg3) || 'water'), 1500); /* <view>:tap:<exhibit>: from that view */
     return; }
   if (name === 'beacons') { const num = (v) => v != null && v !== '' && !isNaN(+v), won = num(arg) ? +arg : arg === 'tap' ? (num(arg3) ? +arg3 : 2) : num(arg2) ? +arg2 : 2, more = num(arg) && num(arg2) ? +arg2 : 1;
     st.pilot.name = 'Adam'; st.seen.callsign = true; st.seen.beacons = arg !== 'intro'; st.prestige.level = 8; st.stationName = 'Halcyon'; st.stats.bestWave = 96; st.stats.bestSector = 9;
@@ -308,12 +308,13 @@ function runScene(scene, hooks, ui) {
     return;
   }
   if (name === 'banner' || name === 'bannerfly') { for (const id of ['signal', 'checker', 'ember', 'royal', 'jolly']) st.banners[id] = 1; st.banners[arg] = 1; st.banner = arg; if (name === 'banner') { hooks.toHangar(arg === 'royal' ? 'launch' : 'ships'); return; } }
-  // Overhaul: overhaul (Workshop maxed, ready), blueprints (rank 3 with Blueprints to spend), escorts[:trail] (in flight).
+  // Overhaul: overhaul[:<rank>][:confirm] (Workshop maxed, ready for that rank, default 1; confirm: Overhaul pressed), blueprints
+  // (rank 3 with Blueprints to spend), escorts[:trail] (in flight).
   if (name === 'overhaul' || name === 'blueprints' || name === 'escorts') {
     const pr = st.prestige;
-    if (name === 'overhaul') { for (const u of WORKSHOP) st.workshop[u.id] = u.max; pr.cycleBest = 74; }
+    if (name === 'overhaul') { for (const u of WORKSHOP) st.workshop[u.id] = u.max; pr.cycleBest = 74; if (+arg > 1) { pr.level = st.stats.overhauls = +arg - 1; st.stationName = 'Halcyon'; for (const u of WORKSHOP) st.stationPeak[u.id] = u.max; } }
     else { pr.level = name === 'escorts' ? 8 : 3; pr.bp = 14; pr.tech = { bp_bay: 2, bp_intercept: 1, bp_shield: 1, bp_salvage: 1 }; pr.escorts = ['intercept', 'shield']; st.stats.overhauls = pr.level; st.trail = arg || 'prism'; for (const u of WORKSHOP) st.workshop[u.id] = Math.min(u.max, 6); }
-    recalc(); if (name !== 'escorts') { hooks.toHangar('workshop'); return; }
+    recalc(); if (name !== 'escorts') { hooks.toHangar('workshop'); if (arg === 'confirm' || arg2 === 'confirm') setTimeout(() => document.querySelector('.oh-go')?.click(), 700); return; }
     hooks.launch(); st.run.offer = null; st.run.pendingLevels = 0; ui.closeOverlays();
     setInterval(() => { const w = G.world, run = st.run; if (!w?.player || !run) return; if (run.offer || run.relicOffer) { if (run.relicOffer) pickRelic(0); else pickCard(autoPickIndex(run)); if (!run.offer && !run.relicOffer) ui.closeOverlays(); }
       const s = Math.sin(performance.now() / 1100); w.input.hold = s > 0.3 ? 1 : s < -0.3 ? -1 : 0; w.player.hull = 1; }, 120); return;

@@ -15,23 +15,39 @@ const T = () => window.THREE;
 // is 1.5 higher. The partition between the old bay and the second wing stands at z -3.8, its doorway 1.9 wide.
 const W = 3.6, FRONT = -11.5, BACK = 3, H = 3, RIDGE = 1.5, WALL_Z = -3.8, DOOR_HW = 0.95, LEAF = 0x7ddc6f, FRAME = 0xdfe6e2;
 const ISLAND = { x: 0, z: -1.2, r: 1.25 }, TREE = { x: 0, z: -10.1 };
+/** The frames: a post up each glass wall (the shell's ribs) and a rafter over the roof, with the partition and the end
+ *  walls between them; a glazing bar up the walls and over the roof halfway between each pair. */
+const FRAMES = [1.4, -0.3, -2.0, -5.7, -7.6, -9.5], BAYS = [BACK, ...FRAMES.slice(0, 3), WALL_Z, ...FRAMES.slice(3), FRONT], BARS = BAYS.slice(1).map((z, i) => (z + BAYS[i]) / 2);
+/** Where Sprig fills up (over the water butt by the tap), as a bed would be given. */
+const BUTT = { x: -W + 0.84, y: 0.2, z: 0.15 };
 /** Where each bed's plants stand: 0-2 the three wedges of the round planter (one facing the doors), 3-8 troughs down the
- *  second wing, left and right, three plants to a trough. */
+ *  second wing, left and right, three plants to a trough. face: the way their flowers turn (out from the planter, or to
+ *  the aisle), so you see them from the front. */
 const BED_AT = [
-  ...[90, 210, 330].map((d) => { const a = (d * Math.PI) / 180; return { x: ISLAND.x + Math.cos(a) * 0.72, z: ISLAND.z + Math.sin(a) * 0.72, y: 0.5, n: 1 }; }),
-  ...[-5.5, -7.4, -9.3].flatMap((z) => [-1, 1].map((s) => ({ x: s * 2.35, z, y: 0.62, n: 3 }))),
+  ...[90, 210, 330].map((d) => { const a = (d * Math.PI) / 180; return { x: ISLAND.x + Math.cos(a) * 0.72, z: ISLAND.z + Math.sin(a) * 0.72, y: 0.5, n: 1, face: Math.atan2(-Math.cos(a), -Math.sin(a)) }; }),
+  ...[-5.5, -7.4, -9.3].flatMap((z) => [-1, 1].map((s) => ({ x: s * 2.35, z, y: 0.62, n: 3, face: (s * Math.PI) / 2 }))),
 ];
 /** How far along a plant is, in the steps it is drawn at: a sprout, in leaf, leafier, in bud, in bloom. */
 const stage = (k) => (k < 0.12 ? 0 : k < 0.35 ? 1 : k < 0.6 ? 2 : k < 1 ? 3 : 4);
 
 // Shared shapes, stretched into leaves, stems and petals, and materials by colour.
 let GEO = null;
-const geo = () => (GEO ||= { ball: new (T().SphereGeometry)(1, 12, 8), rod: new (T().CylinderGeometry)(1, 1, 1, 6), cone: new (T().ConeGeometry)(1, 1, 8) });
+const geo = () => (GEO ||= { ball: new (T().SphereGeometry)(1, 12, 8), round: new (T().SphereGeometry)(1, 22, 16), rod: new (T().CylinderGeometry)(1, 1, 1, 6), cone: new (T().ConeGeometry)(1, 1, 8) });
 const MATS = new Map();
 function mat(color, glow = 0, metal = false) {
   const k = `${color}|${glow}|${metal}`;
   if (!MATS.has(k)) { const THREE = T(); MATS.set(k, new THREE.MeshPhongMaterial({ color, shininess: metal ? 90 : 16, specular: metal ? 0xffffff : 0x1a1a1a, emissive: new THREE.Color(color).multiplyScalar(glow) })); }
   return MATS.get(k);
+}
+/** A pipe through points (Vector3s): straight runs, each corner bent round a curve about bend long. */
+function pipe(pts, r, m, bend = 0.08) {
+  const THREE = T(), path = new THREE.CurvePath(); let from = pts[0];
+  for (let i = 1; i < pts.length; i++) {
+    const p = pts[i]; if (i === pts.length - 1) { path.add(new THREE.LineCurve3(from, p)); break; }
+    const a = p.clone().sub(from), b = pts[i + 1].clone().sub(p), ka = Math.min(bend, a.length() / 2), kb = Math.min(bend, b.length() / 2);
+    const p0 = p.clone().addScaledVector(a.normalize(), -ka), p1 = p.clone().addScaledVector(b.normalize(), kb); path.add(new THREE.LineCurve3(from, p0)); path.add(new THREE.QuadraticBezierCurve3(p0, p, p1)); from = p1;
+  }
+  return new THREE.Mesh(new THREE.TubeGeometry(path, 24 * pts.length, r, 10, false), m);
 }
 
 /** A plant of kind s grown to p (0..1): a sprout, a stem putting out leaves, a bud, then its flower, by its style. glow:
@@ -91,7 +107,7 @@ export class GardenRoom extends Room {
   constructor() {
     super({ w: W, front: FRONT, back: BACK, h: H, start: [0, 1.9, 0] });
     this.shell({ open: true, glassWalls: true, floor: '#2d2a24', wall: '#2e3a31', stud: '#56643e', tick: 'rgba(125,220,111,.22)', strip: LEAF, cove: 0xc8f5b4, frame: FRAME, rib: FRAME,
-      lamp: 0xfff0d6, lampI: 0.42, hemi: 0.62, sky: 0xeefff0, sun: 0.5, window: { hw: W - 0.12, y0: 0.42, y1: H - 0.06, struts: [-1.2, 1.2] }, lamps: [1.2, -1.8], ribs: [-10.4, -8.35, -6.45, -1.95, 1.85] });
+      lamp: 0xfff0d6, lampI: 0.42, hemi: 0.62, sky: 0xeefff0, sun: 0.5, window: { hw: W - 0.12, y0: 0.42, y1: H - 0.06, struts: [-1.2, 1.2] }, lamps: [1.2, -1.8], ribs: FRAMES });
     this.nearFront = 0.9;
     const c = canvas(64, 64), x = c.getContext('2d'), gr = x.createRadialGradient(32, 32, 0, 32, 32, 32); gr.addColorStop(0, 'rgba(255,255,255,1)'); gr.addColorStop(0.35, 'rgba(255,255,255,.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = gr; x.fillRect(0, 0, 64, 64);
     this.glow = tex(c);
@@ -101,7 +117,7 @@ export class GardenRoom extends Room {
     for (const b of BED_AT.slice(3)) this.blocks.push({ x0: b.x - 0.4, x1: b.x + 0.4, z0: b.z - 0.95, z1: b.z + 0.95 });
     for (const s of [-1, 1]) this.blocks.push({ x0: s < 0 ? -W : DOOR_HW, x1: s < 0 ? -DOOR_HW : W, z0: WALL_Z - 0.12, z1: WALL_Z + 0.12 });
     this.doorway = { x0: -DOOR_HW, x1: DOOR_HW, z0: WALL_Z - 0.12, z1: WALL_Z + 0.12 }; /* shut until the Solar wings */
-    this.blocks.push({ x0: W - 0.62, x1: W, z0: -1.75, z1: 1.2 }, { x0: -W, x1: -W + 0.7, z0: 0.05, z1: 1.55 }); /* the bench and the drawer; the barrel */
+    this.blocks.push({ x0: W - 0.62, x1: W, z0: -1.9, z1: 1.2 }, { x0: -W, x1: -W + 0.9, z0: -0.2, z1: 1.3 }); /* the bench and the drawer; the water point */
   }
   // ---------------------------------------------------------------- the glass
   roof() {
@@ -111,10 +127,27 @@ export class GardenRoom extends Room {
     const quad = (pts) => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts.flat(), 3)); g.setIndex([0, 1, 2, 0, 2, 3]); g.computeVertexNormals(); return g; };
     for (const s of [-1, 1]) S.add(new THREE.Mesh(quad([[s * W, H, FRONT], [0, H + RIDGE, FRONT], [0, H + RIDGE, BACK], [s * W, H, BACK]]), glass));
     const tri = (z, m) => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute([-W, H, z, W, H, z, 0, H + RIDGE, z], 3)); g.computeVertexNormals(); S.add(new THREE.Mesh(g, m)); };
-    tri(FRONT, glass); tri(BACK - 0.01, new THREE.MeshPhongMaterial({ color: 0x2e3a31, side: THREE.DoubleSide }));
-    // rafters every so often, the ridge and a purlin down each slope, all in white-painted steel
-    const len = Math.hypot(W, RIDGE), pitch = Math.atan2(RIDGE, W);
-    for (let z = BACK - 0.05; z > FRONT - 0.01; z -= 1.45) for (const s of [-1, 1]) { const r = new THREE.Mesh(new THREE.BoxGeometry(len, 0.08, 0.07), frame); r.position.set((s * W) / 2, H + RIDGE / 2, Math.max(FRONT + 0.04, z)); r.rotation.z = s * -pitch; S.add(r); }
+    tri(FRONT, glass);
+    // a rafter over every post, the partition and the end walls, and a glazing bar between each pair that runs on down the
+    // glass walls to the sill; the ridge and a purlin down each slope; all in white-painted steel
+    const len = Math.hypot(W, RIDGE), pitch = Math.atan2(RIDGE, W), rafter = (z, t) => { for (const s of [-1, 1]) { const r = new THREE.Mesh(new THREE.BoxGeometry(len, t, t), frame); r.position.set((s * W) / 2, H + RIDGE / 2, z); r.rotation.z = s * -pitch; S.add(r); } };
+    for (const z of [BACK - 0.06, ...FRAMES, WALL_Z, FRONT + 0.06]) rafter(z, 0.1);
+    for (const z of BARS) { rafter(z, 0.04); for (const s of [-1, 1]) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.035, H - 0.42, 0.035), frame); b.position.set(s * (W - 0.03), (H + 0.42) / 2, z); S.add(b); } }
+    // the window's struts carried on up the far gable to the roof, and a bar up the middle
+    for (const x of [-1.2, 0, 1.2]) { const top = H + RIDGE * (1 - Math.abs(x) / W) - 0.04, b = new THREE.Mesh(new THREE.BoxGeometry(0.1, top - H, 0.1), frame); b.position.set(x, (H + top) / 2, FRONT + 0.06); S.add(b); }
+    // the gable over the doors: panelled like the walls, a round vent in it with a fan turning behind a guard
+    const gc = canvas(512, 128), gx = gc.getContext('2d'); gx.fillStyle = '#2e3a31'; gx.fillRect(0, 0, 512, 128); gx.strokeStyle = '#1a2031'; gx.lineWidth = 3;
+    for (let x = 0; x <= 512; x += 36) { gx.beginPath(); gx.moveTo(x, 0); gx.lineTo(x, 128); gx.stroke(); } gx.beginPath(); gx.moveTo(0, 122); gx.lineTo(512, 122); gx.stroke();
+    const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute([-W, H, 0, W, H, 0, 0, H + RIDGE, 0], 3)); gg.setAttribute('uv', new THREE.Float32BufferAttribute([0, 0, 1, 0, 0.5, 1], 2)); gg.computeVertexNormals();
+    const gable = new THREE.Mesh(gg, new THREE.MeshPhongMaterial({ map: tex(gc), side: THREE.DoubleSide, specular: 0x222a3a, shininess: 18 })); gable.position.z = BACK - 0.01; S.add(gable);
+    const vent = new THREE.Group(); vent.position.set(0, H + 0.62, BACK - 0.03); S.add(vent);
+    const hole = new THREE.Mesh(new THREE.CircleGeometry(0.42, 36), new THREE.MeshBasicMaterial({ color: 0x0b100d })); hole.rotation.y = Math.PI; vent.add(hole);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.035, 8, 40), frame); rim.position.z = -0.02; vent.add(rim);
+    const blade = new THREE.MeshPhongMaterial({ color: 0x4a5a50, specular: 0x777777, shininess: 40, side: THREE.DoubleSide }); this.fan = new THREE.Group(); this.fan.position.z = -0.05; vent.add(this.fan);
+    for (let i = 0; i < 5; i++) { const arm = new THREE.Group(); arm.rotation.z = (i / 5) * Math.PI * 2; this.fan.add(arm); const b = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.28, 0.01), blade); b.position.y = 0.21; b.rotation.y = 0.5; arm.add(b); }
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.06, 16), frame); hub.rotation.x = Math.PI / 2; this.fan.add(hub);
+    for (const r of [0.16, 0.3]) { const ring = new THREE.Mesh(new THREE.TorusGeometry(r, 0.007, 4, 36), frame); ring.position.z = -0.1; vent.add(ring); }
+    for (const a of [0, Math.PI / 2]) { const bar = new THREE.Mesh(new THREE.BoxGeometry(0.84, 0.014, 0.014), frame); bar.rotation.z = a; bar.position.z = -0.1; vent.add(bar); }
     const along = (x, y, t = 0.08) => { const b = new THREE.Mesh(new THREE.BoxGeometry(t, t, BACK - FRONT), frame); b.position.set(x, y, (FRONT + BACK) / 2); S.add(b); };
     along(0, H + RIDGE, 0.11); for (const s of [-1, 1]) { along((s * W) / 2, H + RIDGE / 2); along(s * (W - 0.04), H - 0.02, 0.1); }
     // down the glass walls: a low sill and a rail at waist height
@@ -129,7 +162,11 @@ export class GardenRoom extends Room {
     const box = (w, h, d, x, y, m = frame) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, 0); g.add(b); return b; };
     for (const s of [-1, 1]) { const pw = W - DOOR_HW, pane = new THREE.Mesh(new THREE.PlaneGeometry(pw, H), glass); pane.position.set(s * (DOOR_HW + pw / 2), H / 2, 0); g.add(pane);
       box(0.09, H, 0.1, s * DOOR_HW, H / 2); box(0.06, H, 0.08, s * (DOOR_HW + pw / 2), H / 2); box(pw, 0.06, 0.08, s * (DOOR_HW + pw / 2), 1.25); box(pw, 0.36, 0.1, s * (DOOR_HW + pw / 2), 0.18); }
-    const lintel = new THREE.Mesh(new THREE.PlaneGeometry(2 * DOOR_HW, H - 2.5), glass); lintel.position.set(0, 2.5 + (H - 2.5) / 2, 0); g.add(lintel); box(2 * DOOR_HW, 0.09, 0.1, 0, 2.5); box(2 * DOOR_HW + 0.1, 0.08, 0.1, 0, H - 0.04);
+    const lintel = new THREE.Mesh(new THREE.PlaneGeometry(2 * DOOR_HW, H - 2.5), glass); lintel.position.set(0, 2.5 + (H - 2.5) / 2, 0); g.add(lintel); box(2 * DOOR_HW, 0.09, 0.1, 0, 2.5);
+    // on up to the roof: a rail right across, the posts carried on up to the rafter, and a gable of glass
+    box(2 * W - 0.1, 0.08, 0.1, 0, H - 0.04);
+    for (const x of [-(W + DOOR_HW) / 2, -DOOR_HW, 0, DOOR_HW, (W + DOOR_HW) / 2]) { const top = H + RIDGE * (1 - Math.abs(x) / W) - 0.05; box(x === 0 ? 0.08 : 0.06, top - H, 0.08, x, (H + top) / 2); }
+    const gg = new THREE.BufferGeometry(); gg.setAttribute('position', new THREE.Float32BufferAttribute([-W, H, 0, W, H, 0, 0, H + RIDGE, 0], 3)); gg.computeVertexNormals(); g.add(new THREE.Mesh(gg, glass));
     // shut: a glass door taped across (tap it for why); open, just the doorway
     this.shut = new THREE.Group(); g.add(this.shut);
     const door = new THREE.Mesh(new THREE.PlaneGeometry(2 * DOOR_HW, 2.5), glass); door.position.y = 1.25; this.shut.add(door);
@@ -151,8 +188,9 @@ export class GardenRoom extends Room {
     const lip = new THREE.Mesh(new THREE.TorusGeometry(ISLAND.r - 0.02, 0.06, 8, 48), stone); lip.rotation.x = Math.PI / 2; lip.position.y = 0.47; isl.add(lip);
     const earthTop = new THREE.Mesh(new THREE.CircleGeometry(ISLAND.r - 0.06, 40), soil); earthTop.rotation.x = -Math.PI / 2; earthTop.position.y = 0.475; isl.add(earthTop);
     for (let k = 0; k < 3; k++) { const a = Math.PI / 2 + (k + 0.5) * (2 * Math.PI / 3), wall = new THREE.Mesh(new THREE.BoxGeometry(ISLAND.r - 0.2, 0.1, 0.06), stone); wall.position.set(Math.cos(a) * (ISLAND.r / 2 + 0.05), 0.5, Math.sin(a) * (ISLAND.r / 2 + 0.05)); wall.rotation.y = -a; isl.add(wall); }
-    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.05, 0.22, 12), brass); post.position.y = 0.58; isl.add(post);
-    const rose = new THREE.Mesh(new THREE.SphereGeometry(0.06, 16, 10), brass); rose.position.y = 0.72; isl.add(rose);
+    const riser = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.032, 0.26, 10), brass); riser.position.y = 0.6; isl.add(riser);
+    this.spinner = new THREE.Group(); this.spinner.position.y = 0.74; isl.add(this.spinner); this.spinner.add(new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.04, 12), brass));
+    for (const sg of [-1, 1]) { const arm = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.2, 6), brass); arm.rotation.z = Math.PI / 2; arm.position.x = sg * 0.1; this.spinner.add(arm); const tip = new THREE.Mesh(new THREE.CylinderGeometry(0.013, 0.008, 0.035, 8), brass); tip.position.set(sg * 0.2, 0.012, 0); this.spinner.add(tip); }
     // the troughs down the second wing
     this.troughSoil = [];
     for (const b of BED_AT.slice(3)) { const t = new THREE.Group(); t.position.set(b.x, 0, b.z); S.add(t);
@@ -164,20 +202,28 @@ export class GardenRoom extends Room {
     this.leds = BED_AT.map((b, i) => { const m = new THREE.Mesh(new THREE.SphereGeometry(0.035, 10, 8), new THREE.MeshBasicMaterial({ color: 0x223322 })); if (i < 3) { const a = Math.atan2(b.z - ISLAND.z, b.x - ISLAND.x); m.position.set(ISLAND.x + Math.cos(a) * (ISLAND.r + 0.02), 0.34, ISLAND.z + Math.sin(a) * (ISLAND.r + 0.02)); } else m.position.set(b.x - Math.sign(b.x) * 0.37, 0.4, b.z + 0.7); S.add(m); return m; });
     // tapping a bed (the drum's wedges and the troughs are tagged by bed; the drum's middle as the nearest wedge)
     BED_AT.forEach((b, i) => { const hb = this.hitBox(S, i < 3 ? 0.9 : 0.8, i < 3 ? 1.1 : 1.3, i < 3 ? 0.9 : 1.9, b.x, 0.55, b.z); this.tag(hb, 'bed' + i); });
-    // the grow lights over the troughs, dark until the wing has power
-    this.growMat = new THREE.MeshBasicMaterial({ color: 0x2a2230 }); this.growLights = [];
-    for (const b of BED_AT.slice(3)) { const bar = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.05, 1.7), this.growMat); bar.position.set(b.x, 2.45, b.z); S.add(bar);
-      for (const s of [-1, 1]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, H + RIDGE * (1 - Math.abs(b.x) / W) - 2.45, 4), Ph({ color: 0x888888 })); const top = H + RIDGE * (1 - Math.abs(b.x) / W); w.position.set(b.x, (2.45 + top) / 2, b.z + s * 0.7); S.add(w); } }
+    // the grow lights over the troughs, hung from a rail along each side under the rafters: a housing, and the lamp under
+    // it, dark until the wing has power
+    this.growMat = new THREE.MeshBasicMaterial({ color: 0x2a2230 }); const housing = Ph({ color: 0x2c313a, specular: 0x666666, shininess: 50 }), steel = Ph({ color: 0xa8b0b4, specular: 0x666666, shininess: 40 });
+    const railY = H + RIDGE * (1 - 2.35 / W) - 0.08;
+    for (const s of [-1, 1]) { const rail = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.05, WALL_Z - FRONT - 0.3), steel); rail.position.set(s * 2.35, railY, (WALL_Z + FRONT) / 2); S.add(rail); }
+    for (const b of BED_AT.slice(3)) { const lamp = new THREE.Group(); lamp.position.set(b.x, 2.45, b.z); S.add(lamp);
+      lamp.add(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.07, 1.74), housing)); const tube = new THREE.Mesh(new THREE.PlaneGeometry(0.15, 1.66), this.growMat); tube.rotation.x = Math.PI / 2; tube.position.y = -0.037; lamp.add(tube);
+      for (const s of [-1, 1]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, railY - 2.48, 4), steel); w.position.set(0, (railY - 2.42) / 2, s * 0.7); lamp.add(w); } }
     this.wingLights = [-6.4, -8.6].map((z) => { const l = new THREE.PointLight(0xff8ae0, 0, 7, 1.6); l.position.set(0, 2.6, z); S.add(l); return l; });
     // the seed drawer: a cabinet of nine small drawers on the right wall, one to a kind, labelled
-    const cab = new THREE.Group(); cab.position.set(W - 0.3, 0, 0.6); cab.rotation.y = -Math.PI / 2; S.add(cab);
+    const cab = new THREE.Group(); cab.position.set(W - 0.3, 0, 0.55); cab.rotation.y = -Math.PI / 2; S.add(cab);
     const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.25, 0.5), wood); body.position.y = 0.625; cab.add(body);
     const topSlab = new THREE.Mesh(new THREE.BoxGeometry(1.28, 0.05, 0.56), Ph({ color: 0x5a3f26 })); topSlab.position.y = 1.27; cab.add(topSlab);
     this.drawC = canvas(512, 512); this.drawers = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1), new THREE.MeshPhongMaterial({ map: tex(this.drawC), shininess: 20 })); this.drawers.position.set(0, 0.65, 0.255); cab.add(this.drawers);
-    for (let i = 0; i < 3; i++) { const jar = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.18, 12), new THREE.MeshPhongMaterial({ color: 0xcfe8ff, transparent: true, opacity: 0.35, shininess: 100 })); jar.position.set(-0.35 + i * 0.35, 1.38, 0); cab.add(jar); }
+    // jars of seed on top: glass, the seed in it, a cork lid
+    const jarGlass = new THREE.MeshPhongMaterial({ color: 0xeaf7ff, transparent: true, opacity: 0.26, specular: 0xffffff, shininess: 130, depthWrite: false }), cork = Ph({ color: 0xb08a5a, shininess: 8 });
+    ['sunpetal', 'emberroot', 'mistvine'].forEach((id, i) => { const x = -0.35 + i * 0.35, seed = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.058, 0.1 - i * 0.02, 14), Ph({ color: new THREE.Color(0x6a4a2a).lerp(new THREE.Color(SEED_BY_ID[id].color), 0.45), shininess: 6 }));
+      seed.position.set(x, 1.295 + (0.1 - i * 0.02) / 2, 0); cab.add(seed); const jar = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.18, 18), jarGlass); jar.position.set(x, 1.385, 0); jar.renderOrder = 2; cab.add(jar);
+      const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.062, 0.058, 0.04, 16), cork); lid.position.set(x, 1.49, 0); cab.add(lid); });
     this.hitBox(cab, 1.3, 1.5, 0.6, 0, 0.75, 0); this.tag(cab, 'seeds');
     // the potting bench beside it, pots and a trowel, and on it the basket of blooms for the next sortie
-    const bench = new THREE.Group(); bench.position.set(W - 0.35, 0, -0.95); bench.rotation.y = -Math.PI / 2; S.add(bench);
+    const bench = new THREE.Group(); bench.position.set(W - 0.35, 0, -1.15); bench.rotation.y = -Math.PI / 2; S.add(bench);
     const bt = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.06, 0.6), wood); bt.position.y = 0.86; bench.add(bt);
     for (const [x, z] of [[-0.64, -0.24], [0.64, -0.24], [-0.64, 0.24], [0.64, 0.24]]) { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.86, 0.06), wood); leg.position.set(x, 0.43, z); bench.add(leg); }
     const shelf = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.04, 0.5), wood); shelf.position.y = 0.25; bench.add(shelf);
@@ -189,17 +235,55 @@ export class GardenRoom extends Room {
     const handle = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.014, 6, 24, Math.PI), weave); handle.position.y = 0.17; basket.add(handle);
     this.fruit = new THREE.Group(); basket.add(this.fruit);
     this.hitBox(bench, 1.5, 1.2, 0.7, 0, 0.6, 0); this.tag(bench, 'basket');
-    // the tap on the left wall, a hose on its reel and a rain barrel: water the beds here, once a day
-    const tap = new THREE.Group(); tap.position.set(-W + 0.08, 0, 0.8); tap.rotation.y = Math.PI / 2; S.add(tap);
-    const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.2, 10), brass); pipe.position.set(0, 0.6, 0); tap.add(pipe);
-    const spout = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.2, 10), brass); spout.rotation.x = Math.PI / 2; spout.position.set(0, 1.15, 0.1); tap.add(spout);
-    const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.015, 6, 16), Ph({ color: 0xc0392b })); wheel.position.set(0, 1.25, 0.03); tap.add(wheel);
-    const reel = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.05, 8, 24), Ph({ color: 0x3aa84a, shininess: 30 })); reel.position.set(0.1, 0.75, 0.12); tap.add(reel);
-    const barrel = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.27, 0.75, 20), wood); barrel.position.set(-0.6, 0.375, 0.32); tap.add(barrel);
-    for (const y of [0.15, 0.6]) { const hoop = new THREE.Mesh(new THREE.TorusGeometry(0.295, 0.012, 6, 24), Ph({ color: 0x3a3a3a })); hoop.rotation.x = Math.PI / 2; hoop.position.set(-0.6, y, 0.32); tap.add(hoop); }
-    this.waterTop = new THREE.Mesh(new THREE.CircleGeometry(0.27, 20), new THREE.MeshPhongMaterial({ color: 0x3a8ab8, shininess: 120, specular: 0xffffff })); this.waterTop.rotation.x = -Math.PI / 2; this.waterTop.position.set(-0.6, 0.7, 0.32); tap.add(this.waterTop);
-    this.tapLed = new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffb547 })); this.tapLed.position.set(0, 1.42, 0.03); tap.add(this.tapLed);
-    this.hitBox(tap, 1.6, 1.6, 0.8, -0.25, 0.8, 0.2); this.tag(tap, 'water');
+    // the water point on the left wall, on a board between two posts: the supply pipe up out of the floor, its valve (the red
+    // wheel: tap it to water the beds, once a day) and a gooseneck over the water butt; a branch off it to the hose reel,
+    // the hose wound on and hung up by its gun; a sign, its light, and a watering can by the butt
+    const tap = new THREE.Group(); tap.position.set(-W + 0.18, 0, 0.55); tap.rotation.y = Math.PI / 2; S.add(tap); /* x runs along the wall, z out into the room */
+    const V = (x, y, z) => new THREE.Vector3(x, y, z), copper = Ph({ color: 0xc27a45, specular: 0xffd0a8, shininess: 70 }), red = Ph({ color: 0xc0392b, shininess: 40 });
+    const pc = canvas(256, 256), px = pc.getContext('2d'); for (let i = 0; i < 256; i += 32) { px.fillStyle = (i / 32) % 2 ? '#664a30' : '#76593b'; px.fillRect(i, 0, 30, 256); px.fillStyle = '#3a2614'; px.fillRect(i + 30, 0, 2, 256); }
+    const board = new THREE.Mesh(new THREE.BoxGeometry(1.44, 1.92, 0.04), Ph({ map: tex(pc), specular: 0x2a1a0a, shininess: 12 })); board.position.y = 0.96; tap.add(board);
+    const ledge = new THREE.Mesh(new THREE.BoxGeometry(1.5, 0.04, 0.12), wood); ledge.position.set(0, 1.94, 0.04); tap.add(ledge);
+    tap.add(pipe([V(-0.02, 0, 0.07), V(-0.02, 1.3, 0.07), V(0.4, 1.3, 0.07), V(0.4, 1.3, 0.34), V(0.4, 1.0, 0.34)], 0.028, copper));
+    tap.add(pipe([V(-0.02, 0.62, 0.07), V(-0.34, 0.62, 0.07), V(-0.34, 0.95, 0.07), V(-0.34, 0.95, 0.14)], 0.022, copper, 0.06));
+    const fit = (shape, x, y, z, rx = 0) => { const o = new THREE.Mesh(shape, brass); o.position.set(x, y, z); o.rotation.x = rx; tap.add(o); return o; };
+    fit(new THREE.CylinderGeometry(0.06, 0.07, 0.02, 16), -0.02, 0.01, 0.07); fit(new THREE.SphereGeometry(0.04, 12, 8), -0.02, 0.62, 0.07); fit(new THREE.CylinderGeometry(0.036, 0.03, 0.05, 12), 0.4, 0.99, 0.34);
+    for (const [x, y] of [[-0.02, 0.32], [-0.02, 1.12], [0.2, 1.3], [-0.19, 0.62]]) fit(new THREE.BoxGeometry(0.075, 0.075, 0.03), x, y, 0.035);
+    fit(new THREE.CylinderGeometry(0.043, 0.043, 0.13, 14), -0.02, 0.95, 0.07); fit(new THREE.CylinderGeometry(0.012, 0.012, 0.12, 8), -0.02, 0.95, 0.15, Math.PI / 2);
+    const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.062, 0.014, 8, 20), red); wheel.position.set(-0.02, 0.95, 0.21); tap.add(wheel);
+    for (const r of [0, Math.PI / 2]) { const sp = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.012, 0.012), red); sp.position.set(-0.02, 0.95, 0.21); sp.rotation.z = r; tap.add(sp); }
+    // the hose reel: a bracket, two flanges, the hose wound on in two layers, a crank; then the free end looped up and over
+    // its hook, the gun hanging down
+    const reel = new THREE.Group(); reel.position.set(-0.34, 0.95, 0); tap.add(reel);
+    const reelM = Ph({ color: 0x2f5a3a, specular: 0x335533, shininess: 30 }), hose = Ph({ color: 0x46b04e, specular: 0x224422, shininess: 40 });
+    const plate = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.36, 0.03), Ph({ color: 0x4a5a50, shininess: 30 })); plate.position.z = 0.035; reel.add(plate);
+    const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.032, 0.3, 12), Ph({ color: 0xa8b0b4, shininess: 50 })); axle.rotation.x = Math.PI / 2; axle.position.z = 0.19; reel.add(axle);
+    const back = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.016, 28), reelM); back.rotation.x = Math.PI / 2; back.position.z = 0.11; reel.add(back);
+    const front = new THREE.Mesh(new THREE.TorusGeometry(0.19, 0.016, 8, 32), reelM); front.position.z = 0.31; reel.add(front);
+    for (let k = 0; k < 4; k++) { const sp = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.026, 0.014), reelM); sp.rotation.z = (k * Math.PI) / 4; sp.position.z = 0.31; reel.add(sp); }
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.03, 14), reelM); cap.rotation.x = Math.PI / 2; cap.position.z = 0.32; reel.add(cap);
+    for (const [z, r] of [[0.14, 0.12], [0.185, 0.122], [0.23, 0.12], [0.275, 0.12], [0.162, 0.156], [0.207, 0.158], [0.252, 0.156]]) { const loop = new THREE.Mesh(new THREE.TorusGeometry(r, 0.022, 8, 32), hose); loop.position.z = z; reel.add(loop); }
+    const crank = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.15, 0.02), reelM); crank.position.set(0.1, -0.06, 0.34); crank.rotation.z = 1.1; reel.add(crank); const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.07, 10), reelM); knob.rotation.x = Math.PI / 2; knob.position.set(0.165, -0.1, 0.37); reel.add(knob);
+    const free = new THREE.CatmullRomCurve3([V(-0.34, 0.795, 0.28), V(-0.36, 0.52, 0.36), V(-0.46, 0.3, 0.4), V(-0.6, 0.34, 0.3), V(-0.66, 0.7, 0.15), V(-0.645, 1.1, 0.08), V(-0.6, 1.0, 0.1)]);
+    tap.add(new THREE.Mesh(new THREE.TubeGeometry(free, 64, 0.022, 8, false), hose));
+    fit(new THREE.CylinderGeometry(0.012, 0.012, 0.12, 8), -0.645, 1.055, 0.05, Math.PI / 2); fit(new THREE.CylinderGeometry(0.024, 0.016, 0.14, 10), -0.6, 0.93, 0.1);
+    // the water butt: staves and hoops, open at the top so you can see how full it is
+    const sc = canvas(128, 64), sx = sc.getContext('2d'); sx.fillStyle = '#7a5534'; sx.fillRect(0, 0, 128, 64); for (let i = 0; i < 128; i += 16) { sx.fillStyle = 'rgba(255,230,190,.08)'; sx.fillRect(i + 2, 0, 6, 64); sx.fillStyle = '#4a3018'; sx.fillRect(i, 0, 2, 64); }
+    const staves = Ph({ map: tex(sc, [3, 1]), specular: 0x2a1a0a, shininess: 16, side: THREE.DoubleSide }), iron = Ph({ color: 0x3a3a3a, shininess: 30 });
+    const butt = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.27, 0.75, 24, 1, true), staves); butt.position.set(0.4, 0.375, 0.36); tap.add(butt);
+    const bottom = new THREE.Mesh(new THREE.CircleGeometry(0.27, 24), staves); bottom.rotation.x = -Math.PI / 2; bottom.position.set(0.4, 0.02, 0.36); tap.add(bottom);
+    for (const y of [0.15, 0.6, 0.745]) { const hoop = new THREE.Mesh(new THREE.TorusGeometry(0.27 + 0.04 * (y / 0.75) + 0.004, y > 0.7 ? 0.016 : 0.012, 6, 28), y > 0.7 ? wood : iron); hoop.rotation.x = Math.PI / 2; hoop.position.set(0.4, y, 0.36); tap.add(hoop); }
+    this.waterTop = new THREE.Mesh(new THREE.CircleGeometry(0.285, 24), new THREE.MeshPhongMaterial({ color: 0x3a8ab8, specular: 0xffffff, shininess: 120, transparent: true, opacity: 0.9 })); this.waterTop.rotation.x = -Math.PI / 2; this.waterTop.position.set(0.4, 0.7, 0.36); tap.add(this.waterTop);
+    // a sign over it all and its light: amber, blinking, while something growing wants water; blue once it has had it
+    const nc = canvas(256, 96), nx = nc.getContext('2d'); nx.fillStyle = '#e8efe6'; nx.fillRect(0, 0, 256, 96); nx.strokeStyle = '#2a4a6a'; nx.lineWidth = 6; nx.strokeRect(4, 4, 248, 88);
+    nx.fillStyle = '#3a8ab8'; nx.beginPath(); nx.moveTo(52, 20); nx.quadraticCurveTo(76, 50, 70, 62); nx.arc(52, 58, 18, 0.2, Math.PI - 0.2); nx.quadraticCurveTo(28, 50, 52, 20); nx.fill(); text(nx, 'WATER', 158, 50, '800 40px sans-serif', '#1d3550');
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.17), new THREE.MeshPhongMaterial({ map: tex(nc), shininess: 30 })); sign.position.set(0, 1.66, 0.024); tap.add(sign);
+    this.tapLed = new THREE.Mesh(new THREE.SphereGeometry(0.03, 10, 8), new THREE.MeshBasicMaterial({ color: 0xffb547 })); this.tapLed.position.set(0.32, 1.66, 0.04); tap.add(this.tapLed);
+    const can = new THREE.Group(); can.position.set(-0.1, 0, 0.56); can.rotation.y = 0.6; tap.add(can); const canM = Ph({ color: 0x3f7a4a, specular: 0x99bb99, shininess: 50 });
+    const cb = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.11, 0.22, 18), canM); cb.position.y = 0.11; can.add(cb);
+    const spout = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.018, 0.3, 8), canM); spout.position.set(0.17, 0.2, 0); spout.rotation.z = -1; can.add(spout);
+    const rose = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.02, 0.03, 12), brass); rose.position.set(0.3, 0.29, 0); rose.rotation.z = -1; can.add(rose);
+    const grip = new THREE.Mesh(new THREE.TorusGeometry(0.08, 0.012, 6, 16, Math.PI), canM); grip.position.set(-0.02, 0.22, 0); can.add(grip);
+    this.hitBox(tap, 1.5, 1.95, 0.8, 0, 0.97, 0.36); this.tag(tap, 'water');
     // the herbarium between the doors: a pressed specimen of every kind grown
     this.herbC = canvas(1024, 640); this.herb = this.screen(S, this.herbC, 1.6, 1.0, -0.1, 1.95, BACK - 0.03, Math.PI, 0x5a3f26); this.tag(this.herb, 'herbarium');
     // the doors, on the back wall
@@ -210,12 +294,16 @@ export class GardenRoom extends Room {
     const tb = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.9, 0.42, 32), stone); tb.position.y = 0.21; tp.add(tb);
     const tsoil = new THREE.Mesh(new THREE.CircleGeometry(0.8, 32), soil); tsoil.rotation.x = -Math.PI / 2; tsoil.position.y = 0.425; tp.add(tsoil);
     const bark = Ph({ color: 0x5a3e28, shininess: 8 }), limb = (r0, r1, len, x, y, z, rx, rz) => { const l = new THREE.Mesh(new THREE.CylinderGeometry(r1, r0, len, 8), bark); l.position.set(x, y, z); l.rotation.set(rx, 0, rz); tp.add(l); return l; };
-    limb(0.16, 0.1, 1.9, 0, 1.35, 0, 0, 0.05); limb(0.08, 0.035, 1.0, -0.38, 2.35, 0.05, 0.1, 0.75); limb(0.08, 0.035, 1.0, 0.4, 2.45, -0.05, -0.1, -0.7); limb(0.07, 0.03, 0.9, 0.05, 2.55, 0.35, 0.8, 0.1); limb(0.06, 0.025, 0.8, -0.1, 2.5, -0.38, -0.85, -0.1);
+    limb(0.16, 0.1, 1.9, 0, 1.35, 0, 0, 0.05); limb(0.08, 0.035, 1.0, -0.38, 2.35, 0.05, 0.1, 0.75); limb(0.08, 0.035, 1.0, 0.29, 2.43, -0.04, -0.1, -0.7); limb(0.07, 0.03, 0.9, -0.085, 2.56, 0.32, 0.8, 0.1); limb(0.06, 0.025, 0.8, 0, 2.48, -0.3, -0.85, -0.1);
+    // where the limbs leave the trunk, rounded over; the roots flaring into the soil
+    for (const [x, y, z, r] of [[-0.047, 2.3, 0, 0.1], [-0.04, 2.0, 0.01, 0.085], [-0.04, 2.22, 0, 0.09]]) { const k = new THREE.Mesh(G3.round, bark); k.scale.setScalar(r); k.position.set(x, y, z); tp.add(k); }
+    const flare = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.26, 0.18, 12), bark); flare.position.set(0.045, 0.5, 0); tp.add(flare);
     this.canopy = new THREE.Group(); tp.add(this.canopy); this.blossom = new THREE.Group(); tp.add(this.blossom);
-    const green = Ph({ color: 0x4f9a42, shininess: 10 }), pink = Ph({ color: 0xffc6e4, emissive: 0x3a1a2a, shininess: 30 });
-    for (const [x, y, z, r] of [[0, 3.05, 0, 0.62], [-0.72, 2.8, 0.1, 0.46], [0.74, 2.9, -0.1, 0.48], [0.1, 2.85, 0.62, 0.44], [-0.1, 2.8, -0.62, 0.44], [0.4, 3.25, 0.3, 0.38], [-0.4, 3.2, -0.25, 0.38]]) {
-      const c = new THREE.Mesh(G3.ball, green); c.scale.setScalar(r); c.position.set(x, y, z); this.canopy.add(c);
-      for (let i = 0; i < 6; i++) { const b = new THREE.Mesh(G3.ball, pink); b.scale.setScalar(0.07); const a = i * 2.4 + x, e = 0.3 + (i % 3) * 0.35; b.position.set(x + Math.cos(a) * Math.cos(e) * r, y + Math.sin(e) * r, z + Math.sin(a) * Math.cos(e) * r); this.blossom.add(b); } }
+    const greens = [Ph({ color: 0x4f9a42, shininess: 10 }), Ph({ color: 0x5fae4c, shininess: 10 }), Ph({ color: 0x3f8a3a, shininess: 10 })], pink = Ph({ color: 0xffc6e4, emissive: 0x3a1a2a, shininess: 30 });
+    [[0, 3.05, 0, 0.58], [-0.72, 2.8, 0.1, 0.44], [0.66, 2.88, -0.1, 0.46], [-0.1, 2.9, 0.62, 0.42], [0.05, 2.78, -0.62, 0.42], [0.4, 3.25, 0.3, 0.36], [-0.4, 3.2, -0.25, 0.36],
+      [-0.45, 2.7, 0.5, 0.3], [0.5, 2.72, 0.42, 0.3], [0.45, 2.75, -0.5, 0.3], [-0.52, 2.72, -0.45, 0.3], [0.1, 3.45, -0.1, 0.3]].forEach(([x, y, z, r], i) => {
+      const c = new THREE.Mesh(G3.round, greens[i % 3]); c.scale.set(r, r * 0.86, r); c.position.set(x, y, z); this.canopy.add(c);
+      for (let k = 0; k < 6; k++) { const b = new THREE.Mesh(G3.ball, pink); b.scale.setScalar(0.07); const a = k * 2.4 + x, e = 0.3 + (k % 3) * 0.35; b.position.set(x + Math.cos(a) * Math.cos(e) * r, y + Math.sin(e) * r * 0.86, z + Math.sin(a) * Math.cos(e) * r); this.blossom.add(b); } });
     this.hitBox(tp, 2, 3.8, 2, 0, 1.9, 0); this.tag(tp, 'tree');
   }
   /** Sprig: the drone that tends the beds, a little round body with a spout under it and two rotors. */
@@ -249,7 +337,8 @@ export class GardenRoom extends Room {
     const panel = new THREE.MeshPhongMaterial({ map: tex(cells), specular: 0x9fc8ff, shininess: 90 });
     this.panels = []; this.array = new THREE.Group(); S.add(this.array);
     for (const s of [-1, 1]) { const boom = new THREE.Mesh(new THREE.BoxGeometry(34, 0.35, 0.35), truss); boom.position.set(s * (W + 18), -1.4, -4.5); this.array.add(boom);
-      for (let i = 0; i < 6; i++) { const x = s * (W + 3.5 + i * 5.2), f = new THREE.Mesh(new THREE.BoxGeometry(4.6, 0.1, 8), truss); f.position.set(x, -1.2, -4.5); this.array.add(f);
+      for (let i = 0; i < 6; i++) { const x = s * (W + 3.5 + i * 5.2), f = new THREE.Group(); f.position.set(x, -1.2, -4.5); this.array.add(f);
+        for (const [w, d, fx, fz] of [[4.6, 0.14, 0, -3.93], [4.6, 0.14, 0, 3.93], [0.14, 8, -2.23, 0], [0.14, 8, 2.23, 0], [4.4, 0.08, 0, 0], [0.08, 7.8, 0, 0]]) { const bar = new THREE.Mesh(new THREE.BoxGeometry(w, 0.1, d), truss); bar.position.set(fx, 0, fz); f.add(bar); }
         const p = new THREE.Mesh(new THREE.BoxGeometry(4.4, 0.12, 7.8), panel); p.position.set(x, -1.14, -4.5); this.array.add(p); this.panels.push({ p, salvaged: i === 1 || (s > 0 && i === 3) }); } }
     this.tag(this.hitBox(S, 2 * W - 0.4, H - 0.6, 0.1, 0, 1.7, FRONT + 0.1), 'window');
   }
@@ -262,7 +351,7 @@ export class GardenRoom extends Room {
     if (sig === this.sig) return; this.sig = sig;
     beds.forEach((key, i) => { const slot = this.plants[i]; if (slot.key === key) return; slot.key = key; if (slot.group) { this.scene.remove(slot.group); slot.group = null; }
       const p = g.beds?.[i]; if (!p) return; const s = SEED_BY_ID[p.id], b = BED_AT[i], k = growth(state, i, now), grp = new (T().Group)(); grp.position.set(b.x, b.y, b.z);
-      for (let j = 0; j < b.n; j++) { const pl = buildPlant(s, k, this.glow); pl.position.z = (j - (b.n - 1) / 2) * 0.55; pl.rotation.y = i * 1.3 + j * 2.1; pl.userData.ph = i + j * 1.7; pl.scale.setScalar(b.n > 1 ? 1.4 : 1.55); grp.add(pl); }
+      for (let j = 0; j < b.n; j++) { const pl = buildPlant(s, k, this.glow); pl.position.z = (j - (b.n - 1) / 2) * 0.55; pl.rotation.y = b.face + Math.sin(i * 7.1 + j * 2.3) * 0.35; pl.userData.ph = i + j * 1.7; pl.scale.setScalar(b.n > 1 ? 1.4 : 1.55); grp.add(pl); }
       this.scene.add(grp); slot.group = grp; });
     // the second wing: powered or dark
     this.shut.visible = !wing; const di = this.blocks.indexOf(this.doorway); if (wing && di >= 0) this.blocks.splice(di, 1); else if (!wing && di < 0) this.blocks.push(this.doorway);
@@ -302,10 +391,12 @@ export class GardenRoom extends Room {
   /** The basket on the bench: one bloom for every kind in it, waiting for the next sortie. */
   fillBasket(ids) {
     const THREE = T(), G3 = geo(); this.fruit.clear();
-    ids.forEach((id, i) => { const s = SEED_BY_ID[id], a = i * 2.4, r = 0.05 + 0.07 * (i % 3) / 2, b = new THREE.Mesh(G3.ball, mat(s.color, 0.3)); b.scale.set(0.05, 0.035, 0.05); b.position.set(Math.cos(a) * r, 0.13 + (i % 4) * 0.012, Math.sin(a) * r); this.fruit.add(b); });
+    ids.forEach((id, i) => { const s = SEED_BY_ID[id], a = i * 2.4, r = 0.05 + (0.07 * (i % 3)) / 2, m = mat(s.color, 0.3), f = new THREE.Group(); f.position.set(Math.cos(a) * r, 0.15 + (i % 4) * 0.012, Math.sin(a) * r); f.rotation.set(-0.45 + (i % 3) * 0.3, a, i % 2 ? 0.3 : -0.3); this.fruit.add(f);
+      for (let k = 0; k < 7; k++) { const pg = new THREE.Group(); pg.rotation.y = (k / 7) * Math.PI * 2; f.add(pg); const pt = new THREE.Mesh(G3.ball, m); pt.scale.set(0.02, 0.008, 0.042); pt.position.z = 0.036; pg.add(pt); }
+      const eye = new THREE.Mesh(G3.ball, mat(0x8a5a1a, 0.1)); eye.scale.set(0.022, 0.014, 0.022); eye.position.y = 0.006; f.add(eye); });
   }
   /** Watered: Sprig flies round the beds still growing, misting each. */
-  watering() { this.waterQ = this.growing.map((g, i) => (g ? i : -1)).filter((i) => i >= 0); this.waterT = 0; }
+  watering() { this.waterQ = [-1, ...(this.growing || []).map((g, i) => (g ? i : -1)).filter((i) => i >= 0)]; this.waterT = 0; } /* -1: the water butt first */
   /** Harvested: a puff of petals from the bed, in the colour of what grew there. */
   burst(i, id) { const b = BED_AT[i], s = SEED_BY_ID[id] || SEEDS[0]; for (let k = 0; k < 14; k++) this.puff(b.x + (Math.random() - 0.5) * 0.3, b.y + 0.6, b.z + (Math.random() - 0.5) * (b.n > 1 ? 1.2 : 0.3), s.color, 1.1, 0.12); }
   puff(x, y, z, color, life, size, vy = 0.5) {
@@ -321,12 +412,13 @@ export class GardenRoom extends Room {
     this.tapLed.material.color.setHex(this.watered ? 0x5ec8ff : this.growing?.some(Boolean) && Math.sin(t * 3) > 0 ? 0xffb547 : 0x3a2a14); this.waterTop.position.y = this.watered ? 0.55 : 0.7;
     // Sprig: off to mist the beds when you water them, otherwise pottering from bed to bed
     const busy = this.waterQ.length > 0;
-    if (busy) { const b = BED_AT[this.waterQ[0]]; this.sprigGo.set(b.x, b.y + 0.95, b.z); if (this.sprig.position.distanceTo(this.sprigGo) < 0.25) { this.waterT += dt; if (Math.random() < dt * 30) this.puff(b.x + (Math.random() - 0.5) * 0.3, b.y + 0.8, b.z + (Math.random() - 0.5) * 0.3, 0x9fdcff, 0.9, 0.18, -0.6); if (this.waterT > 1.1) { this.waterQ.shift(); this.waterT = 0; } } }
+    if (busy) { const q = this.waterQ[0], b = q < 0 ? BUTT : BED_AT[q]; this.sprigGo.set(b.x, b.y + 0.95, b.z); if (this.sprig.position.distanceTo(this.sprigGo) < 0.25) { this.waterT += dt; if (q >= 0 && Math.random() < dt * 30) this.puff(b.x + (Math.random() - 0.5) * 0.3, b.y + 0.8, b.z + (Math.random() - 0.5) * 0.3, 0x9fdcff, 0.9, 0.18, -0.6); if (this.waterT > (q < 0 ? 0.7 : 1.1)) { this.waterQ.shift(); this.waterT = 0; } } }
     else if ((this.sprigAt -= dt) <= 0) { this.sprigAt = 4 + Math.random() * 3; const planted = this.plants.map((s, i) => (s.group ? i : -1)).filter((i) => i >= 0), i = planted.length ? planted[Math.floor(Math.random() * planted.length)] : Math.floor(Math.random() * 3), b = BED_AT[i]; this.sprigGo.set(b.x + 0.2, b.y + 1.0, b.z + 0.25); }
     const want = this.sprigGo.clone().sub(this.sprig.position); this.sprigV.lerp(want.multiplyScalar(busy ? 2.2 : 1.1), Math.min(1, dt * 2)); this.sprig.position.addScaledVector(this.sprigV, dt); this.sprig.position.y += Math.sin(t * 2.3) * 0.002;
     this.sprig.rotation.y = Math.atan2(this.sprigV.x, this.sprigV.z) * 0.6 + Math.sin(t * 0.7) * 0.3; for (const r of this.rotors) r.rotation.y += dt * 40;
     for (let i = this.puffs.length - 1; i >= 0; i--) { const q = this.puffs[i]; q.t += dt; const k = q.t / q.life; if (k >= 1) { this.scene.remove(q.sp); q.sp.material.dispose(); this.puffs.splice(i, 1); continue; } q.sp.position.addScaledVector(q.v, dt); q.sp.material.opacity = 1 - k; }
     const u = this.earth.material.uniforms; if (u) { u.time.value = t + 900; u.night.value = nightAmount(); u.sun.value.copy(this.sunDir).transformDirection(this.cam.matrixWorldInverse); }
     for (const l of this.wingLights) if (l.intensity > 0) l.intensity = 0.42 + Math.sin(t * 1.3) * 0.04;
+    this.fan.rotation.z -= dt * 2.2; this.spinner.rotation.y += dt * (busy ? 9 : 0);
   }
 }
