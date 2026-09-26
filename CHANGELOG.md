@@ -1,5 +1,23 @@
 # Changelog
 
+## v2.23.0 — 2026-09-26
+
+- **Field boosts.** Short, strong boosts you time yourself, packed in supply canisters.
+  - **The supply meter** sits beside your loadout during a sortie and fills as you damage invaders (elites and bosses fill it faster). Each time it fills, a canister lands in your **field kit** and the next fill takes a little longer, so a sortie brings home two to four.
+  - **Tap the kit** (or press K) to open it: the battle waits while it is open. Pick a boost and it starts at once. The kit keeps what you don't use for later sorties, up to five of each; a canister for a full slot is sold for salvage.
+  - **Six boosts,** each with its own icon:
+    - **Salvage Surge:** +50% salvage for 60 seconds.
+    - **Data Burst:** +50% XP for 60 seconds.
+    - **Prospector:** materials count twice for 90 seconds.
+    - **Overcharge:** +50% damage for 45 seconds. Save it for a boss.
+    - **Tractor Pulse:** pickups fly to you from five times as far for 60 seconds.
+    - **Hull Patch:** repairs 35% of your hull at once.
+  - **Running boosts** show beside your loadout as a small icon with the time left, pulsing in their last few seconds. Using one that's already running adds its time, up to two doses' worth.
+  - **Canisters turn up elsewhere too:** about a third of expeditions bring one home, and Bolt finds one every five games of fetch.
+  - **Your first canister** comes with a note on where it went and how to use it. The Armory has a new Field kit section showing what you hold and what each boost does, and the debrief lists the canisters a sortie brought home.
+  - Main sorties only: not in the Daily Sortie (so the global board stays a fair race) or Counterattack.
+- **The Daily Sortie shares its luck.** Level-up cards, rerolls, relic and route choices in the Daily are now drawn from the day's seed, so every pilot gets the same draw at the same point. Pilots flying the same ship with the same unlocks who pick the same way see exactly the same cards. Your own upgrades still count.
+
 ## v2.22.0 — 2026-09-26
 
 - **Global boards.** Your scores now go up against every pilot's, on any device. Records has a new Global tab next to your own records, with three boards:

@@ -69,6 +69,8 @@ import { nightAmount } from '@last-orbit/rendering/background.js';
 import { DRONES } from '@last-orbit/data/drones.js';
 import { MUTATOR_BY_ID, dayKey, dailyFor } from '@last-orbit/data/daily.js';
 import { BOARD_TABS, RETRY_MS } from '@last-orbit/data/global.js';
+import { BOOSTS, BOOST_BY_ID } from '@last-orbit/data/boosts.js';
+import { kit, kitCount } from '@last-orbit/progression/boosts.js';
 import { gl, posting, boardsOn, tell, flush, boardName, boardOf, cachedBoard, boardFresh, fetchBoard } from '@last-orbit/progression/global.js';
 
 const TABS = [['launch', 'Launch'], ['missions', 'Missions'], ['workshop', 'Workshop'], ['armory', 'Armory'], ['ships', 'Ships'], ['contracts', 'Career'], ['records', 'Records'], ['awards', 'Awards'], ['deck', 'Deck']];
@@ -330,7 +332,10 @@ export function createHangar(hooks) {
     const syns = h('div.syn-list', SYNERGIES.map((s) => h('div.syn-card', { style: `--s:${s.color}` }, h('div.syn-top', h('b', s.name), h('small', s.cards.map((id) => MOD_BY_ID[id].name).join(' · '))),
       s.tiers.map((t) => h('div.syn-tier', h('span', t.n + ' cards'), h('p', t.desc))))));
     return h('div.screen', h('div.screen-head', h('h2', 'Armory'), h('p', 'Unlocked weapons and abilities can appear as cards when you level up. Weapons evolve at every rank. The rest are yours to discover.')),
-      h('h3', 'Weapons'), weapons, h('h3', 'Abilities'), abilities, h('h3', 'Synergies'), h('p.sub-note', 'Every upgrade card belongs to a theme. Hold enough different cards of one theme in a sortie to switch on its bonus.'), syns);
+      h('h3', 'Weapons'), weapons, h('h3', 'Abilities'), abilities, h('h3', `Field kit · ${kitCount(st)} boost${kitCount(st) === 1 ? '' : 's'}`),
+      h('p.sub-note', 'A supply meter fills beside your loadout as you damage invaders. Each time it fills, a canister with a boost lands in your kit (expeditions and Bolt find them too). Tap the kit mid-sortie to use one: the battle waits. Not in the Daily Sortie or Counterattack.'),
+      h('div.rows.kit-shelf', BOOSTS.map((b) => h('div.kit-row' + (kit(st)[b.id] ? '' : '.none'), { style: `--c:${b.color}` }, art(b.icon, 'kit-art'), h('div.kit-txt', h('b', b.name, h('span.kit-count', '×' + (kit(st)[b.id] || 0))), h('small', b.how))))),
+      h('h3', 'Synergies'), h('p.sub-note', 'Every upgrade card belongs to a theme. Hold enough different cards of one theme in a sortie to switch on its bonus.'), syns);
   }
 
   // ------------------------------------------------------------ ships
@@ -810,7 +815,7 @@ export function createHangar(hooks) {
     playSfx('unlock'); hooks.flash?.(hex(matOf(d).color)); hooks.saveNow?.('fleet'); render();
     const rows = [['Salvage', `+${fmt(r.got.salvage)}`], ...Object.entries(r.got.mats).map(([id, n]) => [MAT_BY_ID[id].name, `+${n}`]),
       r.mastery ? [`${s.name} mastery`, r.mastery.to > r.mastery.from ? `Level ${r.mastery.to}` : `+${r.mastery.gained}`] : null,
-      r.got.damage ? ['Damage', DAMAGE[r.got.damage].name] : null, ...r.got.seeds.map((id) => ['Greenhouse seed', SEED_BY_ID[id]?.name || id]), r.got.cores ? ['Alien Cores', `+${r.got.cores}`] : null, r.got.bp ? ['Blueprints', `+${r.got.bp}`] : null, r.got.fragments ? ['Signal fragment', 'Unreadable, for now'] : null].filter(Boolean);
+      r.got.damage ? ['Damage', DAMAGE[r.got.damage].name] : null, ...r.got.seeds.map((id) => ['Greenhouse seed', SEED_BY_ID[id]?.name || id]), r.got.cores ? ['Alien Cores', `+${r.got.cores}`] : null, r.got.bp ? ['Blueprints', `+${r.got.bp}`] : null, r.got.fragments ? ['Signal fragment', 'Unreadable, for now'] : null, r.got.canister ? ['Supply canister', BOOST_BY_ID[r.got.canister]?.name] : null].filter(Boolean);
     const fix = r.got.damage ? h('div.fl-fixrow.hurt', h('small', 'She can\'t fly or go out again until she is repaired: here, or on her card in Ships.'), repairButton(r.ship, () => { hooks.closeOverlays?.(); render(); })) : null;
     hooks.panel?.({ kicker: `Home from ${d.name}`, title: `The ${s.name} is back`, body: [h('p.sub-note', `She ${r.line}.`), h('div.deck-board', rows.map(([k, v]) => h('div.db-row', h('small', k), h('b', v)))), fix,
       r.paint ? h('p.fl-paint', `${f.home} expeditions home: the Pathfinder paint is yours. Find it in the Ships menu.`) : st.paints[FLEET_PAINT] ? null : h('p.sub-note', `${PATHFINDER_AT - f.home} more home for the Pathfinder paint.`)] });
@@ -827,7 +832,7 @@ export function createHangar(hooks) {
     const rows = f.log.map((e) => { const d = DEST_BY_ID[e.dest];
       return h('div.fl-log', h('div.fl-dt', h('b', `${SHIP_BY_ID[e.ship]?.name} · ${d?.name}`), h('small', `${dateLabel(e.at)} · she ${e.line}`)),
         h('div.fl-gives', Object.entries(e.got.mats || {}).map(([id, n]) => matChip(id, n)), h('span.fl-g', art('cur:salvage', 'mat-ico'), fmt(e.got.salvage)), e.got.seeds?.length ? h('span.fl-g.rare', 'Seed') : null,
-          e.got.cores ? h('span.fl-g.rare', `${e.got.cores} Core${e.got.cores > 1 ? 's' : ''}`) : null, e.got.bp ? h('span.fl-g.rare', 'Blueprint') : null, e.got.fragments ? h('span.fl-g.rare', 'Signal') : null, e.got.damage ? h('span.fl-g.hurt', DAMAGE[e.got.damage].name) : null)); });
+          e.got.cores ? h('span.fl-g.rare', `${e.got.cores} Core${e.got.cores > 1 ? 's' : ''}`) : null, e.got.bp ? h('span.fl-g.rare', 'Blueprint') : null, e.got.fragments ? h('span.fl-g.rare', 'Signal') : null, e.got.canister ? h('span.fl-g', 'Canister') : null, e.got.damage ? h('span.fl-g.hurt', DAMAGE[e.got.damage].name) : null)); });
     hooks.panel?.({ kicker: 'Fleet Ops', title: 'Expedition log', body: [rows.length ? h('div.fl-logs', rows) : h('p.sub-note', 'No ships home yet. Send one out from a berth and its return is logged here.'),
       h('p.sub-note', st.paints[FLEET_PAINT] ? `${f.home} expeditions home. The Pathfinder paint is yours.` : `${f.home} of ${PATHFINDER_AT} expeditions home for the Pathfinder paint.`),
       f.fragments ? h('p.sub-note', `${f.fragments} signal fragment${f.fragments > 1 ? 's' : ''} from the Deep Void, waiting to be read.`) : null] });

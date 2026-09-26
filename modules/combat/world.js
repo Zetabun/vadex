@@ -9,6 +9,7 @@ import { BAL, FIELD, enemyHp, enemyDmg, salvageDrop, killXp } from '@last-orbit/
 import { ENEMIES } from '@last-orbit/data/enemies.js';
 import { spawnPickup } from '@last-orbit/combat/pickups.js';
 import { addScore, killScore } from '@last-orbit/data/score.js';
+import { SUPPLY_WEIGHT } from '@last-orbit/data/boosts.js';
 
 let nextId = 1;
 export function createWorld() {
@@ -109,6 +110,8 @@ export function hitEnemy(w, e, src, mult, hx, hy, noCrit) {
   const mate = e.link?.alive ? e.link : null;
   if (mate) { frac /= 2; mate.hp -= frac * e.hpMax.ratio(mate.hpMax); mate.flash = 0.08; if (mate.hp <= 0) { mate.hp = 0; killEnemy(w, mate, src, false, 0); } }
   const dealt = Math.max(0, Math.min(e.hp, frac));
+  // the supply meter (progression/boosts.js): health removed, a kill's worth at a time (an elite's worth more, a boss's much more)
+  const sp = G.state.run?.supply; if (sp && dealt > 0) { sp.fill += dealt * (e.boss ? SUPPLY_WEIGHT.boss : e.elite ? SUPPLY_WEIGHT.elite : SUPPLY_WEIGHT.kill); if (sp.fill >= sp.need) bus.emit('supplyFull'); }
   e.hp -= frac; e.flash = 0.08;
   // Heal from health actually removed, never overkill. A refillable budget caps dense AoE.
   const leech = sh.n('lifeSteal');

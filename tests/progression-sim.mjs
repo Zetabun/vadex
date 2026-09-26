@@ -2,7 +2,7 @@
 // the cheapest Workshop upgrade after each one and collecting every reward the game pays (contracts, pilot ranks,
 // mastery, medals). It reports how quickly the pilot gets deeper, so reward changes can be judged by pacing.
 // Usage: node --experimental-loader ./tests/loader.mjs ./tests/progression-sim.mjs [sorties] [mode] [dodge] [seed]
-//   mode: 'all' (every reward system) | 'nomedals' (achievements switched off, as in v2.2)
+//   mode: 'all' (every reward system) | 'nomedals' (achievements switched off, as in v2.2); KIT=1 uses field boosts
 import { G, recalc } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { newState } from '@last-orbit/core/state.js';
@@ -13,6 +13,9 @@ import { WORKSHOP } from '@last-orbit/data/workshop.js';
 import { ACHIEVEMENTS, FEATS } from '@last-orbit/data/achievements.js';
 import { workshopNext, buyWorkshop, medalTotal } from '@last-orbit/progression/meta.js';
 import { useAbility } from '@last-orbit/combat/abilities.js';
+import { BOOSTS } from '@last-orbit/data/boosts.js';
+import { useBoost, cannotUse } from '@last-orbit/progression/boosts.js';
+const KIT = !!process.env.KIT;
 import { TICK } from '@last-orbit/data/balance.js';
 
 const N = Number(process.argv[2] || 30), mode = process.argv[3] || 'all', dodge = Number(process.argv[4] ?? 1), seed0 = Number(process.argv[5] || 1);
@@ -36,6 +39,7 @@ for (let n = 1; n <= N; n++) {
     if (nextAnomaly()) { pickAnomaly(Math.floor(Math.random() * G.state.run.anomalyOffer.length)); continue; }
     step(TICK); t += TICK; G.world.fx.length = 0;
     if (Math.random() < 0.02) for (const id of G.state.run.abilities) useAbility(G.world, id, true);
+    if (KIT && Math.random() < 0.01) for (const b of BOOSTS) if (!cannotUse(G.state, b.id) && (b.id !== 'patch' || G.world.player.hull < 0.6)) useBoost(G.state, b.id); /* KIT=1: field boosts used as they come */
   }
   const s = endSortie('destroyed');
   const income = G.state.salvage + spent - before;

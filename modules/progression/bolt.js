@@ -1,6 +1,8 @@
 // Bolt (data/bolt.js): what it owns and wears, how often it has been patted and played with, what it remembers of your
 // last sortie (so it can say something when you are back), and which line it says next (none again until all of that
 // kind have been said).
+import { BOLT_CANISTER_EVERY } from '@last-orbit/data/boosts.js';
+import { rollBoost, stow } from '@last-orbit/progression/boosts.js';
 import { G } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { COSMETICS, COSMETIC_BY_ID, BOLT_SAYS, BOLT_ROOMS, boltHere } from '@last-orbit/data/bolt.js';
@@ -27,7 +29,7 @@ export function wear(st, slot, id) { if (!owns(st, slot, id)) return false; bolt
 export const wearing = (st = G.state) => boltOf(st).wear;
 /** A pat, and a game of fetch: counted (some pieces are earned by them). */
 export function pat(st = G.state) { const b = boltOf(st); b.pets++; checkWardrobe(st); return b.pets; }
-export function fetched(st = G.state) { const b = boltOf(st); b.fetches++; checkWardrobe(st); return b.fetches; }
+export function fetched(st = G.state) { const b = boltOf(st); b.fetches++; checkWardrobe(st); if (b.fetches % BOLT_CANISTER_EVERY === 0) stow(st, rollBoost(), 'bolt'); /* it brings back more than the toy now and then */ return b.fetches; }
 
 // ---------------------------------------------------------------- what it says
 const bags = {};

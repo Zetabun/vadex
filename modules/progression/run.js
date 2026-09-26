@@ -3,7 +3,12 @@ import { G, recalc, count, maxStat, toast, noteHull } from '@last-orbit/core/gam
 import { FOCUS_BY_ID, FOCUS_WEIGHT, WARP_PERKS, WARP_PERK_BY_ID, DRAFT_FROM } from '@last-orbit/data/warp.js';
 import { bankMaterials, takeOut, redock } from '@last-orbit/progression/refits.js';
 import { bus } from '@last-orbit/core/events.js';
-import { rand } from '@last-orbit/core/rng.js';
+import { rand, makeRng } from '@last-orbit/core/rng.js';
+import { startSupply } from '@last-orbit/progression/boosts.js';
+/** Where a choice's luck comes from. In the Daily it is drawn from the day's seed, keyed by the kind of choice and how
+ *  far into the sortie it comes (the nth card pick, the relic count, the wave), so every pilot gets the same draw at
+ *  the same point: with the same ship, unlocks and picks, the same cards. Otherwise it is anyone's luck. */
+const luck = (run, kind, k) => (run?.daily ? makeRng((run.seed ^ Math.imul(kind, 0x2c1b3c6d) ^ Math.imul(k + 1, 0x9e3779b1)) >>> 0) : rand);
 import { newRun } from '@last-orbit/core/state.js';
 import { BAL, xpToNext } from '@last-orbit/data/balance.js';
 import { sectorOf } from '@last-orbit/data/sectors.js';
@@ -54,13 +59,14 @@ export function startSortie(opts = {}) {
   const cpLevel = counter && opts.checkpoint ? st.counter.checkpoints?.[counter.n + (opts.hard ? 'h' : '')] : 0, cpExtra = cpLevel ? Math.max(0, cpLevel - run.level) : 0;
   if (cpLevel) { run.fromCheckpoint = true; run.level += cpExtra; }
   const start = MUTATOR_BY_ID[run.mutator]?.start;
-  if (start?.weapon) { const pool = WEAPON_ORDER.filter((id) => !run.weapons[id]); const id = pool[Math.floor(rand() * pool.length)]; run.weapons[id] = 1; run.order.push(id); }
+  if (start?.weapon) { const pool = WEAPON_ORDER.filter((id) => !run.weapons[id]); const id = pool[Math.floor(luck(run, 5, 0)() * pool.length)]; run.weapons[id] = 1; run.order.push(id); }
   recalc();
   run.rerolls = Math.round(G.sheet.n('rerolls'));
   const skipped = counter ? counter.n - 1 : warp - 1, perSector = BAL.warpCards + Math.round(G.sheet.n('warpCards'));
   run.pendingLevels = Math.round(G.sheet.n('startLevels')) + (start?.cards || 0) + skipped * perSector + (cpExtra || 0);
   run.pendingRelics = skipped * BAL.warpRelics + Math.round(G.sheet.n('startRelics'));
   if (st.refitting?.ship === run.ship && st.refitting.since != null) takeOut(st); // flying her means taking her out of the dock: the refit waits
+  startSupply(run); /* the field kit's meter (none in the Daily or Counterattack) */
   count('sorties'); checkContracts();
   bus.emit('sortieStart', run);
   return run;
@@ -79,6 +85,7 @@ export function endSortie(reason = 'destroyed') {
   };
   st.run = null; G.mode = 'hangar';
   const bannersBefore = { ...st.banners };
+  summary.canisters = run.canisters || []; /* the field kit's canisters packed this sortie */
   summary.threat = run.threat || 0; summary.mutator = run.mutator || null; summary.mats = matsGot; summary.breached = !!run.breached;
   // a station damaged in a lost siege is patched by its crews while the pilot is out (if the sortie lasted long enough)
   summary.repaired = patchStation(summary.time);
@@ -198,10 +205,10 @@ export function cardPool(run = G.state.run) {
   return out;
 }
 
-function sample(pool, n) {
+function sample(pool, n, r = rand) {
   const out = [], p = pool.slice();
   while (out.length < n && p.length) {
-    let tot = 0; for (const c of p) tot += c.weight; let x = rand() * tot, k = 0;
+    let tot = 0; for (const c of p) tot += c.weight; let x = r() * tot, k = 0;
     for (; k < p.length - 1; k++) { x -= p[k].weight; if (x <= 0) break; }
     out.push(p[k]); p.splice(k, 1);
   }
@@ -211,12 +218,12 @@ function sample(pool, n) {
 /** Roll a fresh offer. At least one card improves the arsenal whenever that is possible. */
 export function rollOffer(run = G.state.run) {
   const n = Math.max(2, Math.min(5, Math.round(G.sheet.n('cardChoices'))));
-  const pool = cardPool(run), weaponCards = pool.filter((c) => c.group === 'weapon');
+  const pool = cardPool(run), weaponCards = pool.filter((c) => c.group === 'weapon'), r = luck(run, 1, (run.stats.cards || 0) * 16 + (run.rolls || 0)); run.rolls = (run.rolls || 0) + 1; /* a reroll draws afresh */
   let picks = [];
-  if (weaponCards.length) { picks = sample(weaponCards, 1); pool.splice(pool.indexOf(picks[0]), 1); }
-  picks = picks.concat(sample(pool, n - picks.length));
+  if (weaponCards.length) { picks = sample(weaponCards, 1, r); pool.splice(pool.indexOf(picks[0]), 1); }
+  picks = picks.concat(sample(pool, n - picks.length, r));
   if (!picks.length) picks = [{ kind: 'heal', rarity: 'common' }, { kind: 'cash', rarity: 'common' }];
-  for (let i = picks.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [picks[i], picks[j]] = [picks[j], picks[i]]; }
+  for (let i = picks.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [picks[i], picks[j]] = [picks[j], picks[i]]; }
   run.offer = picks.map(({ weight, group, ...c }) => c);
   bus.emit('offer', run.offer);
   return run.offer;
@@ -254,7 +261,7 @@ export function pickCard(idx) {
     case 'heal': if (p) { const was = p.hull; p.hull = Math.min(1, p.hull + 0.4); noteHull('card', p.hull - was); } break;
     case 'cash': grantSalvage(10 + run.wave * 2); break;
   }
-  run.offer = null; run.pendingLevels = Math.max(0, run.pendingLevels - 1); count('cards');
+  run.offer = null; run.rolls = 0; run.pendingLevels = Math.max(0, run.pendingLevels - 1); count('cards');
   recalc();
   maxStat('maxDrones', Math.floor(G.sheet.n('drones')));
   bus.emit('cardPicked', c);
@@ -297,8 +304,8 @@ export function warpDraft(focusId, perkId, run = G.state.run) {
 
 // ---------------------------------------------------------------- relics
 export function rollRelics(run = G.state.run) {
-  const have = new Set(run.relics), pool = RELICS.filter((r) => !have.has(r.id)), out = [];
-  while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(rand() * pool.length), 1)[0].id);
+  const have = new Set(run.relics), pool = RELICS.filter((r) => !have.has(r.id)), out = [], r = luck(run, 2, run.relics.length);
+  while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(r() * pool.length), 1)[0].id);
   run.relicOffer = out.length ? out : null; bus.emit('relicOffer', run.relicOffer);
   return run.relicOffer;
 }
@@ -319,8 +326,8 @@ export function pickRelic(idx) {
 // ---------------------------------------------------------------- routes (chosen after each sector boss)
 /** Offer Steady Course and two random routes for the next sector. */
 export function rollRoutes(run = G.state.run) {
-  const pool = ROUTES.filter((r) => r.id !== 'steady'), out = ['steady'];
-  while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(rand() * pool.length), 1)[0].id);
+  const pool = ROUTES.filter((r) => r.id !== 'steady'), out = ['steady'], r = luck(run, 3, run.wave);
+  while (out.length < 3 && pool.length) out.push(pool.splice(Math.floor(r() * pool.length), 1)[0].id);
   run.routeOffer = out; bus.emit('routeOffer', out); return out;
 }
 export function nextRoute() {
@@ -339,8 +346,8 @@ export function pickRoute(idx) {
 // ---------------------------------------------------------------- Deep Void anomalies (one per Deep Void sector, stacking)
 /** Offer two anomalies the run can still take. */
 export function rollAnomalies(run = G.state.run) {
-  const have = anomalyCounts(run), pool = ANOMALIES.filter((a) => (have[a.id] || 0) < a.max), out = [];
-  while (out.length < ANOMALY_CHOICES && pool.length) out.push(pool.splice(Math.floor(rand() * pool.length), 1)[0].id);
+  const have = anomalyCounts(run), pool = ANOMALIES.filter((a) => (have[a.id] || 0) < a.max), out = [], r = luck(run, 4, run.wave);
+  while (out.length < ANOMALY_CHOICES && pool.length) out.push(pool.splice(Math.floor(r() * pool.length), 1)[0].id);
   run.anomalyOffer = out.length ? out : null; return run.anomalyOffer;
 }
 export function nextAnomaly() {

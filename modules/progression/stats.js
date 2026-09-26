@@ -2,6 +2,7 @@
 // and remembers which source group contributed what, so the UI can show "where does this number come from".
 //   total = (base + Σ adds) × Π group multipliers
 // Sources: the ship hull, Workshop levels (permanent), and — during a sortie — cards and relics.
+import { BOOST_BY_ID } from '@last-orbit/data/boosts.js';
 import { Big } from '@last-orbit/core/big.js';
 import { WARP_PERK_BY_ID } from '@last-orbit/data/warp.js';
 import { BAL } from '@last-orbit/data/balance.js';
@@ -92,6 +93,7 @@ export function computeSheet(state, sheet = new Sheet()) {
     if (run.threat) { sheet.mul('hull', 'Threat', threatMods(run.threat).hull); sheet.mul('salvageGain', 'Threat', threatSalvage(run.threat)); }
     if (run.anomalies?.length) sheet.mul('salvageGain', 'Anomalies', anomalyPay(run));
     for (const id of run.garden || []) sheet.fx(SEED_BY_ID[id]?.fx, 1, 'Greenhouse'); // blooms from the basket, this sortie only
+    for (const id in run.boosts || {}) sheet.fx(BOOST_BY_ID[id]?.fx, 1, 'Field boost'); // running now (progression/boosts.js)
   }
   sheet.finish();
   sheet.weapons = {};

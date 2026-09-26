@@ -81,6 +81,7 @@ export function step(dt) {
   if (w.sheetVersion !== G.sheet.version) { w.sheetVersion = G.sheet.version; refreshDefence(w); }
   if (!run) { parade(w, dt); return; }
   run.time += dt;
+  if (run.boosts) { let ended = false; for (const id in run.boosts) if ((run.boosts[id] -= dt) <= 0) { delete run.boosts[id]; ended = true; bus.emit('boostEnded', id); } if (ended) recalc(); } /* field boosts (progression/boosts.js) */
   updatePlayer(w, dt); updatePassives(w, dt); updateAbilities(w, dt);
   if (w.counter) counterStep(w, dt, afterDeath);
   else switch (ws.state) {

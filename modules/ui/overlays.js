@@ -40,6 +40,8 @@ import { MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
 import { applyVolumes, playSfx } from '@last-orbit/audio/audio.js';
 import { h, clear, toggle, slider, select, scrollHints, setClass, setText } from '@last-orbit/ui/dom.js';
 import { setBoards } from '@last-orbit/progression/global.js';
+import { BOOSTS, BOOST_BY_ID } from '@last-orbit/data/boosts.js';
+import { kit, cannotUse, useBoost, supplyPct } from '@last-orbit/progression/boosts.js';
 import { uiIcon } from '@last-orbit/ui/icons.js';
 import { art } from '@last-orbit/ui/art.js';
 import { dailyShareText, shareText } from '@last-orbit/ui/share.js';
@@ -458,6 +460,27 @@ export function createOverlays(layer, hooks) {
     mount('confirm', el, (e) => { if (e.key === 'Escape') { showSettings(false); return true; } return false; });
   }
 
+  // ------------------------------------------------------------ the field kit, mid-sortie (progression/boosts.js)
+  /** Each boost in the kit: what it does, how many, and Use. The battle waits while the kit is open. */
+  function showKit() {
+    const st = G.state, run = st.run; if (!run) return;
+    const first = !st.seen.kit; st.seen.kit = true; const clock = (t) => `${Math.floor(t / 60)}:${String(Math.ceil(t % 60)).padStart(2, '0')}`;
+    const WHY = { none: 'None', full: 'Hull full', running: 'Running', down: 'Use', daily: 'Use', off: 'Use' };
+    const rows = BOOSTS.map((b) => {
+      const n = kit(st)[b.id] || 0, why = cannotUse(st, b.id), left = run.boosts?.[b.id];
+      return h('div.kit-row' + (n ? '' : '.none'), { style: `--c:${b.color}` }, art(b.icon, 'kit-art'),
+        h('div.kit-txt', h('b', b.name, h('span.kit-count', '×' + n)), h('small', b.how), left ? h('small.kit-on', `Running · ${clock(left)} left`) : null),
+        h('button.btn.small' + (why ? '.ghost' : '.gold'), { disabled: !!why, onclick: () => { if (!useBoost(st, b.id)) return; playSfx('unlock'); hooks.celebrate?.(b.color); close(); } }, why ? WHY[why] || 'Use' : 'Use'));
+    });
+    const pct = Math.round(supplyPct(run) * 100);
+    const el = h('div.modal.kit-modal', { role: 'dialog', 'aria-label': 'Field kit' },
+      h('div.modal-head', h('div.kicker', 'Field kit'), h('h2', 'Use a boost'),
+        h('p', first ? 'Supply canisters land in your kit whenever the meter beside it fills, and it fills as you damage invaders. Use a boost when it suits you: the battle waits while the kit is open, and anything you keep stays for later sorties.' : `Next canister: the meter is ${pct}% full.`)),
+      h('div.kit-list', rows),
+      h('div.modal-actions', h('button.btn.primary', { onclick: close, 'data-autofocus': '' }, uiIcon('play'), 'Back to the fight')));
+    mount('kit', el, (e) => { if (e.key === 'Escape' || e.key === 'k' || e.key === 'K') { close(); return true; } const k = Number(e.key); if (k >= 1 && k <= rows.length) { rows[k - 1].querySelector('button')?.click(); return true; } return false; });
+  }
+
   // ------------------------------------------------------------ debrief
   /** The debrief's line on the global boards (progression/global.js): posting, then where the sortie landed, or that it
    *  waits to go up. */
@@ -490,6 +513,7 @@ export function createOverlays(layer, hooks) {
       s.daily ? h('div.earned.daily-earned', h('small', `Daily bonus · ${s.daily.streak}-day streak`), h('div', art('cur:salvage', 'cur-ico'), '+' + fmtInt(s.daily.bonus))) : null,
       ...(s.voidBeaten || []).map((b) => h('div.pilot-row.void-row', h('span', `Void boss beaten: ${b.name}`), h('b', `+${b.bp} Blueprints` + (b.paint ? ' · Lightkeeper paint' : '')))),
       ...(s.voidMarks || []).map((m) => h('div.pilot-row.void-row', h('span', `Deep Void: ${m.name}, wave ${m.wave}`), h('b', observatoryOpen(G.state) ? 'Chart it in the Observatory' : `Charted at Overhaul rank ${OBSERVATORY_RANK}`))),
+      s.canisters?.length ? h('div.pilot-row.kit-row-db', h('span', s.canisters.length > 1 ? `${s.canisters.length} supply canisters` : 'Supply canister'), h('b', s.canisters.map((id) => h('span.kit-got', { style: `--c:${BOOST_BY_ID[id]?.color}` }, art(BOOST_BY_ID[id]?.icon, 'mat-ico'), BOOST_BY_ID[id]?.name)))) : null,
       s.rested ? h('div.pilot-row.rested-row', h('span', 'Well rested'), h('b', `+${Math.round(REST_BONUS * 100)}% salvage`)) : null,
       s.mats && Object.keys(s.mats).length ? h('div.pilot-row.mat-row-db', h('span', 'Materials recovered'), h('b', Object.entries(s.mats).map(([id, n]) => h('span.mat-got', { style: `--c:#${MAT_BY_ID[id].color.toString(16).padStart(6, '0')}` }, art('mat:' + id, 'mat-ico'), `+${n} ${MAT_BY_ID[id].name}`)))) : null,
       s.garden?.length ? h('div.pilot-row.garden-row', h('span', 'From the Greenhouse'), h('b', s.garden.map((id) => SEED_BY_ID[id]?.boost).join(' · '))) : null,
@@ -574,7 +598,7 @@ export function createOverlays(layer, hooks) {
   };
 
   return {
-    showOffer, showWarp, showRelics, showRoutes, showAnomalies, showPause, showSettings, showDebrief, showLoadout, showCounterIntro, showOverhaul, showMenuIntro, showRoomOffer, showCallsign, showStationComplete, showPanel, showStationName, showSiegeIntro, showConfirm, showSiegeDebrief, close,
+    showKit, showOffer, showWarp, showRelics, showRoutes, showAnomalies, showPause, showSettings, showDebrief, showLoadout, showCounterIntro, showOverhaul, showMenuIntro, showRoomOffer, showCallsign, showStationComplete, showPanel, showStationName, showSiegeIntro, showConfirm, showSiegeDebrief, close,
     get kind() { return open?.kind || null; },
     /** Combat freezes while any overlay is up. */
     blocking: () => !!open,

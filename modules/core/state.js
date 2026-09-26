@@ -37,6 +37,7 @@ export function newState() {
     materials: { alloy: 0, crystal: 0, shard: 0 }, refits: {}, // materials banked from sorties and expeditions; each ship's refit level (data/refits.js)
     refitting: null, // the refit under way in the dock: { ship, n, done, need, since } (progression/refits.js)
     bolt: { wear: { paint: 'factory', hat: 'none', eye: 'cyan' }, owned: {}, rooms: {}, pets: 0, fetches: 0, follow: true }, // Bolt: what it wears and owns, its pats and games (data/bolt.js)
+    kit: { surge: 0, burst: 0, prospect: 0, overcharge: 0, tractor: 0, patch: 0 }, // the field kit (data/boosts.js): boosts held, used in sorties
     global: { id: '', told: false, best: 0, pending: [], forget: false }, // the global boards (progression/global.js): this device's id, told about them, the best posted to 'all', posts waiting to go up
     fleet: { out: [null, null, null], log: [], sent: 0, home: 0, fragments: 0, damage: {} }, // ships out on expeditions from Fleet Ops, by berth; the last few home; ships home damaged (data/fleet.js)
     garden: { beds: [], seeds: {}, basket: {}, grown: {}, wateredDay: '', started: false }, // the Greenhouse: what each bed grows ({ id, at, need, extra }), seeds in the drawer, blooms in the basket, kinds ever grown, the day last watered
@@ -55,7 +56,7 @@ export function newState() {
     stats: { kills: 0, bossKills: 0, bossBy: {}, sectorBosses: 0, bestWave: 0, bestSector: 1, sectorsCleared: 0, sorties: 0, maxLevel: 1, flawless: 0, maxRank: 1, maxDrones: 0, maxWeapons: 1, bestSalvage: 0, totalSalvage: 0, deaths: 0, cards: 0, threatClear: 0, dailies: 0, bestStreak: 0, maxMastery: 1, shipsOwned: 1,
       bestScore: 0, bestKills: 0, longestRun: 0, perfectSectors: 0, flawlessBosses: 0, soloWave: 0, maxedWeapons: 0, maxRelics: 0, fusions: 0, signatures: 0, counterStars: 0, counterBest: 0, counterHard: 0, overhauls: 0 },
     // menus: hangar menu id → 'new' (opened, explainer not yet shown) or true (seen); see data/menus.js
-    seen: { enemies: {}, bosses: {}, elites: {}, medals: 0, records: true, menus: {}, menusInit: false, callsign: false, stationDone: null, intro: false, comms: {}, commsInit: false, gunnerIntro: false, hall: false, commsRoom: false, quarters: false, observatory: false, shipyard: false, beacons: false, garden: false, offered: {}, materials: false, refits: false, ops: false, breach: false }, // stationDone: Overhaul rank the finished station was last celebrated at
+    seen: { enemies: {}, bosses: {}, elites: {}, medals: 0, records: true, menus: {}, menusInit: false, callsign: false, stationDone: null, intro: false, comms: {}, commsInit: false, gunnerIntro: false, hall: false, commsRoom: false, quarters: false, observatory: false, shipyard: false, beacons: false, garden: false, offered: {}, materials: false, refits: false, ops: false, breach: false, kit: false }, // stationDone: Overhaul rank the finished station was last celebrated at
     // Records: the local top 10 sorties by score and each ship's best. Medals: achievement id → tiers earned.
     records: { top: [], ships: {} },
     medals: {},

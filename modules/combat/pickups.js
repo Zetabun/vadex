@@ -26,7 +26,7 @@ function collect(w, p) {
   const pl = w.player;
   if (p.kind === 'xp') { grantXp(p.v); w.fx.push({ k: 'pickup', a: pl.x, b: pl.y, c: 0x6dffc8 }); }
   else if (p.kind === 'salvage') { const got = grantSalvage(p.v); w.fx.push({ k: 'text', a: pl.x, b: pl.y + 6, c: '+' + Math.max(1, Math.round(got)), d: COLOR.salvage, e: 1 }); w.fx.push({ k: 'sfx', a: 'loot', b: 0.35 }); }
-  else if (p.kind === 'mat') { const run = G.state.run, d = MAT_BY_ID[p.m]; if (run && d) { (run.mats ||= {})[p.m] = (run.mats[p.m] || 0) + p.v; w.fx.push({ k: 'text', a: pl.x, b: pl.y + 6, c: `+${p.v} ${d.name.toUpperCase()}`, d: '#' + d.color.toString(16).padStart(6, '0'), e: 1 }); w.fx.push({ k: 'sfx', a: 'loot', b: 0.5 }); w.fx.push({ k: 'pickup', a: pl.x, b: pl.y, c: d.color });
+  else if (p.kind === 'mat') { const run = G.state.run, d = MAT_BY_ID[p.m], v = p.v * (run?.boosts?.prospect ? 2 : 1); /* Prospector: twice */ if (run && d) { (run.mats ||= {})[p.m] = (run.mats[p.m] || 0) + v; w.fx.push({ k: 'text', a: pl.x, b: pl.y + 6, c: `+${v} ${d.name.toUpperCase()}`, d: '#' + d.color.toString(16).padStart(6, '0'), e: 1 }); w.fx.push({ k: 'sfx', a: 'loot', b: 0.5 }); w.fx.push({ k: 'pickup', a: pl.x, b: pl.y, c: d.color });
     if (!G.state.seen.materials) { G.state.seen.materials = true; bus.emit('notice', { kind: 'unlock', kicker: 'Materials', title: `${d.name} recovered`, sub: 'Each stretch of the invasion drops its own: spend them on ship refits in the Ships menu', art: 'mat:' + p.m }); } } }
   else if (p.kind === 'repair') { const was = pl.hull; pl.hull = Math.min(1, pl.hull + p.v); noteHull('kit', pl.hull - was); w.fx.push({ k: 'text', a: pl.x, b: pl.y + 6, c: 'REPAIR', d: COLOR.repair, e: 1 }); w.fx.push({ k: 'naniteRepair', a: pl.x, b: pl.y }); }
 }

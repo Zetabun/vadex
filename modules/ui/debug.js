@@ -402,7 +402,7 @@ function runScene(scene, hooks, ui) {
   // A tab scene can scroll to a section by its heading: ships:engine shows the engine trails.
   // records:global[:yday|all]: the global boards (point the game at a local server with &api=http://127.0.0.1:8787)
   if (name === 'records' && arg === 'global') { for (const r of ROOMS_ABOARD) (st.seen.offered ||= {})[r.id] = true; /* no room offers over the boards */ hooks.toHangar('records'); setTimeout(() => { [...document.querySelectorAll('.gl-seg button')].find((x) => x.textContent === 'Global')?.click(); if (arg2) setTimeout(() => [...document.querySelectorAll('.gl-chip')].find((x) => x.textContent.toLowerCase().startsWith(arg2))?.click(), 200); }, 400); return; }
-  if (['workshop', 'armory', 'ships', 'contracts', 'launch', 'missions', 'records', 'awards'].includes(name)) { hooks.toHangar(name); if (arg && arg !== 'locked') setTimeout(() => [...document.querySelectorAll('h3')].find((x) => x.textContent.toLowerCase().includes(arg))?.scrollIntoView(), 500); return; }
+  if (['workshop', 'armory', 'ships', 'contracts', 'launch', 'missions', 'records', 'awards'].includes(name)) { for (const r of ROOMS_ABOARD) (st.seen.offered ||= {})[r.id] = true; /* no room offers over the tab */ hooks.toHangar(name); if (arg && arg !== 'locked') setTimeout(() => [...document.querySelectorAll('h3')].find((x) => x.textContent.toLowerCase().includes(arg))?.scrollIntoView(), 500); return; }
   hooks.launch();
   if (name === 'warp') { if (arg3 === 'build') setTimeout(() => { document.querySelector('.wd-focus')?.click(); document.querySelector('.wd-perk')?.click(); setTimeout(() => document.querySelector('.wd-go')?.click(), 300); }, 1200); return; } /* warp:<sector>:go[:build]: the catch-up draft (build: fitted, the build shown) */
   if (name !== 'levelup') { st.run.offer = null; st.run.pendingLevels = 0; ui.closeOverlays(); }
@@ -433,6 +433,11 @@ function runScene(scene, hooks, ui) {
   else if (name === 'notice') bus.emit('notice', { kind: 'unlock', kicker: 'Contract complete', title: 'Hold the Line', salvage: 40, sub: 'Weapon: Lance Laser unlocked', art: 'weapon:laser' });
   else if (name === 'bannerfly') { let d = 1; setInterval(() => { const i = G.world?.input; if (!i) return; i.hold = d; if (Math.abs(G.world.player.x) > 30) d = -Math.sign(G.world.player.x); const p = G.world.player; p.hull = 1; p.invuln = 0; }, 100); }
   else if (name === 'pause') ui.pause();
+  // kit[:open|first|pack]: a sortie with boosts in the field kit, two running, the meter part full (open: tap the kit; first:
+  // as a pilot opening it for the first time; pack: the meter fills, as for a pilot's first canister ever)
+  else if (name === 'kit') { const run = st.run; st.kit = { surge: 2, burst: 1, prospect: 0, overcharge: 3, tractor: 1, patch: 2 }; run.supply.fill = run.supply.need * 0.62; run.boosts = { surge: 42, overcharge: 7 }; recalc(); st.seen.kit = arg !== 'first';
+    if (arg === 'pack') { st.stats.canisters = 0; run.boosts = {}; setTimeout(() => { run.supply.fill = run.supply.need; bus.emit('supplyFull'); }, 1500); }
+    if (arg === 'open' || arg === 'first') setTimeout(() => { const k = document.querySelector('#dock .kit'); if (k) { const r = k.getBoundingClientRect(); ui.tapHud(r.left + 20, r.top + 20); } }, 1200); }
   else if (name === 'medal') bus.emit('notice', { kind: 'medal', kicker: 'Silver medal', title: 'Exterminator', sub: 'Destroy 5,000 invaders', art: 'weapon:cannon', tier: 'silver', xp: 250 });
   else if (name === 'loadout') { const run = st.run; run.order.push('laser'); run.weapons.laser = 4; run.weapons.cannon = 3; run.relics.push('r_glass'); run.cards = { m_dmg: 2, m_crit: 1, m_hull: 1 }; run.abilities.push('emp'); recalc();
     run.offer = null; run.pendingLevels = 0; ui.closeOverlays();

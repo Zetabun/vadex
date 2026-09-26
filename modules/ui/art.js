@@ -110,6 +110,14 @@ const P = {
   crystal: `<path class="b" d="M17 24l8 11-8 21-8-21zM47 24l8 11-8 21-8-21z"/><path class="a" d="M32 4l11 19-11 38-11-38z"/><path class="w" d="M32 4l4 17h-8z" opacity=".8"/>`,
   shard: `<path class="a" d="M37 3l14 25-12 33-21-21 6-22z"/><path class="b" d="M37 3l2 58-21-21z"/><path class="w" d="M37 3l-7 16 4 2z" opacity=".75"/>`,
   xp: `<path class="a" d="M32 3l20 17-20 41L12 20z"/><path class="b" d="M12 20h40L32 61z"/><path class="w" d="M32 3l6 17H26z" opacity=".8"/>`,
+  // ------------------------------------------------------------------ field boosts (data/boosts.js): a flask each, and the kit's canister
+  flaskSurge: `<rect class="b" x="24" y="3" width="16" height="8" rx="2"/><path class="c" d="M23 11h18v9c9 4 14 12 14 21 0 12-10 20-23 20S9 53 9 41c0-9 5-17 14-21z"/><path class="a" d="M11 43h42c-1 9-10 15-21 15S12 52 11 43z"/><path d="M14 39c1-6 5-11 10-14" style="fill:none;stroke:#fff;stroke-width:2.5;stroke-linecap:round;opacity:.5"/><path class="w" d="M32 21l8 4.5v9L32 39l-8-4.5v-9z"/><circle class="c" cx="32" cy="30" r="3"/>`,
+  flaskBurst: `<rect class="b" x="24" y="3" width="16" height="8" rx="2"/><path class="c" d="M23 11h18v9c9 4 14 12 14 21 0 12-10 20-23 20S9 53 9 41c0-9 5-17 14-21z"/><path class="a" d="M11 43h42c-1 9-10 15-21 15S12 52 11 43z"/><path d="M14 39c1-6 5-11 10-14" style="fill:none;stroke:#fff;stroke-width:2.5;stroke-linecap:round;opacity:.5"/><path class="w" d="M32 20l7 10-7 10-7-10z"/><path d="M21 22l3 3M43 22l-3 3" style="fill:none;stroke:#fff;stroke-width:2.5;stroke-linecap:round"/>`,
+  flaskPick: `<rect class="b" x="24" y="3" width="16" height="8" rx="2"/><path class="c" d="M23 11h18v9c9 4 14 12 14 21 0 12-10 20-23 20S9 53 9 41c0-9 5-17 14-21z"/><path class="a" d="M11 43h42c-1 9-10 15-21 15S12 52 11 43z"/><path d="M14 39c1-6 5-11 10-14" style="fill:none;stroke:#fff;stroke-width:2.5;stroke-linecap:round;opacity:.5"/><path class="w" d="M20 27c7-7 17-7 24 0l-2 3c-6-5-14-5-20 0z"/><rect class="w" x="30.5" y="25" width="3" height="15" rx="1.5"/>`,
+  flaskBolt: `<rect class="b" x="24" y="3" width="16" height="8" rx="2"/><path class="c" d="M23 11h18v9c9 4 14 12 14 21 0 12-10 20-23 20S9 53 9 41c0-9 5-17 14-21z"/><path class="a" d="M11 43h42c-1 9-10 15-21 15S12 52 11 43z"/><path d="M14 39c1-6 5-11 10-14" style="fill:none;stroke:#fff;stroke-width:2.5;stroke-linecap:round;opacity:.5"/><path class="w" d="M35 19l-10 13h6l-3 10 11-14h-6z"/>`,
+  flaskMagnet: `<rect class="b" x="24" y="3" width="16" height="8" rx="2"/><path class="c" d="M23 11h18v9c9 4 14 12 14 21 0 12-10 20-23 20S9 53 9 41c0-9 5-17 14-21z"/><path class="a" d="M11 43h42c-1 9-10 15-21 15S12 52 11 43z"/><path d="M14 39c1-6 5-11 10-14" style="fill:none;stroke:#fff;stroke-width:2.5;stroke-linecap:round;opacity:.5"/><path class="w" d="M23 21h6v9a3 3 0 0 0 6 0v-9h6v9a9 9 0 0 1-18 0z"/>`,
+  flaskCross: `<rect class="b" x="24" y="3" width="16" height="8" rx="2"/><path class="c" d="M23 11h18v9c9 4 14 12 14 21 0 12-10 20-23 20S9 53 9 41c0-9 5-17 14-21z"/><path class="a" d="M11 43h42c-1 9-10 15-21 15S12 52 11 43z"/><path d="M14 39c1-6 5-11 10-14" style="fill:none;stroke:#fff;stroke-width:2.5;stroke-linecap:round;opacity:.5"/><path class="w" d="M29 20h6v6h6v6h-6v6h-6v-6h-6v-6h6z"/>`,
+  canister: `<rect class="b" x="21" y="3" width="22" height="7" rx="2"/><rect class="a" x="15" y="9" width="34" height="52" rx="10"/><rect class="c" x="21" y="17" width="22" height="36" rx="6"/><rect class="b" x="21" y="36" width="22" height="17" rx="5"/><path class="c" d="M15 29h34v4H15z"/><path d="M19 14v40" style="fill:none;stroke:#fff;stroke-width:2.5;stroke-linecap:round;opacity:.5"/>`,
 };
 
 // Key → [glyph, primary colour, secondary colour]
@@ -159,6 +167,10 @@ export const ART = {
   'cur:salvage': C('salvage', '#ffc857', '#e89a2c'), 'cur:xp': C('xp', UTL, '#2fae8a'),
   'mat:alloy': C('alloy', '#9fc2ff', '#4f6fae'), 'mat:crystal': C('crystal', '#ff7ad8', '#a83884'), 'mat:shard': C('shard', '#c9a2ff', '#6b3fc4'),
   'supply:heal': C('nanites', '#6dff8e', '#c3ffd2'), 'supply:cash': C('crate', '#ffc857', '#b0782a'),
+  // field boosts
+  'boost:surge': C('flaskSurge', '#ffc857', '#8a6a2a'), 'boost:burst': C('flaskBurst', '#6dffc8', '#2f8a70'), 'boost:prospect': C('flaskPick', '#9fc2ff', '#4f6fae'),
+  'boost:overcharge': C('flaskBolt', '#ff8a3d', '#a8502a'), 'boost:tractor': C('flaskMagnet', '#ff6b9a', '#a83866'), 'boost:patch': C('flaskCross', '#6dff8e', '#2f8a4a'),
+  'boost:kit': C('canister', '#6dffc8', '#2f8a70'),
 };
 
 /** SVG markup for a key such as 'weapon:laser'. Unknown keys fall back to the salvage glyph rather than a browser glyph. */

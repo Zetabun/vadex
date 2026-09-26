@@ -1,5 +1,6 @@
 // UI root: switches between the Hangar and the sortie HUD, owns overlays, banners, toasts and screen effects,
 // and tells the renderer how much of the screen the battlefield may use.
+import { BOOST_BY_ID, kitOn } from '@last-orbit/data/boosts.js';
 import { MAT_BY_ID, materialOf } from '@last-orbit/data/materials.js';
 import { draftDue } from '@last-orbit/progression/run.js';
 import { G } from '@last-orbit/core/game.js';
@@ -134,12 +135,22 @@ export function initUI(app, hooks) {
     else if (e.k === 'hurt') { $.vig.classList.add('on'); requestAnimationFrame(() => requestAnimationFrame(() => $.vig.classList.remove('on'))); }
   });
   bus.on('levelUp', () => { playSfx('milestone'); });
+  // A supply canister packed mid-sortie (progression/boosts.js): its boost floats up from the ship, and the first ever
+  // says where it went. One from an expedition or Bolt is a notice in the hangar.
+  bus.on('canister', (g) => {
+    const d = BOOST_BY_ID[g.id]; if (!d) return;
+    if (g.where === 'sortie' && G.mode === 'sortie' && G.world) {
+      const p = G.world.player; G.world.fx.push({ k: 'text', a: p.x, b: p.y + 10, c: g.sold ? `KIT FULL · +${g.sold} SALVAGE` : '+ ' + d.name.toUpperCase(), d: d.color, e: 1 }); playSfx('unlock', 0.5);
+      if ((G.state.stats.canisters || 0) === 1) notice({ kind: 'unlock', kicker: 'Your first supply canister', title: d.name, sub: 'It is in your field kit, beside your loadout. Tap the kit (or press K) to use a boost: the battle waits while it is open.', art: d.icon }); /* a notice, not a banner: a wave banner would cover it */
+    } else if (g.where !== 'sortie') notice({ kind: 'unlock', kicker: g.where === 'bolt' ? 'Bolt found something' : 'Supply canister', title: d.name, sub: g.sold ? `Your kit already holds five: sold for ${g.sold} salvage.` : `${d.desc}. It is in your field kit for your next sortie.`, art: d.icon });
+  });
   bus.on('synergy', (s, t) => { if (G.mode !== 'sortie') return; banner('Synergy · ' + s.name, t.desc, null, s.color, 2600); flash(s.color); playSfx('unlock'); });
 
   // ------------------------------------------------------------ input routing
   addEventListener('keydown', (e) => {
     if (overlays.blocking()) { if (overlays.key(e)) e.preventDefault(); return; }
     if (G.mode === 'sortie' && (e.key === 'Escape' || e.key === 'p' || e.key === 'P')) { uiHooks.pause(); e.preventDefault(); }
+    else if (G.mode === 'sortie' && (e.key === 'k' || e.key === 'K') && kitOn(G.state.run)) { playSfx('tab'); overlays.showKit(); e.preventDefault(); } /* K: the field kit */
     else if (G.mode === 'hangar' && e.key === 'Enter' && hangar.tab === 'launch' && !e.target.closest?.('button,input,select')) hooks.launch();
   });
 
@@ -159,7 +170,7 @@ export function initUI(app, hooks) {
     showDebrief: (s) => { clear($.toasts); $.banner.classList.remove('on'); overlays.showDebrief(s); },
     pause: () => uiHooks.pause(),
     /** A short tap on the battlefield: if it landed on a loadout icon, explain the loadout. */
-    tapHud: (x, y) => { if (overlays.blocking()) return false; const key = hud.loadoutAt(x, y); if (!key) return false; playSfx('tab'); overlays.showLoadout(key === 'build' ? null : key, false); return true; },
+    tapHud: (x, y) => { if (overlays.blocking()) return false; if (hud.kitAt(x, y)) { playSfx('tab'); overlays.showKit(); return true; } const key = hud.loadoutAt(x, y); if (!key) return false; playSfx('tab'); overlays.showLoadout(key === 'build' ? null : key, false); return true; },
     refreshHangar: () => { if (G.mode === 'hangar') hangar.render(); },
     closeOverlays: () => overlays.close(),
   };

@@ -12,6 +12,7 @@
 | HUD, Hangar, overlays, CSS | `modules/ui/hud.js`, `modules/ui/hangar.js`, `modules/ui/overlays.js`, `index.html` |
 | Save compatibility | `modules/core/state.js`, `modules/save/save.js` |
 | Global boards (posting, fetching, the Records Global tab, the Deck TV's Boards channel) | `modules/progression/global.js`, `modules/data/global.js`, `api/src/index.js`, `tests/global-regression.mjs`, `tests/api-regression.mjs` |
+| Field kit (supply meter, canisters, boosts, the kit panel and HUD chips) | `modules/data/boosts.js`, `modules/progression/boosts.js`, `modules/ui/hud.js`, `modules/ui/overlays.js` (showKit), `tests/kit-regression.mjs`, `tests/kit-probe.mjs` |
 | Release check and balance bot | `tools/run_release_gates.py`, `tests/sortie-regression.mjs`, `tests/balance-sim.mjs` |
 
 The import map in `index.html` resolves each `@last-orbit/` specifier to a published module path. `tests/loader.mjs` resolves the same specifiers in Node.

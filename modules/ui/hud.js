@@ -1,4 +1,7 @@
 // In-sortie HUD: sector/wave track, XP bar, salvage, boss bar, loadout strip, hull/shield bars and ability buttons.
+import { bus } from '@last-orbit/core/events.js';
+import { BOOST_BY_ID, kitOn } from '@last-orbit/data/boosts.js';
+import { kitCount, supplyPct, running } from '@last-orbit/progression/boosts.js';
 import { G } from '@last-orbit/core/game.js';
 import { fmt, fmtInt } from '@last-orbit/core/format.js';
 import { sectorOf } from '@last-orbit/data/sectors.js';
@@ -34,6 +37,10 @@ export function createHud(hooks) {
     $.boss);
 
   $.loadout = h('div.loadout');
+  // the field kit (progression/boosts.js): its supply meter filling as you fight, how many boosts it holds (tap to open
+  // it), and the boosts running, each with its icon and time left
+  $.kitFill = h('i'); $.kitN = h('b.kit-n'); $.kit = h('div.kit', { 'data-key': 'kit', title: 'Field kit', 'aria-label': 'Field kit: tap to use a boost' }, h('div.kit-meter', $.kitFill), art('boost:kit', 'kit-ico'), $.kitN);
+  $.buffs = h('div.buffs', { 'aria-live': 'polite' });
   $.strikeI = Array.from({ length: BAL.breachStrikes }, () => h('i')); $.strikes = h('div.strikes', { title: 'Breaches this sector: the last ends the sortie' }, h('small', 'LINE'), $.strikeI);
   $.hullTxt = h('span.val'); $.hull = h('i'); $.shield = h('i'); $.shieldTxt = h('span.val');
   $.shieldRow = h('div.bar-row.shield-row', h('span.lbl', 'SHIELD'), h('div.meter.shield', $.shield), $.shieldTxt);
@@ -41,14 +48,24 @@ export function createHud(hooks) {
   // Dodge: a small chip beside the hull bar, its ring filling as the dash recharges.
   $.dashRing = h('i.cd'); $.dash = h('div.dash-chip', { title: 'Dodge: double-tap a side' }, h('span.dash-glyph', '»'), $.dashRing);
   const dock = h('div#dock',
-    h('div.dock-top', $.loadout, $.strikes),
+    h('div.dock-top', $.loadout, $.buffs, $.kit, $.strikes),
     h('div.dock-row',
       $.dash, h('div.bars', $.shieldRow, h('div.bar-row', h('span.lbl', 'HULL'), h('div.meter.hull', $.hull), $.hullTxt)),
       $.abil));
   $.hintB = h('b'); $.hintS = h('span'); $.hint = h('div.fly-hint', $.hintB, $.hintS);
   const el = h('div.hud-layer', top, dock, $.hint);
 
-  let pipSig = '', loadSig = '', abilSig = '', hintT = 0, hintKind = '', strikeSig = null;
+  let pipSig = '', loadSig = '', abilSig = '', hintT = 0, hintKind = '', strikeSig = null, kitSig = '', buffSig = '';
+  const clock = (t) => { t = Math.max(0, Math.ceil(t)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`; };
+  /** The kit and the running boosts: redrawn only when what they show changes. */
+  function updateKit(run) {
+    const on = kitOn(run); $.kit.hidden = $.buffs.hidden = !on; if (!on) return;
+    const n = kitCount(G.state), pct = Math.round(supplyPct(run) * 100), sig = n + ':' + pct;
+    if (sig !== kitSig) { kitSig = sig; $.kitFill.style.height = pct + '%'; setText($.kitN, String(n)); setClass($.kit, 'empty', !n); }
+    const list = running(run), bs = list.map((b) => b.id + Math.ceil(b.left)).join(); if (bs === buffSig) return; buffSig = bs; clear($.buffs);
+    for (const b of list) { const d = BOOST_BY_ID[b.id]; $.buffs.append(h('span.buff' + (b.left < 8 ? '.ending' : ''), { style: `--c:${d.color}`, title: `${d.name}: ${d.desc}` }, art(d.icon, 'buff-ico'), h('b', clock(b.left)))); }
+  }
+  bus.on('canister', (g) => { if (g.where !== 'sortie' || g.sold) return; $.kit.classList.remove('got'); void $.kit.offsetWidth; $.kit.classList.add('got'); });
   const abilBtns = {};
   function buildPips(wave) {
     const sec = sectorOf(wave), sig = sec.start + ':' + sec.len; if (sig === pipSig) return; pipSig = sig; clear($.pips);
@@ -78,7 +95,7 @@ export function createHud(hooks) {
   function update(dt) {
     const run = G.state.run, w = G.world; if (!run || !w) return;
     const waveShown = w.wave.num || run.wave, sec = sectorOf(waveShown);
-    buildLoadout(run); buildAbilities(run);
+    buildLoadout(run); buildAbilities(run); updateKit(run);
     const k = run.mode === 'counter' ? -1 : run.strikes || 0; if (k !== strikeSig) { const was = strikeSig; strikeSig = k; $.strikes.hidden = k < 0; const n = BAL.breachStrikes;
       $.strikeI.forEach((el, i) => { const lost = i >= n - k; setClass(el, 'lost', lost); setClass(el, 'hit', lost && was != null && i === n - k); }); setClass($.strikes, 'last', k === n - 1); }
     if (w.counter) {
@@ -119,11 +136,13 @@ export function createHud(hooks) {
     const deg = Math.round(dk * 90) * 4; if (deg !== $.dashDeg) { $.dashDeg = deg; $.dashRing.style.setProperty('--p', deg + 'deg'); } setClass($.dash, 'ready', dk >= 1 && p.alive);
     const th = p.alive && w.wave.state !== 'dead' && !hooks.blocking?.() ? Math.round(Math.min(1, Math.abs(p.vx || 0) / 70) * 20) / 20 : 0; if (th !== $.thrust) { $.thrust = th; setThrust(th); }
   }
-  function reset() { pipSig = loadSig = abilSig = hintKind = ''; loadN = null; strikeSig = null; hintT = 0; $.dodgeCounted = false; $.steerThis = null; $.thrust = 0; $.dashDeg = -1; setThrust(0); for (const k in abilBtns) delete abilBtns[k]; }
+  function reset() { pipSig = loadSig = abilSig = hintKind = kitSig = buffSig = ''; loadN = null; strikeSig = null; hintT = 0; $.dodgeCounted = false; $.steerThis = null; $.thrust = 0; $.dashDeg = -1; setThrust(0); for (const k in abilBtns) delete abilBtns[k]; }
   /** The loadout icon under a screen point (a tap there explains the loadout), padded to be easy to hit. */
   function loadoutAt(x, y) {
     for (const c of $.loadout.children) { const r = c.getBoundingClientRect(); if (x >= r.left - 4 && x <= r.right + 4 && y >= r.top - 8 && y <= r.bottom + 8) return c.dataset.key || null; }
     return null;
   }
-  return { el, top, dock, update, reset, loadoutAt };
+  /** Whether a screen point is on the field kit (a tap there opens it), padded to be easy to hit. */
+  function kitAt(x, y) { if ($.kit.hidden) return false; const r = $.kit.getBoundingClientRect(); return x >= r.left - 6 && x <= r.right + 6 && y >= r.top - 8 && y <= r.bottom + 8; }
+  return { el, top, dock, update, reset, loadoutAt, kitAt };
 }

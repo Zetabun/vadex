@@ -1,6 +1,8 @@
 // Fleet expeditions (data/fleet.js): sending a ship out from a berth, how far along it is, and what it brings home. A
 // trip's progress is worked out from when it left, so ships come back while the game is closed. What it finds is rolled
 // from when it left, so reopening the game never changes it.
+import { TRIP_CANISTER } from '@last-orbit/data/boosts.js';
+import { rollBoost, stow } from '@last-orbit/progression/boosts.js';
 import { G } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { makeRng } from '@last-orbit/core/rng.js';
@@ -62,6 +64,7 @@ export function tripFinds(st, o) {
   if (d.fragment && r() < d.fragment) got.fragments = 1;
   got.line = r.pick(FINDS_LINES[d.deep ? 'deep' : 'sector']);
   got.damage = r() < d.risk * (o.frame ? FRAME_SAFER : 1) ? (r() < d.heavy ? 2 : 1) : 0; if (got.damage) got.line = r.pick(DAMAGE_LINES[got.damage]);
+  if (r() < TRIP_CANISTER + 0.04 * (d.n || 0)) got.canister = rollBoost(r); /* a supply canister for the field kit (drawn last, so older finds are unchanged) */
   return got;
 }
 /** Brings a ship that is home in: banks what it found, gives it mastery and writes it in the log. Returns the log entry. */
@@ -73,11 +76,12 @@ export function collectShip(st, i, now = Date.now()) {
   const g = got.seeds.length ? garden(st) : null; for (const id of got.seeds) g.seeds[id] = (g.seeds[id] || 0) + 1;
   if (got.cores) st.counter.cores += got.cores;
   if (got.bp) { st.prestige.bp += got.bp; st.prestige.bpEarned = (st.prestige.bpEarned || 0) + got.bp; }
+  if (got.canister) stow(st, got.canister, 'expedition');
   f.fragments = (f.fragments || 0) + got.fragments; if (got.damage) f.damage[o.ship] = Math.max(f.damage[o.ship] || 0, got.damage);
   const mastery = st === G.state ? addMastery(o.ship, d.mastery) : null;
   f.out[i] = null; f.home = (f.home || 0) + 1;
   const paint = f.home >= PATHFINDER_AT && !st.paints[FLEET_PAINT] ? FLEET_PAINT : null; if (paint) st.paints[paint] = now;
-  const entry = { ship: o.ship, dest: d.id, at: now, got: { salvage: got.salvage, mats: got.mats, seeds: got.seeds, cores: got.cores, bp: got.bp, fragments: got.fragments, damage: got.damage }, line: got.line };
+  const entry = { ship: o.ship, dest: d.id, at: now, got: { salvage: got.salvage, mats: got.mats, seeds: got.seeds, cores: got.cores, bp: got.bp, fragments: got.fragments, damage: got.damage, canister: got.canister || null }, line: got.line };
   f.log.unshift(entry); f.log.length = Math.min(f.log.length, LOG_KEEP);
   bus.emit('fleet', 'home', i); return { ...entry, mastery, paint };
 }
