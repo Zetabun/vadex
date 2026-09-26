@@ -77,11 +77,16 @@ export function createOverlays(layer, hooks) {
   }
 
   /** Synergy progress on a card: which theme it feeds and whether it completes a tier. */
+  /** The synergy a card feeds, spelled out: a pip for each different card of the theme its next bonus needs (filled:
+   *  held; glowing: this one), how many more that takes after it, and what the bonus does. */
   function synChip(c, run) {
     if (c.kind !== 'mod') return null; const s = synergyOf(c.id); if (!s) return null;
-    const have = synergyCount(s, run), next = run.cards[c.id] > 0 ? have : have + 1, tier = s.tiers.find((t) => t.n > have) || s.tiers[s.tiers.length - 1];
-    const completes = !(run.cards[c.id] > 0) && s.tiers.some((t) => t.n === next);
-    return h('div.syn-chip' + (completes ? '.complete' : ''), { style: `--s:${s.color}` }, h('b', s.name), h('span', completes ? `Completes: ${s.tiers.find((t) => t.n === next).desc}` : `${Math.min(next, tier.n)}/${tier.n}`));
+    const held = run.cards[c.id] > 0, have = synergyCount(s, run), after = held ? have : have + 1, tier = s.tiers.find((t) => t.n > have);
+    if (!tier) return h('div.syn-chip.done', { style: `--s:${s.color}` }, h('b', s.name), h('span', 'Every bonus in this set is already on'));
+    const completes = !held && after === tier.n, left = tier.n - after;
+    const pips = h('span.syn-pips', { 'aria-hidden': 'true' }, Array.from({ length: tier.n }, (_, i) => h('i' + (i < have ? '.on' : i < after ? '.new' : ''))));
+    const say = completes ? `Completes its bonus: ${tier.desc}` : held ? `Already in the set · ${left} more different card${left > 1 ? 's' : ''} for its bonus: ${tier.desc}` : `${left} more after this for its bonus: ${tier.desc}`;
+    return h('div.syn-chip' + (completes ? '.complete' : ''), { style: `--s:${s.color}`, title: `${s.name}: hold ${tier.n} different ${s.name} cards for this bonus` }, h('b', s.name), pips, h('span', say));
   }
 
   // ------------------------------------------------------------ relics

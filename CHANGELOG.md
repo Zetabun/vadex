@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.20.1 — unreleased
+
+- **Card synergies explain themselves.** The strip on an upgrade card that said something like "Demolition 1/3" now shows the set as pips (the cards of it you hold, and this one glowing) and says in words how many more different cards its bonus needs after this one, and what the bonus does. For example: "2 more after this for its bonus: 20% more kills explode, +25% blast radius".
+
 ## v2.20.0 — 2026-09-26
 
 - **Warping no longer means picking 25 cards.** Warping past sectors (or starting a late Counterattack stage) still gives you the same catch-up, five upgrades for every sector skipped plus a relic each, but now you make two choices instead of one per card:
