@@ -18,13 +18,14 @@ import { fusionsFor } from '@last-orbit/data/fusions.js';
 import { SYNERGIES, activeTiers } from '@last-orbit/data/synergies.js';
 import { ALIEN_BY_ID } from '@last-orbit/data/alientech.js';
 import { BLUEPRINT_BY_ID, OVERHAUL_FX, OVERHAUL_FX_CAP } from '@last-orbit/data/prestige.js';
+import { SEED_BY_ID } from '@last-orbit/data/garden.js';
 
 export const STAT_BASE = {
   damage: 1, fireRate: 1, critChance: 0.03, critDmg: 1, projSpeed: 1, multishot: 0, pierce: 0, blast: 1, armorPen: 0, bossDmg: 1, eliteDmg: 1, weakMult: BAL.weakMult,
   hull: BAL.hull, hullRegen: 0, lifeSteal: 0, shieldRatio: 0, shieldRegen: 0.15, shieldDelay: BAL.shieldDelay, moveSpeed: 1, barrier: 1, barrierRegen: 0, dmgReduce: 0,
   focusMax: BAL.focusMax, focusRate: 1, comboMax: 0.5, droneDmg: 1, droneRate: 1, drones: 0, energyRegen: 2, energyCap: 100,
   abilityCd: 1, abilityPower: 1, abilityCharges: 1, aimAssist: 0, autoDodge: 0, waveHaste: 0, gameSpeed: 1,
-  magnet: BAL.magnet, xpGain: 1, salvageGain: 1, rerolls: 0, startLevels: 0, cardChoices: BAL.cardChoices, revives: 0,
+  magnet: BAL.magnet, xpGain: 1, salvageGain: 1, rerolls: 0, startLevels: 0, startRelics: 0, cardChoices: BAL.cardChoices, revives: 0,
   'f.autofire': 1, dashCd: 1, warpCards: 0,
 };
 export const STAT_NAMES = { damage: 'Damage', fireRate: 'Fire rate', critChance: 'Critical chance', critDmg: 'Critical damage', hull: 'Hull', shieldRatio: 'Shield', lifeSteal: 'Lifesteal', moveSpeed: 'Speed', magnet: 'Pickup range', xpGain: 'Experience', salvageGain: 'Salvage' };
@@ -86,6 +87,7 @@ export function computeSheet(state, sheet = new Sheet()) {
     if (run.route) sheet.fx(ROUTE_BY_ID[run.route]?.fx, 1, 'Route');
     if (run.threat) { sheet.mul('hull', 'Threat', threatMods(run.threat).hull); sheet.mul('salvageGain', 'Threat', threatSalvage(run.threat)); }
     if (run.anomalies?.length) sheet.mul('salvageGain', 'Anomalies', anomalyPay(run));
+    for (const id of run.garden || []) sheet.fx(SEED_BY_ID[id]?.fx, 1, 'Greenhouse'); // blooms from the basket, this sortie only
   }
   sheet.finish();
   sheet.weapons = {};

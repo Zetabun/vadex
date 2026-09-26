@@ -43,6 +43,7 @@ export async function initDebug(app, { hooks, ui } = {}) {
   const scene = new URLSearchParams(location.search).get('scene');
   if (scene) { panel.style.display = 'none'; G.demo = true; runScene(scene, hooks, ui); } // demo scenes never auto-pause
   window.gunnerBot = gunnerBot;
+  window.roomTap = (kind) => ui.tap?.(kind); // tap an exhibit in the room open, as a finger would (for checks in the console)
 }
 
 // ---- the gunner-seat balance bot (window.gunnerBot, in a debug build with the seat open: scene=gunner)
@@ -82,6 +83,7 @@ function runScene(scene, hooks, ui) {
   const [name, arg, arg2, arg3, arg4] = scene.split(':');
   // Scenes play as an established pilot (every menu open), except newpilot:<sorties>, which shows the menus opening up.
   st.seen.menus = {}; st.seen.menusInit = false; refreshMenus();
+  st.seen.offered = { garden: true }; // scenes are not interrupted by the Greenhouse offering the way aboard (garden:offer shows it)
   // station:<overhaul rank>:<share of Workshop levels, 0-1>[:tab[:captures]] (captures: that many stages cleared and Alien Tech fitted)
   // intro[:seconds]: the opening, frozen at a moment (for screenshots) or playing from the start
   if (name === 'intro') { hooks.toHangar('launch'); setTimeout(() => { const sc = ui.intro({ tap: arg === 'title' }); if (arg === 'title') return; if (arg) { for (let k = 0; k < +arg / 0.05; k++) sc.update(0.05); G.introPaused = true; } }, 300); return; }
@@ -91,11 +93,11 @@ function runScene(scene, hooks, ui) {
   if (name === 'news') { st.prestige.level = 2; for (const u of WORKSHOP) { st.stationPeak[u.id] = u.max; st.workshop[u.id] = 2; } st.counter.unlocked = true; recalc(); hooks.toHangar('launch'); setTimeout(() => { st.workshop.w_dmg = 10; st.workshop.w_speed = 5; st.counter.tech.x_alloy = 1; st.counter.tech.x_phase = 1; st.prestige.level = 3; hooks.toHangar('workshop'); setTimeout(() => { hooks.toHangar('launch'); toast('Station: Weapon battery online', 'station'); }, 200); }, 400); return; }
   // comms:<line id>: the station AI saying one of its lines
   if (name === 'comms') { st.pilot.name = 'Adam'; st.seen.callsign = true; hooks.toHangar('launch'); setTimeout(() => { const l = LINES.find((x) => x.id === (arg || 'welcome')); if (l) ui.comms.say(l.text); }, 600); return; }
-  if (name === 'deck') { st.prestige.level = +arg || 3; st.pilot.name = 'Adam'; st.seen.callsign = true; for (const id of ['signal', 'checker', 'ember', 'royal']) st.banners[id] = 1; st.unlocked.ships.bulwark = 1; st.stats.bestWave = 74; st.stats.maxAnomalies = 2; st.counter.stars = { 1: 3, 2: 2, 3: 1 }; refreshMenus(); st.seen.menus.deck = true; recalc(); hooks.toHangar('deck');
+  if (name === 'deck') { st.prestige.level = +arg || 3; st.pilot.name = 'Adam'; st.seen.callsign = true; for (const id of ['signal', 'checker', 'ember', 'royal']) st.banners[id] = 1; st.unlocked.ships.bulwark = 1; st.stats.bestWave = 74; st.stats.sectorsCleared = 6; st.stats.maxAnomalies = 2; st.counter.stars = { 1: 3, 2: 2, 3: 1 }; refreshMenus(); st.seen.menus.deck = true; recalc(); hooks.toHangar('deck');
     // deck:<rank>:<view>: stand somewhere and look at something (window, medals, ships, back, table, door, doornear,
     // halldoor, rear: the back of the room from the window's left corner, lounge, directory: the station directory by the
-    // way in)
-    const V = { window: [0, 1.5, 0, -0.08], medals: [-1.2, -2.2, 1.35, 0], ships: [1.4, -2.2, -1.35, -0.1], back: [0, 2.6, Math.PI, -0.05], table: [0, 0.2, 0, -0.35], door: [1.2, 2.6, -1.5708, 0.04], doornear: [3.3, 2.6, -1.5708, 0.12], halldoor: [-1.2, 2.6, 1.5708, 0.04], rear: [-3.2, -6.6, Math.PI + 0.42, -0.04], lounge: [2.4, 4.6, 1.8208, -0.02], directory: [2.0, 5.35, -1.5708, 0.02] }[arg2];
+    // way in, backwall: the Greenhouse door, the records screen and the way out)
+    const V = { window: [0, 1.5, 0, -0.08], medals: [-1.2, -2.2, 1.35, 0], ships: [1.4, -2.2, -1.35, -0.1], back: [0, 2.6, Math.PI, -0.05], table: [0, 0.2, 0, -0.35], door: [1.2, 2.6, -1.5708, 0.04], doornear: [3.3, 2.6, -1.5708, 0.12], halldoor: [-1.2, 2.6, 1.5708, 0.04], rear: [-3.2, -6.6, Math.PI + 0.42, -0.04], lounge: [2.4, 4.6, 1.8208, -0.02], directory: [2.0, 5.35, -1.5708, 0.02], backwall: [-1.4, 2.4, 2.73, 0.05] }[arg2];
     if (V) { let n = 0; const iv = setInterval(() => { const d = G.renderer?.room; if (d) { d.pos.x = V[0]; d.pos.z = V[1]; d.yaw = V[2]; d.pitch = V[3]; } if (++n > 20) clearInterval(iv); }, 100); }
     return; }
   // replay:<start wave>[:<seconds>[:<view>]]: a bot flies a sortie from that wave for that long (headless, in an instant)
@@ -216,13 +218,30 @@ function runScene(scene, hooks, ui) {
   // it opens not yet: the station card (default), the offer after the rebuild reel, the NEW callout on Launch, or the door
   // to it with its NEW tag
   if (name === 'aboard') { const rank = Math.max(1, Math.min(10, +arg || 7)), mode = arg2 || 'card', fresh = roomAt(rank);
-    st.pilot.name = 'Adam'; st.seen.callsign = true; st.stationName = 'Halcyon'; st.prestige.level = rank; st.stats.bestWave = 74; st.stats.bestSector = 8; st.counter.unlocked = true; st.counter.stars[1] = 2; st.counter.stars[2] = 1;
+    st.pilot.name = 'Adam'; st.seen.callsign = true; st.stationName = 'Halcyon'; st.prestige.level = rank; st.stats.bestWave = 74; st.stats.bestSector = 8; st.stats.sectorsCleared = 6; st.seen.garden = true; st.counter.unlocked = true; st.counter.stars[1] = 2; st.counter.stars[2] = 1;
     for (const l of LINES) st.seen.comms[l.id] = 1; st.seen.commsInit = true; refreshMenus(); if (fresh?.id !== 'deck') st.seen.menus.deck = true;
     for (const r of ROOMS_ABOARD) if (r.seen) st.seen[r.seen] = r !== fresh; st.seen.gunnerIntro = true;
     WORKSHOP.forEach((u, i) => { st.stationPeak[u.id] = u.max; st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.6 - (i % 5) * 0.12))); }); recalc();
     if (mode === 'door') { const at = { hall: ['deck', -1.8, 0, Math.PI / 2], comms: ['hall', 1.2, 1.75, -Math.PI / 2], quarters: ['hall', -1.2, 1.75, Math.PI / 2], observatory: ['quarters', -0.2, 1.15, -Math.PI / 2], yard: ['observatory', 0.8, 0.6, -Math.PI / 2], beacons: ['yard', -2.3, -9.9, Math.PI / 2] }[fresh?.id];
       if (!at) { hooks.toHangar('launch'); return; } hooks.toHangar(at[0]); let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 60) setTimeout(place, 100); return; } r.pos.set(at[1], 0, at[2]); r.yaw = at[3]; r.pitch = 0.1; }; place(); return; }
     hooks.toHangar('launch'); if (mode === 'offer') setTimeout(() => ui.offerRoom(rank), 600); else if (mode === 'card') setTimeout(() => document.querySelector('.st-callout')?.click(), 900); return; }
+  // garden[:wing][:view|tap:<exhibit>|intro|offer|bloom]: the Greenhouse with a bloom, a bud and a sprout in the old bay
+  // (wing: Overhaul rank 4, the second wing lit and planted too; bloom: every bed in bloom, a kind to each). views: island,
+  // drawer, water, herbarium, partition, wing, rows, back.
+  if (name === 'garden') { const wing = arg === 'wing', a = wing ? arg2 : arg, b = wing ? arg3 : arg2, H = 3600000, now = Date.now();
+    st.pilot.name = 'Adam'; st.seen.callsign = true; st.stationName = 'Halcyon'; st.stats.sorties = 12; st.stats.sectorsCleared = 3; st.stats.bestWave = 34; st.prestige.level = wing ? 4 : 0;
+    for (const l of LINES) st.seen.comms[l.id] = 1; st.seen.commsInit = true; st.seen.garden = a !== 'intro' && a !== 'offer'; st.seen.offered = a === 'offer' ? {} : { garden: true };
+    const bed = (id, grown, hours = 16) => ({ id, at: now - grown * hours * H, need: hours * H, extra: 0 });
+    st.garden = { started: true, wateredDay: '', seeds: { sunpetal: 2, emberroot: 1, ironbark: 1, hivebloom: 1 }, basket: { sunpetal: 1, mistvine: 2 }, grown: { sunpetal: 3, emberroot: 1, mistvine: 2 },
+      beds: a === 'bloom' ? ['sunpetal', 'emberroot', 'mistvine', 'ironbark', 'hivebloom', 'gravfern', 'starbloom', 'nightshade', 'lily'].slice(0, wing ? 9 : 3).map((id) => bed(id, 1.2))
+        : [bed('sunpetal', 1.2), bed('mistvine', 0.8), bed('emberroot', 0.2), ...(wing ? [bed('gravfern', 1.1), bed('starbloom', 0.5, 24), bed('nightshade', 0.75, 24), bed('lily', 0.1, 36), bed('ironbark', 1.3), bed('hivebloom', 0.45)] : [])] };
+    WORKSHOP.forEach((u, i) => { st.stationPeak[u.id] = u.max; st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.6 - (i % 5) * 0.12))); }); recalc();
+    if (a === 'offer') { hooks.toHangar('launch'); return; }
+    hooks.toHangar('garden');
+    const view = { island: [0, 1.1, 0, -0.3], drawer: [1.3, 0.6, -1.5708, -0.1], water: [-1.5, 0.8, 1.5708, -0.1], herbarium: [-0.1, 0.6, Math.PI, 0.08], partition: [0.4, -1.6, 0.15, 0.05], wing: [0, -4.6, 0, -0.12], rows: [0.3, -4.3, 0.42, -0.2], back: [0, -2.6, Math.PI, 0.02] }[a === 'bloom' && wing ? 'rows' : a];
+    if (view) { let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 60) setTimeout(place, 100); return; } r.pos.set(view[0], 0, view[1]); r.yaw = view[2]; r.pitch = view[3]; }; place(); }
+    if (a === 'tap') setTimeout(() => ui.tap?.(b || 'bed0'), 1500);
+    return; }
   if (name === 'beacons') { const num = (v) => v != null && v !== '' && !isNaN(+v), won = num(arg) ? +arg : arg === 'tap' ? (num(arg3) ? +arg3 : 2) : num(arg2) ? +arg2 : 2, more = num(arg) && num(arg2) ? +arg2 : 1;
     st.pilot.name = 'Adam'; st.seen.callsign = true; st.seen.beacons = arg !== 'intro'; st.prestige.level = 8; st.stationName = 'Halcyon'; st.stats.bestWave = 96; st.stats.bestSector = 9;
     for (const l of LINES) st.seen.comms[l.id] = 1; st.seen.commsInit = true; st.beacons = { beaten: {} };
@@ -339,5 +358,5 @@ function runScene(scene, hooks, ui) {
     bus.on('stats', () => { G.sheet.totalN['f.autopilot'] = 1; G.sheet.totalN.autoDodge = 2; }); recalc(); debugSetWave(run.wave);
     setInterval(() => { if (st.run?.offer) st.run.offer = null, st.run.pendingLevels = 0; if (st.run) st.run.pendingRelics = 0; if (st.run?.relicOffer) st.run.relicOffer = null; ui.closeOverlays?.(); const p = G.world?.player; if (p) { p.hull = 1; p.invuln = 1; } }, 200);
   }
-  else if (name === 'debrief') { st.run.salvage = 812; st.run.weapons.laser = 5; st.run.order.push('laser'); st.run.relics.push('r_glass'); st.run.contractsDone = ['c_wave5', 'c_kills']; st.run.score = 52340; st.run.medalsDone = [{ id: 'a_score', tier: 1, xp: 250 }, { id: 'f_solo', tier: 0, xp: 400 }]; G.world.wave.num = 23; hooks.abandon(); }
+  else if (name === 'debrief') { st.run.salvage = 812; st.run.weapons.laser = 5; st.run.order.push('laser'); st.run.relics.push('r_glass'); st.run.contractsDone = ['c_wave5', 'c_kills']; st.run.score = 52340; st.run.medalsDone = [{ id: 'a_score', tier: 1, xp: 250 }, { id: 'f_solo', tier: 0, xp: 400 }]; if (arg === 'garden') { st.run.garden = ['sunpetal', 'mistvine']; st.run.seeds = ['emberroot', 'mistvine', 'hivebloom']; } G.world.wave.num = 23; hooks.abandon(); }
 }

@@ -4,6 +4,7 @@ import { G } from '@last-orbit/core/game.js';
 import { h } from '@last-orbit/ui/dom.js';
 import { voiceBlip } from '@last-orbit/audio/audio.js';
 import { STATION_CORE, STATION_ALIEN, STATION_TROPHIES, trophyWon } from '@last-orbit/data/station.js';
+import { gardenOpen } from '@last-orbit/data/garden.js';
 
 /** Type text into el letter by letter, chirping every other letter. */
 export function typeText(el, text, { speed = 38, onDone } = {}) {
@@ -21,6 +22,7 @@ export const LINES = [
   { id: 'welcome', when: () => true, text: 'Welcome aboard, {n}. What is left of the station is ours to rebuild.' },
   { id: 'firstSortie', when: (s) => (s.stats.sorties || 0) >= 1, text: 'Salvage secured. Every Workshop upgrade rebuilds a piece of the station.' },
   { id: 'sector1', when: (s) => (s.stats.sectorsCleared || 0) >= 1, text: 'They are pulling back. When we are strong enough, we follow them.' },
+  { id: 'garden', when: gardenOpen, text: 'Power is back in the old greenhouse, {n}. Something in there survived.' },
   { id: 'counter', when: (s) => !!s.counter?.unlocked, text: 'Counterattack protocols are ready, {n}. Time to take the fight to them.' },
   { id: 'deepVoid', when: (s) => (s.stats.bestWave || 0) > 60, text: 'Anomalous readings past wave sixty. The Deep Void goes on and on.' },
   { id: 'overhaul', when: (s) => (s.prestige?.level || 0) >= 1, text: 'The Command Deck is restored. Come aboard, {n}.' },

@@ -1,5 +1,16 @@
 # Changelog
 
+## v2.18.0 — 2026-09-26
+
+- **The Greenhouse (new room aboard, and the first you can walk into):** the old glasshouse on the station's arm. It opens a few sorties in, once every hangar menu has opened and you have cleared sector 1. ORBIT tells you, and the Greenhouse offers the way aboard. Until there is a Command Deck you get there by tapping your station; after that, through a new door on the Deck's back wall, by the lounge.
+  - **Seeds:** bosses leave seeds when you beat them in a sortie. Each sortie brings home the seeds of its two deepest bosses: a kind for each sector boss, two Deep Void kinds past wave 60, and a Beacon lily from every Void boss. There are three in the drawer on your first visit.
+  - **Growing:** plant a seed in a bed and it grows in real time, even with the game closed: sprout, leaf, bud, bloom (16 hours for most, longer for the rare ones). Water the beds once a day at the tap and everything still growing comes on by a quarter. Plants never wilt or die.
+  - **Blooms are boosts for your next sortie**, never permanent stats, so they matter as much late on as early: +15% salvage (Sunpetal), start with a card (Emberroot), two more rerolls (Mistvine), +25% shield (Ironbark), +20% XP (Hivebloom), one more card to choose from (Gravity fern), a relic to pick at the start (Starbloom), +15% damage (Nightshade) and an extra revive (Beacon lily). Harvest a bloom into the basket and your next sortie takes one of every kind in it. The Launch card shows what it will take, and the debrief says what it used and which seeds came home.
+  - **The Solar wings (Overhaul rank 4) power the second wing:** six more beds under grow lights, and everything grows half as fast again. The old tree at the far end comes back into leaf.
+  - **Grow every kind once** for the **Verdant** paint. The herbarium between the doors keeps a pressed specimen of each, and the old tree flowers when it is full.
+  - Also in the room: the seed drawer, the potting bench with the basket, the tap and rain barrel, and Sprig, the drone that tends the beds and mists them when you water.
+- The station card, the Launch screen's station callout and the Deck's directory all list the Greenhouse, with what is waiting there: blooms to harvest, empty beds, beds to water. The Overhaul roadmap's rank 4 card and the Overhaul confirmation say what the Solar wings do for it.
+
 ## v2.17.0 — 2026-09-26
 
 - **Void bosses:** once the beacons are lit (Overhaul rank 8), each Deep Void sector ends on a Void boss of its own instead of an old sector boss come round again. There are six, met in turn and then round again, each as strong as the depth:

@@ -65,7 +65,7 @@ export const STATION_CORE = [
   { at: 1, id: 'deck', name: 'Command Deck', line: 'Your own room aboard, to walk round', desc: 'Your own room aboard: medals, banners, records and ships on display.' },
   { at: 2, id: 'ring', name: 'Habitat ring', line: 'A spinning ring round the hub, and a hall for the bosses you capture', say: 'The habitat ring is turning again. It almost feels like home, {n}.' },
   { at: 3, id: 'spire', name: 'Comms spire', line: 'A mast and beacon above it all, and three bounties a day on the radio', say: 'Comms spire online. For the first time in years, I can hear the rest of the system.' },
-  { at: 4, id: 'solar', name: 'Solar wings', line: 'Great panels on both arms', say: 'Solar wings deployed. Full power, for the first time since the Fall.' },
+  { at: 4, id: 'solar', name: 'Solar wings', line: 'Great panels on both arms, and power for the greenhouse\'s second wing', say: 'Solar wings deployed. Full power, for the first time since the Fall.' },
   { at: 5, id: 'ring2', name: 'Outer ring', line: 'A second, wider ring, and a bunk of your own to rest in for more salvage', say: 'The outer ring is sealed. There is room for everyone now, {n}.' },
   { at: 6, id: 'dome', name: 'Observatory', line: 'A glass dome beneath the hub, to chart the Deep Void for Blueprints', say: 'The observatory is open. Now we see them coming long before they arrive.' },
   { at: 7, id: 'yard', name: 'Shipyard', line: 'A frame for building ships, and the Chimera to build: a sixth ship', say: 'The shipyard frame is up. We build our own ships again.' },

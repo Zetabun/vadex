@@ -24,6 +24,7 @@ import { unlockCounter } from '@last-orbit/progression/meta.js';
 import { patchStation } from '@last-orbit/progression/siege.js';
 import { checkBounties } from '@last-orbit/progression/bounties.js';
 import { takeRest } from '@last-orbit/progression/quarters.js';
+import { takeBasket, bankSeeds } from '@last-orbit/progression/garden.js'; /* also listens for bosses leaving seeds */
 import { newMarks } from '@last-orbit/progression/observatory.js';
 import '@last-orbit/progression/beacons.js'; /* the Void bosses' record: listens for them falling */
 import { REST_BONUS } from '@last-orbit/data/quarters.js';
@@ -38,6 +39,7 @@ export function startSortie(opts = {}) {
   st.run = newRun(ship, { ...opts, seed: daily ? daily.seed : opts.seed }); st.run.prevBest = st.stats.bestWave || 0; st.run.prevScore = st.stats.bestScore || 0; G.mode = 'sortie';
   const run = st.run;
   if (takeRest(st)) run.rested = true; // a night in the bunk: this sortie banks more salvage
+  run.garden = takeBasket(st); // one of every bloom in the Greenhouse basket: boosts for this sortie
   run.threat = daily ? 0 : Math.max(0, Math.min(threatMax(), st.threat || 0));
   if (daily) { run.daily = daily.key; run.mutator = daily.mutator.id; st.daily.done = true; }
   // Warp start: begin at an unlocked sector with catch-up upgrades and relics for the sectors skipped.
@@ -55,7 +57,7 @@ export function startSortie(opts = {}) {
   run.rerolls = Math.round(G.sheet.n('rerolls'));
   const skipped = counter ? counter.n - 1 : warp - 1, perSector = BAL.warpCards + Math.round(G.sheet.n('warpCards'));
   run.pendingLevels = Math.round(G.sheet.n('startLevels')) + (start?.cards || 0) + skipped * perSector + (cpExtra || 0);
-  run.pendingRelics = skipped * BAL.warpRelics;
+  run.pendingRelics = skipped * BAL.warpRelics + Math.round(G.sheet.n('startRelics'));
   count('sorties'); checkContracts();
   bus.emit('sortieStart', run);
   return run;
@@ -103,6 +105,7 @@ export function endSortie(reason = 'destroyed') {
   summary.banners = (run.bannersDone || []).concat(Object.keys(st.banners).filter((id) => !bannersBefore[id]));
   summary.bounties = checkBounties(st, summary); // the daily bounties this sortie finished
   summary.rested = !!run.rested;
+  summary.garden = run.garden || []; summary.seeds = run.mode === 'counter' ? [] : bankSeeds(st, run); // the blooms it took, the seeds it brought home
   summary.voidMarks = !run.mode ? newMarks(run.prevBest || 0, reached) : []; // Deep Void depths reached for the first time
   summary.voidBeaten = run.voidBeaten || []; // Void bosses beaten for the first time
   if (!run.mode) st.history.unshift({ score: summary.score, wave: summary.wave, level: summary.level, ship: summary.ship, salvage: banked, time: summary.time, date: summary.date }); st.history.length = Math.min(st.history.length, 12);

@@ -12,7 +12,8 @@ import { CONTRACT_BY_ID } from '@last-orbit/data/contracts.js';
 import { describeCard, pickCard, reroll, pickRelic, pickRoute, pickAnomaly, autoPickIndex } from '@last-orbit/progression/run.js';
 import { ANOMALY_BY_ID, anomalyCounts, anomalyPay, anomalyName } from '@last-orbit/data/anomalies.js';
 import { STATION_CORE, TROPHY_BY_ID, caughtStages } from '@last-orbit/data/station.js';
-import { roomAt } from '@last-orbit/data/rooms.js';
+import { roomAt, wingAt, roomWhere } from '@last-orbit/data/rooms.js';
+import { SEED_BY_ID } from '@last-orbit/data/garden.js';
 import { MENU_BY_ID } from '@last-orbit/data/menus.js';
 import { TIER_BY_N, SIEGE_STARS, SIEGE_BLUEPRINTS, SYSTEM_BY_ID, listNames } from '@last-orbit/data/siege.js';
 import { TURRET_MOD } from '@last-orbit/data/turret.js';
@@ -369,12 +370,13 @@ export function createOverlays(layer, hooks) {
   }
 
   // ------------------------------------------------------------ a room aboard, opened by the Overhaul just made
-  /** The room's intro, where its door is, and the way straight there (go), or Later: the room waits, marked NEW. */
-  function showRoomOffer(r, go) {
+  /** The room's intro, where its door is, and the way straight there (go), or Later: the room waits, marked NEW. o: a
+   *  kicker and text of its own (the Greenhouse's second wing). */
+  function showRoomOffer(r, go, o = {}) {
     if (!r || open) return;
-    const where = r.door ? `Its door is ${r.door}, or tap your station on the Launch screen.` : 'Tap your station on the Launch screen to come aboard any time.';
+    const where = roomWhere(r, G.state);
     const el = h('div.modal.confirm.menu-intro.room-offer', { role: 'dialog', 'aria-label': r.name },
-      h('div.mi-icon', uiIcon(r.icon)), h('div.modal-head', h('div.kicker', 'New room aboard'), h('h2', r.name), h('p', r.intro || MENU_BY_ID[r.id]?.text || r.for), h('p.ro-where', where)),
+      h('div.mi-icon', uiIcon(r.icon)), h('div.modal-head', h('div.kicker', o.kicker || 'New room aboard'), h('h2', r.name), h('p', o.text || r.intro || MENU_BY_ID[r.id]?.text || r.for), h('p.ro-where', where)),
       h('div.modal-actions', h('button.btn.primary', { onclick: () => { close(); go?.(); }, 'data-autofocus': '' }, 'Go aboard'), h('button.btn.ghost', { onclick: close }, 'Later')));
     mount('menu-intro', el, (e) => { if (e.key === 'Escape') { close(); return true; } if (e.key === 'Enter') { close(); go?.(); return true; } return false; });
     playSfx('unlock', 0.7);
@@ -382,11 +384,11 @@ export function createOverlays(layer, hooks) {
 
   // ------------------------------------------------------------ overhaul
   function showOverhaul() {
-    const st = G.state, bp = overhaulReward(), head = blueprintLevel('bp_head'), rank = st.prestige.level + 1, trail = TRAILS.find((t) => t.at === rank), piece = STATION_CORE.find((c) => c.at === rank), room = roomAt(rank);
+    const st = G.state, bp = overhaulReward(), head = blueprintLevel('bp_head'), rank = st.prestige.level + 1, trail = TRAILS.find((t) => t.at === rank), piece = STATION_CORE.find((c) => c.at === rank), room = roomAt(rank), wing = wingAt(rank);
     const list = (title, items, cls) => h('div.oh-col' + cls, h('b', title), h('ul', items.map((t) => h('li', t))));
     const el = h('div.modal.confirm.oh-confirm', { role: 'alertdialog', 'aria-label': 'Overhaul the Workshop?' },
       h('div.modal-head', h('div.kicker', `Overhaul rank ${rank}`), h('h2', 'Overhaul?'), h('p', `Every Workshop upgrade goes back to ${head ? 'level ' + head + ' (Head Start)' : 'zero'}. Your next few sorties will be tougher while you rebuild, and each rank makes the Workshop ${Math.round(OVERHAUL_COST_STEP * 100)}% dearer.`)),
-      h('div.oh-cols', list('You get', [`${bp} Blueprints`, piece ? `Station: the ${piece.name}` : null, room ? `${room.name}: ${room.for[0].toLowerCase() + room.for.slice(1)}` : null, 'Overhaul rank ' + rank + ': +10% salvage, +2% damage', trail ? `${trail.name} engine trail` : null, rank === 1 ? 'Overhaul Log legendary banner' : null].filter(Boolean), '.get'),
+      h('div.oh-cols', list('You get', [`${bp} Blueprints`, piece ? `Station: the ${piece.name}` : null, room ? `${room.name}: ${room.for[0].toLowerCase() + room.for.slice(1)}` : null, wing ? wing.wing.gives : null, 'Overhaul rank ' + rank + ': +10% salvage, +2% damage', trail ? `${trail.name} engine trail` : null, rank === 1 ? 'Overhaul Log legendary banner' : null].filter(Boolean), '.get'),
         list('You keep', ['Your station: every module stays built', 'Salvage in the bank', 'Ships, weapons and abilities', 'Paints, banners and ranks', 'Mastery, medals and records', 'Counterattack and Alien Tech', 'Blueprints and escorts'], '.keep')),
       h('div.modal-actions', h('button.btn.ghost', { onclick: close, 'data-autofocus': '' }, 'Not yet'),
         h('button.btn.gold', { onclick: () => { const got = overhaul(); close(); if (got) hooks.overhauled?.(got); } }, 'Overhaul')));
@@ -434,6 +436,8 @@ export function createOverlays(layer, hooks) {
       ...(s.voidBeaten || []).map((b) => h('div.pilot-row.void-row', h('span', `Void boss beaten: ${b.name}`), h('b', `+${b.bp} Blueprints` + (b.paint ? ' · Lightkeeper paint' : '')))),
       ...(s.voidMarks || []).map((m) => h('div.pilot-row.void-row', h('span', `Deep Void: ${m.name}, wave ${m.wave}`), h('b', observatoryOpen(G.state) ? 'Chart it in the Observatory' : `Charted at Overhaul rank ${OBSERVATORY_RANK}`))),
       s.rested ? h('div.pilot-row.rested-row', h('span', 'Well rested'), h('b', `+${Math.round(REST_BONUS * 100)}% salvage`)) : null,
+      s.garden?.length ? h('div.pilot-row.garden-row', h('span', 'From the Greenhouse'), h('b', s.garden.map((id) => SEED_BY_ID[id]?.boost).join(' · '))) : null,
+      s.seeds?.length ? h('div.pilot-row.garden-row', h('span', s.seeds.length > 1 ? 'Seeds brought home' : 'Seed brought home'), h('b', s.seeds.map((id) => SEED_BY_ID[id]?.name).join(', '))) : null,
       ...(s.bounties || []).map((b) => h('div.pilot-row.bounty-row', h('span', `Bounty done: ${bountyText(b)}`), h('b', `+${fmtInt(b.reward)} · collect in Missions`))),
       s.repaired?.length ? h('div.pilot-row.sg-fixed', h('span', 'Station repaired while you were out'), h('b', `${s.repaired.length} system${s.repaired.length > 1 ? 's' : ''} back online`)) : null,
       s.repaired === null ? h('div.pilot-row.sg-short', h('span', 'Too short for the repair crews'), h('b', 'Stay out a minute or more')) : null,

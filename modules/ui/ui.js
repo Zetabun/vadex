@@ -11,7 +11,7 @@ import { art } from '@last-orbit/ui/art.js';
 import { createIntro } from '@last-orbit/ui/intro.js';
 import { createComms } from '@last-orbit/ui/comms.js';
 import { pieceAt } from '@last-orbit/data/station.js';
-import { roomAt } from '@last-orbit/data/rooms.js';
+import { ROOMS_ABOARD, roomAt, wingAt, roomOpen } from '@last-orbit/data/rooms.js';
 
 export function initUI(app, hooks) {
   const $ = {};
@@ -53,10 +53,17 @@ export function initUI(app, hooks) {
   const intro = createIntro(app), comms = createComms(app); let commsT = 0;
   app.append($.scan, hud.el, hangar.el, $.vig, $.banner, $.toasts, $.layer, $.flash);
 
-  /** A room aboard that an Overhaul has just opened offers the way there, once the banner has had its moment. */
+  /** A room aboard that an Overhaul has just opened (or added to: the Greenhouse's second wing) offers the way there, once
+   *  the banner has had its moment. */
   function offerRoom(rank = G.state.prestige.level, wait = 1700) {
-    const r = roomAt(rank); if (!r || (r.seen && G.state.seen[r.seen])) return;
-    setTimeout(() => { if (G.mode === 'hangar') overlays.showRoomOffer(r, () => hangar.board(r.id)); }, wait);
+    const r = roomAt(rank), w = wingAt(rank), st = G.state;
+    if (r && !(r.seen && st.seen[r.seen])) setTimeout(() => { if (G.mode === 'hangar') overlays.showRoomOffer(r, () => hangar.board(r.id)); }, wait);
+    else if (w && roomOpen(w, st)) setTimeout(() => { if (G.mode === 'hangar') overlays.showRoomOffer(w, () => hangar.board(w.id), { kicker: w.wing.kicker, text: w.wing.intro }); }, wait);
+  }
+  /** A room opened by a milestone rather than an Overhaul (the Greenhouse) offers the way there once, back in the hangar. */
+  function announceRoom() {
+    const st = G.state, r = ROOMS_ABOARD.find((x) => x.announce && roomOpen(x, st) && !st.seen[x.seen] && !st.seen.offered?.[x.id]); if (!r) return false;
+    (st.seen.offered ||= {})[r.id] = true; overlays.showRoomOffer(r, () => hangar.board(r.id)); return true;
   }
 
   // ------------------------------------------------------------ mode
@@ -134,7 +141,7 @@ export function initUI(app, hooks) {
   function update(dt) {
     if (G.mode === 'sortie') hud.update(dt); else hangar.update();
     // The station AI speaks up at milestones, in the hangar, once the pilot has a callsign.
-    if (G.mode === 'hangar' && !G.introPlaying && G.state.seen.callsign && !overlays.blocking() && (commsT -= dt) <= 0) { commsT = 1.5; comms.check(); }
+    if (G.mode === 'hangar' && !G.introPlaying && G.state.seen.callsign && !overlays.blocking() && (commsT -= dt) <= 0) { commsT = 1.5; if (!announceRoom()) comms.check(); }
   }
   /** The greeting when the app opens (or right after a new pilot registers). */
   function greet(fresh) { const n = G.state.pilot.name; if (n) banner(fresh ? 'Welcome aboard' : 'Welcome back', n, null, 'var(--cyan)', 2600); }

@@ -651,6 +651,34 @@ assert.throws(() => parseSave('{"run":{},"cur":{}}'), /Not a Last Orbit v2 save/
   const sectorLine = (rank) => { fresh(); G.state.prestige.level = rank; launch(); G.state.run.wave = 61; startWave(G.world); const f = G.world.fx.find((x) => x.k === 'sector'); endSortie('abandoned'); return f.c; };
   assert.match(sectorLine(8), /^The Pale Watcher waits at wave 70: \+3 Blueprints/); assert.doesNotMatch(sectorLine(7), /waits at wave/, 'Before the beacons, the sector reads as it did'); }
 
+// ---- v2.18: the Greenhouse ----
+{ const D = await import('@last-orbit/data/garden.js'), P = await import('@last-orbit/progression/garden.js'); const R = await import('@last-orbit/data/rooms.js');
+  fresh(); assert.ok(!D.gardenOpen(G.state), 'Shut for a new pilot'); G.state.stats.sorties = D.GARDEN_SORTIES; assert.ok(!D.gardenOpen(G.state), 'and until sector 1 is cleared');
+  G.state.stats.sectorsCleared = 1; assert.ok(D.gardenOpen(G.state) && R.roomFresh('garden', G.state), 'Then it opens, new'); assert.match(R.roomWhere(R.ROOM_BY_ID.garden, G.state), /Tap your station/, 'found from the station before there is a Command Deck');
+  G.state.prestige.level = 1; assert.match(R.roomWhere(R.ROOM_BY_ID.garden, G.state), /Command Deck/, 'and by its door after'); G.state.prestige.level = 0;
+  assert.equal(R.wingAt(D.WING_RANK)?.id, 'garden', 'The Solar wings add its second wing'); assert.equal(R.roomAt(D.WING_RANK), null);
+  // planting, growing (in real time), watering once a day, harvesting into the basket
+  assert.ok(P.startGarden(G.state) && !P.startGarden(G.state), 'Seeds in the drawer on the first visit, once'); const g = P.garden(G.state), t0 = Date.now(), hour = 3600000;
+  assert.ok(P.plant(G.state, 0, 'sunpetal', t0)); assert.ok(!P.plant(G.state, 0, 'emberroot', t0), 'One plant to a bed'); assert.ok(!P.plant(G.state, D.BEDS_EARLY, 'emberroot', t0), 'The second wing is dark before the Solar wings');
+  assert.equal(P.growth(G.state, 0, t0 + 8 * hour), 0.5, 'It grows while you are away');
+  assert.equal(P.water(G.state, 'd1', t0 + 8 * hour), 'watered'); assert.equal(P.water(G.state, 'd1', t0 + 8 * hour), 'already', 'Watered once a day'); assert.equal(P.growth(G.state, 0, t0 + 8 * hour), 0.75);
+  assert.equal(P.harvest(G.state, 0, t0 + 9 * hour), null, 'Not before it blooms'); assert.equal(P.harvest(G.state, 0, t0 + 12 * hour).id, 'sunpetal'); assert.deepEqual(P.basketNext(G.state), ['sunpetal'], 'into the basket');
+  G.state.prestige.level = D.WING_RANK; assert.ok(P.plant(G.state, D.BEDS - 1, 'emberroot', t0), 'The Solar wings open the rest'); assert.ok(Math.abs(g.beds[D.BEDS - 1].need - (16 * hour) / D.WING_SPEED) < 1, 'and everything grows faster');
+  // a sortie takes one bloom of each kind in the basket: boosts for that sortie only
+  g.basket = { sunpetal: 2, mistvine: 1, starbloom: 1 }; recalc(); const rr = Math.round(G.sheet.n('rerolls')); launch();
+  assert.deepEqual([...G.state.run.garden].sort(), ['mistvine', 'starbloom', 'sunpetal']); assert.deepEqual(g.basket, { sunpetal: 1 }, 'One of each taken; the rest wait for the next');
+  assert.equal(G.state.run.rerolls, rr + 2, 'Mistvine: two more rerolls'); assert.ok(G.state.run.pendingRelics >= 1, 'Starbloom: a relic to pick'); assert.ok(G.sheet.breakdown('salvageGain').some((x) => x.group === 'Greenhouse'), 'Sunpetal: more salvage');
+  const used = endSortie('abandoned'); assert.deepEqual([...used.garden].sort(), ['mistvine', 'starbloom', 'sunpetal'], 'The debrief says what it took'); assert.ok(!G.sheet.breakdown('salvageGain').some((x) => x.group === 'Greenhouse'), 'and it is gone after');
+  // bosses leave seeds: a sortie brings home its two deepest
+  fresh(); G.state.stats.sorties = 9; G.state.stats.sectorsCleared = 1; launch();
+  for (const w of [10, 20, 30]) { G.state.run.wave = w; startWave(G.world); killEnemy(G.world, G.world.wave.boss, null, false, 0); }
+  const home = endSortie('abandoned'); assert.deepEqual(home.seeds, ['emberroot', 'mistvine'], 'The two deepest bosses\' seeds'); assert.equal(P.garden(G.state).seeds.mistvine, 1, 'in the drawer');
+  fresh(); G.state.stats.sorties = 9; G.state.stats.sectorsCleared = 6; G.state.prestige.level = 8; launch(); G.state.run.wave = 70; startWave(G.world); killEnemy(G.world, G.world.wave.boss, null, false, 0);
+  assert.deepEqual(endSortie('abandoned').seeds, ['nightshade', 'lily'], 'A Void boss leaves a Deep Void seed and a Beacon lily');
+  // growing every kind pays the Verdant paint
+  fresh(); const g2 = P.garden(G.state); for (const s of D.SEEDS) g2.grown[s.id] = 1; delete g2.grown.lily; g2.beds[0] = { id: 'lily', at: 0, need: 1, extra: 0 };
+  assert.equal(P.harvest(G.state, 0).paint, D.GARDEN_PAINT, 'Every kind grown: the Verdant paint'); assert.ok(G.state.paints[D.GARDEN_PAINT]); }
+
 // ---- v2.11: save backup codes ----
 { const S = await import('@last-orbit/save/save.js'); fresh(); G.state.pilot.name = 'Adam ✦'; G.state.salvage = 12345; G.state.stats.bestWave = 74; G.state.prestige.level = 3;
   const code = S.exportSave(); assert.ok(code.startsWith(S.BACKUP_TAG), 'A backup code is tagged so it can be recognised');

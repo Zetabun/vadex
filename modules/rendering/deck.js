@@ -3,8 +3,8 @@
 // their ships stand on pedestals to the right, banners hang from the ceiling, the records screen and the way out are
 // behind, Overhaul trophies sit on a shelf under the window, and a hologram of the station turns on the table in the
 // middle. Behind the ships and the medals the room runs back to the lounge, the records screen and the way out, with a
-// door either side: the Trophy Hall on the left, Defence Control on the right, and a directory of every room aboard by
-// the way in.
+// door either side: the Trophy Hall on the left, Defence Control on the right, the Greenhouse's by the lounge, and a
+// directory of every room aboard by the way in.
 import { Room, canvas, tex, drawArt, text, drawSign, EYE } from '@last-orbit/rendering/room.js';
 import { Station } from '@last-orbit/rendering/station.js';
 import { earthMaterial, nightAmount } from '@last-orbit/rendering/background.js';
@@ -20,6 +20,7 @@ import { ReplayScreen, replayTitle, replayEnding } from '@last-orbit/rendering/r
 import { lastReplay, loadReplay } from '@last-orbit/progression/recorder.js';
 import { SHIP_BY_ID } from '@last-orbit/data/ships.js';
 import { ROOMS_ABOARD, roomOpen, roomFresh } from '@last-orbit/data/rooms.js';
+import { gardenOpen } from '@last-orbit/data/garden.js';
 const T = () => window.THREE;
 
 // Room: x -5..5, z -8 (window) .. 7.5 (back wall), height 3.4. The pilot's eyes are at 1.6.
@@ -29,6 +30,8 @@ const TIER_COL = ['#d08a4e', '#cfd8e8', '#ffc857'], FEAT_COL = '#b69cff';
 /** The side doors face each other across the room behind the ships and the medals, where it was lengthened for them:
  *  Defence Control's on the right wall, the Trophy Hall's on the left. The lounge is in the back-left corner. */
 const CONTROL_DOOR_Z = 2.6, HALL_DOOR_Z = 2.6, LOUNGE_Z = BACK - 2;
+/** On the back wall: the Greenhouse's door by the lounge, the records screen, the way out. */
+const GARDEN_DOOR_X = -3.6, TV_X = -0.6;
 
 export class DeckRoom extends Room {
   constructor() {
@@ -60,9 +63,9 @@ export class DeckRoom extends Room {
     const cushion = Ph({ color: 0x2c4a7a, specular: 0x222222, shininess: 8 }), leg = Ph({ color: 0x1a2030 });
     const lp = (w, h, d, x, y, z, m) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); lounge.add(b); return b; };
     lp(0.8, 0.28, 2.2, 0.55, 0.3, 0, cushion); lp(0.22, 0.62, 2.2, 0.22, 0.6, 0, cushion); for (const s of [-1, 1]) lp(0.8, 0.5, 0.18, 0.55, 0.4, s * 1.09, cushion); lp(0.7, 0.14, 2.1, 0.55, 0.09, 0, leg);
-    const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.15, 0.4, 16), Ph({ color: 0xd9dee8, shininess: 40 })); pot.position.set(0.35, 0.2, 1.55); lounge.add(pot);
+    const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.15, 0.4, 16), Ph({ color: 0xd9dee8, shininess: 40 })); pot.position.set(0.35, 0.2, -1.45); lounge.add(pot); /* at the couch's front end, clear of the Greenhouse door */
     const leafMat = Ph({ color: 0x3f9a56, specular: 0x224422, shininess: 10, side: THREE.DoubleSide });
-    for (let i = 0; i < 9; i++) { const lf = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.7, 5), leafMat), a = (i / 9) * Math.PI * 2; lf.position.set(0.35 + Math.cos(a) * 0.1, 0.72, 1.55 + Math.sin(a) * 0.1); lf.rotation.set(Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5); lounge.add(lf); }
+    for (let i = 0; i < 9; i++) { const lf = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.7, 5), leafMat), a = (i / 9) * Math.PI * 2; lf.position.set(0.35 + Math.cos(a) * 0.1, 0.72, -1.45 + Math.sin(a) * 0.1); lf.rotation.set(Math.sin(a) * 0.5, 0, -Math.cos(a) * 0.5); lounge.add(lf); }
     this.roadmapScreen = new THREE.Mesh(new THREE.PlaneGeometry(1.9, 1.05), new THREE.MeshBasicMaterial({ color: 0xffffff })); this.roadmapScreen.position.set(0.07, 1.85, 0); this.roadmapScreen.rotation.y = Math.PI / 2; lounge.add(this.roadmapScreen);
     lp(0.03, 1.13, 1.98, 0.02, 1.85, 0, frame); this.tag(this.roadmapScreen, 'station');
   }
@@ -93,7 +96,7 @@ export class DeckRoom extends Room {
     this.station.sync(state);
     if (sig === this.sig) return; this.sig = sig;
     if (this.show) { this.scene.remove(this.show); this.untag(this.show); } const THREE = T(); this.show = new THREE.Group(); this.scene.add(this.show);
-    this.medalWall(state); this.shipBay(state); this.bannerHall(state, banners); this.recordsScreen(state); this.trophyShelf(rank); this.nameSign(state, rank); this.roadmap(rank); this.directory(state); this.controlDoor(siegeUnlocked(state)); this.hallDoor(hallOpen(state));
+    this.medalWall(state); this.shipBay(state); this.bannerHall(state, banners); this.recordsScreen(state); this.trophyShelf(rank); this.nameSign(state, rank); this.roadmap(rank); this.directory(state); this.controlDoor(siegeUnlocked(state)); this.hallDoor(hallOpen(state)); this.gardenDoor(gardenOpen(state));
   }
   medalWall(state) {
     const THREE = T(), g = new THREE.Group(); g.position.set(-W + 0.06, 0, 0); g.rotation.y = Math.PI / 2; this.show.add(g); // on the left wall, facing into the room
@@ -150,20 +153,20 @@ export class DeckRoom extends Room {
     const deep = Math.max(0, (s.bestWave || 0) - 60), cs = Object.values(state.counter.stars || {}).reduce((a, b) => a + b, 0);
     const rows = [['Furthest wave', s.bestWave || '—'], ['High score', s.bestScore ? Math.round(s.bestScore).toLocaleString() : '—'], ['Deep Void', deep ? `+${deep} waves` : '—'], ['Counterattack', cs + ' ★'], ['Sorties', s.sorties || 0], ['Invaders', (s.kills || 0).toLocaleString()]];
     rows.forEach(([k, v], i) => { const y = 78 + Math.floor(i / 2) * 64, col = i % 2 ? 272 : 26; text(x, k.toUpperCase(), col, y, '700 15px sans-serif', '#7f8bb0', 'left'); text(x, String(v), col, y + 26, '800 26px sans-serif', '#e8fbff', 'left'); });
-    const scr = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.75), new THREE.MeshBasicMaterial({ map: tex(c) })); scr.position.set(-1.2, 1.75, BACK - 0.085); scr.rotation.y = Math.PI; this.show.add(scr);
-    const bezel = new THREE.Mesh(new THREE.BoxGeometry(3.36, 1.91, 0.06), new THREE.MeshPhongMaterial({ color: 0x1a2030, shininess: 40 })); bezel.position.set(-1.2, 1.75, BACK - 0.04); this.show.add(bezel);
+    const scr = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.75), new THREE.MeshBasicMaterial({ map: tex(c) })); scr.position.set(TV_X, 1.75, BACK - 0.085); scr.rotation.y = Math.PI; this.show.add(scr);
+    const bezel = new THREE.Mesh(new THREE.BoxGeometry(3.36, 1.91, 0.06), new THREE.MeshPhongMaterial({ color: 0x1a2030, shininess: 40 })); bezel.position.set(TV_X, 1.75, BACK - 0.04); this.show.add(bezel);
     this.tag(scr, 'records');
   }
   /** The records screen as a replay TV: your last sortie playing in the middle, how it is going on the left, your
    *  records on the right. */
   replayTv(state) {
-    const THREE = T(), g = new THREE.Group(); g.position.set(-1.2, 1.75, BACK - 0.085); g.rotation.y = Math.PI; this.show.add(g);
+    const THREE = T(), g = new THREE.Group(); g.position.set(TV_X, 1.75, BACK - 0.085); g.rotation.y = Math.PI; this.show.add(g);
     const hud = canvas(1024, 560), face = new THREE.Mesh(new THREE.PlaneGeometry(3.2, 1.75), new THREE.MeshBasicMaterial({ map: tex(hud) })); g.add(face);
     this.replay ||= new ReplayScreen();
     const field = new THREE.Mesh(new THREE.PlaneGeometry(1.08, 1.62), new THREE.MeshBasicMaterial({ map: this.replay.texture })); field.position.z = 0.004; g.add(field);
     const scan = canvas(4, 256), sc = scan.getContext('2d'); for (let y = 0; y < 256; y += 4) { sc.fillStyle = 'rgba(0,0,0,.35)'; sc.fillRect(0, y, 4, 2); }
     const lines = new THREE.Mesh(new THREE.PlaneGeometry(1.08, 1.62), new THREE.MeshBasicMaterial({ map: tex(scan, [1, 1]), transparent: true })); lines.position.z = 0.006; g.add(lines);
-    const bezel = new THREE.Mesh(new THREE.BoxGeometry(3.36, 1.91, 0.06), new THREE.MeshPhongMaterial({ color: 0x1a2030, shininess: 40 })); bezel.position.set(-1.2, 1.75, BACK - 0.04); this.show.add(bezel);
+    const bezel = new THREE.Mesh(new THREE.BoxGeometry(3.36, 1.91, 0.06), new THREE.MeshPhongMaterial({ color: 0x1a2030, shininess: 40 })); bezel.position.set(TV_X, 1.75, BACK - 0.04); this.show.add(bezel);
     this.tag(g, 'replay'); this.tv = { hud, face, stats: state.stats, next: 0 };
   }
   /** The TV's side panels, redrawn a few times a second as the replay plays. */
@@ -231,11 +234,11 @@ export class DeckRoom extends Room {
     x.fillStyle = '#050a18'; x.fillRect(0, 0, 1024, 600); x.strokeStyle = '#5ee6ff'; x.lineWidth = 4; x.strokeRect(6, 6, 1012, 588);
     text(x, 'STATION DIRECTORY', 40, 54, '800 38px sans-serif', '#9ff0ff', 'left'); text(x, 'YOU ARE HERE: COMMAND DECK', 984, 54, '700 21px sans-serif', '#5ee6ff', 'right');
     rooms.forEach((r, i) => {
-      const y = 124 + i * 66, open = roomOpen(r, state), col = '#' + r.color.toString(16).padStart(6, '0');
-      x.fillStyle = open ? col : '#2a3450'; x.fillRect(40, y - 24, 8, 48);
-      text(x, r.name.toUpperCase(), 68, y - 8, '800 26px sans-serif', open ? '#e8fbff' : '#56607a', 'left');
-      text(x, open ? 'Through ' + r.door.replace('the Command Deck\'s', 'this deck\'s') : r.when || `Opens at Overhaul rank ${r.rank}`, 68, y + 20, '600 19px sans-serif', open ? '#9fb0d0' : '#4a5670', 'left');
-      if (open && roomFresh(r.id, state)) { x.fillStyle = '#ffc857'; x.beginPath(); if (x.roundRect) x.roundRect(890, y - 20, 94, 40, 9); else x.rect(890, y - 20, 94, 40); x.fill(); text(x, 'NEW', 937, y + 1, '900 23px sans-serif', '#1a1300'); }
+      const y = 116 + i * 59, open = roomOpen(r, state), col = '#' + r.color.toString(16).padStart(6, '0'); /* eight rooms, one under another */
+      x.fillStyle = open ? col : '#2a3450'; x.fillRect(40, y - 22, 8, 44);
+      text(x, r.name.toUpperCase(), 68, y - 8, '800 24px sans-serif', open ? '#e8fbff' : '#56607a', 'left');
+      text(x, open ? 'Through ' + r.door.replace('the Command Deck\'s', 'this deck\'s') : r.when || `Opens at Overhaul rank ${r.rank}`, 68, y + 17, '600 17px sans-serif', open ? '#9fb0d0' : '#4a5670', 'left');
+      if (open && roomFresh(r.id, state)) { x.fillStyle = '#ffc857'; x.beginPath(); if (x.roundRect) x.roundRect(890, y - 18, 94, 36, 9); else x.rect(890, y - 18, 94, 36); x.fill(); text(x, 'NEW', 937, y + 1, '900 21px sans-serif', '#1a1300'); }
     });
     const scr = this.screen(this.show, c, 1.9, 1.11, W - 0.03, 1.75, BACK - 2.15, -Math.PI / 2); this.tag(scr, 'directory');
   }
@@ -247,6 +250,7 @@ export class DeckRoom extends Room {
   /** The ways through to the Trophy Hall (sealed until the Habitat ring, Overhaul rank 2) and to Defence Control (sealed
    *  until the invaders strike back, the first Counterattack clear). */
   hallDoor(open) { this.door(this.show, -W, HALL_DOOR_Z, -Math.PI / 2, 'TROPHY HALL  ›', 'hall', { sealed: !open, sign: '#ffe2b0', edge: 0xffc857 }); }
+  gardenDoor(open) { this.door(this.show, GARDEN_DOOR_X, BACK, 0, 'GREENHOUSE  ›', 'garden', { sealed: !open, sign: '#eaffe0', edge: 0x7ddc6f }); }
   controlDoor(open) { this.door(this.show, W, CONTROL_DOOR_Z, Math.PI / 2, 'DEFENCE CONTROL  ›', 'control', { sealed: !open, sign: '#ffd9a0', edge: 0xffb547 }); }
   update(dt) {
     this.walk(dt); const night = nightAmount();

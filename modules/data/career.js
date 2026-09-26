@@ -29,6 +29,7 @@ export const PAINTS = [
   { id: 'v_abyssal', name: 'Abyssal', trim: 0x7a5cff, hull: 0x05030f, source: 'void', mark: 151 },
   // for beating all six Void bosses (data/beacons.js)
   { id: 'lightkeeper', name: 'Lightkeeper', trim: 0xfff0c8, hull: 0x0d1a3a, source: 'beacon' },
+  { id: 'verdant', name: 'Verdant', trim: 0x7ddc6f, hull: 0x1e3a26, source: 'garden' },
   // ship mastery paints (mastery 10 with that ship)
   { id: 'm_vanguard', name: 'Vanguard Prime', trim: 0x9ff4ff, hull: 0x3d5f8c, source: 'mastery', ship: 'vanguard' },
   { id: 'm_striker', name: 'Striker Prime', trim: 0xff9bff, hull: 0x5b2a6e, source: 'mastery', ship: 'striker' },

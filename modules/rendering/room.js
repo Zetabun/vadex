@@ -40,7 +40,8 @@ export class Room {
   /** Floor, ceiling and walls, the window in the front wall (its frame, struts and glass), glowing strips along the floor
    *  and round the window, ceiling light panels and their lamps, ribs and beams, and a cove light round the top.
    *  look: colours and where things go (see the Command Deck and Defence Control for the two looks). look.open: no
-   *  ceiling, light panels or beams across the top (the room builds its own roof: the Observatory's dome). */
+   *  ceiling, light panels or beams across the top (the room builds its own roof: the Observatory's dome, the Greenhouse's
+   *  glass). look.glassWalls: the side walls are glass. */
   shell(look) {
     const THREE = T(), S = this.scene, { W, FRONT, BACK, H } = this, L = look, win = L.window;
     this.hemi = new THREE.HemisphereLight(L.sky ?? 0xcfe0ff, 0x1a1830, L.hemi ?? 0.55); S.add(this.hemi); S.add(new THREE.AmbientLight(0x405070, L.ambient ?? 0.35)); this.lamps = [];
@@ -61,8 +62,9 @@ export class Room {
     floor.rotation.x = -Math.PI / 2; floor.position.set(0, 0, (FRONT + BACK) / 2); S.add(floor); this.floor = floor;
     if (!L.open) { const ceil = new THREE.Mesh(new THREE.PlaneGeometry(2 * W, D), Ph({ map: tex(ceilC, [W, D / 2]), shininess: 5 })); ceil.rotation.x = Math.PI / 2; ceil.position.set(0, H, (FRONT + BACK) / 2); S.add(ceil); }
     const wallMat = Ph({ map: tex(wallC, [D / 2, 1.4]), specular: 0x222a3a, shininess: 18 });
-    const wall = (w, h, x, y, z, ry) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), wallMat); m.position.set(x, y, z); m.rotation.y = ry; S.add(m); return m; };
-    wall(D, H, -W, H / 2, (FRONT + BACK) / 2, Math.PI / 2); wall(D, H, W, H / 2, (FRONT + BACK) / 2, -Math.PI / 2); wall(2 * W, H, 0, H / 2, BACK, Math.PI);
+    const wall = (w, h, x, y, z, ry, m = wallMat) => { const o = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); o.position.set(x, y, z); o.rotation.y = ry; S.add(o); return o; };
+    const side = L.glassWalls ? Ph({ color: 0xdff2ff, transparent: true, opacity: 0.1, specular: 0xffffff, shininess: 110, side: THREE.DoubleSide, depthWrite: false }) : wallMat; /* look.glassWalls: glass down both sides (the Greenhouse) */
+    wall(D, H, -W, H / 2, (FRONT + BACK) / 2, Math.PI / 2, side); wall(D, H, W, H / 2, (FRONT + BACK) / 2, -Math.PI / 2, side); wall(2 * W, H, 0, H / 2, BACK, Math.PI);
     // the window wall: an opening from x -hw..hw, y y0..y1, framed, with struts and faint glass
     const frame = (this.frameMat = Ph({ color: L.frame ?? 0x3a4560, specular: 0x556680, shininess: 50 })), box = (this.box = (w, h, d, x, y, z, m = frame, parent = S) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); b.position.set(x, y, z); parent.add(b); return b; });
     const { hw, y0, y1 } = win, mid = (y0 + y1) / 2;
