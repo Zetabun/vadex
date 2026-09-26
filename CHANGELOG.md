@@ -19,6 +19,7 @@
 - **Nothing crowds the right edge on a phone.** The hangar pages, the debrief and pop-ups no longer show a scroll bar (on an iPhone it sat over the right edge of every panel). Instead, when there is more to see, the last panel fades into the bottom of the screen.
 - **The debrief fits long runs:** a long sortie's time no longer gets cut off (it reads 24:38), a haul in the millions stays beside its coin, and the stat labels read clearly over a bright planet.
 - **Smoother in the rooms aboard, with every effect kept.** Rooms now draw their still parts in far fewer steps: the Greenhouse's second wing needs 128 draw calls a frame instead of 404, the Shipyard 92 instead of 155, and every other room fewer too. The hangar no longer re-measures the page every frame, the effects layer is left alone when there is nothing on it, and the Command Deck's replay TV only plays while it is on screen.
+- **Doors aboard are set into the walls:** every doorway is now recessed, framed by a plate flat on the wall, and its doors slide back into the wall as they open, instead of a frame standing out from it.
 - The Greenhouse's seed drawer and potting bench no longer sink into the sill along the glass wall.
 - Saves from every release from now on are kept and checked against each new build, so an update can't stop an old save from loading.
 

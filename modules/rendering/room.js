@@ -7,9 +7,9 @@ import { G } from '@last-orbit/core/game.js';
 import { ROOM_BY_ID, roomFresh } from '@last-orbit/data/rooms.js';
 const T = () => window.THREE;
 export const EYE = 1.6, SPEED = 2.4;
-/** How doors sit in their walls: 'proud' (the frame stands out from the wall) or 'recess' (the doorway is set back into
- *  the wall, its leaves sliding into the reveal). &doors=recess tries the second. */
-export const DOOR_STYLE = typeof location !== 'undefined' && /[?&]doors=recess/.test(location.search) ? 'recess' : 'proud';
+/** How doors sit in their walls: 'recess' (the doorway set back into the wall, its leaves sliding into the reveal; the
+ *  look chosen in v2.19) or 'proud' (the frame standing out from the wall, as before; &doors=proud to compare). */
+export const DOOR_STYLE = typeof location !== 'undefined' && /[?&]doors=proud/.test(location.search) ? 'proud' : 'recess';
 const NOBAKE = typeof location !== 'undefined' && /[?&]nobake=1/.test(location.search); /* debug: compare a room unbaked */
 
 /** Merges the still meshes under root into one mesh per material: the same triangles and materials, in far fewer draw
