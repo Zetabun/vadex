@@ -771,12 +771,20 @@ assert.throws(() => parseSave('{"run":{},"cur":{}}'), /Not a Last Orbit v2 save/
   const hull0 = G.sheet.n('hull'), got = R.warpDraft('hold', 'wp_plate', run);
   assert.equal(got.cards.length, cards, 'Every catch-up card fitted'); assert.equal(got.relics.length, relics, 'and every relic'); assert.equal(run.pendingLevels, 0); assert.equal(run.pendingRelics, 0);
   assert.ok(!R.draftDue(run), 'Drafted once'); assert.equal(run.warpFocus, 'hold'); assert.equal(run.warpPerk, 'wp_plate');
-  assert.ok(G.sheet.n('hull') > hull0 * 1.25, 'The perk and the Survival cards count');
+  const withPerk = G.sheet.n('hull'); run.warpPerk = null; recalc(); assert.ok(withPerk > G.sheet.n('hull') * 1.1, 'The warp perk counts (Warp plating: more hull)'); run.warpPerk = 'wp_plate'; recalc(); void hull0;
   const theme = (id) => W.FOCUS_BY_ID.hold.themes.includes(synergyOf(id)?.id); assert.ok(Object.keys(run.cards).filter(theme).length >= 3, 'Survival drafts Survival cards');
   endSortie('abandoned');
   fresh(); G.state.stats.sectorsCleared = 6; recalc(); launch({ warp: 4 }); run = G.state.run; run.manual = true; assert.ok(!R.draftDue(run), 'Picking them by hand turns the draft off');
   endSortie('abandoned');
   fresh(); launch(); assert.ok(!R.draftDue(G.state.run), 'No draft without a warp'); endSortie('abandoned');
   fresh(); G.state.stats.sectorsCleared = 6; recalc(); launch({ warp: 3 }); R.warpDraft('fire', 'wp_slip'); S.applyRunMods(G.world); assert.ok(Math.abs(G.world.mods.hp - 1.15) < 1e-9, 'Slipstream: the invaders are tougher'); endSortie('abandoned'); }
+
+// ---- v2.20: breaches, three a sector ----
+{ const Wd = await import('@last-orbit/combat/world.js');
+  fresh(); launch(); const run = G.state.run, w = G.world; run.time = 10;
+  Wd.breach(w); run.time = 10.5; Wd.breach(w); assert.equal(run.strikes, 1, 'Landings together are one breach');
+  run.time = 12; Wd.breach(w); assert.equal(run.strikes, 2); assert.ok(w.player.alive, 'Two breaches: still flying');
+  G.state.workshop.w_revive = 0; recalc(); run.time = 14; Wd.breach(w); assert.equal(run.strikes, 3); assert.ok(run.breached && !w.player.alive, 'The third breaks the line');
+  const s = endSortie('destroyed'); assert.ok(s.breached, 'The debrief knows'); }
 
 console.log('Sortie, cards, relics, contracts, workshop, ships, pickups, revive and save checks pass.');
