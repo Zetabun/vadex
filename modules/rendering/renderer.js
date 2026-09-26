@@ -1,6 +1,7 @@
 // Three.js view of the simulation. Reads world arrays, drains world.fx, never writes game state.
 // Draw-call budget: one InstancedMesh per enemy shape in use, one for barriers, one for drones, a handful of sprite batches, the player group and the backdrop.
 import { MATERIALS } from '@last-orbit/data/materials.js';
+import { BAL } from '@last-orbit/data/balance.js';
 import { G } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { fmt } from '@last-orbit/core/format.js';
@@ -332,8 +333,9 @@ export class Renderer {
     if (p.dashT > 0) for (let k = 1; k <= 3; k++) B.soft.add(p.x - p.dashDir * k * 3.2, p.y, 9 - k * 2, 11 - k * 2, 0, CYAN, 0.5 - k * 0.12);
     // Shield: a bubble round the ship, brighter the fuller it is, flaring when it takes a hit and bursting when it fails.
     const sh = w.base.hasShield && G.mode === 'sortie' ? p.shield : 0, /* battle only: the hangar shows the ship clean */ sk = this.drawScale / 3.1;
-    if (sh > 0.02) { const r = 13 * sk + 1.5, fl = p.shieldFlash > 0 ? p.shieldFlash * 4 : 0; B.soft.add(p.x, p.y, r * 1.9, r * 1.9, 0, CYAN, 0.09 + 0.12 * sh + fl * 0.3); B.ring.add(p.x, p.y, r * 1.6, r * 1.6, t * 0.8, CYAN, 0.35 + 0.45 * sh + fl); B.ring.add(p.x, p.y, r * 1.48, r * 1.48, -t * 1.3, WHITE, 0.12 + 0.2 * sh * (0.7 + 0.3 * Math.sin(t * 3))); }
-    if (this.lastShield > 0.05 && sh <= 0.02 && w.base.hasShield) { this.parts.burst(p.x, p.y, 26, CYAN, 40, 1.6, 0.5); this.trans.add({ k: 'ring', x: p.x, y: p.y, r: 16 * sk, c: CYAN, t: 0, life: 0.4 }); }
+    // (drawn exactly where it is hit: the ring texture's circle is 0.84 of the sprite's half-width)
+    if (sh > 0.02) { const d = (BAL.shieldR * 2) / 0.84, fl = p.shieldFlash > 0 ? p.shieldFlash * 4 : 0; B.soft.add(p.x, p.y, d * 1.15, d * 1.15, 0, CYAN, 0.09 + 0.12 * sh + fl * 0.3); B.ring.add(p.x, p.y, d, d, t * 0.8, CYAN, 0.35 + 0.45 * sh + fl); B.ring.add(p.x, p.y, d * 0.93, d * 0.93, -t * 1.3, WHITE, 0.12 + 0.2 * sh * (0.7 + 0.3 * Math.sin(t * 3))); }
+    if (this.lastShield > 0.05 && sh <= 0.02 && w.base.hasShield) { this.parts.burst(p.x, p.y, 26, CYAN, 40, 1.6, 0.5); this.trans.add({ k: 'ring', x: p.x, y: p.y, r: BAL.shieldR * 1.4, c: CYAN, t: 0, life: 0.4 }); }
     this.lastShield = sh; if (p.shieldFlash > 0) p.shieldFlash -= dt;
     if (this.smoke?.length) for (let i = this.smoke.length - 1; i >= 0; i--) { const q = this.smoke[i]; q.t += dt; if (q.t >= q.life) { this.smoke.splice(i, 1); continue; } q.x += q.vx * dt; q.y += q.vy * dt; q.vx *= 1 - dt; const u = q.t / q.life, sz = q.s * (1 + u * 1.5) * (u > 0.75 ? (1 - u) / 0.25 : 1);
       B.dark.add(q.x, q.y, sz * 1.3, sz * 1.3, 0, WHITE, 1); B.soft.add(q.x + 0.3, q.y + 0.4, sz, sz, 0, [0.5, 0.52, 0.58], 0.18 * (1 - u)); }

@@ -137,6 +137,7 @@ export function updateRockets(w, dt) {
 
 export function updateBullets(w, dt) {
   const p = w.player, slow = w.slowT > 0 ? 0.35 : 1, B = w.ebullets, manual = w.input.manualT < BAL.manualWindow;
+  const shielded = w.base.hasShield && p.shield > 0.02, pr = shielded ? BAL.shieldR : p.r; /* the shield's bubble is what gets hit while it is up */
   for (let i = B.length - 1; i >= 0; i--) {
     const b = B[i]; b.x += b.vx * dt * slow; b.y += b.vy * dt * slow;
     if (b.wob) { b.wt = (b.wt || 0) + dt * slow; b.x += Math.cos(b.wt * b.wob.f + b.wob.p) * b.wob.a * dt * slow; } // snaking streams
@@ -144,9 +145,9 @@ export function updateBullets(w, dt) {
     if (!dead && b.split) { b.split.t -= dt * slow; if (b.split.t <= 0) { const o = rand() * 6.28; for (let k = 0; k < b.split.n; k++) { const a = o + (k / b.split.n) * 6.283; spawnBullet(w, b.x, b.y, Math.cos(a) * b.split.speed, Math.sin(a) * b.split.speed, b.dmg * 0.7, 'orb'); } fx(w, 'hit', b.x, b.y, 0xff5d8f); dead = true; } } // bursting orbs
     if (!dead && b.y < FIELD.BARRIER_Y + 3 && b.y > FIELD.BARRIER_Y - 3) for (const br of w.barriers) if (br.hp > 0 && Math.abs(b.x - br.x) < br.w / 2) { br.hp -= b.dmg * w.base.dmgPerBarrier; br.flash = 0.12; fx(w, 'hit', b.x, b.y, 0x7aa2ff); fx(w, 'boom', b.x, b.y, 2.2, 0x7aa2ff); dead = true; break; }
     if (!dead && p.alive) {
-      const dx = b.x - p.x, dy = b.y - p.y, d2 = dx * dx + dy * dy, rr = p.r + b.r;
-      if (d2 < rr * rr) { hurtPlayer(w, b.dmg, b); dead = true; }
-      else if (!b.grazed && manual && d2 < BAL.grazeRadius * BAL.grazeRadius && b.y < p.y + 2) { b.grazed = true; count('grazes'); if (p.dashCd > 0) p.dashCd = Math.max(0, p.dashCd - BAL.dashGraze); p.energy = Math.min(G.sheet.n('energyCap'), p.energy + BAL.grazeEnergy); p.focus = Math.min(G.sheet.n('focusMax'), p.focus + 0.03); fx(w, 'text', p.x, p.y + 7, 'GRAZE', '#5ee6ff', 0); sfx(w, 'graze', 0.5); }
+      const dx = b.x - p.x, dy = b.y - p.y, d2 = dx * dx + dy * dy, rr = pr + b.r;
+      if (d2 < rr * rr) { if (shielded) fx(w, 'hit', b.x, b.y, 0x9ff0ff); hurtPlayer(w, shielded ? b.dmg * BAL.bubbleDmg : b.dmg, b); dead = true; } /* on the bubble: it sparks where it lands */
+      else if (!b.grazed && manual && d2 < (BAL.grazeRadius + pr - p.r) ** 2 && b.y < p.y + 2) { b.grazed = true; count('grazes'); if (p.dashCd > 0) p.dashCd = Math.max(0, p.dashCd - BAL.dashGraze); p.energy = Math.min(G.sheet.n('energyCap'), p.energy + BAL.grazeEnergy); p.focus = Math.min(G.sheet.n('focusMax'), p.focus + 0.03); fx(w, 'text', p.x, p.y + 7, 'GRAZE', '#5ee6ff', 0); sfx(w, 'graze', 0.5); }
     }
     if (dead) { B[i] = B[B.length - 1]; B.pop(); }
   }

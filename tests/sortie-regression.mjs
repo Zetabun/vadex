@@ -822,4 +822,13 @@ assert.throws(() => parseSave('{"run":{},"cur":{}}'), /Not a Last Orbit v2 save/
   assert.ok(N.newsTicker(st).includes('KEEPSAKE') && N.newsTicker(st).includes('BEST WAVE 41'), 'The ticker has your numbers');
   assert.ok(N.LORE.length >= 10 && N.LORE.every((l) => l.tag && l.head && l.body), 'and the station\'s stories'); }
 
+// ---- v2.21: the shield bubble takes the shots that touch it ----
+{ const E = await import('@last-orbit/combat/enemies.js'), Wd = await import('@last-orbit/combat/world.js');
+  fresh(); G.state.workshop.w_shield = 3; recalc(); launch(); const w = G.world, p = w.player; Wd.setWaveBase(w, 5, 0); p.shield = 1; p.invuln = 0; p.dashInv = 0; w.ebullets.length = 0;
+  assert.ok(w.base.hasShield && p.shield > 0.5, 'A shield to test');
+  const shot = (dx) => { Wd.spawnBullet(w, p.x + dx, p.y, 0, 0, 1, 'bolt'); const s0 = p.shield, h0 = p.hull; E.updateBullets(w, 0.001); return { shield: s0 - p.shield, hull: h0 - p.hull, left: w.ebullets.length }; };
+  const on = shot(BAL.shieldR - 0.3); assert.ok(on.shield > 0 && on.hull === 0 && on.left === 0, 'A shot touching the bubble hits the shield');
+  const off = shot(BAL.shieldR + 2); assert.ok(off.shield === 0 && off.left === 1, 'One outside it misses'); w.ebullets.length = 0;
+  p.shield = 0; const bare = shot(BAL.shieldR - 0.3); assert.ok(bare.hull === 0 && bare.left === 1, 'With the shield down, only the hull\'s own circle is hit'); endSortie('abandoned'); }
+
 console.log('Sortie, cards, relics, contracts, workshop, ships, pickups, revive and save checks pass.');

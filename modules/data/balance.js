@@ -30,6 +30,9 @@ export const BAL = {
   // breaches: each sector can be breached this many times (the last ends the sortie); landings this close together (s)
   // are the same breach
   breachStrikes: 3, breachGroup: 1,
+  // the shield bubble: while it is up, a shot that touches it hits the shield (radius, in field units; the hull's own
+  // circle is 3.2, the ship's wings reach about 6); bubbleDmg: what a shot there does to the shield, against a hull hit
+  shieldR: 6.2, bubbleDmg: 1,
   // repairs (shares of full hull): after every wave cleared; repair kits (the chance a kill drops one, and what it
   // repairs); how much lifesteal can repair a second; the Vanguard's Second Wind; and how long repairs over time (hull
   // regen, a repair drone) wait after a hit. v2.19: regen waits 3 s (it used to repair straight through a fight) and
