@@ -1,6 +1,6 @@
 # Changelog
 
-## v2.20.0 — unreleased
+## v2.20.0 — 2026-09-26
 
 - **Warping no longer means picking 25 cards.** Warping past sectors (or starting a late Counterattack stage) still gives you the same catch-up, five upgrades for every sector skipped plus a relic each, but now you make two choices instead of one per card:
   - **A focus:** Firepower (more guns, higher ranks, crits and explosions), Survival (hull, armour, shields and repairs) or Tech (drones and abilities). The crew fits the catch-up cards and relics towards it, with the same judgement as Auto-pick.
