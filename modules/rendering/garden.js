@@ -117,7 +117,7 @@ export class GardenRoom extends Room {
     for (const b of BED_AT.slice(3)) this.blocks.push({ x0: b.x - 0.4, x1: b.x + 0.4, z0: b.z - 0.95, z1: b.z + 0.95 });
     for (const s of [-1, 1]) this.blocks.push({ x0: s < 0 ? -W : DOOR_HW, x1: s < 0 ? -DOOR_HW : W, z0: WALL_Z - 0.12, z1: WALL_Z + 0.12 });
     this.doorway = { x0: -DOOR_HW, x1: DOOR_HW, z0: WALL_Z - 0.12, z1: WALL_Z + 0.12 }; /* shut until the Solar wings */
-    this.blocks.push({ x0: W - 0.62, x1: W, z0: -1.9, z1: 1.2 }, { x0: -W, x1: -W + 0.9, z0: -0.2, z1: 1.3 }); /* the bench and the drawer; the water point */
+    this.blocks.push({ x0: W - 0.8, x1: W, z0: -1.9, z1: 1.2 }, { x0: -W, x1: -W + 0.9, z0: -0.2, z1: 1.3 }); /* the bench and the drawer; the water point */
   }
   // ---------------------------------------------------------------- the glass
   roof() {
@@ -212,7 +212,7 @@ export class GardenRoom extends Room {
       for (const s of [-1, 1]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, railY - 2.48, 4), steel); w.position.set(0, (railY - 2.42) / 2, s * 0.7); lamp.add(w); } }
     this.wingLights = [-6.4, -8.6].map((z) => { const l = new THREE.PointLight(0xff8ae0, 0, 7, 1.6); l.position.set(0, 2.6, z); S.add(l); return l; });
     // the seed drawer: a cabinet of nine small drawers on the right wall, one to a kind, labelled
-    const cab = new THREE.Group(); cab.position.set(W - 0.3, 0, 0.55); cab.rotation.y = -Math.PI / 2; S.add(cab);
+    const cab = new THREE.Group(); cab.position.set(W - 0.45, 0, 0.55); /* standing clear of the sill along the glass */ cab.rotation.y = -Math.PI / 2; S.add(cab);
     const body = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.25, 0.5), wood); body.position.y = 0.625; cab.add(body);
     const topSlab = new THREE.Mesh(new THREE.BoxGeometry(1.28, 0.05, 0.56), Ph({ color: 0x5a3f26 })); topSlab.position.y = 1.27; cab.add(topSlab);
     this.drawC = canvas(512, 512); this.drawers = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 1.1), new THREE.MeshPhongMaterial({ map: tex(this.drawC), shininess: 20 })); this.drawers.position.set(0, 0.65, 0.255); cab.add(this.drawers);
@@ -223,7 +223,7 @@ export class GardenRoom extends Room {
       const lid = new THREE.Mesh(new THREE.CylinderGeometry(0.062, 0.058, 0.04, 16), cork); lid.position.set(x, 1.49, 0); cab.add(lid); });
     this.hitBox(cab, 1.3, 1.5, 0.6, 0, 0.75, 0); this.tag(cab, 'seeds');
     // the potting bench beside it, pots and a trowel, and on it the basket of blooms for the next sortie
-    const bench = new THREE.Group(); bench.position.set(W - 0.35, 0, -1.15); bench.rotation.y = -Math.PI / 2; S.add(bench);
+    const bench = new THREE.Group(); bench.position.set(W - 0.5, 0, -1.15); /* clear of the sill too */ bench.rotation.y = -Math.PI / 2; S.add(bench);
     const bt = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.06, 0.6), wood); bt.position.y = 0.86; bench.add(bt);
     for (const [x, z] of [[-0.64, -0.24], [0.64, -0.24], [-0.64, 0.24], [0.64, 0.24]]) { const leg = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.86, 0.06), wood); leg.position.set(x, 0.43, z); bench.add(leg); }
     const shelf = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.04, 0.5), wood); shelf.position.y = 0.25; bench.add(shelf);

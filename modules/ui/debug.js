@@ -228,7 +228,7 @@ function runScene(scene, hooks, ui) {
     hooks.toHangar('launch'); if (mode === 'offer') setTimeout(() => ui.offerRoom(rank), 600); else if (mode === 'card') setTimeout(() => document.querySelector('.st-callout')?.click(), 900); return; }
   // garden[:wing][:view[:tap:<exhibit>]|tap:<exhibit>|intro|offer|bloom]: the Greenhouse with a bloom, a bud and a sprout in the old bay
   // (wing: Overhaul rank 4, the second wing lit and planted too; bloom: every bed in bloom, a kind to each). views: island,
-  // drawer, bench, water, herbarium, partition, wing, rows, back, roof.
+  // drawer, bench, side (along the right wall), water, herbarium, partition, wing, rows, back, roof.
   if (name === 'garden') { const wing = arg === 'wing', a = wing ? arg2 : arg, b = wing ? arg3 : arg2, H = 3600000, now = Date.now();
     st.pilot.name = 'Adam'; st.seen.callsign = true; st.stationName = 'Halcyon'; st.stats.sorties = 12; st.stats.sectorsCleared = 3; st.stats.bestWave = 34; st.prestige.level = wing ? 4 : 0;
     for (const l of LINES) st.seen.comms[l.id] = 1; st.seen.commsInit = true; st.seen.garden = a !== 'intro' && a !== 'offer'; st.seen.offered = a === 'offer' ? {} : { garden: true };
@@ -239,7 +239,7 @@ function runScene(scene, hooks, ui) {
     WORKSHOP.forEach((u, i) => { st.stationPeak[u.id] = u.max; st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.6 - (i % 5) * 0.12))); }); recalc();
     if (a === 'offer') { hooks.toHangar('launch'); return; }
     hooks.toHangar('garden');
-    const view = { island: [0, 1.1, 0, -0.3], drawer: [1.3, 0.55, -1.5708, -0.1], bench: [1.2, -1.15, -1.5708, -0.28], water: [-1.15, 0.55, 1.5708, -0.18], herbarium: [-0.1, 0.6, Math.PI, 0.08], partition: [0, -2.6, 0, 0.2], wing: [0, -4.6, 0, -0.12], rows: [0.3, -4.3, 0.42, -0.2], back: [0, -2.6, Math.PI, 0.02], roof: [1.6, 1.5, 0.35, 0.95] }[a === 'bloom' && wing ? 'rows' : a];
+    const view = { island: [0, 1.1, 0, -0.3], drawer: [1.3, 0.55, -1.5708, -0.1], bench: [1.2, -1.15, -1.5708, -0.28], side: [2.15, 2.5, -0.3, -0.3], water: [-1.15, 0.55, 1.5708, -0.18], herbarium: [-0.1, 0.6, Math.PI, 0.08], partition: [0, -2.6, 0, 0.2], wing: [0, -4.6, 0, -0.12], rows: [0.3, -4.3, 0.42, -0.2], back: [0, -2.6, Math.PI, 0.02], roof: [1.6, 1.5, 0.35, 0.95] }[a === 'bloom' && wing ? 'rows' : a];
     if (view) { let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 60) setTimeout(place, 100); return; } r.pos.set(view[0], 0, view[1]); r.yaw = view[2]; r.pitch = view[3]; }; place(); }
     if (a === 'tap') setTimeout(() => ui.tap?.(b || 'bed0'), 1500); else if (view && b === 'tap') setTimeout(() => ui.tap?.((wing ? arg4 : arg3) || 'water'), 1500); /* <view>:tap:<exhibit>: from that view */
     return; }
