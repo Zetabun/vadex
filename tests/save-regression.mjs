@@ -14,6 +14,8 @@ import { startSortie, endSortie, recoverInterruptedRun } from '@last-orbit/progr
 import { checkContracts, unlockCounter, refreshMenus, notePeaks } from '@last-orbit/progression/meta.js';
 import { ROOMS_ABOARD, roomOpen, roomFresh } from '@last-orbit/data/rooms.js';
 import { gardenCounts } from '@last-orbit/progression/garden.js';
+import { sendShip, collectShip, damageOf, repairShip, fleetCounts } from '@last-orbit/progression/fleet.js';
+import { buyRefit } from '@last-orbit/progression/refits.js';
 import { TICK } from '@last-orbit/data/balance.js';
 
 const dir = new URL('./saves/', import.meta.url), files = readdirSync(dir).filter((f) => f.endsWith('.json')).sort();
@@ -45,5 +47,14 @@ for (const f of files) {
   // fly a sortie on it, then save and load again
   startSortie({ seed: 11 }); initWorld(); for (let i = 0; i < 900; i++) step(TICK); endSortie('abandoned');
   const back = parseSave(JSON.stringify(G.state)); assert.equal(back.salvage, G.state.salvage); assert.equal(back.v, SCHEMA);
+  // the pilot carries on from this save to the Halo ring: what later releases added works on it (Fleet Ops opens, NEW;
+  // a ship goes out and comes home; materials bank and buy a refit), and it all saves and loads again
+  const late = parseSave(text); late.prestige.level = Math.max(9, late.prestige.level || 0); late.stats.sectorsCleared = Math.max(2, late.stats.sectorsCleared || 0);
+  const scout = ['striker', 'bulwark', 'tempest'].find((id) => id !== late.ship); late.unlocked.ships[scout] ||= 1; G.state = late; recalc();
+  const ops = ROOMS_ABOARD.find((r) => r.id === 'ops'); assert.ok(roomOpen(ops, late) && roomFresh('ops', late), `${f}: Fleet Ops opens, and is NEW`);
+  const t = Date.now(), trip = sendShip(late, 0, scout, 's1', t); assert.ok(trip, `${f}: a ship goes out`); assert.ok(collectShip(late, 0, t + trip.need), `${f}: and comes home`);
+  if (damageOf(late, scout)) { late.salvage += 1e6; late.materials.alloy = (late.materials.alloy || 0) + 50; assert.ok(repairShip(late, scout), `${f}: and is repaired`); }
+  late.materials.alloy = (late.materials.alloy || 0) + 25; assert.ok(buyRefit(late, late.ship), `${f}: a refit`); fleetCounts(late);
+  const later = parseSave(JSON.stringify(late)); assert.equal(later.fleet.log.length, 1, `${f}: the fleet saves`); assert.equal(later.refits[late.ship], 1, `${f}: the refit saves`);
 }
 console.log(`Kept saves load: ${files.join(', ')}.`);

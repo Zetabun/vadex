@@ -58,7 +58,7 @@ export function initUI(app, hooks) {
    *  the banner has had its moment. */
   function offerRoom(rank = G.state.prestige.level, wait = 1700) {
     const r = roomAt(rank), w = wingAt(rank), st = G.state;
-    if (r && !(r.seen && st.seen[r.seen])) setTimeout(() => { if (G.mode === 'hangar') overlays.showRoomOffer(r, () => hangar.board(r.id)); }, wait);
+    if (r && !(r.seen && st.seen[r.seen])) { (st.seen.offered ||= {})[r.id] = true; /* so announceRoom does not offer it again */ setTimeout(() => { if (G.mode === 'hangar') overlays.showRoomOffer(r, () => hangar.board(r.id)); }, wait); }
     else if (w && roomOpen(w, st)) setTimeout(() => { if (G.mode === 'hangar') overlays.showRoomOffer(w, () => hangar.board(w.id), { kicker: w.wing.kicker, text: w.wing.intro }); }, wait);
   }
   /** A room opened by a milestone rather than an Overhaul (the Greenhouse) offers the way there once, back in the hangar. */

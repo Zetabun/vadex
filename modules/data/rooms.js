@@ -52,7 +52,7 @@ export const ROOMS_ABOARD = [
     for: 'Void bosses in the Deep Void, from wave 70', via: 'yard', door: 'the far door on the Shipyard\'s left',
     lock: `The Beacon array lights every tip of the station: it opens at Overhaul rank ${BEACON_RANK}.`,
     intro: 'The beacons are lit at every tip of the station, calling out into the Deep Void, and something out there is answering. From now on each Deep Void sector ends on a Void boss of its own: six of them, in turn. Beat each one for Blueprints; beat all six for the Lightkeeper paint. Their record is kept here, under the great beacon.' },
-  { id: 'ops', name: 'Fleet Ops', icon: 'ops', seen: 'ops', rank: FLEET_RANK, color: 0x6dffc8,
+  { id: 'ops', name: 'Fleet Ops', icon: 'ops', seen: 'ops', rank: FLEET_RANK, announce: true, color: 0x6dffc8, /* announce: pilots already past rank 9 when it arrived are offered it once too */
     for: 'Send the ships you are not flying out on expeditions', via: 'yard', door: 'the far door on the Shipyard\'s right',
     lock: `Fleet Ops is in the Halo ring: it opens at Overhaul rank ${FLEET_RANK}.`,
     intro: `The halo is up, and it can hear our ships all the way out. Fleet Ops is its launch deck, with three berths: the ships you are not flying can go out from them on expeditions. Send one to scout a sector you have cleared and it comes back hours later, even with the game closed, bringing that stretch's material, salvage and mastery, and now and then a seed, an Alien Core or a Blueprint. The further out, the longer it is gone, and the riskier: a ship can come home damaged, and needs repairing before it flies again. Past wave 60, the Deep Void is on the map too. Bring ${PATHFINDER_AT} home for the Pathfinder paint.` },

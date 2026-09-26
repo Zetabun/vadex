@@ -9,6 +9,7 @@
   - **A ship that is out can't fly** until it is home and unloaded. The Ships menu says where it is and when it is due back. You can call a ship home early, but it comes back with nothing.
   - **Bring 12 expeditions home for the Pathfinder paint.**
   - The ring map in the middle shows every destination round the station, with a light for each ship on its way there and back. The routes board lists what each trip brings, and the log shows what came home. A ship you send lifts off and leaves through the force field; one that comes home while you are there flies in and settles on its pad.
+  - Pilots already past rank 9 when the update arrives are offered the way aboard once, as if it had just opened.
   - The Launch screen has a Fleet shortcut when a ship is home. The station card says when ships are home or a berth is free, and the Shipyard's fleet board shows who is away.
 - **Materials and ship refits.** Each stretch of the invasion now drops its own material: **Alloy** in sectors 1-2, **Crystal** in 3-4, and **Void shards** in 5-6 and the Deep Void (half as many again past wave 60). Bosses always drop some, elites often and other invaders now and then. Warping past a stretch means going without its material.
   - Spend materials on **ship refits:** five for each ship, bought on its card in the Ships menu: a tuning for its gun, a reinforced frame, capacitors for its ability, a stronger trait, and a Void-tempered hull. A refit counts while you fly that ship, and an Overhaul leaves it alone.

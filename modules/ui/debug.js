@@ -5,14 +5,14 @@ import { bus } from '@last-orbit/core/events.js';
 import { WEAPON_ORDER } from '@last-orbit/data/weapons.js';
 import { ABILITY_ORDER } from '@last-orbit/data/abilities.js';
 import { SHIPS } from '@last-orbit/data/ships.js';
-import { grantXp, nextOffer, nextRelic, nextRoute, nextAnomaly, pickCard, pickRelic, pickRoute, pickAnomaly, autoPickIndex, endSortie } from '@last-orbit/progression/run.js';
+import { grantXp, nextOffer, nextRelic, nextRoute, nextAnomaly, pickCard, pickRelic, pickRoute, pickAnomaly, autoPickIndex, endSortie, recoverInterruptedRun } from '@last-orbit/progression/run.js';
 import { step } from '@last-orbit/combat/sim.js';
 import { TICK } from '@last-orbit/data/balance.js';
 import { recTick, recStop, lastReplay, replayBytes } from '@last-orbit/progression/recorder.js';
 import { debugSetWave } from '@last-orbit/combat/sim.js';
 import { killEnemy } from '@last-orbit/combat/world.js';
 import { spawnPickup } from '@last-orbit/combat/pickups.js';
-import { enterSandbox, exportSave } from '@last-orbit/save/save.js';
+import { enterSandbox, exportSave, parseSave } from '@last-orbit/save/save.js';
 import { h } from '@last-orbit/ui/dom.js';
 import { BANNERS, BANNER_BY_ID } from '@last-orbit/data/banners.js';
 import { WORKSHOP } from '@last-orbit/data/workshop.js';
@@ -46,6 +46,9 @@ export async function initDebug(app, { hooks, ui } = {}) {
   // ?debug=1&scene=… jumps straight to a screen, for screenshots and layout checks.
   const scene = new URLSearchParams(location.search).get('scene');
   if (scene) { panel.style.display = 'none'; G.demo = true; runScene(scene, hooks, ui); } // demo scenes never auto-pause
+  // &at=x,z,yaw,pitch: once a room scene is up, stand there looking that way (for framing a shot of anything in it)
+  const at = new URLSearchParams(location.search).get('at')?.split(',').map(Number);
+  if (scene && at?.length >= 3) { let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 80) setTimeout(place, 100); return; } setTimeout(() => { r.pos.set(at[0], 0, at[1]); r.target = null; r.yaw = at[2]; r.pitch = at[3] || 0; }, 400); }; place(); }
   window.gunnerBot = gunnerBot;
   window.__lo = { G }; /* for tools/perf.mjs: the renderer's counts, in debug builds only */
   window.roomTap = (kind) => ui.tap?.(kind); // tap an exhibit in the room open, as a finger would (for checks in the console)
@@ -223,6 +226,17 @@ function runScene(scene, hooks, ui) {
   // beacons[:beaten[:met]] or beacons:<view>[:beaten] or beacons:tap:<exhibit>[:beaten]: the Beacon array at Overhaul rank 8,
   // that many Void bosses beaten (default 2) and that many more met (default 1). view: lamp, left, right, log, window;
   // intro (a first visit).
+  // kept:<version>[:card|launch|door|ops]: a save kept from that release (tests/saves), carried on to Overhaul rank 9
+  // (sectors cleared, past wave 60, a second ship, every older room visited): what a returning player finds after the update. The station card
+  // (default), the Launch screen, the Shipyard's door to Fleet Ops, or Fleet Ops itself on the first visit.
+  if (name === 'kept') { fetch(`tests/saves/v${arg || '2.18.0'}.json`, { cache: 'no-store' }).then((r) => r.text()).then((text) => {
+      const s = parseSave(text); recoverInterruptedRun(s); s.prestige.level = Math.max(9, s.prestige.level || 0); s.stats.sectorsCleared = Math.max(6, s.stats.sectorsCleared || 0); s.stats.bestWave = Math.max(74, s.stats.bestWave || 0); s.stats.bestSector = Math.max(8, s.stats.bestSector || 0);
+      s.unlocked.ships[['striker', 'bulwark'].find((id) => id !== s.ship)] ||= 1; G.state = s; recalc(); refreshMenus();
+      for (const r of ROOMS_ABOARD) if (r.seen && r.id !== 'ops') { s.seen[r.seen] = true; (s.seen.offered ||= {})[r.id] = true; } s.seen.menus.deck = true; s.seen.callsign = true; /* a veteran: every older room visited */
+      if (arg2 === 'door') { hooks.toHangar('yard'); let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 60) setTimeout(place, 100); return; } r.pos.set(2.3, 0, -9.9); r.yaw = -Math.PI / 2; r.pitch = 0.1; }; place(); return; }
+      if (arg2 === 'ops') { hooks.toHangar('ops'); return; }
+      hooks.toHangar('launch'); if (arg2 !== 'launch') setTimeout(() => document.querySelector('.st-callout')?.click(), 900); });
+    return; }
   // ops[:view|tap:<exhibit>|intro|launch|return|empty|ships|hangar]: Fleet Ops at Overhaul rank 9 with four ships besides the
   // one flown: the Striker a third of the way through scouting sector 4, the Bulwark home from the Deep Void (badly
   // damaged), the Revenant in the hangar with light damage, a berth free
@@ -256,7 +270,7 @@ function runScene(scene, hooks, ui) {
   if (name === 'aboard') { const rank = Math.max(1, Math.min(10, +arg || 7)), mode = arg2 || 'card', fresh = roomAt(rank);
     st.pilot.name = 'Adam'; st.seen.callsign = true; st.stationName = 'Halcyon'; st.prestige.level = rank; st.stats.bestWave = 74; st.stats.bestSector = 8; st.stats.sectorsCleared = 6; st.seen.garden = true; st.counter.unlocked = true; st.counter.stars[1] = 2; st.counter.stars[2] = 1;
     for (const l of LINES) st.seen.comms[l.id] = 1; st.seen.commsInit = true; refreshMenus(); if (fresh?.id !== 'deck') st.seen.menus.deck = true;
-    for (const r of ROOMS_ABOARD) if (r.seen) st.seen[r.seen] = r !== fresh; st.seen.gunnerIntro = true;
+    for (const r of ROOMS_ABOARD) if (r.seen) st.seen[r.seen] = r !== fresh; st.seen.gunnerIntro = true; if (fresh && mode === 'door') (st.seen.offered ||= {})[fresh.id] = true; /* the door, not the offer */
     WORKSHOP.forEach((u, i) => { st.stationPeak[u.id] = u.max; st.workshop[u.id] = Math.round(u.max * Math.min(1, Math.max(0, 0.6 - (i % 5) * 0.12))); }); recalc();
     if (mode === 'door') { const at = { hall: ['deck', -1.8, 0, Math.PI / 2], comms: ['hall', 1.2, 1.75, -Math.PI / 2], quarters: ['hall', -1.2, 1.75, Math.PI / 2], observatory: ['quarters', -0.2, 1.15, -Math.PI / 2], yard: ['observatory', 0.8, 0.6, -Math.PI / 2], beacons: ['yard', -2.3, -9.9, Math.PI / 2], ops: ['yard', 2.3, -9.9, -Math.PI / 2] }[fresh?.id];
       if (!at) { hooks.toHangar('launch'); return; } hooks.toHangar(at[0]); let tries = 0; const place = () => { const r = G.renderer?.room; if (!r?.pos) { if (tries++ < 60) setTimeout(place, 100); return; } r.pos.set(at[1], 0, at[2]); r.yaw = at[3]; r.pitch = 0.1; }; place(); return; }
