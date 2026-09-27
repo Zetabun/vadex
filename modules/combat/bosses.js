@@ -44,7 +44,7 @@ function spawnParts(w, boss) {
 export function updateBoss(w, dt) {
   const boss = w.wave.boss; if (!boss || !boss.alive) return;
   const b = boss.boss, def = b.def, p = w.player, slow = w.slowT > 0 ? 0.35 : 1, stunned = w.stunT > 0;
-  const edt = dt * slow; b.t += edt;
+  const edt = dt * slow; b.t += edt; if (!stunned) b.mt = (b.mt ?? 0) + edt; /* mt: its movement clock, held by an EMP */
   if (b.enter > 0) { b.enter -= dt; boss.y += (b.homeY - boss.y) * Math.min(1, 2.2 * dt); boss.invuln = true; positionParts(w, boss, edt); if (b.enter <= 0) boss.invuln = false; return; }
   // phases
   let ph = 0; for (let i = 0; i < def.phases.length; i++) if (boss.hp <= def.phases[i].at) ph = i;
@@ -60,10 +60,10 @@ export function updateBoss(w, dt) {
   // movement
   const move = phase.move || def.move;
   if (!stunned) {
-    if (move === 'hover') { boss.x = Math.sin(b.t * 0.5 * spd) * 30; boss.y = b.homeY + Math.sin(b.t * 0.9) * 4; }
-    else if (move === 'slow') { boss.x = Math.sin(b.t * 0.22 * spd) * 18; boss.y = b.homeY; }
-    else if (move === 'worm') { const q = wormPos(b.t * spd, b.homeY); boss.x = q.x; boss.y = q.y; }
-    else if (move === 'teleport') { boss.y = b.homeY + Math.sin(b.t * 1.3) * 5; boss.x += Math.sin(b.t * 0.8) * 6 * edt; }
+    if (move === 'hover') { boss.x = Math.sin(b.mt * 0.5 * spd) * 30; boss.y = b.homeY + Math.sin(b.mt * 0.9) * 4; }
+    else if (move === 'slow') { boss.x = Math.sin(b.mt * 0.22 * spd) * 18; boss.y = b.homeY; }
+    else if (move === 'worm') { const q = wormPos(b.mt * spd, b.homeY); boss.x = q.x; boss.y = q.y; }
+    else if (move === 'teleport') { boss.y = b.homeY + Math.sin(b.mt * 1.3) * 5; boss.x += Math.sin(b.mt * 0.8) * 6 * edt; }
   }
   positionParts(w, boss, edt, spd);
   const gens = b.parts.filter((x) => x.alive);
@@ -89,9 +89,9 @@ function positionParts(w, boss, dt, spd = 1) {
   for (const e of b.parts) {
     if (!e.alive) { if (e.part.chain) segIdx++; continue; }
     const pd = e.part;
-    if (pd.orbit) { const a = b.t * pd.speed + (e.partIdx / pd.n) * Math.PI * 2; e.x = boss.x + Math.cos(a) * pd.orbit; e.y = boss.y + Math.sin(a) * pd.orbit * 0.7; e.rot = a; }
+    if (pd.orbit) { const a = (b.mt ?? b.t) * pd.speed + (e.partIdx / pd.n) * Math.PI * 2; e.x = boss.x + Math.cos(a) * pd.orbit; e.y = boss.y + Math.sin(a) * pd.orbit * 0.7; e.rot = a; }
     else if (pd.offsets) { e.x = boss.x + pd.offsets[e.partIdx][0]; e.y = boss.y + pd.offsets[e.partIdx][1]; }
-    else if (pd.chain) { segIdx++; if (b.enter > 0) { e.x = boss.x; e.y = boss.y + segIdx * 7; } else { const q = wormPos((b.t - segIdx * 0.22 / spd) * spd, b.homeY); e.x = q.x; e.y = q.y; } }
+    else if (pd.chain) { segIdx++; if (b.enter > 0) { e.x = boss.x; e.y = boss.y + segIdx * 7; } else { const q = wormPos(((b.mt ?? b.t) - segIdx * 0.22 / spd) * spd, b.homeY); e.x = q.x; e.y = q.y; } }
     e.invuln = b.enter > 0;
   }
 }

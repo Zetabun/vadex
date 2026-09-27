@@ -11,11 +11,13 @@ const HALF = FIELD.W / 2;
 
 export function updateFormation(w, dt) {
   const f = w.form; if (f.total <= 0) return;
+  /* an EMP holds the march too, and Time dilation slows it: it went on without the ships, which jumped to catch up */
+  if (w.stunT > 0) { f.sp = 0; return; } if (w.slowT > 0) dt *= 0.35;
   if (f.enter > 0) { f.enter = Math.max(0, f.enter - dt); return; }
   // classic: the fewer remain, the faster they march
   const thin = 1 + (1 - f.alive / Math.max(1, f.total)) * 1.6;
   const sp = f.speed * thin * w.sim.formSpeed * (w.wave.info?.mod?.formSpeed || 1);
-  f.x += f.dir * sp * dt;
+  f.x += f.dir * sp * dt; f.sp = sp;
   if (f.x + f.maxOff > HALF - 4 && f.dir > 0) { f.dir = -1; f.y -= BAL.formStep; }
   else if (f.x + f.minOff < -HALF + 4 && f.dir < 0) { f.dir = 1; f.y -= BAL.formStep; }
   f.y -= 0.35 * dt * thin; // slow constant creep so stalemates always end
@@ -30,21 +32,24 @@ export function updateEnemies(w, dt) {
   for (let i = w.enemies.length - 1; i >= 0; i--) {
     const e = w.enemies[i];
     if (!e.alive) { w.enemies[i] = w.enemies[w.enemies.length - 1]; w.enemies.pop(); continue; }
-    const def = e.def; e.t += edt; if (e.flash > 0) e.flash -= dt; if (e.spawnT > 0) e.spawnT -= dt; if (e.droneMarkT > 0) e.droneMarkT = Math.max(0, e.droneMarkT - dt);
+    const def = e.def, stunned = stunAll || e.stunT > 0; if (!stunned) e.t += edt; /* stunned, its clock stops */ if (e.flash > 0) e.flash -= dt; if (e.spawnT > 0) e.spawnT -= dt; if (e.droneMarkT > 0) e.droneMarkT = Math.max(0, e.droneMarkT - dt);
     const px = e.x;
     if (e.burnT > 0) { e.burnT -= dt; e.hp -= e.burn * dt; if (rand() < 0.1) fx(w, 'trail', e.x, e.y, 0xff8a3d); if (e.hp <= 0) { e.hp = 0; killEnemy(w, e, e.burnSrc, false, 0); continue; } }
     if (e.regen && e.hp < 1) e.hp = Math.min(1, e.hp + e.regen * dt);
-    const stunned = stunAll || e.stunT > 0; if (e.stunT > 0) e.stunT -= dt;
+    if (e.stunT > 0) e.stunT -= dt;
     if (e.boss || e.parent) { alive++; continue; } // driven by bosses.js
     if (e.slot) { alive++; if (e.slot.x < minOff) minOff = e.slot.x; if (e.slot.x > maxOff) maxOff = e.slot.x; }
     if (def.blink && e.path && !stunned) { e.blinkT = (e.blinkT ?? def.blink.every * (0.5 + rand() * 0.5)) - edt; if (e.blinkT <= 0) { e.blinkT = def.blink.every; fx(w, 'boom', e.x, e.y, e.r * 0.9, def.color); const nx = Math.max(-40, Math.min(40, (e.path.x0 ?? e.x) + (rand() - 0.5) * 2 * def.blink.range)); if (e.path.x0 != null) e.path.x0 = nx; e.x = nx; fx(w, 'boom', e.x, e.y, e.r * 0.9, def.color); sfx(w, 'teleport', 0.4); } }
     if (def.stealth) { const cyc = def.stealth.on + def.stealth.off; e.cloaked = (e.t % cyc) < def.stealth.on && !stunned; e.visible = !e.cloaked; }
 
+    if (stunned && e.state === 'form') e.rejoin = true; /* back to its place at a glide once it can move */
     if (!stunned) {
       if (e.state === 'form') {
         const wob = def.weave ? Math.sin(e.t * 1.7 + e.slot.y) * def.weave : 0;
-        const ty = f.y - e.slot.y + f.enter * 45, tx = f.x + e.slot.x + wob;
-        e.x += (tx - e.x) * Math.min(1, 10 * edt); e.y += (ty - e.y) * Math.min(1, 10 * edt);
+        const ty = f.y - e.slot.y + f.enter * 45, tx = f.x + e.slot.x + wob, k = Math.min(1, 10 * edt);
+        let sx = (tx - e.x) * k, sy = (ty - e.y) * k;
+        if (e.rejoin) { const d = Math.hypot(sx, sy), cap = ((f.sp || 0) + BAL.rejoin) * edt; if (d > cap) { sx *= cap / d; sy *= cap / d; } else e.rejoin = false; } /* caught up: it keeps its place as before */
+        e.x += sx; e.y += sy;
         if (f.enter <= 0) {
           if (def.dive || def.kamikaze) { e.diveT += edt; const d = def.dive || def.kamikaze; if (e.diveT > d.every * (0.7 + (e.id % 7) * 0.1)) { e.diveT = 0; e.state = 'dive'; e.aimX = p.x; e.vy = 0; sfx(w, 'dive'); } }
           if (def.spawn) { e.diveT += edt; if (e.diveT > def.spawn.every && w.enemies.length < 90) { e.diveT = 0; const c = spawnEnemy(w, def.spawn.type, e.x + (rand() - 0.5) * 8, e.y - 5, { state: 'free', vy: -10, vx: (rand() - 0.5) * 14 }); if (c) { c.spawnT = 0.3; fx(w, 'hit', e.x, e.y - 4, e.color); } } }

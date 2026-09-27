@@ -64,6 +64,32 @@ ok(BAL.bossShot > 1 && !/[^.]spawnBullet\(w, (?!x, y, vx)/.test(src), 'every bos
   ok(new Set(drops.map((d) => d.ph)).size === drops.length && drops.every((d) => d.ph >= 0 && d.ph < 6.3), 'each drop has its own bob and spin phase (by place in the list, collecting one made the rest jump)');
   w3.pickups.length = 0; }
 
+// ------------------------------------------------------------------ no leap when a stun wears off (v2.28.4)
+{ const { updateFormation, updateEnemies } = await import('@last-orbit/combat/enemies.js'); const { spawnBoss, updateBoss } = await import('@last-orbit/combat/bosses.js');
+  const w4 = G.world, f = w4.form, st0 = w4.wave.state; w4.enemies.length = 0; w4.wave.pending.length = 0; w4.wave.boss = null; w4.stunT = 0; w4.slowT = 0; w4.wave.state = 'fighting';
+  Object.assign(f, { x: 0, y: 110, dir: 1, speed: BAL.formSpeed, enter: 0, total: 6, alive: 6 });
+  const foes = [-15, -9, -3, 3, 9, 15].map((sx, k) => { const e = spawnEnemy(w4, k === 5 ? 'weaver' : 'grunt', sx, 110, { slot: { x: sx, y: 0 } }); e.state = 'form'; e.spawnT = 0; return e; });
+  /* one tick: the stun wears off, the formation marches, the ships follow; the most any of them moved */
+  const tick = () => { if (w4.stunT > 0) w4.stunT -= TICK; const at = foes.map((e) => [e.x, e.y]); updateFormation(w4, TICK); updateEnemies(w4, TICK); w4.ebullets.length = 0; w4.hazards.length = 0; return Math.max(...foes.map((e, k) => Math.hypot(e.x - at[k][0], e.y - at[k][1]))); };
+  const most = (secs) => { let m = 0; for (let k = Math.round(secs / TICK); k > 0; k--) m = Math.max(m, tick()); return m; };
+  most(0.5); const usual = most(2), /* settled in first */ fx0 = f.x, fy0 = f.y, weaverT = foes[5].t;
+  w4.stunT = 3 + TICK / 2; const held = most(3);
+  ok(held === 0 && f.x === fx0 && f.y === fy0 && foes[5].t === weaverT, `under an EMP the formation holds with its ships (it marched on without them), and a Weaver's sway waits too (moved ${held.toFixed(3)}, formation ${(f.x - fx0).toFixed(2)})`);
+  const after = most(1);
+  ok(after < usual * 1.5 + 0.02, `when the EMP wears off, the ships carry on from where they were (at most ${after.toFixed(3)} a tick, ${usual.toFixed(3)} before it; they leapt to where the formation had got to)`);
+  /* stunned alone (Static Lock), the formation marches on without it: it glides back to its place */
+  const lone = foes[2]; lone.stunT = 1.5; most(1.6); let fastest = 0; for (let k = 0; k < 240; k++) { const x = lone.x, y = lone.y; tick(); fastest = Math.max(fastest, Math.hypot(lone.x - x, lone.y - y) / TICK); }
+  const gap = Math.hypot(lone.x - (f.x + lone.slot.x), lone.y - (f.y - lone.slot.y));
+  ok(fastest <= (f.sp + BAL.rejoin) * 1.02 && gap < 1.5 && !lone.rejoin, `a ship stunned on its own glides back to its place (at most ${fastest.toFixed(1)} a second) and is back in line (${gap.toFixed(2)} off)`);
+  foes.forEach((e) => { e.alive = false; }); updateEnemies(w4, TICK); w4.enemies.length = 0; f.total = 0;
+  /* a boss moves on a clock of its own, held by an EMP */
+  const boss = spawnBoss(w4, 'broodcarrier'); boss.boss.enter = 0; const bt = () => { if (w4.stunT > 0) w4.stunT -= TICK; const x = boss.x, y = boss.y; updateBoss(w4, TICK); w4.ebullets.length = 0; w4.hazards.length = 0; return Math.hypot(boss.x - x, boss.y - y); };
+  bt(); let bUsual = 0; for (let k = 0; k < 120; k++) bUsual = Math.max(bUsual, bt()); /* after its first step home */
+  w4.stunT = 3 + TICK / 2; let bHeld = 0; for (let k = 0; k < 180; k++) bHeld = Math.max(bHeld, bt());
+  let bAfter = 0; for (let k = 0; k < 60; k++) bAfter = Math.max(bAfter, bt());
+  ok(bHeld === 0 && bAfter < bUsual * 1.5 + 0.02, `a boss holds under an EMP and carries on from there (at most ${bAfter.toFixed(3)} a tick after, ${bUsual.toFixed(3)} before; it leapt to where it would have been)`);
+  boss.alive = false; w4.wave.boss = null; w4.enemies.length = 0; w4.stunT = 0; w4.wave.state = st0; }
+
 // ------------------------------------------------------------------ the opening does not replay by itself (v2.25.2)
 const old = newState(); old.seen.intro = true; old.stats.sorties = 40; old.global.id = 'a'.repeat(32); old.global.told = true;
 const erased = erasedState(old);

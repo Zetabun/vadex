@@ -46,7 +46,7 @@ export const BAL = {
   weakMult: 3, paintMult: 1.5, paintDur: 4, grazeEnergy: 4, grazeRadius: 7,
   comboWindow: 3.5, comboStep: 0.02,
   // wave pacing
-  waveGap: 1.1, formationEnter: 0.9, formSpeed: 5.5, formStep: 5, enrage: 70,
+  waveGap: 1.1, formationEnter: 0.9, formSpeed: 5.5, formStep: 5, rejoin: 18, enrage: 70,
   // run
   sectorWaves: 10, maxWeapons: 4, maxAbilities: 2, maxRank: 7, cardChoices: 3,
   // dodge dash: a burst sideways with a moment of invulnerability; grazing enemy shots cools it down faster

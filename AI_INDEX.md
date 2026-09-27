@@ -22,6 +22,7 @@
 | The opening cinematic (when it plays by itself), Erase save | `modules/core/state.js` (introDue, erasedState), `modules/main.js` (boot, hardReset), `modules/ui/intro.js` |
 | Music (the station synth, the sortie song, the pause menu's music card, Settings > Sortie music) | `modules/audio/audio.js` (tickMusic, TRACKS, songWanted, songState, toggleSong, rewindSong, nextSong, newSortieSong), `assets/music/`, `modules/ui/overlays.js` (musicCard) |
 | Enemy fire (straight shots, the lean into the wall strip, aimed and special fire) | `modules/combat/enemies.js` (enemyFire, lean), `modules/data/balance.js` (lean, leanReach), `tests/corner-probe.mjs` |
+| Stuns and slows (EMP, Time dilation, Static Lock): the formation's march and a boss's movement clock hold with their ships; a lone stunned ship glides back to its place | `modules/combat/enemies.js` (updateFormation, updateEnemies rejoin), `modules/combat/bosses.js` (updateBoss mt), `modules/data/balance.js` (rejoin), `tests/playtest-regression.mjs` |
 | Battle readability (enemy shots vs drops, Settings > Enemy shots, background decor) | `modules/rendering/renderer.js` (drawPickups, enemy shots), `modules/rendering/background.js`, `tests/playtest-regression.mjs` |
 | Release check and balance bot | `tools/run_release_gates.py`, `tests/sortie-regression.mjs`, `tests/balance-sim.mjs` |
 

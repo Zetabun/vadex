@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.28.4 — 2026-09-27
+
+- **Fixed: enemies no longer leap forward when a stun wears off.** The EMP froze each ship, but the formation they fly in kept marching and stepping down without them, so when the stun ended they jumped to where they would have been. Now the whole formation holds for the EMP and carries on from where it stopped. Time dilation slows the formation's march as well as its ships, and bosses no longer jump when an EMP ends either.
+- A ship stunned on its own by Static Lock glides back to its place in the formation instead of snapping into it.
+
 ## v2.28.3 — 2026-09-27
 
 - **No more silence between songs.** Each song now moves on the moment its music ends, skipping the quiet tail at the end of the file, and the next song is loaded ahead of time, so it starts straight away instead of after a pause. Your first sortie's song is loaded while you are in the hangar, so it starts at once too.
