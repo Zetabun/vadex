@@ -1,6 +1,6 @@
 # Changelog
 
-## v2.28.1
+## v2.28.1 — 2026-09-27
 
 - **Smoother drops.** Orbs and drops juddered as they fell and flew into your ship: unlike everything else, they were not drawn smoothly between the game's steps, and each one's gentle bob jumped whenever another was collected. Both fixed, and a wave's worth of drops flying in at once no longer piles up sparkles.
 - **A second song: Dizzy Heights.** Sorties now play both songs in turn, in a random order each time you load the game, so it is not always the same one first. When one ends the other plays, and each new sortie starts on the next.
