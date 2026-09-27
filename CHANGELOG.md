@@ -1,6 +1,6 @@
 # Changelog
 
-## v2.28.0
+## v2.28.0 — 2026-09-27
 
 - **A song for your sorties.** "Line of Fire" now plays through every sortie, from the top each time, round and round. The station keeps its own music.
 - **Music controls in the pause menu.** See what is playing and how far through it is, pause it or play it from the start, set the music volume, and choose what plays in sorties: the song, the station's own synth music, or nothing. The same choice is in Settings, under Sortie music. The music pauses by itself while a menu is open and carries on when you resume; press play in the menu to hear it there.
