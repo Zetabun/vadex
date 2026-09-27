@@ -205,7 +205,9 @@ export function tickMusic() {
 // context (after every app switch) needs a new element; it picks up where the old one was. Phones only start it from a
 // touch, so a touch that finds it waiting starts it (kickSong).
 export const SONG = { title: 'Teeth Sucking Bumbaclart', src: 'assets/music/teeth-sucking-bumbaclart.mp3' };
-let song = null, songAt = 0, songHeld = false;
+let song = null, songAt = 0, songHeld = false, menuHold = false;
+/** The pause menu is open (ui/ui.js): the song waits, and carries on from there when the pilot plays on. */
+export function holdForMenu(on) { menuHold = !!on; }
 /** Whether the song should be playing now: a sortie, the setting on the song, music turned up, not paused by hand. */
 export const songWanted = () => !!G.state && G.mode === 'sortie' && (G.state.settings.sortieMusic || 'song') === 'song' && G.state.settings.music > 0 && G.state.settings.master > 0;
 function songEl() {
@@ -222,12 +224,12 @@ function dropSong() { if (!song) return; songAt = song.el.currentTime || songAt;
 function playSong(s) { if (s.pending || !s.el.paused) return; s.pending = true; Promise.resolve(s.el.play()).then(() => { s.pending = false; s.blocked = false; }, () => { s.pending = false; s.blocked = true; }); }
 /** Every frame: start the song when a sortie wants it, stop it when it does not. */
 function tickSong() {
-  const want = !!ctx && ctx.state === 'running' && songWanted() && !songHeld;
+  const want = !!ctx && ctx.state === 'running' && songWanted() && !songHeld && !menuHold;
   if (want) { const s = songEl(); if (s && !s.blocked) playSong(s); }
   else if (song && !song.el.paused) { songAt = song.el.currentTime; song.el.pause(); }
 }
 /** From a touch: start the song if it is waiting on one. */
-function kickSong() { if (!ctx || ctx.state !== 'running' || !songWanted() || songHeld) return; const s = songEl(); if (s) { s.blocked = false; playSong(s); } }
+function kickSong() { if (!ctx || ctx.state !== 'running' || !songWanted() || songHeld || menuHold) return; const s = songEl(); if (s) { s.blocked = false; playSong(s); } }
 /** A new sortie: from the top, and playing (unless the pilot paused it). */
 export function restartSong() { songAt = 0; songHeld = false; if (song) { try { song.el.currentTime = 0; } catch { /* not loaded yet */ } } }
 /** The pause menu's play/pause: held stays held until played again or a new sortie begins. */
@@ -235,4 +237,4 @@ export function toggleSong() { songHeld = !songHeld; if (songHeld) { if (song) {
 /** Back to the start of the song. */
 export function rewindSong() { songAt = 0; if (song) { try { song.el.currentTime = 0; } catch { /* not loaded yet */ } } }
 /** What the controls show: whether it is playing, held, and how far through (seconds). */
-export function songState() { return { title: SONG.title, playing: !!song && !song.el.paused, held: songHeld, on: songWanted(), time: song ? song.el.currentTime || 0 : songAt, length: song && isFinite(song.el.duration) ? song.el.duration : 0 }; }
+export function songState() { return { title: SONG.title, playing: !!song && !song.el.paused, held: songHeld, menu: menuHold, on: songWanted(), time: song ? song.el.currentTime || 0 : songAt, length: song && isFinite(song.el.duration) ? song.el.duration : 0 }; }

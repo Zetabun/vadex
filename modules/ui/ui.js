@@ -6,7 +6,9 @@ import { MAT_BY_ID, materialOf } from '@last-orbit/data/materials.js';
 import { draftDue } from '@last-orbit/progression/run.js';
 import { G } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
-import { playSfx, setThrust } from '@last-orbit/audio/audio.js';
+import { playSfx, setThrust, holdForMenu } from '@last-orbit/audio/audio.js';
+/** Overlays that are menus (not a choice in the fight): the sortie song waits while one is open. */
+const MENUS = new Set(['pause', 'settings', 'loadout', 'confirm', 'panel']);
 import { h, clear } from '@last-orbit/ui/dom.js';
 import { createHud } from '@last-orbit/ui/hud.js';
 import { createHangar } from '@last-orbit/ui/hangar.js';
@@ -157,6 +159,7 @@ export function initUI(app, hooks) {
   });
 
   function update(dt) {
+    holdForMenu(G.mode === 'sortie' && MENUS.has(overlays.kind)); /* for now: the song pauses in the menu */
     if (G.mode === 'sortie') hud.update(dt); else hangar.update();
     // The station AI speaks up at milestones, in the hangar, once the pilot has a callsign; never in the gun seat (it
     // saves its lines until the pilot leaves the Siege).
