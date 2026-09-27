@@ -185,7 +185,7 @@ function note(type, f, t, dur, vol, cutoff) {
 /** Call every frame; schedules a little ahead of the audio clock. */
 export function tickMusic() {
   tickSong();
-  if (!ctx || ctx.state !== 'running' || G.state.settings.music <= 0 || G.state.settings.master <= 0 || songWanted()) { if (pad && ctx) killPad(); return; } /* in a sortie with the song on, the synth is quiet */
+  if (!ctx || ctx.state !== 'running' || G.state.settings.music <= 0 || G.state.settings.master <= 0 || songWanted() || (G.mode === 'sortie' && menuQuiet())) { if (pad && ctx) killPad(); return; } /* in a sortie with the song on (or a menu open), the synth is quiet */
   const si = mode.sector % 6, sc = SCALES[si], root = ROOTS[si], spb = 60 / (TEMPO[si] * (mode.boss ? 1.15 : 1)) / 2;
   if (!pad) { const g = ctx.createGain(); g.gain.value = 0; g.gain.setTargetAtTime(0.05, ctx.currentTime, 2); const fl = ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = 500; fl.connect(g); g.connect(musicBus); const o = [0, 7, 12.07].map((iv) => { const x = ctx.createOscillator(); x.type = 'sawtooth'; x.frequency.value = hz(root + iv); x.connect(fl); x.start(); return x; }); pad = { g, o }; }
   if (nextT < ctx.currentTime) nextT = ctx.currentTime + 0.05;
@@ -204,10 +204,13 @@ export function tickMusic() {
 // slider sets its volume (a phone ignores an element's own volume) and it never sits decoded in memory. A new audio
 // context (after every app switch) needs a new element; it picks up where the old one was. Phones only start it from a
 // touch, so a touch that finds it waiting starts it (kickSong).
-export const SONG = { title: 'Teeth Sucking Bumbaclart', src: 'assets/music/teeth-sucking-bumbaclart.mp3' };
-let song = null, songAt = 0, songHeld = false, menuHold = false;
-/** The pause menu is open (ui/ui.js): the song waits, and carries on from there when the pilot plays on. */
-export function holdForMenu(on) { menuHold = !!on; }
+export const SONG = { title: 'Line of Fire', src: 'assets/music/line-of-fire.mp3' };
+let song = null, songAt = 0, menuHold = false, menuPlay = false;
+/** A menu is open in a sortie (ui/ui.js): the music pauses, unless the pilot presses play there; every time a menu
+ *  opens it starts paused again. It carries on from where it was when the pilot plays on. */
+export function holdForMenu(on) { on = !!on; if (on && !menuHold) menuPlay = false; menuHold = on; }
+/** Whether the music is waiting on a menu now. */
+const menuQuiet = () => menuHold && !menuPlay;
 /** Whether the song should be playing now: a sortie, the setting on the song, music turned up, not paused by hand. */
 export const songWanted = () => !!G.state && G.mode === 'sortie' && (G.state.settings.sortieMusic || 'song') === 'song' && G.state.settings.music > 0 && G.state.settings.master > 0;
 function songEl() {
@@ -224,17 +227,17 @@ function dropSong() { if (!song) return; songAt = song.el.currentTime || songAt;
 function playSong(s) { if (s.pending || !s.el.paused) return; s.pending = true; Promise.resolve(s.el.play()).then(() => { s.pending = false; s.blocked = false; }, () => { s.pending = false; s.blocked = true; }); }
 /** Every frame: start the song when a sortie wants it, stop it when it does not. */
 function tickSong() {
-  const want = !!ctx && ctx.state === 'running' && songWanted() && !songHeld && !menuHold;
+  const want = !!ctx && ctx.state === 'running' && songWanted() && !menuQuiet();
   if (want) { const s = songEl(); if (s && !s.blocked) playSong(s); }
   else if (song && !song.el.paused) { songAt = song.el.currentTime; song.el.pause(); }
 }
 /** From a touch: start the song if it is waiting on one. */
-function kickSong() { if (!ctx || ctx.state !== 'running' || !songWanted() || songHeld || menuHold) return; const s = songEl(); if (s) { s.blocked = false; playSong(s); } }
+function kickSong() { if (!ctx || ctx.state !== 'running' || !songWanted() || menuQuiet()) return; const s = songEl(); if (s) { s.blocked = false; playSong(s); } }
 /** A new sortie: from the top, and playing (unless the pilot paused it). */
-export function restartSong() { songAt = 0; songHeld = false; if (song) { try { song.el.currentTime = 0; } catch { /* not loaded yet */ } } }
-/** The pause menu's play/pause: held stays held until played again or a new sortie begins. */
-export function toggleSong() { songHeld = !songHeld; if (songHeld) { if (song) { songAt = song.el.currentTime; song.el.pause(); } } else kickSong(); return !songHeld; }
+export function restartSong() { songAt = 0; menuPlay = false; if (song) { try { song.el.currentTime = 0; } catch { /* not loaded yet */ } } }
+/** The pause menu's play/pause: play the music there, or pause it again (it plays on anyway once the menu closes). */
+export function toggleSong() { menuPlay = !menuPlay; if (menuPlay) kickSong(); else if (song && menuHold) { songAt = song.el.currentTime; song.el.pause(); } return menuPlay; }
 /** Back to the start of the song. */
 export function rewindSong() { songAt = 0; if (song) { try { song.el.currentTime = 0; } catch { /* not loaded yet */ } } }
 /** What the controls show: whether it is playing, held, and how far through (seconds). */
-export function songState() { return { title: SONG.title, playing: !!song && !song.el.paused, held: songHeld, menu: menuHold, on: songWanted(), time: song ? song.el.currentTime || 0 : songAt, length: song && isFinite(song.el.duration) ? song.el.duration : 0 }; }
+export function songState() { return { title: SONG.title, playing: !!song && !song.el.paused, menu: menuHold, quiet: menuQuiet(), on: songWanted(), time: song ? song.el.currentTime || 0 : songAt, length: song && isFinite(song.el.duration) ? song.el.duration : 0 }; }

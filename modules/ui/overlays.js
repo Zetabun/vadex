@@ -195,10 +195,10 @@ export function createOverlays(layer, hooks) {
     const el = h('section.music-card', h('div.mu-top', h('span.mu-ico', uiIcon('music')), h('div.mu-main', sub, title, h('div.mu-bar', fill), time), play, back),
       h('label.mu-row', h('span', 'Music'), vol), h('label.mu-row', h('span', 'In sorties'), pick));
     function draw() {
-      const st = songState(), song = (s.sortieMusic || 'song') === 'song';
-      setText(sub, !song ? 'Sortie music' : st.held ? 'Paused' : s.music <= 0 ? 'Music is turned down' : st.menu ? 'Plays on when you resume' : 'Now playing');
-      setText(title, song ? st.title : s.sortieMusic === 'synth' ? 'Station synth' : 'Music off');
-      clear(play).append(uiIcon(st.held ? 'play' : 'pause')); play.setAttribute('aria-label', st.held ? 'Play the song' : 'Pause the song'); play.disabled = back.disabled = !song;
+      const st = songState(), pickd = s.sortieMusic || 'song', song = pickd === 'song', off = pickd === 'off';
+      setText(sub, off ? 'Sortie music' : s.music <= 0 ? 'Music is turned down' : st.quiet ? 'Paused in the menu' : 'Now playing');
+      setText(title, song ? st.title : pickd === 'synth' ? 'Station synth' : 'Music off');
+      clear(play).append(uiIcon(st.quiet ? 'play' : 'pause')); play.setAttribute('aria-label', st.quiet ? 'Play the music here' : 'Pause the music'); play.disabled = off; back.disabled = !song;
       fill.style.width = st.length ? `${Math.min(100, (st.time / st.length) * 100)}%` : '0%'; setText(time, st.length && song ? `${clock(st.time)} / ${clock(st.length)}` : '');
       el.classList.toggle('off', !song);
     }
