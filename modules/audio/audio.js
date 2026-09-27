@@ -206,11 +206,19 @@ export function tickMusic() {
 // every app switch) needs a new element; it picks up where the old one was. Phones only start one from a touch, so a
 // touch that finds it waiting starts it (kickSong).
 /** gain: each is trimmed to sit under the fight (a finished recording is far louder than the synth), matched by ear
- *  level (the louder half of 400 ms windows: Line of Fire -12.0 dB, Dizzy Heights -12.5 dB). */
+ *  level (the louder half of 400 ms windows: Line of Fire -12.0 dB, Dizzy Heights -12.5 dB). end: where its sound
+ *  stops (above -60 dB, measured in 50 ms windows), so the silence after it is skipped and the next song follows at
+ *  once; both have sound from their first moment, so nothing is cut at the start. */
 export const TRACKS = [
-  { id: 'fire', title: 'Line of Fire', src: 'assets/music/line-of-fire.mp3', gain: 0.4 },
-  { id: 'dizzy', title: 'Dizzy Heights', src: 'assets/music/dizzy-heights.mp3', gain: 0.42 },
+  { id: 'fire', title: 'Line of Fire', src: 'assets/music/line-of-fire.mp3', gain: 0.4, end: 197.9 },
+  { id: 'dizzy', title: 'Dizzy Heights', src: 'assets/music/dizzy-heights.mp3', gain: 0.42, end: 124.8 },
 ];
+/** Songs fetched ahead (the next one, before the one playing ends; the first, from the hangar), so a change does not
+ *  wait on the download. Once each a session. */
+const warmed = new Set();
+function warm(tr) { if (!tr || warmed.has(tr.src) || typeof fetch === 'undefined') return; warmed.add(tr.src); fetch(tr.src).then((r) => r.blob()).catch(() => warmed.delete(tr.src)); }
+/** The song after the one playing (in turn). */
+const trackAfter = () => TRACKS[ORDER[(turn + 1) % ORDER.length]];
 export const TRACK_BY_ID = Object.fromEntries(TRACKS.map((t) => [t.id, t]));
 /** The order the songs play in, in turn: shuffled each time the game loads, so the first song is not always the same. */
 const ORDER = TRACKS.map((t, i) => i); for (let i = ORDER.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ORDER[i], ORDER[j]] = [ORDER[j], ORDER[i]]; }
@@ -239,6 +247,7 @@ function songEl() {
     try { node = ctx.createMediaElementSource(el); trim = ctx.createGain(); node.connect(trim); trim.connect(musicBus); } catch { return null; }
     song = { el, node, trim, ctx, track: null, blocked: false, pending: false };
     el.addEventListener('ended', () => { if (song?.el === el) nextSong(); }); /* in turn: the next song follows */
+    el.addEventListener('timeupdate', () => { const t = song?.el === el && song.track; if (!t) return; if (t.end && el.currentTime >= t.end) nextSong(); /* its silent tail skipped */ else if ((t.end || el.duration) - el.currentTime < 25) warm(trackAfter()); });
   }
   const tr = trackNow();
   if (song.track !== tr) { const at = tr === lastTrack ? songAt : 0; /* rebuilt after an app switch: the same place; another song: its start */ song.track = tr; lastTrack = tr; songAt = at; song.pending = false; song.blocked = false; song.el.src = tr.src; song.trim.gain.value = tr.gain; seek(song.el, at); }
@@ -250,6 +259,7 @@ function playSong(s) { if (s.pending || !s.el.paused) return; s.pending = true; 
 /** Every frame: start the song when a sortie wants it (changing it if the choice changed), stop it when it does not. */
 function tickSong() {
   const want = !!ctx && ctx.state === 'running' && songWanted() && !menuQuiet();
+  if (!want && G.mode === 'hangar' && ctx && (G.state?.settings?.sortieMusic || 'all') !== 'synth' && G.state?.settings?.sortieMusic !== 'off') warm(started ? trackAfter() : trackNow()); /* the next sortie's song, ready before launch */
   if (want) { const s = songEl(); if (s && !s.blocked && !s.el.ended) playSong(s); } /* ended: its 'ended' hands over; playing it now would start it again */
   else if (song && !song.el.paused) { songAt = song.el.currentTime; song.el.pause(); }
 }

@@ -1,5 +1,9 @@
 # Changelog
 
+## v2.28.3 — 2026-09-27
+
+- **No more silence between songs.** Each song now moves on the moment its music ends, skipping the quiet tail at the end of the file, and the next song is loaded ahead of time, so it starts straight away instead of after a pause. Your first sortie's song is loaded while you are in the hangar, so it starts at once too.
+
 ## v2.28.2 — 2026-09-27
 
 - **Fixed: songs no longer repeat.** When a song finishes, the next one plays from its start. Before, the same song could start again, or the next one began at the wrong point and ended at once, handing straight back.

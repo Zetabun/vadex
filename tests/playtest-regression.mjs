@@ -55,6 +55,7 @@ ok(BAL.bossShot > 1 && !/[^.]spawnBullet\(w, (?!x, y, vx)/.test(src), 'every bos
   ok(all && one && legacy && !synth && !off && !quiet && !hangar, 'songs play in a sortie (the songs, or an older choice of one song or the old setting, which now mean the songs); not with the synth or off, the music down, or in the hangar');
   ok(newState().settings.sortieMusic === 'all' && TRACKS.length >= 2 && TRACKS.every((t) => readFileSync(new URL('../' + t.src, import.meta.url)).length > 100000), 'all songs in turn by default, and the file of every song ships with the game');
   ok(TRACKS.every((t) => t.gain > 0 && t.gain < 0.6) && new Set(TRACKS.map((t) => t.id)).size === TRACKS.length, 'each song is trimmed to sit under the fight, and has its own id');
+  ok(TRACKS.every((t) => t.end > 60), 'each song knows where its sound ends, so the silence after it is skipped');
   G.mode = mode0; set.sortieMusic = sm; set.music = mu; }
 
 // ------------------------------------------------------------------ drops drawn smoothly (v2.28.1)
