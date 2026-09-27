@@ -104,11 +104,22 @@ function applyAura(w, src, aura) {
   }
 }
 
+/** The formation turns back before its outer column passes this far from the middle, so a ship beyond it, in the strip
+ *  along either wall, was out of reach of every straight-down shot. */
+const LANE = HALF - 8;
+/** In that strip the formation's straight-down fire leans towards the ship: the columns within BAL.leanReach of it angle
+ *  their shots at it, up to BAL.lean of their speed across. Anywhere else, shots fall straight as before. Returns the
+ *  sideways speed. */
+export function lean(w, e, speed) {
+  const p = w.player; if (e.state !== 'form' || !e.slot || Math.abs(p.x) < LANE) return 0;
+  const dx = p.x - e.x, t = (e.y - p.y) / speed; if (Math.abs(dx) > BAL.leanReach || t <= 0) return 0;
+  return Math.max(-speed * BAL.lean, Math.min(speed * BAL.lean, dx / t));
+}
 function enemyFire(w, e, fire) {
   const p = w.player;
   switch (fire.kind) {
-    case 'bolt': weave(w, spawnBullet(w, e.x, e.y - e.r, 0, -fire.speed, fire.dmg, 'bolt')); break;
-    case 'heavy': weave(w, spawnBullet(w, e.x, e.y - e.r, 0, -fire.speed, fire.dmg, 'heavy')); break;
+    case 'bolt': weave(w, spawnBullet(w, e.x, e.y - e.r, lean(w, e, fire.speed), -fire.speed, fire.dmg, 'bolt')); break;
+    case 'heavy': weave(w, spawnBullet(w, e.x, e.y - e.r, lean(w, e, fire.speed), -fire.speed, fire.dmg, 'heavy')); break;
     case 'aimed': case 'spread': { // a ship hidden in a nebula bank throws the aim off
       const a = Math.atan2(p.y - e.y, p.x - e.x) + (w.playerVeiled ? (rand() - 0.5) * 1.1 : 0);
       for (const o of fire.kind === 'spread' ? [-0.24, 0, 0.24] : [0]) spawnBullet(w, e.x, e.y - e.r, Math.cos(a + o) * fire.speed, Math.sin(a + o) * fire.speed, fire.dmg, 'bolt'); break; }

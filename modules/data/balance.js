@@ -30,6 +30,7 @@ export const BAL = {
   // breaches: each sector can be breached this many times (the last ends the sortie); landings this close together (s)
   // are the same breach
   breachStrikes: 3, breachGroup: 1,
+  lean: 0.3, leanReach: 14, // in the strip along each wall the formation can never march over, its straight shots angle at the ship (up to 30% across) from the columns within 14 of it: no safe corner
   bossShot: 1.5, bossShotSize: 1.25, // boss shots hit half as hard again as an invader's, and are drawn bigger (playtest: they felt weak)
   diverRam: 2.5, // a Stooper diving into the ship: this much damage, and it is destroyed
   // the shield bubble: while it is up, a shot that touches it hits the shield (radius, in field units; the hull's own

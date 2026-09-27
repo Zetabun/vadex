@@ -5,6 +5,7 @@ import { G, recalc } from '@last-orbit/core/game.js';
 import { newState, erasedState, introDue } from '@last-orbit/core/state.js';
 import { initWorld, step } from '@last-orbit/combat/sim.js';
 import { spawnEnemy } from '@last-orbit/combat/world.js';
+import { lean } from '@last-orbit/combat/enemies.js';
 import { startSortie, nextOffer, pickCard } from '@last-orbit/progression/run.js';
 import { BAL, TICK } from '@last-orbit/data/balance.js';
 import { readFileSync } from 'node:fs';
@@ -37,6 +38,13 @@ ok(!e.alive && Math.abs(lost - Math.min(1, want)) < 0.02, `a Stooper diving into
 // ------------------------------------------------------------------ boss shots hit harder
 const src = readFileSync(new URL('../modules/combat/bosses.js', import.meta.url), 'utf8');
 ok(BAL.bossShot > 1 && !/[^.]spawnBullet\(w, (?!x, y, vx)/.test(src), 'every boss shot goes through bossShot (half as hard again as an invader\'s)');
+
+// ------------------------------------------------------------------ no safe corner (v2.27.1)
+{ const w2 = G.world, p2 = w2.player, x0 = p2.x, foe = spawnEnemy(w2, 'grunt', 40, 110, { slot: { x: 36, y: 0 } }); foe.state = 'form';
+  p2.x = 46.5; const inCorner = lean(w2, foe, 38); p2.x = 0; const inMiddle = lean(w2, foe, 38); p2.x = -46.5; const farCorner = lean(w2, foe, 38);
+  ok(inCorner > 0 && inCorner <= 38 * BAL.lean, 'in the strip by the wall, the nearest columns angle their shots at the ship: ' + inCorner.toFixed(2));
+  ok(inMiddle === 0 && farCorner === 0, 'anywhere else, and from far across the field, shots fall straight down');
+  foe.alive = false; p2.x = x0; }
 
 // ------------------------------------------------------------------ the opening does not replay by itself (v2.25.2)
 const old = newState(); old.seen.intro = true; old.stats.sorties = 40; old.global.id = 'a'.repeat(32); old.global.told = true;
