@@ -1,6 +1,6 @@
 # Changelog
 
-## v2.28.2
+## v2.28.2 — 2026-09-27
 
 - **Fixed: songs no longer repeat.** When a song finishes, the next one plays from its start. Before, the same song could start again, or the next one began at the wrong point and ended at once, handing straight back.
 - **Songs, shuffled.** Sortie music is now the songs (in a new random order each time you load the game, one after another), the station synth, or off. The pause menu's next-song button changes the song.
