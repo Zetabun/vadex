@@ -18,7 +18,7 @@ export function spawnPickup(w, kind, x, y, v, big = 0, m = null) { /* m: a mater
     return null;
   }
   const a = rand() * Math.PI * 2, sp = (big ? 26 : 12) * (0.4 + rand() * 0.8);
-  const p = { kind, m, x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp + 6, v, t: 0, pull: false, big: big > 0 || v >= 5 };
+  const p = { kind, m, x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp + 6, v, t: 0, pull: false, big: big > 0 || v >= 5, ph: rand() * 6.283 }; /* ph: its own bob and spin */
   P.push(p); return p;
 }
 

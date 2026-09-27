@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.28.1
+
+- **Smoother drops.** Orbs and drops juddered as they fell and flew into your ship: unlike everything else, they were not drawn smoothly between the game's steps, and each one's gentle bob jumped whenever another was collected. Both fixed, and a wave's worth of drops flying in at once no longer piles up sparkles.
+- **Line of Fire is quieter.** The song sits under the fight now instead of over it. The Music slider still sets it.
+
 ## v2.28.0 — 2026-09-27
 
 - **A song for your sorties.** "Line of Fire" now plays through every sortie, from the top each time, round and round. The station keeps its own music.

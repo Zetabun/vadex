@@ -65,7 +65,7 @@ let accum = 0;
 export const renderAlpha = () => Math.max(0, Math.min(1, accum / TICK));
 function snapshot(w) {
   const p = w.player; p.px = p.x; p.py = p.y;
-  for (const L of [w.enemies, w.shots, w.ebullets, w.drones]) for (let i = 0; i < L.length; i++) { const o = L[i]; o.px = o.x; o.py = o.y; }
+  for (const L of [w.enemies, w.shots, w.ebullets, w.drones, w.pickups]) for (let i = 0; i < L.length; i++) { const o = L[i]; o.px = o.x; o.py = o.y; }
 }
 /** Advance the simulation by real seconds (already scaled by game speed). Returns the number of ticks run. */
 export function advance(seconds) {

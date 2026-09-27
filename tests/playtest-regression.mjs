@@ -5,6 +5,7 @@ import { G, recalc } from '@last-orbit/core/game.js';
 import { newState, erasedState, introDue } from '@last-orbit/core/state.js';
 import { initWorld, step } from '@last-orbit/combat/sim.js';
 import { spawnEnemy } from '@last-orbit/combat/world.js';
+import { spawnPickup } from '@last-orbit/combat/pickups.js';
 import { lean } from '@last-orbit/combat/enemies.js';
 import { startSortie, nextOffer, pickCard } from '@last-orbit/progression/run.js';
 import { BAL, TICK } from '@last-orbit/data/balance.js';
@@ -54,6 +55,13 @@ ok(BAL.bossShot > 1 && !/[^.]spawnBullet\(w, (?!x, y, vx)/.test(src), 'every bos
   ok(inSortie && !synth && !off && !quiet && !hangar, 'the song plays in a sortie when chosen and the music is up; not with the synth or off chosen, the music down, or in the hangar');
   ok(newState().settings.sortieMusic === 'song' && readFileSync(new URL('../' + SONG.src, import.meta.url)).length > 100000, 'the song is the default for sorties, and its file ships with the game');
   G.mode = mode0; set.sortieMusic = sm; set.music = mu; }
+
+// ------------------------------------------------------------------ drops drawn smoothly (v2.28.1)
+{ const w3 = G.world; w3.pickups.length = 0; const drops = [0, 1, 2, 3].map((k) => spawnPickup(w3, 'xp', -10 + k * 6, 80, 1)); step(TICK);
+  ok(drops.every((d) => d.px !== undefined && d.py !== undefined && (d.px !== d.x || d.py !== d.y)), 'drops keep their last position each tick, so they are drawn smoothly between ticks (they juddered as they fell)');
+  ok(new Set(drops.map((d) => d.ph)).size === drops.length && drops.every((d) => d.ph >= 0 && d.ph < 6.3), 'each drop has its own bob and spin phase (by place in the list, collecting one made the rest jump)');
+  w3.pickups.length = 0; }
+{ const { SONG } = await import('@last-orbit/audio/audio.js'); ok(SONG.gain > 0 && SONG.gain < 0.6, 'the song is trimmed to sit under the fight: ' + SONG.gain); }
 
 // ------------------------------------------------------------------ the opening does not replay by itself (v2.25.2)
 const old = newState(); old.seen.intro = true; old.stats.sorties = 40; old.global.id = 'a'.repeat(32); old.global.told = true;

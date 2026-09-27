@@ -6,7 +6,7 @@ import { G } from '@last-orbit/core/game.js';
 import { bus } from '@last-orbit/core/events.js';
 import { fmt } from '@last-orbit/core/format.js';
 import { Big } from '@last-orbit/core/big.js';
-import { FIELD } from '@last-orbit/data/balance.js';
+import { FIELD, TICK } from '@last-orbit/data/balance.js';
 import { DRONES } from '@last-orbit/data/drones.js';
 import { activeShip } from '@last-orbit/progression/stats.js';
 import { PAINT_BY_ID } from '@last-orbit/data/career.js';
@@ -300,7 +300,7 @@ export class Renderer {
   lerpIn(w, a) {
     const L = (this.lerped ||= []); L.length = 0;
     const one = (o) => { if (o.px === undefined) return; const dx = o.x - o.px, dy = o.y - o.py; if (dx * dx + dy * dy > 400) return; o._rx = o.x; o._ry = o.y; o.x = o.px + dx * a; o.y = o.py + dy * a; L.push(o); };
-    one(w.player); for (const list of [w.enemies, w.shots, w.ebullets, w.drones]) for (let i = 0; i < list.length; i++) one(list[i]);
+    one(w.player); for (const list of [w.enemies, w.shots, w.ebullets, w.drones, w.pickups]) for (let i = 0; i < list.length; i++) one(list[i]); /* drops too: they juddered as they fell and flew in */
   }
   lerpOut() { const L = this.lerped; if (!L) return; for (let i = 0; i < L.length; i++) { const o = L[i]; o.x = o._rx; o.y = o._ry; } L.length = 0; }
 
@@ -416,16 +416,16 @@ export class Renderer {
   }
 
   drawPickups(w) {
-    const B = this.B, t = w.t;
+    const B = this.B, t = w.t + (renderAlpha() - 1) * TICK; let trails = 0; /* the clock between ticks, like their positions */
     // Drops look like loot, never like shots: a solid faceted shape bobbing gently, a soft glow with no white-hot core, a
     // thin white sparkle ring turning slowly, and now and then a glint. The repair kit is a green cross.
-    for (let i = 0; i < w.pickups.length; i++) { const p = w.pickups[i], s = p.big ? 1.45 : 1, y = p.y + Math.sin(t * 3.2 + i * 1.3) * 0.7 * s;
-      const glint = Math.pow(Math.max(0, Math.sin(t * 2.4 + i * 1.7)), 12), spark = (sz) => { B.ring.add(p.x, y, sz, sz, t * 1.2 + i, WHITE, 0.3); if (glint > 0.05) { B.streak.add(p.x, y, sz * 1.5, 0.45, 0, WHITE, glint); B.streak.add(p.x, y, sz * 1.5, 0.45, Math.PI / 2, WHITE, glint); } };
-      if (p.kind === 'xp') { B.soft.add(p.x, y, 3.4 * s, 3.4 * s, 0, XPC, 0.55); B.ore.add(p.x, y, 2.3 * s, 2.3 * s, t * 3 + i, XPC, 1); }
-      else if (p.kind === 'salvage') { B.soft.add(p.x, y, 4.4 * s, 4.4 * s, 0, AMBER, 0.45); B.ore.add(p.x, y, 3.4 * s, 3.4 * s, t * 2 + i, GOLD, 1); spark(5.2 * s); }
-      else if (p.kind === 'mat') { const c = MATC[p.m] || VIOLET; B.soft.add(p.x, y, 4.4 * s, 4.4 * s, 0, c, 0.5); B.ore.add(p.x, y, 3.1 * s, 3.1 * s, t * 2.6 + i, c, 1); B.ring.add(p.x, y, 4.6 * s, 4.6 * s, -t * 1.8 + i, c, 0.55); spark(6.2 * s); }
+    for (let i = 0; i < w.pickups.length; i++) { const p = w.pickups[i], s = p.big ? 1.45 : 1, ph = p.ph ?? i, y = p.y + (p.pull ? 0 : Math.sin(t * 3.2 + ph) * 0.7 * s); /* its own phase (by list place, it jumped when another was collected); still while it flies in */
+      const glint = Math.pow(Math.max(0, Math.sin(t * 2.4 + ph * 1.3)), 12), spark = (sz) => { B.ring.add(p.x, y, sz, sz, t * 1.2 + ph, WHITE, 0.3); if (glint > 0.05) { B.streak.add(p.x, y, sz * 1.5, 0.45, 0, WHITE, glint); B.streak.add(p.x, y, sz * 1.5, 0.45, Math.PI / 2, WHITE, glint); } };
+      if (p.kind === 'xp') { B.soft.add(p.x, y, 3.4 * s, 3.4 * s, 0, XPC, 0.55); B.ore.add(p.x, y, 2.3 * s, 2.3 * s, t * 3 + ph, XPC, 1); }
+      else if (p.kind === 'salvage') { B.soft.add(p.x, y, 4.4 * s, 4.4 * s, 0, AMBER, 0.45); B.ore.add(p.x, y, 3.4 * s, 3.4 * s, t * 2 + ph, GOLD, 1); spark(5.2 * s); }
+      else if (p.kind === 'mat') { const c = MATC[p.m] || VIOLET; B.soft.add(p.x, y, 4.4 * s, 4.4 * s, 0, c, 0.5); B.ore.add(p.x, y, 3.1 * s, 3.1 * s, t * 2.6 + ph, c, 1); B.ring.add(p.x, y, 4.6 * s, 4.6 * s, -t * 1.8 + ph, c, 0.55); spark(6.2 * s); }
       else { B.soft.add(p.x, y, 5.2, 5.2, 0, LOOT_GREEN, 0.55); B.streak.add(p.x, y, 4.6, 1.6, 0, LOOT_GREEN, 1.2); B.streak.add(p.x, y, 4.6, 1.6, Math.PI / 2, LOOT_GREEN, 1.2); B.streak.add(p.x, y, 3.2, 0.7, 0, WHITE, 1); B.streak.add(p.x, y, 3.2, 0.7, Math.PI / 2, WHITE, 1); spark(6); }
-      if (p.pull && Math.random() < 0.25) this.parts.emit(p.x, p.y, -p.vx * 0.05, -p.vy * 0.05, 0.25, 1.1, p.kind === 'xp' ? XPC : p.kind === 'mat' ? MATC[p.m] || VIOLET : p.kind === 'repair' ? LOOT_GREEN : AMBER, 0);
+      if (p.pull && trails < 12 && Math.random() < 0.25 && ++trails) this.parts.emit( /* a dozen trails a frame at most: a cleared wave pulls every drop in at once */p.x, p.y, -p.vx * 0.05, -p.vy * 0.05, 0.25, 1.1, p.kind === 'xp' ? XPC : p.kind === 'mat' ? MATC[p.m] || VIOLET : p.kind === 'repair' ? LOOT_GREEN : AMBER, 0);
     }
   }
   drawBarriers(w) {

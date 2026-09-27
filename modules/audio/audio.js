@@ -204,7 +204,7 @@ export function tickMusic() {
 // slider sets its volume (a phone ignores an element's own volume) and it never sits decoded in memory. A new audio
 // context (after every app switch) needs a new element; it picks up where the old one was. Phones only start it from a
 // touch, so a touch that finds it waiting starts it (kickSong).
-export const SONG = { title: 'Line of Fire', src: 'assets/music/line-of-fire.mp3' };
+export const SONG = { title: 'Line of Fire', src: 'assets/music/line-of-fire.mp3', gain: 0.4 }; /* gain: a finished recording is far louder than the synth */
 let song = null, songAt = 0, menuHold = false, menuPlay = false;
 /** A menu is open in a sortie (ui/ui.js): the music pauses, unless the pilot presses play there; every time a menu
  *  opens it starts paused again. It carries on from where it was when the pilot plays on. */
@@ -217,7 +217,7 @@ function songEl() {
   if (song?.ctx === ctx) return song;
   dropSong(); if (!ctx || typeof Audio === 'undefined') return null;
   const el = new Audio(SONG.src); el.loop = true; el.preload = 'auto';
-  let node = null; try { node = ctx.createMediaElementSource(el); node.connect(musicBus); } catch { return null; }
+  let node = null; try { node = ctx.createMediaElementSource(el); const trim = ctx.createGain(); trim.gain.value = SONG.gain; node.connect(trim); trim.connect(musicBus); } catch { return null; }
   song = { el, node, ctx, blocked: false, pending: false };
   try { el.currentTime = songAt; } catch { /* set once it has loaded */ }
   el.addEventListener('loadedmetadata', () => { if (songAt && Math.abs(el.currentTime - songAt) > 1) { try { el.currentTime = songAt; } catch { /* keep going */ } } }, { once: true });
