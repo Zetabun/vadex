@@ -40,7 +40,7 @@ import { THREATS } from '@last-orbit/data/threat.js';
 import { COUNTER_TOP, STAR_HITS, STAR_KILLS } from '@last-orbit/data/counter.js';
 import { FIELD } from '@last-orbit/data/balance.js';
 import { MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
-import { applyVolumes, playSfx, SONG, songState, toggleSong, rewindSong } from '@last-orbit/audio/audio.js';
+import { applyVolumes, playSfx, TRACKS, songState, toggleSong, rewindSong, nextSong } from '@last-orbit/audio/audio.js';
 import { h, clear, toggle, slider, select, scrollHints, setClass, setText } from '@last-orbit/ui/dom.js';
 import { setBoards, gl, pilotId, formatKey, parseKey, lookupPilot, signIn, boardsOn } from '@last-orbit/progression/global.js';
 import { updatesUnseen, markUpdatesSeen, cmpVersion } from '@last-orbit/progression/updates.js';
@@ -160,7 +160,7 @@ export function createOverlays(layer, hooks) {
       fromPause ? null : field('Save backup', h('button.btn.ghost.small.callsign-edit' + (backedUp() ? '' : '.nudge'), { onclick: () => showBackup() }, backupAge(), uiIcon('chevron'))),
       field('Master volume', slider(() => s.master, set('master'), 0, 1, 0.05, 'Master volume')),
       field('Music', slider(() => s.music, set('music'), 0, 1, 0.05, 'Music volume')),
-      field('Sortie music', select(SORTIE_MUSIC, () => s.sortieMusic || 'song', set('sortieMusic'), 'Sortie music')), /* the song, the station synth or off (audio/audio.js) */
+      field('Sortie music', select(SORTIE_MUSIC, () => musicPick(s), set('sortieMusic'), 'Sortie music')), /* the song, the station synth or off (audio/audio.js) */
       field('Sound effects', slider(() => s.sfx, set('sfx'), 0, 1, 0.05, 'Sound effects volume')),
       field('Hold screen sides to move', toggle(() => s.holdSides !== false, set('holdSides'), 'Hold screen sides to move')),
       field('Screen shake', toggle(() => s.shake, set('shake'), 'Screen shake')),
@@ -184,21 +184,23 @@ export function createOverlays(layer, hooks) {
   }
   /** The pause menu's music: what is playing and how far through, play/pause and back to the start, the music volume,
    *  and what plays in a sortie (the song, the station's synth, or nothing). */
-  const SORTIE_MUSIC = [['song', SONG.title], ['synth', 'Station synth'], ['off', 'Off']];
+  const SORTIE_MUSIC = [['all', 'All songs, in turn'], ...TRACKS.map((t) => [t.id, t.title]), ['synth', 'Station synth'], ['off', 'Off']];
+  const musicPick = (s) => (s.sortieMusic === 'song' ? 'all' : s.sortieMusic || 'all'); /* 'song': from before there were two */
   const clock = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
   function musicCard() {
     const s = G.state.settings, title = h('b'), sub = h('small'), fill = h('i.mu-fill'), time = h('span.mu-time');
     const play = h('button.btn.ghost.small.mu-btn', { onclick: () => { toggleSong(); playSfx('tab'); draw(); } });
     const back = h('button.btn.ghost.small.mu-btn', { onclick: () => { rewindSong(); playSfx('tab'); draw(); }, 'aria-label': 'Play the song from the start' }, uiIcon('reroll'));
-    const pick = select(SORTIE_MUSIC, () => s.sortieMusic || 'song', (v) => { s.sortieMusic = v; hooks.saveNow?.('settings'); draw(); }, 'Sortie music');
+    const skip = h('button.btn.ghost.small.mu-btn', { onclick: () => { nextSong(); playSfx('tab'); setTimeout(draw, 60); }, 'aria-label': 'Next song' }, uiIcon('chevron'));
+    const pick = select(SORTIE_MUSIC, () => musicPick(s), (v) => { s.sortieMusic = v; hooks.saveNow?.('settings'); draw(); }, 'Sortie music');
     const vol = slider(() => s.music, (v) => { s.music = v; applyVolumes(); draw(); }, 0, 1, 0.05, 'Music volume');
-    const el = h('section.music-card', h('div.mu-top', h('span.mu-ico', uiIcon('music')), h('div.mu-main', sub, title, h('div.mu-bar', fill), time), play, back),
+    const el = h('section.music-card', h('div.mu-top', h('span.mu-ico', uiIcon('music')), h('div.mu-main', sub, title, h('div.mu-bar', fill), time), play, back, skip),
       h('label.mu-row', h('span', 'Music'), vol), h('label.mu-row', h('span', 'In sorties'), pick));
     function draw() {
-      const st = songState(), pickd = s.sortieMusic || 'song', song = pickd === 'song', off = pickd === 'off';
+      const st = songState(), pickd = musicPick(s), song = pickd !== 'synth' && pickd !== 'off', off = pickd === 'off';
       setText(sub, off ? 'Sortie music' : s.music <= 0 ? 'Music is turned down' : st.quiet ? 'Paused in the menu' : 'Now playing');
       setText(title, song ? st.title : pickd === 'synth' ? 'Station synth' : 'Music off');
-      clear(play).append(uiIcon(st.quiet ? 'play' : 'pause')); play.setAttribute('aria-label', st.quiet ? 'Play the music here' : 'Pause the music'); play.disabled = off; back.disabled = !song;
+      clear(play).append(uiIcon(st.quiet ? 'play' : 'pause')); play.setAttribute('aria-label', st.quiet ? 'Play the music here' : 'Pause the music'); play.disabled = off; back.disabled = !song; skip.hidden = !st.all || !song; /* next song: when they play in turn */
       fill.style.width = st.length ? `${Math.min(100, (st.time / st.length) * 100)}%` : '0%'; setText(time, st.length && song ? `${clock(st.time)} / ${clock(st.length)}` : '');
       el.classList.toggle('off', !song);
     }

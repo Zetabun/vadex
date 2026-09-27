@@ -198,34 +198,53 @@ export function tickMusic() {
   }
 }
 
-// ------------------------------------------------------------------ the sortie song
-// A recorded track that plays through every sortie (Settings > Sortie music: the song, the station's synth, or off),
-// from the top each time, round and round. It is streamed by an audio element routed into the music bus, so the Music
-// slider sets its volume (a phone ignores an element's own volume) and it never sits decoded in memory. A new audio
-// context (after every app switch) needs a new element; it picks up where the old one was. Phones only start it from a
-// touch, so a touch that finds it waiting starts it (kickSong).
-export const SONG = { title: 'Line of Fire', src: 'assets/music/line-of-fire.mp3', gain: 0.4 }; /* gain: a finished recording is far louder than the synth */
-let song = null, songAt = 0, menuHold = false, menuPlay = false;
+// ------------------------------------------------------------------ the sortie songs
+// Recorded tracks that play through every sortie (Settings > Sortie music: all of them in turn, one of them, the
+// station's synth, or off). In turn, the order is shuffled when the game loads, each sortie starts on the next song and
+// the songs follow one another; one song alone plays round and round. Each is streamed by an audio element routed into the music bus, so the Music slider
+// sets its volume (a phone ignores an element's own volume) and none sits decoded in memory. A new audio context (after
+// every app switch) needs a new element; it picks up where the old one was. Phones only start one from a touch, so a
+// touch that finds it waiting starts it (kickSong).
+/** gain: each is trimmed to sit under the fight (a finished recording is far louder than the synth), matched by ear
+ *  level (the louder half of 400 ms windows: Line of Fire -12.0 dB, Dizzy Heights -12.5 dB). */
+export const TRACKS = [
+  { id: 'fire', title: 'Line of Fire', src: 'assets/music/line-of-fire.mp3', gain: 0.4 },
+  { id: 'dizzy', title: 'Dizzy Heights', src: 'assets/music/dizzy-heights.mp3', gain: 0.42 },
+];
+export const TRACK_BY_ID = Object.fromEntries(TRACKS.map((t) => [t.id, t]));
+/** The order the songs play in, in turn: shuffled each time the game loads, so the first song is not always the same. */
+const ORDER = TRACKS.map((t, i) => i); for (let i = ORDER.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ORDER[i], ORDER[j]] = [ORDER[j], ORDER[i]]; }
+let song = null, songAt = 0, lastTrack = null, turn = 0, menuHold = false, menuPlay = false;
+/** The setting as it stands ('song', from before there were two, means all of them). */
+const choice = () => { const c = G.state?.settings?.sortieMusic || 'all'; return c === 'song' ? 'all' : c; };
+/** The track that should be playing: the one chosen, or the one whose turn it is. */
+const trackNow = () => TRACK_BY_ID[choice()] || TRACKS[ORDER[turn % ORDER.length]];
 /** A menu is open in a sortie (ui/ui.js): the music pauses, unless the pilot presses play there; every time a menu
  *  opens it starts paused again. It carries on from where it was when the pilot plays on. */
 export function holdForMenu(on) { on = !!on; if (on && !menuHold) menuPlay = false; menuHold = on; }
 /** Whether the music is waiting on a menu now. */
 const menuQuiet = () => menuHold && !menuPlay;
-/** Whether the song should be playing now: a sortie, the setting on the song, music turned up, not paused by hand. */
-export const songWanted = () => !!G.state && G.mode === 'sortie' && (G.state.settings.sortieMusic || 'song') === 'song' && G.state.settings.music > 0 && G.state.settings.master > 0;
+/** Whether a song should be playing now: a sortie, the setting on the songs, music turned up. */
+export const songWanted = () => !!G.state && G.mode === 'sortie' && (choice() === 'all' || !!TRACK_BY_ID[choice()]) && G.state.settings.music > 0 && G.state.settings.master > 0;
+function seek(el, at) { try { el.currentTime = at; } catch { /* set once it has loaded */ } if (at) el.addEventListener('loadedmetadata', () => { if (Math.abs(el.currentTime - at) > 1) { try { el.currentTime = at; } catch { /* keep going */ } } }, { once: true }); }
+/** The one audio element for this context, playing the track that should be playing. One element for every song: a
+ *  phone lets an element it has let play play again, so the next song follows without waiting for a touch. */
 function songEl() {
-  if (song?.ctx === ctx) return song;
-  dropSong(); if (!ctx || typeof Audio === 'undefined') return null;
-  const el = new Audio(SONG.src); el.loop = true; el.preload = 'auto';
-  let node = null; try { node = ctx.createMediaElementSource(el); const trim = ctx.createGain(); trim.gain.value = SONG.gain; node.connect(trim); trim.connect(musicBus); } catch { return null; }
-  song = { el, node, ctx, blocked: false, pending: false };
-  try { el.currentTime = songAt; } catch { /* set once it has loaded */ }
-  el.addEventListener('loadedmetadata', () => { if (songAt && Math.abs(el.currentTime - songAt) > 1) { try { el.currentTime = songAt; } catch { /* keep going */ } } }, { once: true });
+  if (song?.ctx !== ctx) {
+    dropSong(); if (!ctx || typeof Audio === 'undefined') return null;
+    const el = new Audio(); el.preload = 'auto'; let node, trim;
+    try { node = ctx.createMediaElementSource(el); trim = ctx.createGain(); node.connect(trim); trim.connect(musicBus); } catch { return null; }
+    song = { el, node, trim, ctx, track: null, blocked: false, pending: false };
+    el.addEventListener('ended', () => { if (song?.el === el) nextSong(); }); /* in turn: the next song follows */
+  }
+  const tr = trackNow();
+  if (song.track !== tr) { const at = tr === lastTrack ? songAt : 0; /* rebuilt after an app switch: the same place */ song.track = tr; lastTrack = tr; songAt = at; song.el.src = tr.src; song.trim.gain.value = tr.gain; seek(song.el, at); }
+  song.el.loop = choice() !== 'all';
   return song;
 }
-function dropSong() { if (!song) return; songAt = song.el.currentTime || songAt; try { song.el.pause(); song.node.disconnect(); } catch { /* already gone */ } song.el.removeAttribute('src'); try { song.el.load(); } catch { /* released */ } song = null; }
+function dropSong() { if (!song) return; songAt = song.el.currentTime || songAt; lastTrack = song.track; try { song.el.pause(); song.node.disconnect(); song.trim.disconnect(); } catch { /* already gone */ } song.el.removeAttribute('src'); try { song.el.load(); } catch { /* released */ } song = null; }
 function playSong(s) { if (s.pending || !s.el.paused) return; s.pending = true; Promise.resolve(s.el.play()).then(() => { s.pending = false; s.blocked = false; }, () => { s.pending = false; s.blocked = true; }); }
-/** Every frame: start the song when a sortie wants it, stop it when it does not. */
+/** Every frame: start the song when a sortie wants it (changing it if the choice changed), stop it when it does not. */
 function tickSong() {
   const want = !!ctx && ctx.state === 'running' && songWanted() && !menuQuiet();
   if (want) { const s = songEl(); if (s && !s.blocked) playSong(s); }
@@ -233,11 +252,18 @@ function tickSong() {
 }
 /** From a touch: start the song if it is waiting on one. */
 function kickSong() { if (!ctx || ctx.state !== 'running' || !songWanted() || menuQuiet()) return; const s = songEl(); if (s) { s.blocked = false; playSong(s); } }
-/** A new sortie: from the top, and playing (unless the pilot paused it). */
-export function restartSong() { songAt = 0; menuPlay = false; if (song) { try { song.el.currentTime = 0; } catch { /* not loaded yet */ } } }
+/** A new sortie: in turn, the next song (the session's first sortie starts on the first of the shuffled order); from
+ *  the top, and playing. */
+let started = false;
+export function newSortieSong() { if (started && choice() === 'all') turn = (turn + 1) % TRACKS.length; started = true; songAt = 0; lastTrack = null; menuPlay = false; if (song && song.track === trackNow()) seek(song.el, 0); }
+/** On to the next song (in turn; with one song chosen, it starts again). */
+export function nextSong() { if (choice() === 'all') turn = (turn + 1) % TRACKS.length; songAt = 0; lastTrack = null; if (song && song.track === trackNow()) seek(song.el, 0); if (song) song.track = song.track === trackNow() ? song.track : null; if (!menuQuiet()) kickSong(); }
 /** The pause menu's play/pause: play the music there, or pause it again (it plays on anyway once the menu closes). */
 export function toggleSong() { menuPlay = !menuPlay; if (menuPlay) kickSong(); else if (song && menuHold) { songAt = song.el.currentTime; song.el.pause(); } return menuPlay; }
+/** Jump to a point in the song (seconds; checks use it to reach a song's end). */
+export function seekSong(t) { if (song) seek(song.el, t); }
 /** Back to the start of the song. */
-export function rewindSong() { songAt = 0; if (song) { try { song.el.currentTime = 0; } catch { /* not loaded yet */ } } }
-/** What the controls show: whether it is playing, held, and how far through (seconds). */
-export function songState() { return { title: SONG.title, playing: !!song && !song.el.paused, menu: menuHold, quiet: menuQuiet(), on: songWanted(), time: song ? song.el.currentTime || 0 : songAt, length: song && isFinite(song.el.duration) ? song.el.duration : 0 }; }
+export function rewindSong() { songAt = 0; if (song) seek(song.el, 0); }
+/** What the controls show: the song, whether it is playing or waiting on the menu, how far through (seconds), and
+ *  whether the songs are playing in turn. */
+export function songState() { const tr = trackNow(); return { title: tr.title, id: tr.id, all: choice() === 'all', playing: !!song && !song.el.paused, menu: menuHold, quiet: menuQuiet(), on: songWanted(), time: song && song.track === tr ? song.el.currentTime || 0 : songAt, length: song && song.track === tr && isFinite(song.el.duration) ? song.el.duration : 0 }; }

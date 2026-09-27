@@ -47,13 +47,14 @@ ok(BAL.bossShot > 1 && !/[^.]spawnBullet\(w, (?!x, y, vx)/.test(src), 'every bos
   ok(inMiddle === 0 && farCorner === 0, 'anywhere else, and from far across the field, shots fall straight down');
   foe.alive = false; p2.x = x0; }
 
-// ------------------------------------------------------------------ the sortie song (v2.28.0)
-{ const { songWanted, SONG } = await import('@last-orbit/audio/audio.js'); const set = G.state.settings, mode0 = G.mode, sm = set.sortieMusic, mu = set.music;
-  G.mode = 'sortie'; set.sortieMusic = 'song'; set.music = 0.5; const inSortie = songWanted();
-  set.sortieMusic = 'synth'; const synth = songWanted(); set.sortieMusic = 'off'; const off = songWanted(); set.sortieMusic = 'song'; set.music = 0; const quiet = songWanted(); set.music = 0.5;
+// ------------------------------------------------------------------ the sortie songs (v2.28.0, two from v2.28.1)
+{ const { songWanted, TRACKS } = await import('@last-orbit/audio/audio.js'); const set = G.state.settings, mode0 = G.mode, sm = set.sortieMusic, mu = set.music;
+  G.mode = 'sortie'; set.music = 0.5; const want = (v) => { set.sortieMusic = v; return songWanted(); };
+  const all = want('all'), one = want(TRACKS[1].id), legacy = want('song'), synth = want('synth'), off = want('off'); set.sortieMusic = 'all'; set.music = 0; const quiet = songWanted(); set.music = 0.5;
   G.mode = 'hangar'; const hangar = songWanted();
-  ok(inSortie && !synth && !off && !quiet && !hangar, 'the song plays in a sortie when chosen and the music is up; not with the synth or off chosen, the music down, or in the hangar');
-  ok(newState().settings.sortieMusic === 'song' && readFileSync(new URL('../' + SONG.src, import.meta.url)).length > 100000, 'the song is the default for sorties, and its file ships with the game');
+  ok(all && one && legacy && !synth && !off && !quiet && !hangar, 'songs play in a sortie (all in turn, one chosen, or the old setting); not with the synth or off, the music down, or in the hangar');
+  ok(newState().settings.sortieMusic === 'all' && TRACKS.length >= 2 && TRACKS.every((t) => readFileSync(new URL('../' + t.src, import.meta.url)).length > 100000), 'all songs in turn by default, and the file of every song ships with the game');
+  ok(TRACKS.every((t) => t.gain > 0 && t.gain < 0.6) && new Set(TRACKS.map((t) => t.id)).size === TRACKS.length, 'each song is trimmed to sit under the fight, and has its own id');
   G.mode = mode0; set.sortieMusic = sm; set.music = mu; }
 
 // ------------------------------------------------------------------ drops drawn smoothly (v2.28.1)
@@ -61,7 +62,6 @@ ok(BAL.bossShot > 1 && !/[^.]spawnBullet\(w, (?!x, y, vx)/.test(src), 'every bos
   ok(drops.every((d) => d.px !== undefined && d.py !== undefined && (d.px !== d.x || d.py !== d.y)), 'drops keep their last position each tick, so they are drawn smoothly between ticks (they juddered as they fell)');
   ok(new Set(drops.map((d) => d.ph)).size === drops.length && drops.every((d) => d.ph >= 0 && d.ph < 6.3), 'each drop has its own bob and spin phase (by place in the list, collecting one made the rest jump)');
   w3.pickups.length = 0; }
-{ const { SONG } = await import('@last-orbit/audio/audio.js'); ok(SONG.gain > 0 && SONG.gain < 0.6, 'the song is trimmed to sit under the fight: ' + SONG.gain); }
 
 // ------------------------------------------------------------------ the opening does not replay by itself (v2.25.2)
 const old = newState(); old.seen.intro = true; old.stats.sorties = 40; old.global.id = 'a'.repeat(32); old.global.told = true;
