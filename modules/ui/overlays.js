@@ -40,7 +40,7 @@ import { THREATS } from '@last-orbit/data/threat.js';
 import { COUNTER_TOP, STAR_HITS, STAR_KILLS } from '@last-orbit/data/counter.js';
 import { FIELD } from '@last-orbit/data/balance.js';
 import { MUTATOR_BY_ID } from '@last-orbit/data/daily.js';
-import { applyVolumes, playSfx } from '@last-orbit/audio/audio.js';
+import { applyVolumes, playSfx, SONG, songState, toggleSong, rewindSong } from '@last-orbit/audio/audio.js';
 import { h, clear, toggle, slider, select, scrollHints, setClass, setText } from '@last-orbit/ui/dom.js';
 import { setBoards, gl, pilotId, formatKey, parseKey, lookupPilot, signIn, boardsOn } from '@last-orbit/progression/global.js';
 import { updatesUnseen, markUpdatesSeen, cmpVersion } from '@last-orbit/progression/updates.js';
@@ -160,6 +160,7 @@ export function createOverlays(layer, hooks) {
       fromPause ? null : field('Save backup', h('button.btn.ghost.small.callsign-edit' + (backedUp() ? '' : '.nudge'), { onclick: () => showBackup() }, backupAge(), uiIcon('chevron'))),
       field('Master volume', slider(() => s.master, set('master'), 0, 1, 0.05, 'Master volume')),
       field('Music', slider(() => s.music, set('music'), 0, 1, 0.05, 'Music volume')),
+      field('Sortie music', select(SORTIE_MUSIC, () => s.sortieMusic || 'song', set('sortieMusic'), 'Sortie music')), /* the song, the station synth or off (audio/audio.js) */
       field('Sound effects', slider(() => s.sfx, set('sfx'), 0, 1, 0.05, 'Sound effects volume')),
       field('Hold screen sides to move', toggle(() => s.holdSides !== false, set('holdSides'), 'Hold screen sides to move')),
       field('Screen shake', toggle(() => s.shake, set('shake'), 'Screen shake')),
@@ -175,10 +176,34 @@ export function createOverlays(layer, hooks) {
     const el = h('div.modal.pause', { role: 'dialog', 'aria-label': 'Paused' },
       h('div.modal-head', h('div.kicker', `${run.mode === 'counter' ? 'Stage ' + run.stage : 'Wave ' + run.wave} · Level ${run.level}`), h('h2', 'Paused')),
       h('button.build.build-open', { onclick: () => showLoadout(null, true), 'aria-label': 'Show loadout details' }, [...buildSummary(run).childNodes], h('span.build-more', 'Details', uiIcon('chevron'))),
+      musicCard(),
       h('div.modal-actions', h('button.btn.primary', { onclick: close, 'data-autofocus': '' }, uiIcon('play'), 'Resume'),
         h('button.btn.ghost', { onclick: () => showSettings(true) }, uiIcon('gear'), 'Settings', updatesUnseen(G.state) ? h('i.upd-dot', '!') : null),
         h('button.btn.danger', { onclick: () => confirmAbandon() }, 'Abandon sortie')));
     mount('pause', el, (e) => { if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') { close(); return true; } return false; });
+  }
+  /** The pause menu's music: what is playing and how far through, play/pause and back to the start, the music volume,
+   *  and what plays in a sortie (the song, the station's synth, or nothing). */
+  const SORTIE_MUSIC = [['song', SONG.title], ['synth', 'Station synth'], ['off', 'Off']];
+  const clock = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+  function musicCard() {
+    const s = G.state.settings, title = h('b'), sub = h('small'), fill = h('i.mu-fill'), time = h('span.mu-time');
+    const play = h('button.btn.ghost.small.mu-btn', { onclick: () => { toggleSong(); playSfx('tab'); draw(); } });
+    const back = h('button.btn.ghost.small.mu-btn', { onclick: () => { rewindSong(); playSfx('tab'); draw(); }, 'aria-label': 'Play the song from the start' }, uiIcon('reroll'));
+    const pick = select(SORTIE_MUSIC, () => s.sortieMusic || 'song', (v) => { s.sortieMusic = v; hooks.saveNow?.('settings'); draw(); }, 'Sortie music');
+    const vol = slider(() => s.music, (v) => { s.music = v; applyVolumes(); draw(); }, 0, 1, 0.05, 'Music volume');
+    const el = h('section.music-card', h('div.mu-top', h('span.mu-ico', uiIcon('music')), h('div.mu-main', sub, title, h('div.mu-bar', fill), time), play, back),
+      h('label.mu-row', h('span', 'Music'), vol), h('label.mu-row', h('span', 'In sorties'), pick));
+    function draw() {
+      const st = songState(), song = (s.sortieMusic || 'song') === 'song';
+      setText(sub, !song ? 'Sortie music' : st.held ? 'Paused' : s.music <= 0 ? 'Music is turned down' : 'Now playing');
+      setText(title, song ? st.title : s.sortieMusic === 'synth' ? 'Station synth' : 'Music off');
+      clear(play).append(uiIcon(st.held ? 'play' : 'pause')); play.setAttribute('aria-label', st.held ? 'Play the song' : 'Pause the song'); play.disabled = back.disabled = !song;
+      fill.style.width = st.length ? `${Math.min(100, (st.time / st.length) * 100)}%` : '0%'; setText(time, st.length && song ? `${clock(st.time)} / ${clock(st.length)}` : '');
+      el.classList.toggle('off', !song);
+    }
+    draw(); const iv = setInterval(() => { if (!el.isConnected) { clearInterval(iv); return; } draw(); }, 500);
+    return el;
   }
   // ------------------------------------------------------------ the warp draft (data/warp.js)
   /** Before a warp (or a late Counterattack stage): what the catch-up builds towards, and one warp perk. The crew fits

@@ -1,5 +1,10 @@
 # Changelog
 
+## v2.28.0
+
+- **A song for your sorties.** "Teeth Sucking Bumbaclart" now plays through every sortie, from the top each time, round and round. The station keeps its own music.
+- **Music controls in the pause menu.** See what is playing and how far through it is, pause it or play it from the start, set the music volume, and choose what plays in sorties: the song, the station's own synth music, or nothing. The same choice is in Settings, under Sortie music.
+
 ## v2.27.1 — 2026-09-27
 
 - **No more safe corner.** The invaders' formation turns back before reaching the walls, so a ship tucked into either corner was out of reach of their straight-down shots. Now, in that strip by the wall, the columns nearest you angle their shots at you. Anywhere else on the field, shots fall straight as before. A ship parked in the corner now takes about as much fire as one in the middle, and normal play is no harder.

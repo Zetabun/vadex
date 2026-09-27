@@ -46,6 +46,15 @@ ok(BAL.bossShot > 1 && !/[^.]spawnBullet\(w, (?!x, y, vx)/.test(src), 'every bos
   ok(inMiddle === 0 && farCorner === 0, 'anywhere else, and from far across the field, shots fall straight down');
   foe.alive = false; p2.x = x0; }
 
+// ------------------------------------------------------------------ the sortie song (v2.28.0)
+{ const { songWanted, SONG } = await import('@last-orbit/audio/audio.js'); const set = G.state.settings, mode0 = G.mode, sm = set.sortieMusic, mu = set.music;
+  G.mode = 'sortie'; set.sortieMusic = 'song'; set.music = 0.5; const inSortie = songWanted();
+  set.sortieMusic = 'synth'; const synth = songWanted(); set.sortieMusic = 'off'; const off = songWanted(); set.sortieMusic = 'song'; set.music = 0; const quiet = songWanted(); set.music = 0.5;
+  G.mode = 'hangar'; const hangar = songWanted();
+  ok(inSortie && !synth && !off && !quiet && !hangar, 'the song plays in a sortie when chosen and the music is up; not with the synth or off chosen, the music down, or in the hangar');
+  ok(newState().settings.sortieMusic === 'song' && readFileSync(new URL('../' + SONG.src, import.meta.url)).length > 100000, 'the song is the default for sorties, and its file ships with the game');
+  G.mode = mode0; set.sortieMusic = sm; set.music = mu; }
+
 // ------------------------------------------------------------------ the opening does not replay by itself (v2.25.2)
 const old = newState(); old.seen.intro = true; old.stats.sorties = 40; old.global.id = 'a'.repeat(32); old.global.told = true;
 const erased = erasedState(old);

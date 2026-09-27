@@ -13,7 +13,7 @@ import { startSortie, endSortie, nextOffer, nextRelic, nextRoute, nextAnomaly, r
 import { resetOrigin } from '@last-orbit/progression/cipher.js';
 import { checkContracts, unlockCounter, refreshMenus, notePeaks } from '@last-orbit/progression/meta.js';
 import { save, load, hardReset, legacyBestWave } from '@last-orbit/save/save.js';
-import { initAudio, applyVolumes, tickMusic, setMusicMode, suspendAudio } from '@last-orbit/audio/audio.js';
+import { initAudio, applyVolumes, tickMusic, setMusicMode, suspendAudio, restartSong } from '@last-orbit/audio/audio.js';
 import { Renderer } from '@last-orbit/rendering/renderer.js';
 import { initUI } from '@last-orbit/ui/ui.js';
 
@@ -34,7 +34,7 @@ const hooks = {
   setInsets: (t, b) => renderer && renderer.setInsets(t, b),
   applySettings: () => { renderer.setQuality(); setNotation(G.state.settings.notation); document.getElementById('scan')?.classList.toggle('off', !G.state.settings.scanlines); },
   celebrate: (color) => { const p = G.world.player; renderer.celebrate(p.x, p.y + 6, color, 40); },
-  launch: (opts = {}) => { initAudio(); lastLaunch = opts; if (!startSortie(opts)) { toast('Today\'s Daily Sortie has already been flown.', 'warn'); return; } initWorld(); const run = G.state.run; recStart({ ship: run.ship, mode: run.mode || 'main', daily: !!run.daily }); ui.setMode('sortie'); save('launch'); if (nextOffer()) ui.nextChoice(); },
+  launch: (opts = {}) => { initAudio(); restartSong(); /* the sortie song from the top */ lastLaunch = opts; if (!startSortie(opts)) { toast('Today\'s Daily Sortie has already been flown.', 'warn'); return; } initWorld(); const run = G.state.run; recStart({ ship: run.ship, mode: run.mode || 'main', daily: !!run.daily }); ui.setMode('sortie'); save('launch'); if (nextOffer()) ui.nextChoice(); },
   abandon: () => finish('abandoned'),
   relaunch: (next, opts) => hooks.launch(next ? { ...lastLaunch, counter: lastLaunch.counter + 1, checkpoint: false } : { ...lastLaunch, checkpoint: false, ...opts }),
   counterNotice: () => {},
@@ -67,7 +67,7 @@ function offerResume() {
 function resumeSortie() {
   const st = G.state, r = st.resume; if (!r?.run) return;
   try {
-    initAudio(); st.run = r.run; delete r.live; resetOrigin(st.run); G.mode = 'sortie'; recalc(); initWorld();
+    initAudio(); restartSong(); st.run = r.run; delete r.live; resetOrigin(st.run); G.mode = 'sortie'; recalc(); initWorld();
     const w = G.world, run = st.run; w.player.hull = Math.max(0.05, r.hull ?? 1); w.player.shield = r.shield ?? 0;
     (r.barriers || []).forEach((hp, i) => { if (w.barriers[i]) w.barriers[i].hp = hp; });
     w.wave.num = Math.max(0, run.wave - 1); /* the wave before it: so the sector it is in does not count as a new one */

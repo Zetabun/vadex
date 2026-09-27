@@ -1,6 +1,7 @@
 // Audio: everything is synthesised with WebAudio, so the game ships no sound files.
 //   master ─┬─ sfx bus  (pooled one-shot voices, per-id rate limit, random pitch spread, global voice cap)
-//           └─ music bus (step sequencer: bass + arp + pad, scale/tempo per sector, extra layer during bosses)
+//           └─ music bus (step sequencer: bass + arp + pad, scale/tempo per sector, extra layer during bosses;
+//                         in a sortie, the song instead: a recorded track streamed through the same bus)
 // The context is created on the first user gesture (browser autoplay rules). When the page is hidden it is closed,
 // because iOS can leave a suspended context silent for good once the screen locks; the next touch builds a fresh one.
 import { G } from '@last-orbit/core/game.js';
@@ -35,6 +36,7 @@ export function initAudio() {
   sfxBus = ctx.createGain(); musicBus = ctx.createGain(); sfxBus.connect(master); musicBus.connect(master); master.connect(comp); comp.connect(ctx.destination);
   noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   applyVolumes(); fetching = null; loadSamples(); // a new context decodes its own copies
+  kickSong(); /* a gesture brought sound back: the song too, if a sortie wants it */
 }
 export function applyVolumes() { if (!ctx) return; const s = G.state.settings, t = ctx.currentTime; master.gain.setTargetAtTime(s.master, t, 0.05); sfxBus.gain.setTargetAtTime(s.sfx, t, 0.05); musicBus.gain.setTargetAtTime(s.music * 0.55, t, 0.2); }
 export function resumeAudio() {
@@ -46,11 +48,11 @@ export function resumeAudio() {
 export function suspendAudio(on) {
   if (!ctx) return;
   if (!on) { resumeAudio(); return; }
-  const old = ctx; ctx = null; pad = null; voices = 0; nextT = 0;
+  const old = ctx; ctx = null; pad = null; voices = 0; nextT = 0; dropSong(); /* the song stops with the page, and picks up where it was */
   try { Promise.resolve(old.close()).catch(() => {}); } catch { /* page is closing */ }
 }
 // Any touch, click or key brings sound back (or starts it), whichever screen it lands on.
-if (typeof document !== 'undefined') for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) document.addEventListener(ev, () => { if (!ctx || ctx.state !== 'running') initAudio(); }, { capture: true, passive: true });
+if (typeof document !== 'undefined') for (const ev of ['pointerdown', 'touchend', 'click', 'keydown']) document.addEventListener(ev, () => { if (!ctx || ctx.state !== 'running') initAudio(); else kickSong(); }, { capture: true, passive: true });
 
 export function playSfx(id, vol = 1, pitch = 1) {
   if (!ctx || ctx.state !== 'running') return; const d = S[id]; if (!d) return;
@@ -182,7 +184,8 @@ function note(type, f, t, dur, vol, cutoff) {
 }
 /** Call every frame; schedules a little ahead of the audio clock. */
 export function tickMusic() {
-  if (!ctx || ctx.state !== 'running' || G.state.settings.music <= 0 || G.state.settings.master <= 0) { if (pad && ctx) killPad(); return; }
+  tickSong();
+  if (!ctx || ctx.state !== 'running' || G.state.settings.music <= 0 || G.state.settings.master <= 0 || songWanted()) { if (pad && ctx) killPad(); return; } /* in a sortie with the song on, the synth is quiet */
   const si = mode.sector % 6, sc = SCALES[si], root = ROOTS[si], spb = 60 / (TEMPO[si] * (mode.boss ? 1.15 : 1)) / 2;
   if (!pad) { const g = ctx.createGain(); g.gain.value = 0; g.gain.setTargetAtTime(0.05, ctx.currentTime, 2); const fl = ctx.createBiquadFilter(); fl.type = 'lowpass'; fl.frequency.value = 500; fl.connect(g); g.connect(musicBus); const o = [0, 7, 12.07].map((iv) => { const x = ctx.createOscillator(); x.type = 'sawtooth'; x.frequency.value = hz(root + iv); x.connect(fl); x.start(); return x; }); pad = { g, o }; }
   if (nextT < ctx.currentTime) nextT = ctx.currentTime + 0.05;
@@ -194,3 +197,42 @@ export function tickMusic() {
     nextT += spb; step++;
   }
 }
+
+// ------------------------------------------------------------------ the sortie song
+// A recorded track that plays through every sortie (Settings > Sortie music: the song, the station's synth, or off),
+// from the top each time, round and round. It is streamed by an audio element routed into the music bus, so the Music
+// slider sets its volume (a phone ignores an element's own volume) and it never sits decoded in memory. A new audio
+// context (after every app switch) needs a new element; it picks up where the old one was. Phones only start it from a
+// touch, so a touch that finds it waiting starts it (kickSong).
+export const SONG = { title: 'Teeth Sucking Bumbaclart', src: 'assets/music/teeth-sucking-bumbaclart.mp3' };
+let song = null, songAt = 0, songHeld = false;
+/** Whether the song should be playing now: a sortie, the setting on the song, music turned up, not paused by hand. */
+export const songWanted = () => !!G.state && G.mode === 'sortie' && (G.state.settings.sortieMusic || 'song') === 'song' && G.state.settings.music > 0 && G.state.settings.master > 0;
+function songEl() {
+  if (song?.ctx === ctx) return song;
+  dropSong(); if (!ctx || typeof Audio === 'undefined') return null;
+  const el = new Audio(SONG.src); el.loop = true; el.preload = 'auto';
+  let node = null; try { node = ctx.createMediaElementSource(el); node.connect(musicBus); } catch { return null; }
+  song = { el, node, ctx, blocked: false, pending: false };
+  try { el.currentTime = songAt; } catch { /* set once it has loaded */ }
+  el.addEventListener('loadedmetadata', () => { if (songAt && Math.abs(el.currentTime - songAt) > 1) { try { el.currentTime = songAt; } catch { /* keep going */ } } }, { once: true });
+  return song;
+}
+function dropSong() { if (!song) return; songAt = song.el.currentTime || songAt; try { song.el.pause(); song.node.disconnect(); } catch { /* already gone */ } song.el.removeAttribute('src'); try { song.el.load(); } catch { /* released */ } song = null; }
+function playSong(s) { if (s.pending || !s.el.paused) return; s.pending = true; Promise.resolve(s.el.play()).then(() => { s.pending = false; s.blocked = false; }, () => { s.pending = false; s.blocked = true; }); }
+/** Every frame: start the song when a sortie wants it, stop it when it does not. */
+function tickSong() {
+  const want = !!ctx && ctx.state === 'running' && songWanted() && !songHeld;
+  if (want) { const s = songEl(); if (s && !s.blocked) playSong(s); }
+  else if (song && !song.el.paused) { songAt = song.el.currentTime; song.el.pause(); }
+}
+/** From a touch: start the song if it is waiting on one. */
+function kickSong() { if (!ctx || ctx.state !== 'running' || !songWanted() || songHeld) return; const s = songEl(); if (s) { s.blocked = false; playSong(s); } }
+/** A new sortie: from the top, and playing (unless the pilot paused it). */
+export function restartSong() { songAt = 0; songHeld = false; if (song) { try { song.el.currentTime = 0; } catch { /* not loaded yet */ } } }
+/** The pause menu's play/pause: held stays held until played again or a new sortie begins. */
+export function toggleSong() { songHeld = !songHeld; if (songHeld) { if (song) { songAt = song.el.currentTime; song.el.pause(); } } else kickSong(); return !songHeld; }
+/** Back to the start of the song. */
+export function rewindSong() { songAt = 0; if (song) { try { song.el.currentTime = 0; } catch { /* not loaded yet */ } } }
+/** What the controls show: whether it is playing, held, and how far through (seconds). */
+export function songState() { return { title: SONG.title, playing: !!song && !song.el.paused, held: songHeld, on: songWanted(), time: song ? song.el.currentTime || 0 : songAt, length: song && isFinite(song.el.duration) ? song.el.duration : 0 }; }
