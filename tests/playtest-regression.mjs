@@ -52,7 +52,7 @@ ok(BAL.bossShot > 1 && !/[^.]spawnBullet\(w, (?!x, y, vx)/.test(src), 'every bos
   G.mode = 'sortie'; set.music = 0.5; const want = (v) => { set.sortieMusic = v; return songWanted(); };
   const all = want('all'), one = want(TRACKS[1].id), legacy = want('song'), synth = want('synth'), off = want('off'); set.sortieMusic = 'all'; set.music = 0; const quiet = songWanted(); set.music = 0.5;
   G.mode = 'hangar'; const hangar = songWanted();
-  ok(all && one && legacy && !synth && !off && !quiet && !hangar, 'songs play in a sortie (all in turn, one chosen, or the old setting); not with the synth or off, the music down, or in the hangar');
+  ok(all && one && legacy && !synth && !off && !quiet && !hangar, 'songs play in a sortie (the songs, or an older choice of one song or the old setting, which now mean the songs); not with the synth or off, the music down, or in the hangar');
   ok(newState().settings.sortieMusic === 'all' && TRACKS.length >= 2 && TRACKS.every((t) => readFileSync(new URL('../' + t.src, import.meta.url)).length > 100000), 'all songs in turn by default, and the file of every song ships with the game');
   ok(TRACKS.every((t) => t.gain > 0 && t.gain < 0.6) && new Set(TRACKS.map((t) => t.id)).size === TRACKS.length, 'each song is trimmed to sit under the fight, and has its own id');
   G.mode = mode0; set.sortieMusic = sm; set.music = mu; }

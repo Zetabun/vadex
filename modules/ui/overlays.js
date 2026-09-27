@@ -184,8 +184,8 @@ export function createOverlays(layer, hooks) {
   }
   /** The pause menu's music: what is playing and how far through, play/pause and back to the start, the music volume,
    *  and what plays in a sortie (the song, the station's synth, or nothing). */
-  const SORTIE_MUSIC = [['all', 'All songs, in turn'], ...TRACKS.map((t) => [t.id, t.title]), ['synth', 'Station synth'], ['off', 'Off']];
-  const musicPick = (s) => (s.sortieMusic === 'song' ? 'all' : s.sortieMusic || 'all'); /* 'song': from before there were two */
+  const SORTIE_MUSIC = [['all', TRACKS.length > 1 ? 'Songs, shuffled' : TRACKS[0].title], ['synth', 'Station synth'], ['off', 'Off']];
+  const musicPick = (s) => (s.sortieMusic === 'synth' || s.sortieMusic === 'off' ? s.sortieMusic : 'all'); /* older choices (one song) mean the songs */
   const clock = (t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
   function musicCard() {
     const s = G.state.settings, title = h('b'), sub = h('small'), fill = h('i.mu-fill'), time = h('span.mu-time');

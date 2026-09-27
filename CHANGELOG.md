@@ -1,5 +1,11 @@
 # Changelog
 
+## v2.28.2
+
+- **Fixed: songs no longer repeat.** When a song finishes, the next one plays from its start. Before, the same song could start again, or the next one began at the wrong point and ended at once, handing straight back.
+- **Songs, shuffled.** Sortie music is now the songs (in a new random order each time you load the game, one after another), the station synth, or off. The pause menu's next-song button changes the song.
+- tools/serve.mjs serves the game locally with byte ranges, so checks can jump to a song's end.
+
 ## v2.28.1 — 2026-09-27
 
 - **Smoother drops.** Orbs and drops juddered as they fell and flew into your ship: unlike everything else, they were not drawn smoothly between the game's steps, and each one's gentle bob jumped whenever another was collected. Both fixed, and a wave's worth of drops flying in at once no longer piles up sparkles.

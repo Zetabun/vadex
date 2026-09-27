@@ -215,18 +215,21 @@ export const TRACK_BY_ID = Object.fromEntries(TRACKS.map((t) => [t.id, t]));
 /** The order the songs play in, in turn: shuffled each time the game loads, so the first song is not always the same. */
 const ORDER = TRACKS.map((t, i) => i); for (let i = ORDER.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [ORDER[i], ORDER[j]] = [ORDER[j], ORDER[i]]; }
 let song = null, songAt = 0, lastTrack = null, turn = 0, menuHold = false, menuPlay = false;
-/** The setting as it stands ('song', from before there were two, means all of them). */
-const choice = () => { const c = G.state?.settings?.sortieMusic || 'all'; return c === 'song' ? 'all' : c; };
-/** The track that should be playing: the one chosen, or the one whose turn it is. */
-const trackNow = () => TRACK_BY_ID[choice()] || TRACKS[ORDER[turn % ORDER.length]];
+/** The setting as it stands: the songs ('all'), the station synth or off (anything older, one song or 'song', means
+ *  the songs: they play one after another now, never one on repeat). */
+const choice = () => { const c = G.state?.settings?.sortieMusic || 'all'; return c === 'synth' || c === 'off' ? c : 'all'; };
+/** The song whose turn it is. */
+const trackNow = () => TRACKS[ORDER[turn % ORDER.length]];
 /** A menu is open in a sortie (ui/ui.js): the music pauses, unless the pilot presses play there; every time a menu
  *  opens it starts paused again. It carries on from where it was when the pilot plays on. */
 export function holdForMenu(on) { on = !!on; if (on && !menuHold) menuPlay = false; menuHold = on; }
 /** Whether the music is waiting on a menu now. */
 const menuQuiet = () => menuHold && !menuPlay;
 /** Whether a song should be playing now: a sortie, the setting on the songs, music turned up. */
-export const songWanted = () => !!G.state && G.mode === 'sortie' && (choice() === 'all' || !!TRACK_BY_ID[choice()]) && G.state.settings.music > 0 && G.state.settings.master > 0;
-function seek(el, at) { try { el.currentTime = at; } catch { /* set once it has loaded */ } if (at) el.addEventListener('loadedmetadata', () => { if (Math.abs(el.currentTime - at) > 1) { try { el.currentTime = at; } catch { /* keep going */ } } }, { once: true }); }
+export const songWanted = () => !!G.state && G.mode === 'sortie' && choice() === 'all' && G.state.settings.music > 0 && G.state.settings.master > 0;
+/** Go to a point in the song. Before its file has loaded, the point is set again once it has, for this song only (a
+ *  point meant for one song, left waiting, once jumped the next song to its end, which then ended at once). */
+function seek(el, at) { const src = el.src; try { el.currentTime = at; } catch { /* set once it has loaded */ } if (at && el.readyState < 1) el.addEventListener('loadedmetadata', () => { if (el.src === src && Math.abs(el.currentTime - at) > 1) { try { el.currentTime = at; } catch { /* keep going */ } } }, { once: true }); }
 /** The one audio element for this context, playing the track that should be playing. One element for every song: a
  *  phone lets an element it has let play play again, so the next song follows without waiting for a touch. */
 function songEl() {
@@ -238,8 +241,8 @@ function songEl() {
     el.addEventListener('ended', () => { if (song?.el === el) nextSong(); }); /* in turn: the next song follows */
   }
   const tr = trackNow();
-  if (song.track !== tr) { const at = tr === lastTrack ? songAt : 0; /* rebuilt after an app switch: the same place */ song.track = tr; lastTrack = tr; songAt = at; song.el.src = tr.src; song.trim.gain.value = tr.gain; seek(song.el, at); }
-  song.el.loop = choice() !== 'all';
+  if (song.track !== tr) { const at = tr === lastTrack ? songAt : 0; /* rebuilt after an app switch: the same place; another song: its start */ song.track = tr; lastTrack = tr; songAt = at; song.pending = false; song.blocked = false; song.el.src = tr.src; song.trim.gain.value = tr.gain; seek(song.el, at); }
+  song.el.loop = false; /* a song that ends hands over to the next (nextSong), never plays again by itself */
   return song;
 }
 function dropSong() { if (!song) return; songAt = song.el.currentTime || songAt; lastTrack = song.track; try { song.el.pause(); song.node.disconnect(); song.trim.disconnect(); } catch { /* already gone */ } song.el.removeAttribute('src'); try { song.el.load(); } catch { /* released */ } song = null; }
@@ -247,7 +250,7 @@ function playSong(s) { if (s.pending || !s.el.paused) return; s.pending = true; 
 /** Every frame: start the song when a sortie wants it (changing it if the choice changed), stop it when it does not. */
 function tickSong() {
   const want = !!ctx && ctx.state === 'running' && songWanted() && !menuQuiet();
-  if (want) { const s = songEl(); if (s && !s.blocked) playSong(s); }
+  if (want) { const s = songEl(); if (s && !s.blocked && !s.el.ended) playSong(s); } /* ended: its 'ended' hands over; playing it now would start it again */
   else if (song && !song.el.paused) { songAt = song.el.currentTime; song.el.pause(); }
 }
 /** From a touch: start the song if it is waiting on one. */
@@ -255,9 +258,9 @@ function kickSong() { if (!ctx || ctx.state !== 'running' || !songWanted() || me
 /** A new sortie: in turn, the next song (the session's first sortie starts on the first of the shuffled order); from
  *  the top, and playing. */
 let started = false;
-export function newSortieSong() { if (started && choice() === 'all') turn = (turn + 1) % TRACKS.length; started = true; songAt = 0; lastTrack = null; menuPlay = false; if (song && song.track === trackNow()) seek(song.el, 0); }
+export function newSortieSong() { if (started) turn = (turn + 1) % TRACKS.length; started = true; songAt = 0; lastTrack = null; menuPlay = false; if (song && song.track === trackNow()) seek(song.el, 0); }
 /** On to the next song (in turn; with one song chosen, it starts again). */
-export function nextSong() { if (choice() === 'all') turn = (turn + 1) % TRACKS.length; songAt = 0; lastTrack = null; if (song && song.track === trackNow()) seek(song.el, 0); if (song) song.track = song.track === trackNow() ? song.track : null; if (!menuQuiet()) kickSong(); }
+export function nextSong() { turn = (turn + 1) % TRACKS.length; songAt = 0; lastTrack = null; if (song) { if (song.track === trackNow()) seek(song.el, 0); /* only one song: from its start */ else song.track = null; /* songEl loads the next, from its start */ } if (!menuQuiet()) kickSong(); }
 /** The pause menu's play/pause: play the music there, or pause it again (it plays on anyway once the menu closes). */
 export function toggleSong() { menuPlay = !menuPlay; if (menuPlay) kickSong(); else if (song && menuHold) { songAt = song.el.currentTime; song.el.pause(); } return menuPlay; }
 /** Jump to a point in the song (seconds; checks use it to reach a song's end). */
@@ -266,4 +269,4 @@ export function seekSong(t) { if (song) seek(song.el, t); }
 export function rewindSong() { songAt = 0; if (song) seek(song.el, 0); }
 /** What the controls show: the song, whether it is playing or waiting on the menu, how far through (seconds), and
  *  whether the songs are playing in turn. */
-export function songState() { const tr = trackNow(); return { title: tr.title, id: tr.id, all: choice() === 'all', playing: !!song && !song.el.paused, menu: menuHold, quiet: menuQuiet(), on: songWanted(), time: song && song.track === tr ? song.el.currentTime || 0 : songAt, length: song && song.track === tr && isFinite(song.el.duration) ? song.el.duration : 0 }; }
+export function songState() { const tr = trackNow(); return { title: tr.title, id: tr.id, all: TRACKS.length > 1, playing: !!song && !song.el.paused, menu: menuHold, quiet: menuQuiet(), on: songWanted(), time: song && song.track === tr ? song.el.currentTime || 0 : songAt, length: song && song.track === tr && isFinite(song.el.duration) ? song.el.duration : 0 }; }
